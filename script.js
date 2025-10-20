@@ -863,7 +863,7 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
 
   function openBookingModal(dateStr) {
     // Redirect to request form page with date parameter
-    window.location.href = `tents-request.html?date=${dateStr}`;
+    window.location.href = `tents-chairs-request.html?date=${dateStr}`;
   }
 
   async function checkDateAvailability(dateStr) {
@@ -887,4 +887,235 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
 ===================================================== */
 /* =====================================================
    END OF CONFERENCE ROOM CALENDAR SCRIPT
+===================================================== */
+
+/* =====================================================
+   TENTS & CHAIRS REQUEST FORM SCRIPT
+   Add this section to your script.js file
+===================================================== */
+
+// Check if we're on the tents & chairs request form page
+if (window.location.pathname.endsWith('tents-chairs-request.html') || window.location.pathname.endsWith('/tents-chairs-request')) {
+  
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('tentsChairsForm');
+    
+    // Get URL parameters (if redirected from calendar with a date)
+    const urlParams = new URLSearchParams(window.location.search);
+    const preselectedDate = urlParams.get('date');
+    
+    if (preselectedDate) {
+      document.getElementById('startDate').value = preselectedDate;
+    }
+
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('startDate').min = today;
+    document.getElementById('endDate').min = today;
+
+    // Update end date minimum when start date changes
+    document.getElementById('startDate').addEventListener('change', function() {
+      const startDate = this.value;
+      document.getElementById('endDate').min = startDate;
+      
+      // Clear end date if it's before the new start date
+      const endDate = document.getElementById('endDate').value;
+      if (endDate && endDate < startDate) {
+        document.getElementById('endDate').value = '';
+      }
+    });
+
+    // Clear error on input
+    const inputs = form.querySelectorAll('input, select');
+    inputs.forEach(input => {
+      input.addEventListener('input', function() {
+        clearFieldError(this);
+      });
+    });
+
+    // Form submission
+    form.addEventListener('submit', handleTentsChairsSubmit);
+  });
+
+  async function handleTentsChairsSubmit(e) {
+    e.preventDefault();
+
+    // Get form values
+    const fullName = document.getElementById('fullName').value.trim();
+    const contactNumber = document.getElementById('contactNumber').value.trim();
+    const completeAddress = document.getElementById('completeAddress').value.trim();
+    const quantityChairs = document.getElementById('quantityChairs').value.trim();
+    const quantityTents = document.getElementById('quantityTents').value.trim();
+    const modeOfReceiving = document.getElementById('modeOfReceiving').value;
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    // Reset all errors
+    clearAllErrors();
+
+    let isValid = true;
+
+    // Validate Full Name
+  if (!fullName) {
+    setFieldError('fullName', 'Please enter your full name');
+    isValid = false;
+  } else if (fullName.length < 5) {
+    setFieldError('fullName', 'Full name must be at least 5 characters long');
+    isValid = false;
+  } else if (!/^[a-zA-Z\s]+$/.test(fullName)) {
+    setFieldError('fullName', 'Full name can only contain letters and spaces');
+    isValid = false;
+  }
+
+    // Validate Contact Number
+    if (!contactNumber) {
+      setFieldError('contactNumber', 'Contact number is required');
+      isValid = false;
+    } else if (!/^09\d{9}$/.test(contactNumber)) {
+      setFieldError('contactNumber', 'Contact must be 11 digits starting with 09');
+      isValid = false;
+    }
+
+    // Validate Complete Address
+    if (!completeAddress) {
+      setFieldError('completeAddress', 'Complete address is required');
+      isValid = false;
+    } else if (completeAddress.length < 10) {
+      setFieldError('completeAddress', 'Please provide a complete address');
+      isValid = false;
+    }
+
+    // Validate Quantity of Chairs
+    if (!quantityChairs) {
+      setFieldError('quantityChairs', 'Quantity of chairs is required');
+      isValid = false;
+    } else if (parseInt(quantityChairs) < 1) {
+      setFieldError('quantityChairs', 'Quantity must be at least 1');
+      isValid = false;
+    } else if (parseInt(quantityChairs) > 100) {
+      setFieldError('quantityChairs', 'Quantity cannot exceed 100');
+      isValid = false;
+    }
+
+    // Validate Quantity of Tents
+    if (!quantityTents) {
+      setFieldError('quantityTents', 'Quantity of tents is required');
+      isValid = false;
+    } else if (parseInt(quantityTents) < 1) {
+      setFieldError('quantityTents', 'Quantity must be at least 1');
+      isValid = false;
+    } else if (parseInt(quantityTents) > 20) {
+      setFieldError('quantityTents', 'Quantity cannot exceed 20');
+      isValid = false;
+    }
+
+    // Validate Mode of Receiving
+    if (!modeOfReceiving) {
+      setFieldError('modeOfReceiving', 'Please select a mode of receiving');
+      isValid = false;
+    }
+
+    // Validate Start Date
+    if (!startDate) {
+      setFieldError('startDate', 'Start date is required');
+      isValid = false;
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedStart = new Date(startDate + 'T00:00:00');
+      
+      if (selectedStart < today) {
+        setFieldError('startDate', 'Start date cannot be in the past');
+        isValid = false;
+      }
+    }
+
+    // Validate End Date
+    if (!endDate) {
+      setFieldError('endDate', 'End date is required');
+      isValid = false;
+    } else if (startDate && endDate < startDate) {
+      setFieldError('endDate', 'End date must be after start date');
+      isValid = false;
+    }
+
+    if (!isValid) {
+      // Scroll to first error
+      const firstError = document.querySelector('.error-message:not(:empty)');
+      if (firstError) {
+        firstError.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
+    // Prepare form data
+    const formData = {
+      fullName: fullName,
+      contactNumber: contactNumber,
+      completeAddress: completeAddress,
+      quantityChairs: parseInt(quantityChairs),
+      quantityTents: parseInt(quantityTents),
+      modeOfReceiving: modeOfReceiving,
+      startDate: startDate,
+      endDate: endDate,
+      status: 'pending',
+      requestDate: new Date().toISOString(),
+      type: 'tents-chairs'
+    };
+
+    try {
+      // TODO: In production, save to Firestore
+      // const user = auth.currentUser;
+      // if (!user) {
+      //   showAlert('Please login to submit a request.');
+      //   return;
+      // }
+      // await setDoc(doc(db, "requests", `request_${Date.now()}`), {
+      //   ...formData,
+      //   userId: user.uid,
+      //   userEmail: user.email
+      // });
+
+      console.log('Tents & Chairs Request:', formData);
+
+      // Show success message
+      showAlert('Your tents & chairs request has been submitted successfully! You can check the status in your profile.', true, () => {
+        window.location.href = 'user.html';
+      });
+
+    } catch (error) {
+      console.error('Error submitting request:', error);
+      showAlert('Failed to submit request. Please try again.');
+    }
+  }
+
+  function setFieldError(fieldId, message) {
+    const field = document.getElementById(fieldId);
+    const errorElement = document.getElementById(`error${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`);
+    
+    field.classList.add('error');
+    errorElement.textContent = message;
+  }
+
+  function clearFieldError(field) {
+    field.classList.remove('error');
+    const fieldId = field.id;
+    const errorElementId = `error${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`;
+    const errorElement = document.getElementById(errorElementId);
+    if (errorElement) {
+      errorElement.textContent = '';
+    }
+  }
+
+  function clearAllErrors() {
+    const errorElements = document.querySelectorAll('.error-message');
+    errorElements.forEach(el => el.textContent = '');
+    
+    const errorFields = document.querySelectorAll('.error');
+    errorFields.forEach(field => field.classList.remove('error'));
+  }
+}
+
+/* =====================================================
+   END OF TENTS & CHAIRS REQUEST FORM SCRIPT
 ===================================================== */
