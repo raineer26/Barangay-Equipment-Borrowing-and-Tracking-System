@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 400" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1">
+      <stop offset="0" stop-color="#281ABC" stop-opacity="1"/>
+      <stop offset="1" stop-color="#4f33e6" stop-opacity="1"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="400" fill="url(#g)"/>
+  <g opacity="0.12">
+    <rect x="40" y="30" width="1520" height="340" fill="#fff"/>
+  </g>
+  <text x="80" y="220" fill="#fff" font-size="46" font-family="'League Spartan', Arial">BARANGAY MAPULANG LUPA</text>
+</svg>

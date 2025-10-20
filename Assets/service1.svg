@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240">
+  <rect width="400" height="240" rx="12" fill="#fff6f8"/>
+  <circle cx="90" cy="90" r="40" fill="#ffecec"/>
+  <text x="200" y="200" text-anchor="middle" fill="#444">Lending of Chairs & Tents</text>
+</svg>

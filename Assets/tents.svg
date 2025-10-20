@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240">
+  <rect width="400" height="240" rx="12" fill="#f6f2ff"/>
+  <g transform="translate(40,40)">
+    <rect x="0" y="40" width="120" height="80" fill="#e9e0ff" stroke="#ccc"/>
+    <polygon points="60,0 0,40 120,40" fill="#d6ccff" stroke="#bdb3ff"/>
+  </g>
+  <text x="200" y="200" text-anchor="middle" fill="#444">Tents & Chairs</text>
+</svg>

@@ -1,0 +1,2298 @@
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+ 
+  
+}
+
+/* NAVIGATION */
+header {
+  background: #281ABC;
+  padding: 10px 20px;
+  color: #fff;
+}
+
+.nav-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'league spartan', sans-serif;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: bold;
+}
+
+.logo img {
+  width: 40px;
+  height: 40px;
+}
+
+nav ul {
+  list-style: none;
+  display: flex;
+  gap: 40px;
+  font-family: 'league spartan', sans-serif;
+  margin-right: 20px;
+  font-size: large;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+/* Dropdown */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%; 
+  left: 0;
+  background: #281ABC;
+  list-style: none;
+  padding: 8px 0;
+  min-width: 180px;
+  border-radius: 6px;
+  z-index: 1000;
+}
+
+.dropdown-menu li a {
+  display: block;
+  padding: 10px 15px;
+  color: white;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.dropdown-menu li a:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Show dropdown on hover */
+.dropdown:hover .dropdown-menu {
+  display: block;
+}
+
+.login-btn {
+  border: 1px solid white;
+  padding: 10px 20px;
+  border-radius: 20px;
+  
+}
+/* === NAVBAR USER ICON (user.html) === */
+.user-icon-li {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+}
+.user-icon-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.user-icon-btn:hover {
+  transform: scale(1.1);
+  border-color: #e0e0ff;
+}
+
+/* HERO */
+.hero {
+  position: relative;
+  text-align: center;
+  color: white;
+  
+}
+
+.hero img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  
+}
+
+.hero-text {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  
+}
+
+.hero-text h1 {
+  font-size: 90px; 
+  font-weight: 700;
+  font-family: 'League Spartan', sans-serif;
+  text-transform: uppercase;
+  margin: 0;
+  line-height: 1; 
+  letter-spacing: 2px;
+}
+
+.hero-text p {
+  margin-top: -10px;
+  font-size: 18px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  letter-spacing: 2px; 
+  text-transform: uppercase;
+}
+/* Hero-landing */
+.hero-landing {
+  position: relative;
+  text-align: center;
+  color: white;
+  
+}
+
+.hero-landing img {
+  width: 100%;
+  height: 400px;
+  object-fit: cover;
+  
+}
+.hero-landingtext {
+  text-align: left;
+  padding: 0;
+  font-size: 50px;
+  margin-left: 100px;
+}
+
+.hero-landingtext h1 {
+  font-size: 60px; 
+  font-weight: 700;
+  font-family: 'League Spartan', sans-serif;
+  text-transform: uppercase;
+  margin: 0;
+  line-height: 1; 
+  letter-spacing: 2px;
+  margin-top: -300px;
+  
+}
+.hero-landingtext h2 {
+  font-size: 60px; 
+  font-weight: 700;
+  font-family: 'League Spartan', sans-serif;
+  text-transform: uppercase;
+  margin: 0;
+  line-height: 1; 
+  letter-spacing: 2px;
+  color: #FFCB05;
+}
+.hero-landingtext p {
+  margin-top: 5px;
+  font-size: 20px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 800;
+  letter-spacing: 2px; 
+  
+}
+/* Floating overlapping quick-links card placed just below the navbar */
+.floating-card-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 80px; /* pull card up to overlap hero */
+  z-index: 50;
+  position: relative;
+  height: 200px;
+}
+.floating-card {
+  background: #fff;
+  width: 720px;
+  max-width: calc(100% - 40px);
+  border-radius: 12px;
+  padding: 18px 30px;
+  display: flex;
+  gap: 36px;
+  justify-content: space-around;
+  align-items: center;
+  box-shadow: 0 12px 30px rgba(7,18,57,0.12);
+  border: 2px solid rgba(34,98,204,0.03);
+}
+.floating-card .quick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.floating-card .quick-item img {
+  width: 98px;
+  height: 98px;
+  border-radius: 50%;
+  background: #fff;
+  padding: 6px;
+  box-shadow: 0 6px 16px rgba(7,18,57,0.08);
+}
+.floating-card .quick-label {
+  font-family: 'League Spartan', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: #222;
+}
+
+/* small responsive tweak */
+@media (max-width: 720px) {
+  .floating-card { flex-direction: row; gap: 18px; padding: 14px; }
+  .hero img { height: 220px; }
+}
+
+/* LOGIN FORM */
+.login-section {
+  display: flex;
+  justify-content: center;
+  padding: 30px;
+  background: #fff;
+  font-family: 'league spartan', sans-serif;
+}
+
+.login-form {
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 50px;
+}
+
+.login-form label {
+  font-size: 15px;
+  color: #212121;
+}
+
+.login-form input {
+  background: #f1e9f3;
+  box-shadow: inset 0 2px 6px rgba(44,44,255,0.15); 
+  border: 1px solid #ccc;
+  padding: 8px;
+  width: 100%;
+  font-size: 16px;
+  border-radius: 6px;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.btn {
+  display: inline-block; 
+  padding: 10px 0;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  width: 150px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(44,44,255,0.15); 
+  margin-left: 0 !important;
+  margin-bottom: 0; 
+  text-align: center; 
+  text-decoration: none; 
+  color: inherit; 
+}
+
+.primary {
+  background: #281ABC;
+  color: #fff;
+  border: none;
+}
+
+.secondary {
+  background: #fff;
+  color: #281ABC;
+  border: 1px solid #281ABC;
+  box-shadow: 0 2px 8px rgba(44,44,255,0.10); /* outer shadow */
+  border-radius: 6px;
+  margin-left: 16px;
+ 
+}
+
+/* Ensure anchor buttons show correct focus/hover states */
+.btn:hover,
+.btn:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px rgba(44,44,255,0.12);
+  text-decoration: none;
+}
+
+/* Hero Section */
+.signup-hero {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+
+.signup-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.signup-hero-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  text-align: center;
+}
+
+.signup-hero-text h1 {
+  font-size: 2.5rem;
+  font-weight: bold;
+}
+
+
+.signup-hero-text p {
+  font-size: 1rem;
+}
+
+/* Signup Section */
+.signup-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  
+}
+
+.signup-container {
+  max-width: 900px;
+  width: 100%;
+  text-align: center;
+  
+}
+
+.signup-title {
+  color: #281ABC;
+  font-size: 50px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  font-family: 'league spartan', sans-serif;
+  margin-top: 5px;
+}
+
+.signup-subtitle {
+  font-size: 20px;
+  color: #333;
+  font-family: 'poppins', sans-serif;
+    margin-bottom: 70px;
+}
+
+/* Form layout */
+.signup-form {
+  width: 100%;
+  font-family: 'league spartan', sans-serif;
+  margin-top: -60px;
+}
+
+.signup-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.signup-group {
+  width: 48%;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.signup-group label {
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+.signup-group input {
+  padding: 10px;
+  border: none;
+  outline: none;
+  background: #f3eefa;
+  border-radius: 6px;
+  font-size: 16px;
+   box-shadow: inset 0 2px 6px rgba(44,44,255,0.15); 
+  font-family: 'league spartan', sans-serif;
+  border: 2px solid #ccc;
+}
+
+.error-message {
+  font-size: 15px;
+  color: #d32f2f;
+  margin-top: 5px;
+  margin-bottom: 8px;
+  min-height: 20px;
+}
+
+/* Buttons */
+.signup-buttons {
+  margin-top: 50px;
+  text-align: center;
+}
+
+.signup-btn {
+  padding: 12px 40px;
+  font-size: 0.95rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s;
+  background: #281ABC;
+  color: #fff;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.signup-btn:hover {
+  background: #1f1594;
+}
+
+/* Custom Alert Styles */
+.custom-alert {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  text-align: center;
+  min-width: 300px;
+  font-family: 'league spartan', sans-serif;
+}
+
+.custom-alert.success {
+  border-top: 4px solid #281ABC;
+}
+
+.alert-message {
+  margin: 10px 0 20px;
+  font-size: 18px;
+  color: #333;
+}
+
+.alert-button {
+  padding: 8px 24px;
+  background: #281ABC;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-family: 'league spartan', sans-serif;
+}
+
+.alert-button:hover {
+  background: #1f1594;
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+}
+
+/* Password Strength Indicator */
+.password-strength-container {
+  margin-top: 5px;
+  font-size: 14px;
+  color: #666;
+}
+
+#password-strength {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+/* Validation styles - only shown after form submission */
+input.error {
+  border-color: #d32f2f !important;
+}
+
+/* CALENDAR SECTION STYLES */
+.calendar-section {
+  background: #fff;
+  padding: 40px 0 60px 0;
+  text-align: center;
+}
+.calendar-title {
+  color: #281abc;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 3rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+.calendar-desc {
+  color: #222;
+  font-family: 'Poppins', sans-serif;
+  font-size: 2rem;
+  margin-bottom: 32px;
+}
+.calendar-cards {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+  
+}
+.calendar-link-wrapper {
+  text-decoration: none;
+  color: inherit; 
+}
+
+/* Your existing CSS for the card */
+.calendar-card {
+  background: #fff;
+  border: 2px solid #ccc;
+  border-radius: 12px;
+  box-shadow: 2px 4px 4px #eee;
+  width: 540px;
+  height: 250px;
+  padding: 24px 0 18px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: box-shadow 0.2s, border 0.2s;
+}
+.calendar-card:hover {
+  box-shadow: 0 8px 24px #d1d1ff;
+  border: 2px solid #281abc;
+}
+.calendar-img {
+  width: 180px;
+  height: 180px;
+  margin-bottom: 18px;
+}
+.calendar-label-main {
+  color: #281abc;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.calendar-label-sub {
+  color: #222;
+  font-family: 'Poppins', sans-serif;
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+
+/*SERVICES SECTION STYLES */
+.services-section {
+  
+  padding: 48px 0 60px 0;
+  text-align: center;
+}
+.services-title {
+  color: #281abc;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 3rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+.services-desc {
+  color: #222;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  margin-bottom: 32px;
+}
+.services-cards {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+.service-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 2px 4px 12px #e0d6f7;
+  width: 540px;
+  height: 370px;
+  padding: 0 0 24px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.service-info {
+  padding: 18px 24px 0 24px;
+  text-align: left;
+  width: 100%;
+}
+.service-label-main {
+  color: #281abc;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  margin-left: 10px;
+}
+.service-label-desc {
+  color: #222;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  margin-bottom: 18px;
+  margin-left: 10px;
+}
+.service-btn {
+  background: #281abc;
+  color: #fff;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 32px;
+  cursor: pointer;
+  margin-top: 8px;
+  box-shadow: 0 2px 8px #d1d1ff;
+  transition: background 0.2s, color 0.2s;
+}
+.service-btn:hover, .service-btn:focus {
+  background: #fff;
+  color: #281abc;
+  border: 2px solid #281abc;
+}
+
+/* === SERVICES SECTION IMAGE CENTERING === */
+.service-img-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.service-img {
+  width: 300px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 18px;
+  margin-top: 24px;
+  box-shadow: 0 2px 8px #e0d6f7;
+}
+/* === ABOUT THE BARANGAY SECTION (user.html) === */
+.about-section {
+  padding: 48px 0 48px 0;
+  text-align: center;
+}
+.about-title {
+  color: #281abc;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 3rem;
+  font-weight: 600;
+  margin-bottom: 24px;
+  letter-spacing: 1px;
+}
+.about-content {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: left;
+}
+.about-img {
+  width: 500px;
+  height: 300px;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px #e0d6f7;
+}
+.about-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.about-text p {
+  color: #222;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  margin-bottom: 16px;
+}
+.about-btn {
+  background: #281abc;
+  color: #fff;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 32px;
+  cursor: pointer;
+  margin-top: 8px;
+  box-shadow: 0 2px 8px #d1d1ff;
+  transition: background 0.2s, color 0.2s;
+}
+.about-btn:hover, .about-btn:focus {
+  background: #fff;
+  color: #281abc;
+  border: 2px solid #281abc;
+}
+
+/* === CONTACT US SECTION (user.html) === */
+.contact-section {
+  padding: 48px 0 48px 0;
+  text-align: center;
+}
+.contact-title {
+  color: #281abc;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 3rem;
+  font-weight: 600;
+  margin-bottom: 24px;
+  letter-spacing: 1px;
+}
+.contact-content {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 0;
+  max-width: 700px;
+  margin: 0 auto 32px auto;
+}
+.contact-box {
+  width: 420px; 
+  height: 150px;  
+  background: #fff;
+  flex: 1;
+  padding: 32px 28px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  color: #222;
+  text-align: left;
+  box-shadow: 0 2px 8px #e0d6f7;
+}
+
+.contact-box-left {
+  border-radius: 12px 0 0 12px;
+  border-right: 2px solid #f3ecfa;
+  background-color: #281ABC;
+  color: #fff;
+}
+.contact-box-right {
+  border-radius: 0 12px 12px 0;
+}
+.contact-btn {
+  background: #281abc;
+  color: #fff;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 32px;
+  cursor: pointer;
+  margin-top: 8px;
+  box-shadow: 0 2px 8px #d1d1ff;
+  transition: background 0.2s, color 0.2s;
+}
+.contact-btn:hover, .contact-btn:focus {
+  background: #fff;
+  color: #281abc;
+  border: 2px solid #281abc;
+}
+
+/* FOOTER */
+footer {
+  color: white;
+  padding: 20px;
+  /* use svg placeholder if actual photo unavailable */
+  background-image: url('Assets/Hall.jpg');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  min-height: 360px;
+}
+
+
+.footer-container {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 40px;
+  margin-left: 30px;
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 450px;
+  margin-left: 30px;
+}
+
+.footer-logo img {
+  width: 80px;
+  height: auto;
+}
+
+.footer-logo p {
+  margin: 0;
+  font-size: 25px;
+  font-family: 'league spartan', sans-serif;
+  font-style: bold;
+}
+
+
+.footer-links h3 {
+  margin-bottom: 10px;
+  font-size: 30px;
+  font-family: 'league spartan', sans-serif;
+}
+
+.footer-links ul {
+  list-style: none;
+  padding-left: 0;
+  margin-left: 0;
+}
+
+.footer-links li {
+  font-size: 20px;
+  margin-top: 5px;
+  font-family: 'Poppins', sans-serif;
+  text-align: left;
+}
+
+.footer-links p {
+  font-size: 20px;
+  margin: 5px 0;
+  font-family: 'Poppins', sans-serif;
+}
+
+.footer-bottom {
+  text-align: center;
+  font-size: 20px;
+}
+
+/* USER PROFILE PAGE LAYOUT */
+.user-profile-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 40px;
+}
+
+.user-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 24px;
+}
+
+.profile-image-placeholder {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: #d9d9d9;
+  border: 2px solid #281abc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  color: #888;
+}
+
+.user-profile-name {
+  font-size: 2.2rem;
+  font-family: 'League Spartan', sans-serif;
+  color: #281abc;
+  font-weight: bold;
+}
+
+.user-profile-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.edit-profile-btn {
+  background: #fff;
+  color: #281abc;
+  border: 2px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 8px 22px;
+  font-size: 1rem;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.change-password-btn {
+  background: #281abc;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 22px;
+  font-size: 1rem;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-profile-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.user-info-card {
+  background: #fff;
+  border: 2px solid #d9d9d9;
+  border-radius: 12px;
+  padding: 28px 32px;
+  font-family: 'Poppins', sans-serif;
+  box-shadow: 0 2px 8px rgba(44,44,255,0.08);
+  min-width: 320px;
+}
+
+.user-info-card h2 {
+  font-size: 1.3rem;
+  font-family: 'League Spartan', sans-serif;
+  font-weight: bold;
+  margin-bottom: 18px;
+}
+
+.info-item {
+  margin-bottom: 14px;
+}
+.info-label {
+  font-weight: bold;
+  display: block;
+  font-size: 1.05rem;
+  margin-bottom: 2px;
+}
+.info-value {
+  font-size: 1rem;
+  color: #222;
+}
+
+.user-request-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.request-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 18px;
+}
+.request-status-header h2 {
+  font-size: 1.3rem;
+  font-family: 'League Spartan', sans-serif;
+  font-weight: bold;
+}
+.view-all-requests {
+  font-size: 0.95rem;
+  color: #281abc;
+  text-decoration: none;
+  font-family: 'Poppins', sans-serif;
+  margin-left: 18px;
+}
+.request-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+.request-card {
+  background: #fff;
+  border: 2px solid #222;
+  border-radius: 12px;
+  padding: 22px 24px 18px 24px;
+  box-shadow: none;
+  min-width: 340px;
+  max-width: 700px;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.request-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.request-title {
+  font-weight: bold;
+  font-size: 1.15rem;
+  color: #222;
+  font-family: 'League Spartan', sans-serif;
+}
+.request-status {
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 4px 18px;
+  border-radius: 8px;
+  margin-left: 12px;
+  display: inline-block;
+}
+.request-status.approved {
+  background: #eafbe7;
+  color: #2e8b57;
+}
+.request-status.pending {
+  background: #fffbe7;
+  color: #bfa100;
+}
+.request-details {
+  font-size: 0.98rem;
+  color: #888;
+  margin-bottom: 2px;
+  font-family: 'Poppins', sans-serif;
+}
+.request-view {
+  margin-top: 6px;
+  align-self: flex-end;
+  background: #281abc;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 28px;
+  font-size: 1.08rem;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #d1d1ff;
+  transition: background 0.2s, color 0.2s, border 0.2s, box-shadow 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
+.request-view:hover {
+  background: #fff;
+  color: #281abc;
+  border: 2px solid #281abc;
+  box-shadow: 0 2px 8px #d1d1ff;
+}
+.make-request-btn {
+  background: #281abc;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 38px;
+  font-size: 1.08rem;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 24px;
+  align-self: flex-end;
+}
+
+/* CONTACT PAGE STYLES*/
+.contact-page {
+  padding: 60px 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.contact-page-title {
+  text-align: center;
+  font-size: 3rem;
+  font-weight: 600;
+  color: #281abc;
+  margin-bottom: 20px;
+  font-family: 'League Spartan', sans-serif;
+}
+
+.contact-subtitle {
+  text-align: center;
+  color: #666;
+  margin-bottom: 50px;
+  font-size: 1.2rem;
+  font-family: 'Poppins', sans-serif;
+}
+
+.contact-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 30px;
+  justify-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.contact-card {
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  padding: 25px;
+  display: flex;
+  align-items: flex-start;
+  width: 550px;
+  height: 150px;
+  transition: transform 0.3s ease;
+ 
+}
+
+.contact-card:hover {
+  transform: translateY(-5px);
+}
+
+.contact-icon {
+  width: 100px;
+  height: 100px;
+  background: #ffc107;
+  border-radius: 50%;
+  margin-right: 20px;
+  flex-shrink: 0;
+}
+
+.contact-info {
+  flex: 1;
+}
+
+.contact-label {
+  font-weight: bold;
+  color: #281abc;
+  margin-bottom: 8px;
+  font-size: 1.1rem;
+  font-family: 'League Spartan', sans-serif;
+}
+
+.contact-details {
+  color: #666;
+  line-height: 1.6;
+  font-family: 'Poppins', sans-serif;
+  
+}
+
+.contact-details ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.contact-details li {
+  margin-bottom: 5px;
+}
+
+.contact-details li:last-child {
+  margin-bottom: 0;
+}
+
+/* USER PROFILE PAGE STYLES */
+.profile-main-content {
+    padding: 50px 20px;
+    background-color: #f9faff; /* A very light blue/gray background */
+    font-family: 'Poppins', sans-serif;
+}
+
+.profile-card-container {
+    max-width: 1200px;
+    margin: -100px auto 0 auto; /* Pulls the card up to overlap the hero */
+    position: relative;
+    z-index: 50;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(7, 18, 57, 0.12);
+    padding: 30px;
+}
+
+/* Profile Header Section (Avatar, Name, Buttons) */
+.profile-header-section {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    padding-bottom: 30px;
+    margin-bottom: 30px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.profile-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background-color: #e0e0e0;
+    border: 3px solid #281ABC;
+    flex-shrink: 0;
+    object-fit: cover;
+}
+
+.profile-name {
+    font-family: 'League Spartan', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #222;
+    flex-grow: 1;
+}
+
+.profile-actions {
+    display: flex;
+    gap: 15px;
+    flex-shrink: 0;
+}
+
+.profile-actions .btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+}
+
+/* Profile Details Grid Layout */
+.profile-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr; /* Makes the request status card wider */
+    gap: 30px;
+}
+
+/* Shared Card Styles */
+.info-card {
+    background-color: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.info-card h3 {
+    font-family: 'League Spartan', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #281ABC;
+    margin-bottom: 20px;
+}
+
+/* Personal Information Card Specifics */
+.personal-info-card .info-group {
+    margin-bottom: 18px;
+}
+
+.personal-info-card .info-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #333;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.personal-info-card .info-value {
+    font-size: 1rem;
+    color: #555;
+}
+
+/* Request Status Card Specifics */
+.request-status-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.view-all-requests {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #281ABC;
+    text-decoration: none;
+}
+.view-all-requests:hover {
+    text-decoration: underline;
+}
+
+.request-item {
+    background: #f9faff;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #e8e8e8;
+}
+
+.request-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.request-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #222;
+}
+
+.request-meta, .request-purpose, .request-quantity {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 4px;
+}
+
+.request-status-badge {
+    padding: 5px 12px;
+    border-radius: 16px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-align: center;
+    min-width: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+
+.request-status-badge.approved {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.request-status-badge.pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.request-status-badge .view-link {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #281ABC;
+    text-decoration: underline;
+}
+
+.make-new-request-btn {
+    margin-top: auto; /* Pushes button to the bottom if card has extra space */
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+/* UserProfile.html button hover effects */
+.edit-profile-btn:hover,
+.change-password-btn:hover,
+.make-request-btn:hover {
+  background: #fff;
+  color: #281abc;
+  border: 2px solid #281abc;
+}
+
+/* --- ABOUT PAGE STYLES --- */
+/* --- FOOTER LINK STYLES --- */
+footer a {
+  color: #fff !important;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+footer a:hover {
+  color: #FFCB05;
+}
+.about-hero {
+  position: relative;
+  text-align: center;
+  color: white;
+  height: 300px;
+  overflow: hidden;
+}
+
+.about-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.7);
+}
+
+.about-hero-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.about-hero-text h1 {
+  font-size: 3.5rem;
+  font-weight: 700;
+  font-family: 'League Spartan', sans-serif;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.about-hero-text p {
+  font-size: 1.2rem;
+  font-family: 'Poppins', sans-serif;
+  margin-top: 10px;
+}
+
+.history-section {
+  padding: 40px 20px;
+  background: #fff;
+}
+
+.history-section .about-content {
+  display: flex;
+  flex-direction: column;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  gap: 30px;
+}
+
+.history-image {
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.history-image img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  display: block;
+}
+
+.history-text {
+  width: 100%;
+}
+
+.history-text p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  line-height: 1.8;
+  color: #222;
+  margin-bottom: 20px;
+  text-align: justify;
+}
+
+.history-text p:last-child {
+  margin-bottom: 0;
+}
+
+/* Media query for larger screens */
+@media (min-width: 768px) {
+  .history-section .about-content {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 40px;
+  }
+
+  .about-section history-section .about-content.reverse {
+    flex-direction: row-reverse;
+  }
+
+  .history-image {
+    flex: 1;
+    max-width: 50%;
+  }
+
+  .history-text {
+    flex: 1;
+    padding-top: 20px;
+  }
+}
+
+/* Add separator between sections */
+.history-section + .history-section {
+  border-top: 1px solid #eee;
+  margin-top: 20px;
+  padding-top: 40px;
+}
+
+.mission-vision-section {
+  padding: 60px 20px;
+  background: #fff;
+}
+
+.mission-vision-container {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.mission-box, .vision-box {
+  flex: 1;
+  padding: 40px;
+  text-align: center;
+  max-width: 500px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mission-box {
+  background: #281ABC;
+}
+
+.vision-box {
+  background: #FFCB05;
+}
+
+
+/* Restore bold white header style for the Mission/Vision boxes (new .mv-header) */
+.mission-box .mv-header,
+.vision-box .mv-header {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 2.6rem;
+  color: #fff;
+  text-transform: uppercase;
+  font-weight: 800;
+  margin: 0 0 10px 0;
+  letter-spacing: 1px;
+}
+
+/* Make the descriptive text in the mission/vision boxes readable on both backgrounds */
+.mission-box .mv-text,
+.mission-box .mv-placeholder {
+  color: #fff;
+}
+.vision-box .mv-text,
+.vision-box .mv-placeholder {
+  color: #000; /* darker text on yellow background for readability */
+}
+
+.officials-section {
+  padding: 60px 20px;
+  background: #fff;
+}
+
+.officials-section h2 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 2.5rem;
+  color: #281ABC;
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.officials-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.official-card {
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.official-card:hover {
+  transform: translateY(-5px);
+}
+
+.official-card img {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+}
+
+.official-info {
+  padding: 20px;
+  text-align: center;
+}
+
+.official-info h3 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1.3rem;
+  color: #281ABC;
+  margin-bottom: 5px;
+}
+
+.official-info p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  color: #666;
+}
+
+.main-official {
+  grid-column: 1 / -1;
+  max-width: 500px;
+  margin: 0 auto 20px;
+}
+
+/* Center the bottom three officials (Secretary, Treasurer, SK) */
+.officials-bottom {
+  grid-column: 1 / -1; /* span full width of grid */
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  align-items: stretch;
+  padding: 20px 0 0 0;
+  flex-wrap: wrap; /* allow wrapping on smaller screens */
+}
+
+.officials-bottom .official-card {
+  max-width: 300px; /* slightly larger for better readability */
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin: 0 6px;
+}
+
+.officials-bottom .official-card img {
+  height: 210px;
+  object-fit: cover;
+}
+
+/* Stack centered on small screens */
+@media (max-width: 600px) {
+  .officials-bottom {
+    justify-content: center;
+    gap: 18px;
+  }
+  .officials-bottom .official-card {
+    max-width: 360px;
+    width: calc(100% - 40px);
+    margin: 0 auto;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .mission-vision-container {
+    flex-direction: column;
+  }
+  
+  .mission-box, .vision-box {
+    max-width: 100%;
+  }
+  
+  .officials-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+  
+  .about-hero-text h1 {
+    font-size: 2.5rem;
+  }
+}
+
+/* ================================================
+   CONFERENCE ROOM CALENDAR PAGE STYLES
+   Add this to your style.css file
+================================================ */
+
+/* Calendar Hero Section */
+.calendar-hero {
+  position: relative;
+  height: 280px;
+  background: linear-gradient(135deg, #281ABC 0%, #1a0e7a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.calendar-hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('Assets/Hall.jpg') center/cover;
+  opacity: 1;
+  z-index: 1;
+}
+
+.calendar-hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  color: white;
+  padding: 20px;
+}
+
+.calendar-hero-content h1 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 3.5rem;
+  font-weight: 700;
+  margin: 0 0 15px 0;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.calendar-hero-content .highlight-yellow {
+  color: #FFCB05;
+}
+
+.calendar-hero-content p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.1rem;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* Calendar Container */
+.calendar-container {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 0 50px 0;
+  position: relative;
+  background: white;
+}
+
+/* Calendar Top Bar - Contains Back Button, Legend, Month, and Today Button */
+.calendar-top-bar {
+  display: grid;
+  grid-template-columns: 250px 1fr 250px;
+  align-items: center;
+  padding: 30px 40px;
+  position: relative;
+  z-index: 10;
+  background: white;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Back to Dashboard Button (Top Left) */
+.calendar-back-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: flex-start;
+}
+
+.back-to-dashboard-btn {
+  background: #281ABC;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'League Spartan', sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 8px rgba(40, 26, 188, 0.3);
+  line-height: 1.25;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.back-to-dashboard-btn:hover {
+  background: #1a0e7a;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 12px rgba(40, 26, 188, 0.4);
+}
+
+.back-arrow {
+  font-size: 1.3rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.back-text {
+  text-align: left;
+  line-height: 1.3;
+}
+
+.legend-color {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #000;
+}
+
+.legend-booked {
+  background-color: #FFCB05;
+}
+/* Legend (Below Back Button) */
+.legend-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.9rem;
+  color: #222;
+  padding-left: 5px;
+  padding-top: 80px;
+}
+
+/* Center Section - Month Display */
+.calendar-center-section {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  padding-top: 90px;
+}
+
+.calendar-month-display {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 2.2rem;
+  color: #222;
+  margin: 0;
+  font-weight: 700;
+  text-align: center;
+  min-width: 200px;
+}
+
+/* Right Section - Today Button */
+.calendar-right-section {
+  display: flex;
+  align-items: flex-start;
+}
+
+.today-button {
+  background: white;
+  color: #222;
+  border: 2px solid #ddd;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.today-button:hover {
+  border-color: #281ABC;
+  background: #f9f9ff;
+  transform: translateY(-2px);
+}
+
+.today-icon {
+  font-size: 1.1rem;
+}
+
+.today-arrow {
+  font-size: 0.7rem;
+  margin-left: 4px;
+}
+
+
+/* Navigation Controls - REMOVED (functionality moved to Today controls) */
+
+/* Calendar Grid */
+.calendar-grid {
+  background: white;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  border: 2px solid #000;
+  max-width: 1400px;
+  width: 96%;
+  margin: 15px auto 20px auto;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: auto;
+}
+
+.calendar-day-header {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #000;
+  text-align: center;
+  padding: 18px 8px;
+  background: white;
+  border-bottom: 2px solid #000;
+  border-right: 1px solid #ccc;
+}
+
+.calendar-day-header:last-child {
+  border-right: none;
+}
+
+#calendarDates {
+  display: contents;
+}
+
+.calendar-date {
+  aspect-ratio: 1.5;
+  border-right: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;
+  padding: 14px 12px;
+  text-align: left;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  position: relative;
+  min-height: 110px;
+  background: white;
+}
+
+/* Remove right border from last column (7th items) */
+.calendar-date:nth-child(7n+7) {
+  border-right: none;
+}
+
+/* Remove bottom border from last row */
+.calendar-date:nth-last-child(-n+7) {
+  border-bottom: none;
+}
+
+.calendar-date .date-number {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 5px;
+  line-height: 1;
+}
+
+.calendar-date.empty {
+  background: white;
+  cursor: default;
+}
+
+.calendar-date.available:hover {
+  background: #f8f8ff;
+  box-shadow: inset 0 0 0 3px #281ABC;
+  z-index: 10;
+}
+
+.calendar-date.booked {
+  background: #FFCB05;
+  cursor: default;
+}
+
+.calendar-date.booked .date-number {
+  color: #000;
+}
+
+.calendar-date.today {
+  background: white;
+}
+
+.calendar-date.today .date-number {
+  color: #000;
+  font-weight: 700;
+}
+
+.booking-label {
+  font-size: 0.8rem;
+  color: #000;
+  font-weight: 600;
+  margin-top: 8px;
+  text-align: left;
+  word-wrap: break-word;
+  line-height: 1.2;
+}
+
+.calendar-date.past {
+  background: #fafafa;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.calendar-date.past .date-number {
+  color: #ccc;
+}
+
+/* Modal Styles */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.6);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background-color: #fff;
+  margin: 5% auto;
+  padding: 35px 40px;
+  border: none;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 650px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideDown 0.4s ease;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-content h2 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1.8rem;
+  color: #281ABC;
+  margin-bottom: 25px;
+  font-weight: 700;
+}
+
+.close-modal {
+  color: #aaa;
+  float: right;
+  font-size: 32px;
+  font-weight: bold;
+  cursor: pointer;
+  line-height: 20px;
+  transition: color 0.3s;
+}
+
+.close-modal:hover,
+.close-modal:focus {
+  color: #281ABC;
+}
+
+/* Form Styles */
+.form-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group.full-width {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  transition: border-color 0.3s;
+  background: #f9f9ff;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #281ABC;
+  background: white;
+}
+
+.form-group input[readonly] {
+  background: #e8e8ff;
+  color: #281ABC;
+  font-weight: 600;
+  cursor: not-allowed;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.month-nav-btn {
+  background: #281ABC;
+  color: white;
+  border: none;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(40, 26, 188, 0.3);
+  padding: 0;
+  line-height: 1;
+}
+
+.month-nav-btn:hover {
+  background: #1a0e7a;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(40, 26, 188, 0.4);
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .calendar-grid {
+    width: 94%;
+  }
+}
+
+@media (max-width: 768px) {
+  .calendar-hero-content h1 {
+    font-size: 2rem;
+  }
+
+  .calendar-hero-content p {
+    font-size: 0.95rem;
+  }
+
+  .calendar-top-bar {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 20px;
+  }
+
+  .calendar-back-section {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .calendar-center-section,
+  .calendar-right-section {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .calendar-month-display {
+    font-size: 1.8rem;
+    min-width: 180px;
+  }
+
+  .calendar-grid {
+    border: 2px solid #000;
+    width: 98%;
+    margin: 10px auto 20px auto;
+  }
+
+  .calendar-date {
+    min-height: 80px;
+    padding: 10px 8px;
+  }
+
+  .calendar-date .date-number {
+    font-size: 1.1rem;
+  }
+
+  .booking-label {
+    font-size: 0.7rem;
+  }
+
+  .form-row {
+    flex-direction: column;
+  }
+
+  .modal-content {
+    width: 95%;
+    padding: 25px 20px;
+  }
+  
+  .month-nav-btn {
+    width: 64px;
+    height: 64px;
+    font-size: 1.6rem;
+    padding: 10px;
+  }
+  
+  .legend-color {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .back-to-dashboard-btn {
+    font-size: 0.7rem;
+    padding: 8px 12px;
+  }
+
+  .calendar-month-display {
+    font-size: 1.5rem;
+    min-width: 150px;
+  }
+
+  .calendar-day-header {
+    font-size: 0.8rem;
+    padding: 12px 2px;
+  }
+
+  .calendar-date {
+    min-height: 70px;
+    padding: 8px 5px;
+  }
+
+  .calendar-date .date-number {
+    font-size: 1rem;
+  }
+  
+  .month-nav-btn {
+    width: 64px;
+    height: 64px;
+    font-size: 1.4rem;
+    padding: 10px;
+  }
+  
+  .legend-inline {
+    gap: 6px;
+    font-size: 0.85rem;
+  }
+  
+  .legend-color {
+    width: 20px;
+    height: 20px;
+  }
+}

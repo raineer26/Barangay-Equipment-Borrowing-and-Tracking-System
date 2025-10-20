@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Conference Room Calendar - Barangay Mapulang Lupa</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <header>
+      <div class="nav-container">
+        <div class="logo">
+          <img src="Assets/BrgyLogo.png" alt="Barangay Seal">
+          <span>BARANGAY MAPULANG LUPA <br> Official Site</span>
+        </div>
+        <nav>
+          <ul>
+            <li><a href="user.html">HOME</a></li>
+            <li class="dropdown">
+              <a href="#">CALENDAR OF ACTIVITIES ▾</a>
+              <ul class="dropdown-menu">
+                <li><a href="tents-calendar.html">Tents and Chairs</a></li>
+                <li><a href="conference-room.html">Conference Room</a></li>
+              </ul>
+            </li>
+            <li><a href="about.html">ABOUT US</a></li>
+            <li><a href="ContactPage.html">CONTACT US</a></li>
+            <li class="user-icon-li">
+              <a href="UserProfile.html"><img src="Assets/account.png" alt="User" class="user-icon-btn" width="32" height="32"></a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <!-- CALENDAR HERO SECTION -->
+    <section class="calendar-hero">
+      <div class="calendar-hero-overlay"></div>
+      <div class="calendar-hero-content">
+        <h1><span class="highlight-yellow">CONFERENCE ROOM </span>CALENDAR</h1>
+        <p>Click on your preferred date in the calendar to open the Reservation Form.</p>
+      </div>
+    </section>
+
+    <!-- CALENDAR SECTION -->
+    <section class="calendar-container">
+      <div class="calendar-top-bar">
+        <div class="calendar-back-section">
+          <a href="user.html" class="back-to-dashboard-btn">
+            <span class="back-text">BACK TO<br>DASHBOARD</span>
+          </a>
+          <div class="legend-inline">
+            <div class="legend-color legend-booked"></div>
+            <span>Booked</span>
+          </div>
+        </div>
+        
+        <div class="calendar-center-section">
+          <button id="prevMonth" class="month-nav-btn">‹</button>
+          <h2 id="currentMonthYear" class="calendar-month-display">October 2025</h2>
+          <button id="nextMonth" class="month-nav-btn">›</button>
+        </div>
+        
+        <div class="calendar-right-section">
+          <!-- Empty space for balance -->
+        </div>
+      </div>
+
+      <!-- CALENDAR GRID -->
+      <div class="calendar-grid">
+        <div class="calendar-day-header">SUN</div>
+        <div class="calendar-day-header">MON</div>
+        <div class="calendar-day-header">TUES</div>
+        <div class="calendar-day-header">WED</div>
+        <div class="calendar-day-header">THURS</div>
+        <div class="calendar-day-header">FRI</div>
+        <div class="calendar-day-header">SAT</div>
+        
+        <!-- Calendar dates will be populated by JavaScript -->
+        <div id="calendarDates">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+      <div class="footer-logo">
+        <img src="Assets/BrgyLogo.png" alt="Barangay Seal">
+        <p>Barangay Mapulang Lupa <br> Official Site</p>
+      </div>
+      <div class="footer-container">
+        <div class="footer-links">
+          <h3>Home</h3>
+          <ul>
+            <li><a href="user.html">Calendars</a></li>
+            <li><a href="user.html">Service Offered</a></li>
+            <li><a href="about.html">About the Barangay</a></li>
+            <li><a href="ContactPage.html">Contact Us</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h3>Calendar of Activities</h3>
+          <ul>
+            <li><a href="tents-calendar.html">Tents and Chairs</a></li>
+            <li><a href="conference-room.html">Conference Room</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h3>About Us</h3>
+          <ul>
+            <li><a href="about.html">About Barangay</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h3>Contact Us</h3>
+          <p>📍 Address: Barangay Mapulang Lupa, Valenzuela City</p>
+          <p>📞 Phone: (02) 123-4567</p>
+          <p>📧 Email: mapulanglupa.brgy@email.com</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2025 Barangay Mapulang Lupa. Website Design by F5.</p>
+      </div>
+    </footer>
+
+    <!-- Modal for Booking Form -->
+    <div id="bookingModal" class="modal" style="display: none;">
+      <!-- Modal removed - redirects to conference-room-request.html instead -->
+    </div>
+
+    <script src="script.js" type="module"></script>
+  </body>
+</html>
