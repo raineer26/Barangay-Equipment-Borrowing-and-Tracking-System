@@ -888,3 +888,681 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
 /* =====================================================
    END OF CONFERENCE ROOM CALENDAR SCRIPT
 ===================================================== */
+
+// Global Sidebar Dropdowns Setup (shared across admin pages)
+function setupSidebarDropdowns() {
+  const dropdowns = document.querySelectorAll('.sidebar-dropdown');
+
+  dropdowns.forEach(drop => {
+    const toggle = drop.querySelector('.dropdown-toggle');
+    const content = drop.querySelector('.dropdown-content');
+
+    // If any child link is active, open the dropdown by default
+    const childActive = content && content.querySelector('.dropdown-link.active');
+    if (childActive) {
+      toggle?.classList.add('open');
+      content?.classList.add('open');
+      content?.classList.add('show');
+    }
+
+    if (toggle && content) {
+      toggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        // Toggle open/close; user can collapse even if child is active initially
+        toggle.classList.toggle('open');
+        content.classList.toggle('open');
+        content.classList.toggle('show');
+      });
+    }
+  });
+}
+
+
+
+/* =====================================================
+   ADMIN DASHBOARD SCRIPT
+   Add this section to your script.js file
+===================================================== */
+
+// Check if we're on the admin dashboard page
+if (window.location.pathname.endsWith('adminDashboard.html') || window.location.pathname.endsWith('/adminDashboard')) {
+  
+  // Sample reservations data (will be replaced with Firestore data)
+  const sampleReservations = [
+    {
+      date: 'September 25, 2025',
+      purpose: 'Community Meeting',
+      type: 'Conference Room',
+      address: 'bone A, Mapulang Lupa',
+      status: 'approved'
+    },
+    {
+      date: 'September 25, 2025',
+      purpose: 'Birthday Party',
+      type: 'Tents & Chairs',
+      address: 'bone B, Mapulang Lupa',
+      status: 'pending'
+    }
+  ];
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize week calendar
+    renderWeekCalendar();
+    
+    // Load reservations
+    loadReservations();
+    
+    // Setup mobile menu
+    setupMobileMenu();
+    
+    // Setup sidebar dropdowns
+    setupSidebarDropdowns();
+  });
+
+  function renderWeekCalendar() {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    // Update calendar title
+    const monthNames = [
+      "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+      "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
+    ];
+    document.getElementById('weekCalendarMonth').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+    // Get the current week (Sunday to Saturday)
+    const dayOfWeek = today.getDay();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - dayOfWeek);
+
+    const weekDays = ['SUN', 'MON', 'TUES', 'WED', 'THURS', 'FRI', 'SAT'];
+    const weekCalendarGrid = document.getElementById('weekCalendarGrid');
+    weekCalendarGrid.innerHTML = '';
+
+    // TODO: In production, fetch booked dates from Firestore
+    // For now, no sample booked dates - will be populated from Firebase
+    const bookedDates = []; // Empty array - will be filled from Firestore
+
+    for (let i = 0; i < 7; i++) {
+      const currentDay = new Date(startOfWeek);
+      currentDay.setDate(startOfWeek.getDate() + i);
+      
+      const dayCard = document.createElement('div');
+      dayCard.classList.add('week-day-card');
+
+      // Check if it's today
+      if (currentDay.toDateString() === today.toDateString()) {
+        dayCard.classList.add('today');
+      }
+
+      // Check if date has bookings (will be implemented with Firestore)
+      const dateStr = currentDay.toISOString().split('T')[0];
+      if (bookedDates.includes(dateStr)) {
+        dayCard.classList.add('booked');
+      }
+
+      dayCard.innerHTML = `
+        <div class="week-day-name">${weekDays[i]}</div>
+        <div class="week-day-number">${currentDay.getDate()}</div>
+      `;
+
+      weekCalendarGrid.appendChild(dayCard);
+    }
+  }
+
+  function loadReservations() {
+    const reservationsList = document.getElementById('reservationsList');
+    
+    if (sampleReservations.length === 0) {
+      reservationsList.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No reservations for today.</p>';
+      return;
+    }
+
+    reservationsList.innerHTML = '';
+
+    sampleReservations.forEach(reservation => {
+      const item = document.createElement('div');
+      item.classList.add('reservation-item');
+
+      const statusClass = reservation.status === 'approved' ? 'approved' : 'pending';
+      const statusText = reservation.status === 'approved' ? 'Approved' : 'Pending';
+
+      item.innerHTML = `
+        <div class="reservation-header">
+          <h4 class="reservation-date">${reservation.date}</h4>
+          <span class="status-badge ${statusClass}">${statusText}</span>
+        </div>
+        <p class="reservation-details">
+          <strong>Purpose:</strong> ${reservation.purpose}<br>
+          <strong>Type:</strong> ${reservation.type}<br>
+          <strong>Address:</strong> ${reservation.address}
+        </p>
+      `;
+
+      reservationsList.appendChild(item);
+    });
+  }
+
+  function setupMobileMenu() {
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.admin-sidebar');
+
+    if (menuToggle) {
+      menuToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('open');
+      });
+
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768) {
+          if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+            sidebar.classList.remove('open');
+          }
+        }
+      });
+    }
+  }
+
+  // Sidebar dropdowns setup is implemented later in the file (consolidated)
+
+  // Function to fetch reservations from Firestore (to be implemented)
+  async function fetchTodaysReservations() {
+    // TODO: Implement Firestore query
+    // const today = new Date();
+    // today.setHours(0, 0, 0, 0);
+    // const todayStr = today.toISOString().split('T')[0];
+    
+    // const requestsRef = collection(db, "requests");
+    // const q = query(requestsRef, 
+    //   where("startDate", "==", todayStr),
+    //   where("status", "in", ["approved", "pending"])
+    // );
+    // const querySnapshot = await getDocs(q);
+    // 
+    // const reservations = [];
+    // querySnapshot.forEach((doc) => {
+    //   reservations.push({ id: doc.id, ...doc.data() });
+    // });
+    // 
+    // return reservations;
+  }
+
+  // Function to fetch booked dates for week calendar (to be implemented)
+  async function fetchBookedDatesForWeek() {
+    // TODO: Query Firestore for all bookings in the current week
+    // const startOfWeek = new Date();
+    // startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+    // const endOfWeek = new Date(startOfWeek);
+    // endOfWeek.setDate(startOfWeek.getDate() + 6);
+    
+    // const startStr = startOfWeek.toISOString().split('T')[0];
+    // const endStr = endOfWeek.toISOString().split('T')[0];
+    
+    // const requestsRef = collection(db, "requests");
+    // const q = query(requestsRef,
+    //   where("startDate", ">=", startStr),
+    //   where("startDate", "<=", endStr),
+    //   where("status", "==", "approved")
+    // );
+    // const querySnapshot = await getDocs(q);
+    // 
+    // const bookedDates = [];
+    // querySnapshot.forEach((doc) => {
+    //   const data = doc.data();
+    //   bookedDates.push(data.startDate);
+    // });
+    // 
+    // return bookedDates;
+  }
+}
+
+/* =====================================================
+   END OF ADMIN DASHBOARD SCRIPT
+===================================================== *//* =====================================================
+   ADMIN DASHBOARD SCRIPT
+   Add this section to your script.js file
+===================================================== */
+
+// Check if we're on the admin dashboard page
+if (window.location.pathname.endsWith('adminDashboard.html') || window.location.pathname.endsWith('/adminDashboard')) {
+  
+  // Sample reservations data (replace with Firestore data in production)
+  const sampleReservations = [
+    {
+      date: 'September 25, 2025',
+      purpose: 'Community Meeting',
+      type: 'Conference Room',
+      address: 'bone A, Mapulang Lupa',
+      status: 'approved'
+    },
+    {
+      date: 'September 25, 2025',
+      purpose: 'Birthday Party',
+      type: 'Tents & Chairs',
+      address: 'bone B, Mapulang Lupa',
+      status: 'pending'
+    }
+  ];
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize calendar
+    renderMiniCalendar();
+    
+    // Load reservations
+    loadReservations();
+    
+    // Mobile menu toggle
+    setupMobileMenu();
+  });
+
+  function renderMiniCalendar() {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const currentDay = today.getDate();
+
+    // Update calendar title
+    const monthNames = [
+      "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+      "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
+    ];
+    document.getElementById('calendarMonth').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+    // Get first day of month and days in month
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    const calendarDays = document.getElementById('calendarDays');
+    calendarDays.innerHTML = '';
+
+    // Sample dates with reservations (replace with real data from Firestore)
+    const datesWithReservations = [7, 8, 14, 15, 16, 20, 21, 22, 25, 30, 31];
+
+    // Add empty cells for days before first day of month
+    for (let i = 0; i < firstDay; i++) {
+      const emptyDay = document.createElement('div');
+      emptyDay.classList.add('calendar-day', 'empty');
+      calendarDays.appendChild(emptyDay);
+    }
+
+    // Add day cells
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayCell = document.createElement('div');
+      dayCell.classList.add('calendar-day');
+      dayCell.textContent = day;
+
+      // Highlight today
+      if (day === currentDay) {
+        dayCell.classList.add('today');
+      }
+
+      // Mark dates with reservations
+      if (datesWithReservations.includes(day)) {
+        dayCell.classList.add('has-reservation');
+      }
+
+      calendarDays.appendChild(dayCell);
+    }
+  }
+
+  function loadReservations() {
+    const reservationsList = document.getElementById('reservationsList');
+    
+    if (sampleReservations.length === 0) {
+      reservationsList.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No reservations for today.</p>';
+      return;
+    }
+
+    reservationsList.innerHTML = '';
+
+    sampleReservations.forEach(reservation => {
+      const item = document.createElement('div');
+      item.classList.add('reservation-item');
+
+      const statusClass = reservation.status === 'approved' ? 'approved' : 'pending';
+      const statusText = reservation.status === 'approved' ? 'Approved' : 'Pending';
+
+      item.innerHTML = `
+        <div class="reservation-header">
+          <h4 class="reservation-date">${reservation.date}</h4>
+          <span class="status-badge ${statusClass}">${statusText}</span>
+        </div>
+        <p class="reservation-details">
+          <strong>Purpose:</strong> ${reservation.purpose}<br>
+          <strong>Type:</strong> ${reservation.type}<br>
+          <strong>Address:</strong> ${reservation.address}
+        </p>
+      `;
+
+      reservationsList.appendChild(item);
+    });
+  }
+
+  function setupMobileMenu() {
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.admin-sidebar');
+
+    if (menuToggle) {
+      menuToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('open');
+      });
+
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768) {
+          if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+            sidebar.classList.remove('open');
+          }
+        }
+      });
+    }
+  }
+
+  // Function to fetch reservations from Firestore (to be implemented)
+  async function fetchReservationsFromFirestore() {
+    // TODO: Implement Firestore query
+    // const today = new Date();
+    // today.setHours(0, 0, 0, 0);
+    // const todayStr = today.toISOString().split('T')[0];
+    
+    // const requestsRef = collection(db, "requests");
+    // const q = query(requestsRef, 
+    //   where("startDate", "==", todayStr),
+    //   where("status", "in", ["approved", "pending"])
+    // );
+    // const querySnapshot = await getDocs(q);
+    // 
+    // const reservations = [];
+    // querySnapshot.forEach((doc) => {
+    //   reservations.push({ id: doc.id, ...doc.data() });
+    // });
+    // 
+    // return reservations;
+  }
+
+  // Function to update calendar with reservation dates (to be implemented)
+  async function updateCalendarWithReservations() {
+    // TODO: Query Firestore for all reservations in current month
+    // Mark those dates on the calendar
+  }
+}
+
+/* =====================================================
+   END OF ADMIN DASHBOARD SCRIPT
+===================================================== */
+
+/* =====================================================
+   ADMIN CONFERENCE ROOM REQUESTS SCRIPT
+   Add this section to your script.js file
+===================================================== */
+
+// Check if we're on the admin conference requests page
+if (window.location.pathname.endsWith('admin-conference-requests.html') || window.location.pathname.endsWith('/admin-conference-requests')) {
+  
+  // Global variables for confirmation modal
+  let pendingAction = null;
+  let pendingRequestId = null;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Setup mobile menu
+    setupMobileMenu();
+    
+    // Setup sidebar dropdowns
+    setupSidebarDropdowns();
+    
+    // Validate table on load
+    validateTable();
+  });
+
+  // Validate that table has data and buttons are functional
+  function validateTable() {
+    const tbody = document.getElementById('requestsTableBody');
+    const rows = tbody.querySelectorAll('tr');
+    
+    if (rows.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
+            No conference room requests found.
+          </td>
+        </tr>
+      `;
+    }
+
+    // Validate that all buttons have onclick handlers
+    const actionButtons = document.querySelectorAll('.action-btn, .notify-btn');
+    actionButtons.forEach(button => {
+      if (!button.onclick && !button.getAttribute('onclick')) {
+        console.warn('Button without handler found:', button);
+      }
+    });
+  }
+
+  // Mark request as completed
+  function markAsCompleted(requestId) {
+    showConfirmModal(
+      'Mark as Completed',
+      'Are you sure you want to mark this request as completed?',
+      () => {
+        console.log('Marking request as completed:', requestId);
+        
+        // TODO: Update Firestore
+        // const requestRef = doc(db, "requests", requestId);
+        // await updateDoc(requestRef, {
+        //   status: 'completed',
+        //   completedAt: new Date().toISOString()
+        // });
+
+        // Remove the row from table (frontend only for now)
+        const row = document.querySelector(`tr[data-request-id="${requestId}"]`);
+        if (row) {
+          row.style.opacity = '0';
+          setTimeout(() => {
+            row.remove();
+            validateTable();
+            showFeedback('Request marked as completed successfully!', 'success');
+          }, 300);
+        }
+      }
+    );
+  }
+
+  // Approve request
+  function approveRequest(requestId) {
+    showConfirmModal(
+      'Approve Request',
+      'Are you sure you want to approve this conference room request?',
+      () => {
+        console.log('Approving request:', requestId);
+        
+        // TODO: Update Firestore
+        // const requestRef = doc(db, "requests", requestId);
+        // await updateDoc(requestRef, {
+        //   status: 'approved',
+        //   approvedAt: new Date().toISOString()
+        // });
+
+        // Update the row (frontend only for now)
+        const row = document.querySelector(`tr[data-request-id="${requestId}"]`);
+        if (row) {
+          const actionsCell = row.querySelector('.actions-cell');
+          actionsCell.innerHTML = `
+            <button class="action-btn completed-btn" onclick="markAsCompleted('${requestId}')">Mark as Completed</button>
+          `;
+          showFeedback('Request approved successfully!', 'success');
+        }
+      }
+    );
+  }
+
+  // Deny request
+  function denyRequest(requestId) {
+    showConfirmModal(
+      'Deny Request',
+      'Are you sure you want to deny this conference room request? This action cannot be undone.',
+      () => {
+        console.log('Denying request:', requestId);
+        
+        // TODO: Update Firestore
+        // const requestRef = doc(db, "requests", requestId);
+        // await updateDoc(requestRef, {
+        //   status: 'denied',
+        //   deniedAt: new Date().toISOString()
+        // });
+
+        // Remove the row from table (frontend only for now)
+        const row = document.querySelector(`tr[data-request-id="${requestId}"]`);
+        if (row) {
+          row.style.opacity = '0';
+          setTimeout(() => {
+            row.remove();
+            validateTable();
+            showFeedback('Request denied successfully!', 'success');
+          }, 300);
+        }
+      }
+    );
+  }
+
+  // Notify user (Time's Up)
+  function notifyUser(requestId) {
+    showConfirmModal(
+      'Notify User',
+      'Send a "Time\'s Up" notification to the user?',
+      () => {
+        console.log('Notifying user for request:', requestId);
+        
+        // TODO: Send notification via Firebase/Email
+        // const requestRef = doc(db, "requests", requestId);
+        // const requestData = await getDoc(requestRef);
+        // Send email or push notification to user
+
+        showFeedback('User notified successfully!', 'success');
+      }
+    );
+  }
+
+  // Show confirmation modal
+  function showConfirmModal(title, message, onConfirm) {
+    const modal = document.getElementById('confirmModal');
+    const overlay = document.getElementById('confirmOverlay');
+    const titleEl = document.getElementById('confirmTitle');
+    const messageEl = document.getElementById('confirmMessage');
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+
+    modal.classList.add('active');
+    overlay.classList.add('active');
+
+    // Store the confirm action
+    pendingAction = onConfirm;
+  }
+
+  // Close confirmation modal
+  function closeConfirmModal() {
+    const modal = document.getElementById('confirmModal');
+    const overlay = document.getElementById('confirmOverlay');
+
+    modal.classList.remove('active');
+    overlay.classList.remove('active');
+
+    pendingAction = null;
+    pendingRequestId = null;
+  }
+
+  // Confirm action
+  function confirmAction() {
+    if (pendingAction) {
+      try {
+        // Run the pending action; if it throws we still close the modal
+        pendingAction();
+      } catch (err) {
+        console.error('Error running confirm action:', err);
+        // Optionally show feedback of error
+        showFeedback('An error occurred while performing the action.', 'info');
+      } finally {
+        // Ensure modal closes regardless
+        try { closeConfirmModal(); } catch (e) { console.error('Error closing confirm modal:', e); }
+      }
+    }
+  }
+
+  // Show feedback message (simple alert for now)
+  function showFeedback(message, type = 'info') {
+    // Use existing showAlert function if available, or create a simple one
+    if (typeof showAlert === 'function') {
+      showAlert(message, type === 'success');
+    } else {
+      alert(message);
+    }
+  }
+
+  // Make functions globally available
+  window.markAsCompleted = markAsCompleted;
+  window.approveRequest = approveRequest;
+  window.denyRequest = denyRequest;
+  window.notifyUser = notifyUser;
+  window.closeConfirmModal = closeConfirmModal;
+  window.confirmAction = confirmAction;
+
+  // Setup mobile menu
+  function setupMobileMenu() {
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.admin-sidebar');
+
+    if (menuToggle) {
+      menuToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('open');
+      });
+
+      document.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768) {
+          if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+            sidebar.classList.remove('open');
+          }
+        }
+      });
+    }
+  }
+
+  // Sidebar dropdowns setup is provided globally above (setupSidebarDropdowns)
+
+  // Function to load requests from Firestore (to be implemented)
+  async function loadConferenceRoomRequests() {
+    // TODO: Implement Firestore query
+    // const requestsRef = collection(db, "requests");
+    // const q = query(requestsRef,
+    //   where("type", "==", "conference-room"),
+    //   orderBy("requestDate", "desc")
+    // );
+    // const querySnapshot = await getDocs(q);
+    // 
+    // const tbody = document.getElementById('requestsTableBody');
+    // tbody.innerHTML = '';
+    // 
+    // querySnapshot.forEach((doc) => {
+    //   const request = { id: doc.id, ...doc.data() };
+    //   const row = createRequestRow(request);
+    //   tbody.appendChild(row);
+    // });
+    // 
+    // validateTable();
+  }
+
+  // Function to create a table row (to be implemented with real data)
+  function createRequestRow(request) {
+    // TODO: Create row element from Firestore data
+    // const row = document.createElement('tr');
+    // row.setAttribute('data-request-id', request.id);
+    // row.innerHTML = `...`;
+    // return row;
+  }
+}
+
+
+
+/* =====================================================
+   END OF ADMIN CONFERENCE ROOM REQUESTS SCRIPT
+===================================================== */
