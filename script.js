@@ -888,3 +888,401 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
 /* =====================================================
    END OF CONFERENCE ROOM CALENDAR SCRIPT
 ===================================================== */
+
+
+/* =====================================================
+   ADMIN DASHBOARD SCRIPT
+   Add this section to your script.js file
+===================================================== */
+
+// Check if we're on the admin dashboard page
+if (window.location.pathname.endsWith('adminDashboard.html') || window.location.pathname.endsWith('/adminDashboard')) {
+  
+  // Sample reservations data (will be replaced with Firestore data)
+  const sampleReservations = [
+    {
+      date: 'September 25, 2025',
+      purpose: 'Community Meeting',
+      type: 'Conference Room',
+      address: 'bone A, Mapulang Lupa',
+      status: 'approved'
+    },
+    {
+      date: 'September 25, 2025',
+      purpose: 'Birthday Party',
+      type: 'Tents & Chairs',
+      address: 'bone B, Mapulang Lupa',
+      status: 'pending'
+    }
+  ];
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize week calendar
+    renderWeekCalendar();
+    
+    // Load reservations
+    loadReservations();
+    
+    // Setup mobile menu
+    setupMobileMenu();
+    
+    // Setup sidebar dropdowns
+    setupSidebarDropdowns();
+  });
+
+  function renderWeekCalendar() {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    // Update calendar title
+    const monthNames = [
+      "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+      "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
+    ];
+    document.getElementById('weekCalendarMonth').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+    // Get the current week (Sunday to Saturday)
+    const dayOfWeek = today.getDay();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - dayOfWeek);
+
+    const weekDays = ['SUN', 'MON', 'TUES', 'WED', 'THURS', 'FRI', 'SAT'];
+    const weekCalendarGrid = document.getElementById('weekCalendarGrid');
+    weekCalendarGrid.innerHTML = '';
+
+    // TODO: In production, fetch booked dates from Firestore
+    // For now, no sample booked dates - will be populated from Firebase
+    const bookedDates = []; // Empty array - will be filled from Firestore
+
+    for (let i = 0; i < 7; i++) {
+      const currentDay = new Date(startOfWeek);
+      currentDay.setDate(startOfWeek.getDate() + i);
+      
+      const dayCard = document.createElement('div');
+      dayCard.classList.add('week-day-card');
+
+      // Check if it's today
+      if (currentDay.toDateString() === today.toDateString()) {
+        dayCard.classList.add('today');
+      }
+
+      // Check if date has bookings (will be implemented with Firestore)
+      const dateStr = currentDay.toISOString().split('T')[0];
+      if (bookedDates.includes(dateStr)) {
+        dayCard.classList.add('booked');
+      }
+
+      dayCard.innerHTML = `
+        <div class="week-day-name">${weekDays[i]}</div>
+        <div class="week-day-number">${currentDay.getDate()}</div>
+      `;
+
+      weekCalendarGrid.appendChild(dayCard);
+    }
+  }
+
+  function loadReservations() {
+    const reservationsList = document.getElementById('reservationsList');
+    
+    if (sampleReservations.length === 0) {
+      reservationsList.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No reservations for today.</p>';
+      return;
+    }
+
+    reservationsList.innerHTML = '';
+
+    sampleReservations.forEach(reservation => {
+      const item = document.createElement('div');
+      item.classList.add('reservation-item');
+
+      const statusClass = reservation.status === 'approved' ? 'approved' : 'pending';
+      const statusText = reservation.status === 'approved' ? 'Approved' : 'Pending';
+
+      item.innerHTML = `
+        <div class="reservation-header">
+          <h4 class="reservation-date">${reservation.date}</h4>
+          <span class="status-badge ${statusClass}">${statusText}</span>
+        </div>
+        <p class="reservation-details">
+          <strong>Purpose:</strong> ${reservation.purpose}<br>
+          <strong>Type:</strong> ${reservation.type}<br>
+          <strong>Address:</strong> ${reservation.address}
+        </p>
+      `;
+
+      reservationsList.appendChild(item);
+    });
+  }
+
+  function setupMobileMenu() {
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.admin-sidebar');
+
+    if (menuToggle) {
+      menuToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('open');
+      });
+
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768) {
+          if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+            sidebar.classList.remove('open');
+          }
+        }
+      });
+    }
+  }
+
+  function setupSidebarDropdowns() {
+    // Review Requests Dropdown
+    const reviewToggle = document.getElementById('reviewRequestsToggle');
+    const reviewDropdown = document.getElementById('reviewRequestsDropdown');
+
+    if (reviewToggle) {
+      reviewToggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        reviewToggle.classList.toggle('open');
+        reviewDropdown.classList.toggle('open');
+      });
+    }
+
+    // Manage Calendar Dropdown
+    const calendarToggle = document.getElementById('manageCalendarToggle');
+    const calendarDropdown = document.getElementById('manageCalendarDropdown');
+
+    if (calendarToggle) {
+      calendarToggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        calendarToggle.classList.toggle('open');
+        calendarDropdown.classList.toggle('open');
+      });
+    }
+  }
+
+  // Function to fetch reservations from Firestore (to be implemented)
+  async function fetchTodaysReservations() {
+    // TODO: Implement Firestore query
+    // const today = new Date();
+    // today.setHours(0, 0, 0, 0);
+    // const todayStr = today.toISOString().split('T')[0];
+    
+    // const requestsRef = collection(db, "requests");
+    // const q = query(requestsRef, 
+    //   where("startDate", "==", todayStr),
+    //   where("status", "in", ["approved", "pending"])
+    // );
+    // const querySnapshot = await getDocs(q);
+    // 
+    // const reservations = [];
+    // querySnapshot.forEach((doc) => {
+    //   reservations.push({ id: doc.id, ...doc.data() });
+    // });
+    // 
+    // return reservations;
+  }
+
+  // Function to fetch booked dates for week calendar (to be implemented)
+  async function fetchBookedDatesForWeek() {
+    // TODO: Query Firestore for all bookings in the current week
+    // const startOfWeek = new Date();
+    // startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+    // const endOfWeek = new Date(startOfWeek);
+    // endOfWeek.setDate(startOfWeek.getDate() + 6);
+    
+    // const startStr = startOfWeek.toISOString().split('T')[0];
+    // const endStr = endOfWeek.toISOString().split('T')[0];
+    
+    // const requestsRef = collection(db, "requests");
+    // const q = query(requestsRef,
+    //   where("startDate", ">=", startStr),
+    //   where("startDate", "<=", endStr),
+    //   where("status", "==", "approved")
+    // );
+    // const querySnapshot = await getDocs(q);
+    // 
+    // const bookedDates = [];
+    // querySnapshot.forEach((doc) => {
+    //   const data = doc.data();
+    //   bookedDates.push(data.startDate);
+    // });
+    // 
+    // return bookedDates;
+  }
+}
+
+/* =====================================================
+   END OF ADMIN DASHBOARD SCRIPT
+===================================================== *//* =====================================================
+   ADMIN DASHBOARD SCRIPT
+   Add this section to your script.js file
+===================================================== */
+
+// Check if we're on the admin dashboard page
+if (window.location.pathname.endsWith('adminDashboard.html') || window.location.pathname.endsWith('/adminDashboard')) {
+  
+  // Sample reservations data (replace with Firestore data in production)
+  const sampleReservations = [
+    {
+      date: 'September 25, 2025',
+      purpose: 'Community Meeting',
+      type: 'Conference Room',
+      address: 'bone A, Mapulang Lupa',
+      status: 'approved'
+    },
+    {
+      date: 'September 25, 2025',
+      purpose: 'Birthday Party',
+      type: 'Tents & Chairs',
+      address: 'bone B, Mapulang Lupa',
+      status: 'pending'
+    }
+  ];
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize calendar
+    renderMiniCalendar();
+    
+    // Load reservations
+    loadReservations();
+    
+    // Mobile menu toggle
+    setupMobileMenu();
+  });
+
+  function renderMiniCalendar() {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const currentDay = today.getDate();
+
+    // Update calendar title
+    const monthNames = [
+      "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+      "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
+    ];
+    document.getElementById('calendarMonth').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+    // Get first day of month and days in month
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    const calendarDays = document.getElementById('calendarDays');
+    calendarDays.innerHTML = '';
+
+    // Sample dates with reservations (replace with real data from Firestore)
+    const datesWithReservations = [7, 8, 14, 15, 16, 20, 21, 22, 25, 30, 31];
+
+    // Add empty cells for days before first day of month
+    for (let i = 0; i < firstDay; i++) {
+      const emptyDay = document.createElement('div');
+      emptyDay.classList.add('calendar-day', 'empty');
+      calendarDays.appendChild(emptyDay);
+    }
+
+    // Add day cells
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayCell = document.createElement('div');
+      dayCell.classList.add('calendar-day');
+      dayCell.textContent = day;
+
+      // Highlight today
+      if (day === currentDay) {
+        dayCell.classList.add('today');
+      }
+
+      // Mark dates with reservations
+      if (datesWithReservations.includes(day)) {
+        dayCell.classList.add('has-reservation');
+      }
+
+      calendarDays.appendChild(dayCell);
+    }
+  }
+
+  function loadReservations() {
+    const reservationsList = document.getElementById('reservationsList');
+    
+    if (sampleReservations.length === 0) {
+      reservationsList.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No reservations for today.</p>';
+      return;
+    }
+
+    reservationsList.innerHTML = '';
+
+    sampleReservations.forEach(reservation => {
+      const item = document.createElement('div');
+      item.classList.add('reservation-item');
+
+      const statusClass = reservation.status === 'approved' ? 'approved' : 'pending';
+      const statusText = reservation.status === 'approved' ? 'Approved' : 'Pending';
+
+      item.innerHTML = `
+        <div class="reservation-header">
+          <h4 class="reservation-date">${reservation.date}</h4>
+          <span class="status-badge ${statusClass}">${statusText}</span>
+        </div>
+        <p class="reservation-details">
+          <strong>Purpose:</strong> ${reservation.purpose}<br>
+          <strong>Type:</strong> ${reservation.type}<br>
+          <strong>Address:</strong> ${reservation.address}
+        </p>
+      `;
+
+      reservationsList.appendChild(item);
+    });
+  }
+
+  function setupMobileMenu() {
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.admin-sidebar');
+
+    if (menuToggle) {
+      menuToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('open');
+      });
+
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768) {
+          if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+            sidebar.classList.remove('open');
+          }
+        }
+      });
+    }
+  }
+
+  // Function to fetch reservations from Firestore (to be implemented)
+  async function fetchReservationsFromFirestore() {
+    // TODO: Implement Firestore query
+    // const today = new Date();
+    // today.setHours(0, 0, 0, 0);
+    // const todayStr = today.toISOString().split('T')[0];
+    
+    // const requestsRef = collection(db, "requests");
+    // const q = query(requestsRef, 
+    //   where("startDate", "==", todayStr),
+    //   where("status", "in", ["approved", "pending"])
+    // );
+    // const querySnapshot = await getDocs(q);
+    // 
+    // const reservations = [];
+    // querySnapshot.forEach((doc) => {
+    //   reservations.push({ id: doc.id, ...doc.data() });
+    // });
+    // 
+    // return reservations;
+  }
+
+  // Function to update calendar with reservation dates (to be implemented)
+  async function updateCalendarWithReservations() {
+    // TODO: Query Firestore for all reservations in current month
+    // Mark those dates on the calendar
+  }
+}
+
+/* =====================================================
+   END OF ADMIN DASHBOARD SCRIPT
+===================================================== */
