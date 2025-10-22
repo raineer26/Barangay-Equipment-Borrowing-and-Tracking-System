@@ -992,8 +992,8 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     } else if (parseInt(quantityChairs) < 1) {
       setFieldError('quantityChairs', 'Quantity must be at least 1');
       isValid = false;
-    } else if (parseInt(quantityChairs) > 100) {
-      setFieldError('quantityChairs', 'Quantity cannot exceed 100');
+    } else if (parseInt(quantityChairs) > 600) {
+      setFieldError('quantityChairs', 'Quantity cannot exceed 600');
       isValid = false;
     }
 
@@ -1004,8 +1004,8 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     } else if (parseInt(quantityTents) < 1) {
       setFieldError('quantityTents', 'Quantity must be at least 1');
       isValid = false;
-    } else if (parseInt(quantityTents) > 20) {
-      setFieldError('quantityTents', 'Quantity cannot exceed 20');
+    } else if (parseInt(quantityTents) > 24) {
+      setFieldError('quantityTents', 'Quantity cannot exceed 24');
       isValid = false;
     }
 
