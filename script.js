@@ -891,8 +891,8 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
 
 // Global Sidebar Dropdowns Setup (shared across admin pages)
 function setupSidebarDropdowns() {
+  // Generic dropdown setup: toggle both 'open' and 'show' classes which CSS uses
   const dropdowns = document.querySelectorAll('.sidebar-dropdown');
-
   dropdowns.forEach(drop => {
     const toggle = drop.querySelector('.dropdown-toggle');
     const content = drop.querySelector('.dropdown-content');
@@ -906,16 +906,78 @@ function setupSidebarDropdowns() {
     }
 
     if (toggle && content) {
-      toggle.addEventListener('click', function(e) {
+      // Remove duplicate handlers by cloning node if necessary
+      // (safe-guard) remove previous listener by replacing node
+      const newToggle = toggle.cloneNode(true);
+      toggle.parentNode.replaceChild(newToggle, toggle);
+
+      newToggle.addEventListener('click', function(e) {
         e.preventDefault();
-        // Toggle open/close; user can collapse even if child is active initially
-        toggle.classList.toggle('open');
+        newToggle.classList.toggle('open');
         content.classList.toggle('open');
         content.classList.toggle('show');
       });
     }
   });
 }
+
+// Global confirmation modal utilities (single implementation used across admin pages)
+let pendingAction = null;
+let pendingRequestId = null;
+
+function showConfirmModal(title, message, onConfirm) {
+  const modal = document.getElementById('confirmModal');
+  const overlay = document.getElementById('confirmOverlay');
+  const titleEl = document.getElementById('confirmTitle');
+  const messageEl = document.getElementById('confirmMessage');
+
+  titleEl.textContent = title;
+  messageEl.textContent = message;
+
+  modal.classList.add('active');
+  overlay.classList.add('active');
+
+  // Store the confirm action
+  pendingAction = onConfirm;
+}
+
+function closeConfirmModal() {
+  const modal = document.getElementById('confirmModal');
+  const overlay = document.getElementById('confirmOverlay');
+
+  modal.classList.remove('active');
+  overlay.classList.remove('active');
+
+  pendingAction = null;
+  pendingRequestId = null;
+}
+
+function confirmAction() {
+  if (pendingAction) {
+    try {
+      pendingAction();
+    } catch (err) {
+      console.error('Error running pendingAction:', err);
+      showFeedback('An error occurred while performing the action.', 'info');
+    } finally {
+      try { closeConfirmModal(); } catch (e) { console.error('Error closing confirm modal:', e); }
+    }
+  }
+}
+
+function showFeedback(message, type = 'info') {
+  if (typeof showAlert === 'function') {
+    showAlert(message, type === 'success');
+  } else {
+    alert(message);
+  }
+}
+
+// Expose modal functions globally
+window.showConfirmModal = showConfirmModal;
+window.closeConfirmModal = closeConfirmModal;
+window.confirmAction = confirmAction;
+window.showFeedback = showFeedback;
 
 
 
@@ -1045,7 +1107,8 @@ if (window.location.pathname.endsWith('adminDashboard.html') || window.location.
   }
 
   function setupMobileMenu() {
-    const menuToggle = document.getElementById('mobileMenuToggle');
+    // Support both standard and page-specific mobile menu toggles
+    const menuToggle = document.getElementById('mobileMenuToggle') || document.getElementById('mobileMenuToggleTents');
     const sidebar = document.querySelector('.admin-sidebar');
 
     if (menuToggle) {
@@ -1119,178 +1182,8 @@ if (window.location.pathname.endsWith('adminDashboard.html') || window.location.
 
 /* =====================================================
    END OF ADMIN DASHBOARD SCRIPT
-===================================================== *//* =====================================================
-   ADMIN DASHBOARD SCRIPT
-   Add this section to your script.js file
 ===================================================== */
 
-// Check if we're on the admin dashboard page
-if (window.location.pathname.endsWith('adminDashboard.html') || window.location.pathname.endsWith('/adminDashboard')) {
-  
-  // Sample reservations data (replace with Firestore data in production)
-  const sampleReservations = [
-    {
-      date: 'September 25, 2025',
-      purpose: 'Community Meeting',
-      type: 'Conference Room',
-      address: 'bone A, Mapulang Lupa',
-      status: 'approved'
-    },
-    {
-      date: 'September 25, 2025',
-      purpose: 'Birthday Party',
-      type: 'Tents & Chairs',
-      address: 'bone B, Mapulang Lupa',
-      status: 'pending'
-    }
-  ];
-
-  document.addEventListener('DOMContentLoaded', function() {
-    // Initialize calendar
-    renderMiniCalendar();
-    
-    // Load reservations
-    loadReservations();
-    
-    // Mobile menu toggle
-    setupMobileMenu();
-  });
-
-  function renderMiniCalendar() {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const currentDay = today.getDate();
-
-    // Update calendar title
-    const monthNames = [
-      "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
-      "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
-    ];
-    document.getElementById('calendarMonth').textContent = `${monthNames[currentMonth]} ${currentYear}`;
-
-    // Get first day of month and days in month
-    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-    const calendarDays = document.getElementById('calendarDays');
-    calendarDays.innerHTML = '';
-
-    // Sample dates with reservations (replace with real data from Firestore)
-    const datesWithReservations = [7, 8, 14, 15, 16, 20, 21, 22, 25, 30, 31];
-
-    // Add empty cells for days before first day of month
-    for (let i = 0; i < firstDay; i++) {
-      const emptyDay = document.createElement('div');
-      emptyDay.classList.add('calendar-day', 'empty');
-      calendarDays.appendChild(emptyDay);
-    }
-
-    // Add day cells
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dayCell = document.createElement('div');
-      dayCell.classList.add('calendar-day');
-      dayCell.textContent = day;
-
-      // Highlight today
-      if (day === currentDay) {
-        dayCell.classList.add('today');
-      }
-
-      // Mark dates with reservations
-      if (datesWithReservations.includes(day)) {
-        dayCell.classList.add('has-reservation');
-      }
-
-      calendarDays.appendChild(dayCell);
-    }
-  }
-
-  function loadReservations() {
-    const reservationsList = document.getElementById('reservationsList');
-    
-    if (sampleReservations.length === 0) {
-      reservationsList.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No reservations for today.</p>';
-      return;
-    }
-
-    reservationsList.innerHTML = '';
-
-    sampleReservations.forEach(reservation => {
-      const item = document.createElement('div');
-      item.classList.add('reservation-item');
-
-      const statusClass = reservation.status === 'approved' ? 'approved' : 'pending';
-      const statusText = reservation.status === 'approved' ? 'Approved' : 'Pending';
-
-      item.innerHTML = `
-        <div class="reservation-header">
-          <h4 class="reservation-date">${reservation.date}</h4>
-          <span class="status-badge ${statusClass}">${statusText}</span>
-        </div>
-        <p class="reservation-details">
-          <strong>Purpose:</strong> ${reservation.purpose}<br>
-          <strong>Type:</strong> ${reservation.type}<br>
-          <strong>Address:</strong> ${reservation.address}
-        </p>
-      `;
-
-      reservationsList.appendChild(item);
-    });
-  }
-
-  function setupMobileMenu() {
-    const menuToggle = document.getElementById('mobileMenuToggle');
-    const sidebar = document.querySelector('.admin-sidebar');
-
-    if (menuToggle) {
-      menuToggle.addEventListener('click', function() {
-        sidebar.classList.toggle('open');
-      });
-
-      // Close sidebar when clicking outside on mobile
-      document.addEventListener('click', function(e) {
-        if (window.innerWidth <= 768) {
-          if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
-            sidebar.classList.remove('open');
-          }
-        }
-      });
-    }
-  }
-
-  // Function to fetch reservations from Firestore (to be implemented)
-  async function fetchReservationsFromFirestore() {
-    // TODO: Implement Firestore query
-    // const today = new Date();
-    // today.setHours(0, 0, 0, 0);
-    // const todayStr = today.toISOString().split('T')[0];
-    
-    // const requestsRef = collection(db, "requests");
-    // const q = query(requestsRef, 
-    //   where("startDate", "==", todayStr),
-    //   where("status", "in", ["approved", "pending"])
-    // );
-    // const querySnapshot = await getDocs(q);
-    // 
-    // const reservations = [];
-    // querySnapshot.forEach((doc) => {
-    //   reservations.push({ id: doc.id, ...doc.data() });
-    // });
-    // 
-    // return reservations;
-  }
-
-  // Function to update calendar with reservation dates (to be implemented)
-  async function updateCalendarWithReservations() {
-    // TODO: Query Firestore for all reservations in current month
-    // Mark those dates on the calendar
-  }
-}
-
-/* =====================================================
-   END OF ADMIN DASHBOARD SCRIPT
-===================================================== */
 
 /* =====================================================
    ADMIN CONFERENCE ROOM REQUESTS SCRIPT
@@ -1443,62 +1336,6 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') || windo
     );
   }
 
-  // Show confirmation modal
-  function showConfirmModal(title, message, onConfirm) {
-    const modal = document.getElementById('confirmModal');
-    const overlay = document.getElementById('confirmOverlay');
-    const titleEl = document.getElementById('confirmTitle');
-    const messageEl = document.getElementById('confirmMessage');
-
-    titleEl.textContent = title;
-    messageEl.textContent = message;
-
-    modal.classList.add('active');
-    overlay.classList.add('active');
-
-    // Store the confirm action
-    pendingAction = onConfirm;
-  }
-
-  // Close confirmation modal
-  function closeConfirmModal() {
-    const modal = document.getElementById('confirmModal');
-    const overlay = document.getElementById('confirmOverlay');
-
-    modal.classList.remove('active');
-    overlay.classList.remove('active');
-
-    pendingAction = null;
-    pendingRequestId = null;
-  }
-
-  // Confirm action
-  function confirmAction() {
-    if (pendingAction) {
-      try {
-        // Run the pending action; if it throws we still close the modal
-        pendingAction();
-      } catch (err) {
-        console.error('Error running confirm action:', err);
-        // Optionally show feedback of error
-        showFeedback('An error occurred while performing the action.', 'info');
-      } finally {
-        // Ensure modal closes regardless
-        try { closeConfirmModal(); } catch (e) { console.error('Error closing confirm modal:', e); }
-      }
-    }
-  }
-
-  // Show feedback message (simple alert for now)
-  function showFeedback(message, type = 'info') {
-    // Use existing showAlert function if available, or create a simple one
-    if (typeof showAlert === 'function') {
-      showAlert(message, type === 'success');
-    } else {
-      alert(message);
-    }
-  }
-
   // Make functions globally available
   window.markAsCompleted = markAsCompleted;
   window.approveRequest = approveRequest;
@@ -1561,8 +1398,286 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') || windo
   }
 }
 
-
-
 /* =====================================================
    END OF ADMIN CONFERENCE ROOM REQUESTS SCRIPT
 ===================================================== */
+
+/* =====================================================
+   ADMIN TENTS & CHAIRS REQUESTS SCRIPT
+   Add this section to your script.js file
+   START: Admin Tents & Chairs Requests Script
+===================================================== */
+
+// Check if we're on the admin tents & chairs requests page
+if (window.location.pathname.endsWith('admin-tents-requests.html') || window.location.pathname.endsWith('/admin-tents-requests')) {
+  
+  // Global variables for confirmation modal
+  let pendingAction = null;
+  let pendingRequestId = null;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Setup mobile menu
+    setupMobileMenu();
+    
+    // Setup sidebar dropdowns
+    setupSidebarDropdowns();
+    
+    // Validate table on load
+    validateTentsTable();
+  });
+
+  // Validate that table has data and buttons are functional
+  function validateTentsTable() {
+    const tbody = document.getElementById('tentsRequestsTableBody');
+    const rows = tbody.querySelectorAll('tr');
+    
+    if (rows.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="11" style="text-align: center; padding: 40px; color: #999;">
+            No tents & chairs requests found.
+          </td>
+        </tr>
+      `;
+    }
+
+    // Validate that all buttons have onclick handlers
+    const actionButtons = document.querySelectorAll('.action-btn, .notify-btn');
+    actionButtons.forEach(button => {
+      if (!button.onclick && !button.getAttribute('onclick')) {
+        console.warn('Button without handler found:', button);
+      }
+    });
+  }
+
+  // Mark request as completed
+  function markTentsAsCompleted(requestId) {
+    showConfirmModal(
+      'Mark as Completed',
+      'Are you sure you want to mark this tents & chairs request as completed?',
+      () => {
+        console.log('Marking tents request as completed:', requestId);
+        
+        // TODO: Update Firestore
+        // const requestRef = doc(db, "requests", requestId);
+        // await updateDoc(requestRef, {
+        //   status: 'completed',
+        //   completedAt: new Date().toISOString()
+        // });
+
+        // Remove the row from table (frontend only for now)
+        const row = document.querySelector(`tr[data-request-id="${requestId}"]`);
+        if (row) {
+          row.style.opacity = '0';
+          setTimeout(() => {
+            row.remove();
+            validateTentsTable();
+            showFeedback('Tents & chairs request marked as completed successfully!', 'success');
+          }, 300);
+        }
+      }
+    );
+  }
+
+  // Approve request
+  function approveTentsRequest(requestId) {
+    showConfirmModal(
+      'Approve Request',
+      'Are you sure you want to approve this tents & chairs request?',
+      () => {
+        console.log('Approving tents request:', requestId);
+        
+        // TODO: Update Firestore
+        // const requestRef = doc(db, "requests", requestId);
+        // await updateDoc(requestRef, {
+        //   status: 'approved',
+        //   approvedAt: new Date().toISOString()
+        // });
+
+        // Update the row (frontend only for now)
+        const row = document.querySelector(`tr[data-request-id="${requestId}"]`);
+        if (row) {
+          const actionsCell = row.querySelector('.actions-cell');
+          actionsCell.innerHTML = `
+            <button class="action-btn completed-btn" onclick="markTentsAsCompleted('${requestId}')">Mark as Completed</button>
+          `;
+          showFeedback('Tents & chairs request approved successfully!', 'success');
+        }
+      }
+    );
+  }
+
+  // Deny request
+  function denyTentsRequest(requestId) {
+    showConfirmModal(
+      'Deny Request',
+      'Are you sure you want to deny this tents & chairs request? This action cannot be undone.',
+      () => {
+        console.log('Denying tents request:', requestId);
+        
+        // TODO: Update Firestore
+        // const requestRef = doc(db, "requests", requestId);
+        // await updateDoc(requestRef, {
+        //   status: 'denied',
+        //   deniedAt: new Date().toISOString()
+        // });
+
+        // Remove the row from table (frontend only for now)
+        const row = document.querySelector(`tr[data-request-id="${requestId}"]`);
+        if (row) {
+          row.style.opacity = '0';
+          setTimeout(() => {
+            row.remove();
+            validateTentsTable();
+            showFeedback('Tents & chairs request denied successfully!', 'success');
+          }, 300);
+        }
+      }
+    );
+  }
+
+  // Notify user (Time's Up)
+  function notifyTentsUser(requestId) {
+    showConfirmModal(
+      'Notify User',
+      'Send a "Time\'s Up" notification to the user?',
+      () => {
+        console.log('Notifying user for tents request:', requestId);
+        
+        // TODO: Send notification via Firebase/Email
+        // const requestRef = doc(db, "requests", requestId);
+        // const requestData = await getDoc(requestRef);
+        // Send email or push notification to user
+
+        showFeedback('User notified successfully!', 'success');
+      }
+    );
+  }
+
+  // Collect items
+  function collectItems(requestId) {
+    showConfirmModal(
+      'Collect Items',
+      'Mark items as collected from the user?',
+      () => {
+        console.log('Marking items as collected for request:', requestId);
+        
+        // TODO: Update Firestore
+        // const requestRef = doc(db, "requests", requestId);
+        // await updateDoc(requestRef, {
+        //   itemsCollected: true,
+        //   collectedAt: new Date().toISOString()
+        // });
+
+        showFeedback('Items marked as collected successfully!', 'success');
+      }
+    );
+  }
+
+  // Show confirmation modal
+  // Use global modal utilities defined earlier (showConfirmModal, closeConfirmModal, confirmAction)
+
+  // Show feedback message
+  function showFeedback(message, type = 'info') {
+    if (typeof showAlert === 'function') {
+      showAlert(message, type === 'success');
+    } else {
+      alert(message);
+    }
+  }
+
+  // Make functions globally available
+  window.markTentsAsCompleted = markTentsAsCompleted;
+  window.approveTentsRequest = approveTentsRequest;
+  window.denyTentsRequest = denyTentsRequest;
+  window.notifyTentsUser = notifyTentsUser;
+  window.collectItems = collectItems;
+  window.closeConfirmModal = closeConfirmModal;
+  window.confirmAction = confirmAction;
+
+  // Setup mobile menu
+  function setupMobileMenu() {
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.admin-sidebar');
+
+    if (menuToggle) {
+      menuToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('open');
+      });
+
+      document.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768) {
+          if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+            sidebar.classList.remove('open');
+          }
+        }
+      });
+    }
+  }
+
+  // Setup sidebar dropdowns
+  function setupSidebarDropdowns() {
+    // Generic dropdown setup: toggle both 'open' and 'show' classes which CSS uses
+    const dropdowns = document.querySelectorAll('.sidebar-dropdown');
+    dropdowns.forEach(drop => {
+      const toggle = drop.querySelector('.dropdown-toggle');
+      const content = drop.querySelector('.dropdown-content');
+
+      // If any child link is active, open the dropdown by default
+      const childActive = content && content.querySelector('.dropdown-link.active');
+      if (childActive) {
+        toggle?.classList.add('open');
+        content?.classList.add('open');
+        content?.classList.add('show');
+      }
+
+      if (toggle && content) {
+        // Remove duplicate handlers by cloning node if necessary
+        // (safe-guard) remove previous listener by replacing node
+        const newToggle = toggle.cloneNode(true);
+        toggle.parentNode.replaceChild(newToggle, toggle);
+
+        newToggle.addEventListener('click', function(e) {
+          e.preventDefault();
+          newToggle.classList.toggle('open');
+          content.classList.toggle('open');
+          content.classList.toggle('show');
+        });
+      }
+    });
+  }
+
+  // Function to load requests from Firestore (to be implemented)
+  async function loadTentsChairsRequests() {
+    // TODO: Implement Firestore query
+    // const requestsRef = collection(db, "requests");
+    // const q = query(requestsRef,
+    //   where("type", "==", "tents-chairs"),
+    //   orderBy("requestDate", "desc")
+    // );
+    // const querySnapshot = await getDocs(q);
+    // 
+    // const tbody = document.getElementById('tentsRequestsTableBody');
+    // tbody.innerHTML = '';
+    // 
+    // querySnapshot.forEach((doc) => {
+    //   const request = { id: doc.id, ...doc.data() };
+    //   const row = createTentsRequestRow(request);
+    //   tbody.appendChild(row);
+    // });
+    // 
+    // validateTentsTable();
+  }
+
+  // Function to create a table row (to be implemented with real data)
+  function createTentsRequestRow(request) {
+    // TODO: Create row element from Firestore data
+    // const row = document.createElement('tr');
+    // row.setAttribute('data-request-id', request.id);
+    // row.innerHTML = `...`;
+    // return row;
+  }
+}
+
+/* END: Admin Tents & Chairs Requests Script */
+/* ===================================================== */
