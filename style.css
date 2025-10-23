@@ -3056,7 +3056,6 @@ footer a:hover {
 .tents-requests-table th:nth-child(11),
 .tents-requests-table td:nth-child(11) {
   min-width: 120px;
-  display: flex;
   align-items: center;
 }
 
@@ -3072,7 +3071,6 @@ footer a:hover {
 
 /* Notify Cell - Vertical Stack for Tents & Chairs */
 .tents-requests-table .notify-cell {
-  display: flex;
   flex-direction: column;
   gap: 8px;
   align-items: center;
@@ -3100,6 +3098,11 @@ footer a:hover {
   box-shadow: 0 4px 8px rgba(255, 203, 5, 0.4);
 }
 
+
+.action-btn,
+.notify-btn {
+  max-width: 100%;
+}
 /* Ensure Times Up button has full width in this layout */
 .tents-requests-table .times-up-btn {
   width: 100%;
