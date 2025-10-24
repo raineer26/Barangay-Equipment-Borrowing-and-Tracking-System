@@ -146,7 +146,7 @@ loginForm?.addEventListener("submit", async (e) => {
 // ...signup imports consolidated at the top (createUserWithEmailAndPassword, updateProfile, setDoc)
 
 const signupForm = document.getElementById("signupForm");
-const errorUsername = document.getElementById("error-username");
+const errorFullname = document.getElementById("error-fullname");
 const errorEmail = document.getElementById("error-email");
 const errorPassword = document.getElementById("error-password");
 const errorConfirm = document.getElementById("error-confirm");
@@ -235,25 +235,25 @@ signupForm?.addEventListener("submit", async (e) => {
   const email = document.getElementById("signup-email").value.trim();
   const password = document.getElementById("signup-password").value;
   const confirmPassword = document.getElementById("signup-confirm").value;
-  const username = document.getElementById("signup-username").value.trim();
+  const fullname = document.getElementById("signup-fullname").value.trim();
   const contact = document.getElementById("signup-contact").value.trim();
   const address = document.getElementById("signup-address").value.trim();
 
   // Reset all previous errors
-  [errorUsername, errorEmail, errorPassword, errorConfirm, errorContact, errorAddress]
+  [errorFullname, errorEmail, errorPassword, errorConfirm, errorContact, errorAddress]
     .forEach(clearErrorSignup);
 
   let valid = true;
 
-  // Username validation
-  if (!username) {
-    setErrorSignup(errorUsername, "Username can't be blank");
+  // Fullname validation
+  if (!fullname) {
+    setErrorSignup(errorFullname, "Full Name can't be blank");
     valid = false;
-  } else if (username.length < 3) {
-    setErrorSignup(errorUsername, "Username must be at least 3 characters");
+  } else if (fullname.length < 3) {
+    setErrorSignup(errorFullname, "Full Name must be at least 3 characters");
     valid = false;
   } else {
-    setSuccessSignup(errorUsername);
+    setSuccessSignup(errorFullname);
   }
 
   // Email validation
@@ -314,7 +314,7 @@ signupForm?.addEventListener("submit", async (e) => {
   if (!valid) return;
 
   // Clear all errors before Firebase
-  [errorUsername, errorEmail, errorPassword, errorConfirm, errorContact, errorAddress].forEach(clearErrorSignup);
+  [errorFullname, errorEmail, errorPassword, errorConfirm, errorContact, errorAddress].forEach(clearErrorSignup);
 
   try {
     // Create Auth user
@@ -322,11 +322,11 @@ signupForm?.addEventListener("submit", async (e) => {
     const user = userCredential.user;
 
     // Update display name
-    await updateProfile(user, { displayName: username });
+    await updateProfile(user, { displayName: fullname });
 
     // Save extra info to Firestore
     await setDoc(doc(db, "users", user.uid), {
-      username: username,
+      fullname: fullname,
       email: email,
       contact: contact,
       address: address,
@@ -471,8 +471,8 @@ async function fetchAndDisplayUserData(user) {
             const userData = docSnap.data();
 
             // Populate the HTML elements with the data from Firestore
-            profileNameEl.textContent = userData.username || "User Profile";
-            infoFullNameEl.textContent = userData.username || "Not Available";
+            profileNameEl.textContent = userData.fullname || "User Profile";
+            infoFullNameEl.textContent = userData.fullname || "Not Available";
             infoContactNumberEl.textContent = userData.contact || "Not Available";
             infoEmailEl.textContent = userData.email || "Not Available";
             infoAddressEl.textContent = userData.address || "Not Available";
