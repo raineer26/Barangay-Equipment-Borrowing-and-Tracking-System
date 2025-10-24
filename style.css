@@ -2672,3 +2672,74 @@ input[type="number"]::-webkit-outer-spin-button {
     height: 20px;
   }
 }
+
+/* ===== Custom Alert Overlay ===== */
+#overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: none;
+  z-index: 9998;
+}
+
+/* ===== Alert Box (Default) ===== */
+#customAlert,
+#formAlertBox {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  padding: 25px 30px;
+  max-width: 400px;
+  text-align: center;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: none;
+  z-index: 10000;
+  font-family: "Poppins", Arial, sans-serif;
+}
+
+/* ===== Message Text ===== */
+#customAlert .alert-message,
+#formAlertBox .alert-message {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 18px;
+  line-height: 1.4;
+}
+
+/* ===== OK Button ===== */
+#customAlert .alert-ok-btn,
+#formAlertBox .alert-ok-btn {
+  background: #1a0e7a; /* blue */
+  color: rgb(255, 255, 255);
+  border: none;
+  padding: 10px 25px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+  transition: background-color 0.25s ease;
+}
+
+#customAlert .alert-ok-btn:hover,
+#formAlertBox .alert-ok-btn:hover {
+  background-color: #426043; /* Darker green on hover */
+}
+
+/* ===== Success State ===== */
+#customAlert.success,
+#formAlertBox.success {
+  background-color: #ffffff; 
+  color: #ffffff;
+  border: 1px solid #ffffff;
+}
+
+/* ===== Responsive Centering ===== */
+@media (max-width: 500px) {
+  #customAlert,
+  #formAlertBox {
+    width: 85%;
+    padding: 20px;
+  }
+}

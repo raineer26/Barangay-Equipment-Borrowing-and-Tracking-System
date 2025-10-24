@@ -5,11 +5,14 @@
    LOGIN PAGE SCRIPT
    (from index.html)
 ====================== */
+/* --- LOGIN PAGE SCRIPT --- */
+// =============================
+// 1. Firebase setup & Firestore import (ES6 Module)
+// =============================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
-// Firebase Config
+// ====== Your Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyAYwzAJ45Lng5RvurB-LCqY0AUJLsmyvkM",
   authDomain: "f5-softdev.firebaseapp.com",
@@ -20,9 +23,145 @@ const firebaseConfig = {
   measurementId: "G-RDKKY98HWY"
 };
 
+// ====== Initialize Firebase & Firestore
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
+
+// =============================
+// 2. Unique Custom Alert Function (no naming conflicts FOR BACKEND)
+// =============================
+function showBookingFormAlert(message, type = "success") {
+  let alertBox = document.getElementById("bookingFormAlertBox");
+  if (!alertBox) {
+    alertBox = document.createElement("div");
+    alertBox.id = "bookingFormAlertBox";
+    alertBox.style.position = "fixed";
+    alertBox.style.top = "20px";
+    alertBox.style.right = "20px";
+    alertBox.style.padding = "12px 20px";
+    alertBox.style.borderRadius = "8px";
+    alertBox.style.fontWeight = "bold";
+    alertBox.style.color = "#fff";
+    alertBox.style.zIndex = "9999";
+    alertBox.style.transition = "all 0.3s ease";
+    document.body.appendChild(alertBox);
+  }
+  alertBox.style.backgroundColor = type === "success" ? "#28a745" : "#dc3545";
+  alertBox.textContent = message;
+  alertBox.style.display = "block";
+  alertBox.style.opacity = "1";
+  setTimeout(() => {
+    alertBox.style.opacity = "0";
+    setTimeout(() => (alertBox.style.display = "none"), 300);
+  }, 3000);
+}
+
+// =============================
+// 3. Tents & Chairs Form Handler FOR BACKEND
+// =============================
+document.addEventListener("DOMContentLoaded", () => {
+  const tentsChairsForm = document.getElementById("tentsChairsForm");
+
+  async function handleTentsChairsSubmit(e) {
+    e.preventDefault();
+    
+    // Get form values
+    const fullName = document.getElementById("fullName").value.trim();
+    const contactNumber = document.getElementById("contactNumber").value.trim();
+    const completeAddress = document.getElementById("completeAddress").value.trim();
+    const modeOfReceiving = document.getElementById("modeOfReceiving").value.trim();
+    const quantityChairs = document.getElementById("quantityChairs").value.trim();
+    const quantityTents = document.getElementById("quantityTents").value.trim();
+    const startDate = document.getElementById("startDate").value.trim();
+    const endDate = document.getElementById("endDate").value.trim();
+
+  
+
+    // Validation flags
+    let hasError = false;
+
+    // Validate full name
+    if (!fullName) {
+      showAlert("Please enter your full name", false);
+      hasError = true;
+    }
+
+    // Validate contact (must be numbers only and proper length)
+    if (!contactNumber || !/^\d{11}$/.test(contactNumber)) {
+      showAlert("Please enter a valid 11-digit contact number", false);
+      hasError = true;
+    }
+
+    // Validate address
+    if (!completeAddress) {
+      showAlert("Please enter your complete address", false);
+      hasError = true;
+    }
+
+    // Validate chairs quantity (must be number between 20-600)
+    if (!quantityChairs || quantityChairs < 20 || quantityChairs > 600) {
+      showAlert("Please select a valid number of chairs (20-600)", false);
+      hasError = true;
+    }
+
+    // Validate tents quantity (must be number between 1-24)
+    if (!quantityTents || quantityTents < 1 || quantityTents > 24) {
+      showAlert("Please select a valid number of tents (1-24)", false);
+      hasError = true;
+    }
+
+    // Validate dates
+    if (!startDate || !endDate) {
+      showAlert("Please select both start and end dates", false);
+      hasError = true;
+    }
+    if (endDate < startDate) {
+      showAlert("End date must be after start date", false);
+      hasError = true;
+    }
+
+    // Validate receiving mode
+    if (!modeOfReceiving) {
+      showAlert("Please select a mode of receiving", false);
+      hasError = true;
+    }
+
+    // If any validation failed, stop form submission
+    if (hasError) {
+      return false;
+    }
+
+    try {
+      await addDoc(collection(db, "tentsChairsBookings"), {
+        fullName,
+        contactNumber,
+        completeAddress,
+        modeOfReceiving,
+        quantityChairs: parseInt(quantityChairs),
+        quantityTents: parseInt(quantityTents),
+        startDate,
+        endDate,
+        status: "pending",
+        createdAt: serverTimestamp(),
+      });
+
+
+      showAlert('Your tents & chairs request has been submitted successfully! You can check the status in your profile.', true, () => {
+        window.location.href = 'UserProfile.html';
+      });
+
+    } catch (error) {
+      console.error("Error submitting request:", error);
+      showAlert("Error submitting your request. Please try again.", false);
+    }
+  }
+
+  if (tentsChairsForm) {
+    tentsChairsForm.addEventListener("submit", handleTentsChairsSubmit);
+  }
+});
+
+// =============================
 
 // Login Validation
 const loginForm = document.getElementById("loginForm");
@@ -368,46 +507,147 @@ signupForm?.addEventListener("submit", async (e) => {
 // Logout logic for both user and admin pages
 // Custom Alert Functions
 function showAlert(message, isSuccess = false, callback = null) {
-  const alertBox = document.getElementById('customAlert');
-  const overlay = document.getElementById('overlay');
-  const alertMessage = document.getElementById('alertMessage');
+  // Prefer existing box used in HTML so your styles stay intact
+  let alertBox = document.getElementById('formAlertBox') || document.getElementById('customAlert');
+  let overlay = document.getElementById('overlay');
 
-  if (isSuccess) {
-    alertBox.classList.add('success');
-  } else {
-    alertBox.classList.remove('success');
+  // Create overlay only if missing
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'overlay';
+    Object.assign(overlay.style, {
+      position: 'fixed',
+      inset: '0',
+      background: 'rgba(0,0,0,0.35)',
+      display: 'none',
+      zIndex: '9998'
+    });
+    document.body.appendChild(overlay);
   }
 
+  // If no alert container exists, create a minimal one (keeps UI unobtrusive)
+  if (!alertBox) {
+    const box = document.createElement('div');
+    box.id = 'customAlert';
+    box.className = 'form-alert';
+    Object.assign(box.style, {
+      position: 'fixed',
+      left: '50%',
+      top: '50%',
+      transform: 'translate(-50%,-50%)',
+      background: '#fff',
+      padding: '14px 18px',
+      borderRadius: '8px',
+      boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
+      zIndex: '10000',
+      display: 'none',
+      textAlign: 'center'
+    });
+    document.body.appendChild(box);
+    alertBox = box;
+  }
+
+  // Ensure alertBox appears above overlay and is centered if necessary
+  try {
+    const cs = window.getComputedStyle(alertBox);
+    const overlayZi = parseInt(window.getComputedStyle(overlay).zIndex) || 9998;
+    const boxZi = parseInt(cs.zIndex) || 0;
+
+    if (cs.position === 'static' || cs.position === '' || cs.position === 'relative') {
+      // Only set positioning properties if the element isn't already explicitly positioned
+      alertBox.style.position = alertBox.style.position || 'fixed';
+      if (!alertBox.style.left && !alertBox.style.right) alertBox.style.left = '50%';
+      if (!alertBox.style.top && !alertBox.style.bottom) alertBox.style.top = '50%';
+      if (!alertBox.style.transform) alertBox.style.transform = 'translate(-50%,-50%)';
+    }
+
+    if (boxZi <= overlayZi) {
+      alertBox.style.zIndex = (overlayZi + 1).toString();
+    }
+  } catch (e) {
+    // Fallback if computed style access fails
+    alertBox.style.position = alertBox.style.position || 'fixed';
+    alertBox.style.left = alertBox.style.left || '50%';
+    alertBox.style.top = alertBox.style.top || '50%';
+    alertBox.style.transform = alertBox.style.transform || 'translate(-50%,-50%)';
+    alertBox.style.zIndex = alertBox.style.zIndex || '10000';
+  }
+
+  // Ensure there is a message container inside the alertBox (prefer existing IDs/classes)
+  let alertMessage = alertBox.querySelector('.alert-message') || document.getElementById('alertMessage');
+  if (!alertMessage) {
+    alertMessage = document.createElement('div');
+    alertMessage.className = 'alert-message';
+    alertMessage.id = 'alertMessage';
+    alertBox.insertBefore(alertMessage, alertBox.firstChild);
+  }
+
+  // Ensure there's an OK button for closing (preserve any existing classes/IDs)
+  let okBtn = alertBox.querySelector('.alert-ok-btn') || alertBox.querySelector('#alertOkButton');
+  if (!okBtn) {
+    okBtn = document.createElement('button');
+    okBtn.className = 'alert-ok-btn';
+    okBtn.id = 'alertOkButton';
+    okBtn.type = 'button';
+    okBtn.textContent = 'OK';
+    // Minimal inline styles so your CSS can override them if present
+    Object.assign(okBtn.style, {
+      marginTop: '10px',
+      cursor: 'pointer'
+    });
+    okBtn.addEventListener('click', closeAlert);
+    alertBox.appendChild(okBtn);
+  } else {
+    // Ensure click handler is bound
+    try { okBtn.removeEventListener && okBtn.removeEventListener('click', closeAlert); } catch {}
+    okBtn.addEventListener('click', closeAlert);
+  }
+
+  // Safely toggle success class without throwing
+  if (isSuccess) {
+    if (alertBox.classList) alertBox.classList.add('success');
+  } else {
+    if (alertBox.classList) alertBox.classList.remove('success');
+  }
+
+  // Set message text
   alertMessage.textContent = message;
+
+  // Show overlay and alert
   overlay.style.display = 'block';
   alertBox.style.display = 'block';
 
-  // Store callback if provided
-  if (callback) {
-    alertBox.setAttribute('data-callback', 'true');
+  // Save callback if provided
+  if (callback && typeof callback === 'function') {
+    alertBox.setAttribute && alertBox.setAttribute('data-callback', 'true');
     window.alertCallback = callback;
   } else {
-    alertBox.removeAttribute('data-callback');
+    alertBox.removeAttribute && alertBox.removeAttribute('data-callback');
     window.alertCallback = null;
   }
+
+  // Focus OK button for accessibility
+  if (okBtn && typeof okBtn.focus === 'function') okBtn.focus();
 }
 
 function closeAlert() {
-  const alertBox = document.getElementById('customAlert');
+  const alertBox = document.getElementById('formAlertBox') || document.getElementById('customAlert');
   const overlay = document.getElementById('overlay');
-  
-  alertBox.style.display = 'none';
-  overlay.style.display = 'none';
 
-  // Execute callback if exists
-  if (alertBox.hasAttribute('data-callback') && window.alertCallback) {
-    window.alertCallback();
+  if (alertBox) alertBox.style.display = 'none';
+  if (overlay) overlay.style.display = 'none';
+
+  try {
+    if (alertBox && alertBox.hasAttribute && alertBox.hasAttribute('data-callback') && typeof window.alertCallback === 'function') {
+      window.alertCallback();
+    }
+  } catch (err) {
+    console.error('Alert callback error:', err);
+  } finally {
     window.alertCallback = null;
+    if (alertBox && alertBox.removeAttribute) alertBox.removeAttribute('data-callback');
   }
 }
-
-// Make closeAlert available globally
-window.closeAlert = closeAlert;
 
 /* =====================
    PAGE PROTECTION & GLOBAL LOGOUT
@@ -1119,3 +1359,4 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
 /* =====================================================
    END OF TENTS & CHAIRS REQUEST FORM SCRIPT
 ===================================================== */
+
