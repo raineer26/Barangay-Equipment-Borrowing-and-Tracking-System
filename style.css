@@ -923,6 +923,7 @@ footer {
 .user-profile-actions {
   display: flex;
   gap: 12px;
+  margin-top: 100px;
 }
 
 .edit-profile-btn {
@@ -931,13 +932,14 @@ footer {
   border: 2px solid #d9d9d9;
   border-radius: 8px;
   padding: 8px 22px;
-  font-size: 1rem;
+  font-size: .9rem;
   font-family: 'Poppins', sans-serif;
   font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
+  
 }
 
 .change-password-btn {
@@ -946,7 +948,7 @@ footer {
   border: none;
   border-radius: 8px;
   padding: 8px 22px;
-  font-size: 1rem;
+  font-size: .9rem;
   font-family: 'Poppins', sans-serif;
   font-weight: 500;
   cursor: pointer;
@@ -978,6 +980,7 @@ footer {
   font-family: 'League Spartan', sans-serif;
   font-weight: bold;
   margin-bottom: 18px;
+  color: #281abc;
 }
 
 .info-item {
@@ -1010,6 +1013,7 @@ footer {
   font-size: 1.3rem;
   font-family: 'League Spartan', sans-serif;
   font-weight: bold;
+  color: #281abc;
 }
 .view-all-requests {
   font-size: 0.95rem;
@@ -1026,7 +1030,7 @@ footer {
 }
 .request-card {
   background: #fff;
-  border: 2px solid #222;
+  border: 1px solid #222;
   border-radius: 12px;
   padding: 22px 24px 18px 24px;
   box-shadow: none;
@@ -1036,6 +1040,7 @@ footer {
   display: flex;
   flex-direction: column;
   position: relative;
+  margin-bottom: 10px;
 }
 .request-card-header {
   display: flex;
@@ -1084,6 +1089,10 @@ footer {
   cursor: pointer;
   margin-top: 24px;
   align-self: flex-end;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.2s;
 }
 
 /* CONTACT PAGE STYLES*/
@@ -2291,17 +2300,18 @@ footer a:hover {
   width: 100%;
 }
 .custom-dropdown .make-request-btn {
-  background: #241ed7;
+  background: #281ABC;
   color: #fff;
   border: none;
-  border-radius: 6px 6px 0 0;
+  border-radius: 12px;  /* Make fully rounded */
   padding: 12px 24px;
   font-weight: bold;
   font-size: 16px;
   cursor: pointer;
-  width: 50%;
+  width: 100%;
   text-align: left;
   transition: background 0.2s;
+  margin-bottom: 4px; /* Add small gap */
 }
 .custom-dropdown .make-request-btn:after {
   content: '';
@@ -2311,13 +2321,13 @@ footer a:hover {
   position: absolute;
   left: 0;
   top: 100%;
-  background: #241ed7;
-  border-radius: 0 0 12px 12px;
-  width: 50%;
+  background: #281ABC;
+  border-radius: 12px; /* Make fully rounded */
+  width: 100%;
   box-shadow: 0 8px 16px rgba(0,0,0,0.12);
   z-index: 10;
-  margin: 0;
-  padding: 0;
+  margin: 0; /* Remove overlap */
+  padding: 4px 0; /* Add some padding to menu */
 }
 .custom-dropdown .dropdown-menu li {
   list-style: none;
