@@ -989,7 +989,7 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     if (!quantityChairs) {
       setFieldError('quantityChairs', 'Quantity of chairs is required');
       isValid = false;
-    } else if (parseInt(quantityChairs) < 1) {
+    } else if (parseInt(quantityChairs) < 20) {
       setFieldError('quantityChairs', 'Quantity must be at least 1');
       isValid = false;
     } else if (parseInt(quantityChairs) > 600) {
