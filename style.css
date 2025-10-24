@@ -1574,10 +1574,14 @@ footer a:hover {
 .mission-box .mv-text,
 .mission-box .mv-placeholder {
   color: #fff;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.1rem;
 }
 .vision-box .mv-text,
 .vision-box .mv-placeholder {
   color: #000; /* darker text on yellow background for readability */
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.1rem;
 }
 
 .officials-section {
