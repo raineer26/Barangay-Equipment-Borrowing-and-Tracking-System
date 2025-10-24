@@ -909,29 +909,21 @@ footer {
   margin-bottom: 24px;
 }
 
-.profile-image-placeholder {
-  width: 110px;
-  height: 110px;
-  border-radius: 50%;
-  background: #d9d9d9;
-  border: 2px solid #281abc;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.5rem;
-  color: #888;
-}
+
 
 .user-profile-name {
   font-size: 2.2rem;
   font-family: 'League Spartan', sans-serif;
   color: #281abc;
   font-weight: bold;
+  margin-left: -450px;
 }
+
 
 .user-profile-actions {
   display: flex;
   gap: 12px;
+  margin-top: 100px;
 }
 
 .edit-profile-btn {
@@ -940,13 +932,14 @@ footer {
   border: 2px solid #d9d9d9;
   border-radius: 8px;
   padding: 8px 22px;
-  font-size: 1rem;
+  font-size: .9rem;
   font-family: 'Poppins', sans-serif;
   font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
+  
 }
 
 .change-password-btn {
@@ -955,7 +948,7 @@ footer {
   border: none;
   border-radius: 8px;
   padding: 8px 22px;
-  font-size: 1rem;
+  font-size: .9rem;
   font-family: 'Poppins', sans-serif;
   font-weight: 500;
   cursor: pointer;
@@ -987,6 +980,7 @@ footer {
   font-family: 'League Spartan', sans-serif;
   font-weight: bold;
   margin-bottom: 18px;
+  color: #281abc;
 }
 
 .info-item {
@@ -1006,7 +1000,7 @@ footer {
 .user-request-status {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  height: 100%;
 }
 .request-status-header {
   display: flex;
@@ -1019,6 +1013,7 @@ footer {
   font-size: 1.3rem;
   font-family: 'League Spartan', sans-serif;
   font-weight: bold;
+  color: #281abc;
 }
 .view-all-requests {
   font-size: 0.95rem;
@@ -1028,14 +1023,14 @@ footer {
   margin-left: 18px;
 }
 .request-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  width: 100%;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding-right: 8px;
 }
 .request-card {
   background: #fff;
-  border: 2px solid #222;
+  border: 1px solid #222;
   border-radius: 12px;
   padding: 22px 24px 18px 24px;
   box-shadow: none;
@@ -1045,6 +1040,7 @@ footer {
   display: flex;
   flex-direction: column;
   position: relative;
+  margin-bottom: 10px;
 }
 .request-card-header {
   display: flex;
@@ -1080,29 +1076,7 @@ footer {
   margin-bottom: 2px;
   font-family: 'Poppins', sans-serif;
 }
-.request-view {
-  margin-top: 6px;
-  align-self: flex-end;
-  background: #281abc;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 28px;
-  font-size: 1.08rem;
-  font-family: 'Poppins', sans-serif;
-  font-weight: 500;
-  cursor: pointer;
-  box-shadow: 0 2px 8px #d1d1ff;
-  transition: background 0.2s, color 0.2s, border 0.2s, box-shadow 0.2s;
-  text-decoration: none;
-  display: inline-block;
-}
-.request-view:hover {
-  background: #fff;
-  color: #281abc;
-  border: 2px solid #281abc;
-  box-shadow: 0 2px 8px #d1d1ff;
-}
+
 .make-request-btn {
   background: #281abc;
   color: #fff;
@@ -1115,6 +1089,10 @@ footer {
   cursor: pointer;
   margin-top: 24px;
   align-self: flex-end;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.2s;
 }
 
 /* CONTACT PAGE STYLES*/
@@ -2077,18 +2055,36 @@ footer a:hover {
 }
 
 .close-modal {
-  color: #aaa;
-  float: right;
-  font-size: 32px;
-  font-weight: bold;
+  background: #fff;
+  color: #2563eb;
+  border: 2px solid #2563eb;
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-weight: 600;
+  font-size: 15px;
   cursor: pointer;
-  line-height: 20px;
-  transition: color 0.3s;
+  transition: background 0.2s, color 0.2s;
 }
 
-.close-modal:hover,
-.close-modal:focus {
-  color: #281ABC;
+.close-modal:hover {
+  background: #e6edfa;
+  color: #1742a0;
+}
+
+/* Modal Button Styles - Updated to match provided design */
+.save-changes {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.save-changes:hover {
+  background: #1742a0;
 }
 
 /* Form Styles */
@@ -2295,4 +2291,83 @@ footer a:hover {
     width: 20px;
     height: 20px;
   }
+}
+
+/* Custom Dropdown for Make New Request */
+.custom-dropdown {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+.custom-dropdown .make-request-btn {
+  background: #281ABC;
+  color: #fff;
+  border: none;
+  border-radius: 12px;  /* Make fully rounded */
+  padding: 12px 24px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background 0.2s;
+  margin-bottom: 4px; /* Add small gap */
+}
+.custom-dropdown .make-request-btn:after {
+  content: '';
+}
+.custom-dropdown .dropdown-menu {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 100%;
+  background: #281ABC;
+  border-radius: 12px; /* Make fully rounded */
+  width: 100%;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+  z-index: 10;
+  margin: 0; /* Remove overlap */
+  padding: 4px 0; /* Add some padding to menu */
+}
+.custom-dropdown .dropdown-menu li {
+  list-style: none;
+}
+.custom-dropdown .dropdown-menu a {
+  color: #fff;
+  padding: 16px 24px;
+  display: block;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 16px;
+  border-radius: 0 0 12px 12px;
+  transition: background 0.2s;
+}
+.custom-dropdown .dropdown-menu a:hover {
+  background: #1a159c;
+}
+.custom-dropdown:hover .dropdown-menu,
+.custom-dropdown:focus-within .dropdown-menu,
+.custom-dropdown .make-request-btn:focus + .dropdown-menu {
+  display: block;
+}
+
+/* Make logout button match edit-profile-btn */
+.logout-btn.edit-profile-btn {
+  background: #ffffff;
+  color: #281ABC;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-family: leauge spartan, sans-serif;
+  font-size: 1rem;
+  border: 2px solid #281abc;
+}
+.logout-btn.edit-profile-btn:hover {
+  background: #1f148d;
+  color: white;
 }

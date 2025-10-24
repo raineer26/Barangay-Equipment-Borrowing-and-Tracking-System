@@ -437,6 +437,134 @@ window.logout = function() {
   });
 };
 
+/* User Profile Page Scripts */
+document.addEventListener('DOMContentLoaded', function() {
+  // Only run this code on the UserProfile page
+  if (!document.querySelector('.user-profile-layout')) return;
+
+  const editProfileModal = document.getElementById('editProfileModal');
+  const changePasswordModal = document.getElementById('changePasswordModal');
+  const editProfileBtn = document.querySelector('.edit-profile-btn');
+  const changePasswordBtn = document.querySelector('.change-password-btn');
+  const logoutBtn = document.querySelector('.logout-btn');
+  const makeRequestBtn = document.querySelector('.make-request-btn');
+  const dropdownContent = document.querySelector('.dropdown-content');
+  const closeButtons = document.querySelectorAll('.close-modal');
+
+  // Load user data
+  loadUserData();
+
+  // Edit Profile Modal
+  editProfileBtn?.addEventListener('click', () => {
+    editProfileModal.style.display = 'block';
+  });
+
+  // Change Password Modal
+  changePasswordBtn?.addEventListener('click', () => {
+    changePasswordModal.style.display = 'block';
+  });
+
+  // Close modals when clicking close button
+  closeButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      editProfileModal.style.display = 'none';
+      changePasswordModal.style.display = 'none';
+    });
+  });
+
+  // Close modals when clicking outside
+  window.addEventListener('click', (e) => {
+    if (e.target === editProfileModal) editProfileModal.style.display = 'none';
+    if (e.target === changePasswordModal) changePasswordModal.style.display = 'none';
+  });
+
+  // Make Request Dropdown
+  makeRequestBtn?.addEventListener('click', () => {
+    dropdownContent.style.display = dropdownContent.style.display === 'block' ? 'none' : 'block';
+  });
+
+  // Close dropdown when clicking outside
+  window.addEventListener('click', (e) => {
+    if (!e.target.matches('.make-request-btn')) {
+      dropdownContent.style.display = 'none';
+    }
+  });
+
+  // Logout functionality
+  logoutBtn?.addEventListener('click', () => {
+    window.logout();
+  });
+
+  // Handle Edit Profile Form Submit
+  const editProfileForm = document.getElementById('editProfileForm');
+  editProfileForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const updates = {
+      fullName: document.getElementById('editFullName').value,
+      contactNumber: document.getElementById('editContactNumber').value,
+      email: document.getElementById('editEmail').value,
+      address: document.getElementById('editAddress').value
+    };
+
+    try {
+      await setDoc(doc(db, "users", user.uid), updates, { merge: true });
+      editProfileModal.style.display = 'none';
+      loadUserData(); // Reload the user data
+    } catch (error) {
+      console.error("Error updating profile:", error);
+    }
+  });
+
+  // Handle Change Password Form Submit
+  const changePasswordForm = document.getElementById('changePasswordForm');
+  changePasswordForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newPassword = document.getElementById('newPassword').value;
+    const user = auth.currentUser;
+    if (!user) return;
+
+    try {
+      await user.updatePassword(newPassword);
+      changePasswordModal.style.display = 'none';
+    } catch (error) {
+      console.error("Error updating password:", error);
+    }
+  });
+});
+
+// Function to load user data
+async function loadUserData() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  try {
+    const docRef = doc(db, "users", user.uid);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      const userData = docSnap.data();
+      
+      // Update profile information
+      document.getElementById('profileFullName').textContent = userData.fullName || 'User';
+      document.getElementById('infoFullName').textContent = userData.fullName || 'Not provided';
+      document.getElementById('infoContactNumber').textContent = userData.contactNumber || 'Not provided';
+      document.getElementById('infoEmail').textContent = userData.email || 'Not provided';
+      document.getElementById('infoAddress').textContent = userData.address || 'Not provided';
+
+      // Pre-fill edit form
+      document.getElementById('editFullName').value = userData.fullName || '';
+      document.getElementById('editContactNumber').value = userData.contactNumber || '';
+      document.getElementById('editEmail').value = userData.email || '';
+      document.getElementById('editAddress').value = userData.address || '';
+    }
+  } catch (error) {
+    console.error("Error loading user data:", error);
+  }
+}
+
 /* ==========================================================================
    USER PROFILE PAGE SCRIPT (for user.html)
    - This block will run only on the user profile page.
