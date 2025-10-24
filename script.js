@@ -709,6 +709,29 @@ if (window.location.pathname.endsWith('about.html') || window.location.pathname.
     setTimeout(handleScrollAnimation, 100);
 }
 
+// Initialize scroll-triggered keyframe animations on user.html
+if (window.location.pathname.endsWith('user.html') || window.location.pathname.endsWith('/user')) {
+  const animElements = document.querySelectorAll('.animate-on-scroll');
+
+  // Ensure elements start hidden (CSS class handles this, but keep as a safeguard)
+  animElements.forEach(el => {
+    el.classList.remove('animated');
+  });
+
+  function handleUserAnimations() {
+    animElements.forEach(el => {
+      if (isInViewport(el) && !el.classList.contains('animated')) {
+        el.classList.add('animated');
+      }
+    });
+  }
+
+  // Throttled scroll listener
+  window.addEventListener('scroll', throttle(handleUserAnimations, 100));
+  // Run once on load
+  setTimeout(handleUserAnimations, 120);
+}
+
 
 /* =====================================================
    CONFERENCE ROOM CALENDAR SCRIPT
