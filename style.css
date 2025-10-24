@@ -939,13 +939,17 @@ footer {
   display: flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap; /* prevent text wrapping */
+  box-sizing: border-box; /* make borders part of the element size */
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.12s ease;
   
 }
 
 .change-password-btn {
   background: #281abc;
   color: #fff;
-  border: none;
+  /* keep a consistent border width so hover doesn't change layout */
+  border: 2px solid transparent;
   border-radius: 8px;
   padding: 8px 22px;
   font-size: .9rem;
@@ -955,6 +959,9 @@ footer {
   display: flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap; /* prevent text wrapping */
+  box-sizing: border-box; /* make borders part of the element size */
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.12s ease;
 }
 
 .user-profile-content {
