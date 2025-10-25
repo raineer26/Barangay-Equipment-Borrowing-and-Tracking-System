@@ -29,6 +29,46 @@ const loginForm = document.getElementById("loginForm");
 const errorLoginEmail = document.getElementById("error-login-email");
 const errorLoginPassword = document.getElementById("error-login-password");
 
+// Helper to clear sensitive form fields (used when signed-out or page restored from bfcache)
+function clearSensitiveLoginFields() {
+  try {
+    const emailEl = document.getElementById('login-email');
+    const passEl = document.getElementById('login-password');
+    if (emailEl) {
+      // Prevent browser autofill hints where possible and clear value
+      emailEl.setAttribute('autocomplete', 'off');
+      emailEl.value = '';
+    }
+    if (passEl) {
+      passEl.setAttribute('autocomplete', 'off');
+      passEl.value = '';
+    }
+    if (loginForm) {
+      loginForm.setAttribute('autocomplete', 'off');
+    }
+  } catch (e) {
+    console.warn('Failed to clear login fields:', e);
+  }
+}
+
+// Ensure login inputs are cleared on pageshow (handles back/forward cache restoring the page)
+window.addEventListener('pageshow', (event) => {
+  // If this page is the login page (index.html) and there is no authenticated user, clear fields
+  const path = window.location.pathname || '';
+  if (path.endsWith('index.html') || path === '/' || path === '') {
+    // If auth.currentUser is falsy, clear fields to avoid restored values from previous sessions
+    if (!auth.currentUser) clearSensitiveLoginFields();
+  }
+  // For protected pages, if the page was restored from bfcache and the user is no longer signed in, force redirect
+  if (event.persisted) {
+    const protectedPaths = ["/user.html", "/admin.html", "user.html", "admin.html", "/UserProfile.html", "UserProfile.html"];
+    if (protectedPaths.some(p => window.location.pathname.endsWith(p)) && !auth.currentUser) {
+      // Force a redirect to login (replace so back doesn't loop)
+      try { location.replace('index.html'); } catch (e) { window.location.href = 'index.html'; }
+    }
+  }
+});
+
 function validateEmail(email) {
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   if (!email) {
@@ -410,6 +450,126 @@ function closeAlert() {
 // Make closeAlert available globally
 window.closeAlert = closeAlert;
 
+  /* --------------------------------------------------
+     Toast notifications (top-right) — lightweight
+     Usage: showToast(message, isSuccess = true, duration = 3000)
+  -------------------------------------------------- */
+  const TOAST_DURATION = 1600;
+
+  function ensureToastContainer() {
+    let container = document.getElementById('top-right-toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'top-right-toast-container';
+      container.style.position = 'fixed';
+      container.style.top = '16px';
+      container.style.right = '16px';
+      container.style.zIndex = '99999';
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
+      container.style.gap = '8px';
+      document.body.appendChild(container);
+    }
+    return container;
+  }
+
+  function showToast(message, isSuccess = true, duration = TOAST_DURATION) {
+    const container = ensureToastContainer();
+    // Create toast with white background, blue/black text and check icon on left to match site design
+    const toast = document.createElement('div');
+    toast.className = 'tr-toast';
+    toast.style.display = 'flex';
+    toast.style.alignItems = 'center';
+    toast.style.gap = '10px';
+    toast.style.minWidth = '240px';
+    toast.style.maxWidth = '360px';
+    toast.style.padding = '10px 14px';
+    toast.style.color = '#0b3b8c';
+    toast.style.background = '#ffffff';
+    toast.style.border = '1px solid rgba(11,59,140,0.12)';
+    toast.style.borderLeft = '4px solid #0b3b8c';
+    toast.style.borderRadius = '8px';
+    toast.style.boxShadow = '0 6px 18px rgba(0,0,0,0.06)';
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 240ms ease, transform 240ms ease';
+    toast.style.transform = 'translateY(-6px)';
+
+    // icon (check) - blue
+    const icon = document.createElement('span');
+    icon.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 6L9 17L4 12" stroke="#0b3b8c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    icon.style.flex = '0 0 auto';
+    toast.appendChild(icon);
+
+    const text = document.createElement('div');
+    text.textContent = message;
+    text.style.color = '#0b3b8c';
+    text.style.fontWeight = '600';
+    toast.appendChild(text);
+
+    container.appendChild(toast);
+
+    // animate in
+    requestAnimationFrame(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    });
+
+    // remove after duration
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(-6px)';
+      setTimeout(() => {
+        try { container.removeChild(toast); } catch (e) {}
+      }, 260);
+    }, duration);
+  }
+
+  /* --------------------------------------------------
+     Button spinner helpers (attach to Save buttons)
+  -------------------------------------------------- */
+  function createSpinnerElement(size = 16, color = '#0b3b8c') {
+    const spinner = document.createElement('span');
+    spinner.className = 'btn-spinner';
+    spinner.style.display = 'inline-block';
+    spinner.style.width = `${size}px`;
+    spinner.style.height = `${size}px`;
+    spinner.style.border = `${Math.max(2, Math.floor(size/8))}px solid rgba(11,59,140,0.18)`;
+    spinner.style.borderTopColor = color;
+    spinner.style.borderRadius = '50%';
+    spinner.style.boxSizing = 'border-box';
+    spinner.style.marginRight = '8px';
+    spinner.style.animation = 'tr-spin 0.9s linear infinite';
+    // add minimal keyframes if not present
+    if (!document.getElementById('tr-spin-style')) {
+      const style = document.createElement('style');
+      style.id = 'tr-spin-style';
+      style.textContent = `@keyframes tr-spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }`;
+      document.head.appendChild(style);
+    }
+    return spinner;
+  }
+
+  function showButtonSpinner(button) {
+    if (!button) return null;
+    button.disabled = true;
+    // avoid duplicating spinner
+    if (button.querySelector('.btn-spinner')) return button.querySelector('.btn-spinner');
+    const spinner = createSpinnerElement(16, '#0b3b8c');
+    // insert at start of button
+    button.insertBefore(spinner, button.firstChild);
+    return spinner;
+  }
+
+  function hideButtonSpinner(button) {
+    if (!button) return;
+    const spinner = button.querySelector('.btn-spinner');
+    if (spinner) spinner.remove();
+    button.disabled = false;
+  }
+
 /* =====================
    PAGE PROTECTION & GLOBAL LOGOUT
    Used by: user.html, admin.html
@@ -429,14 +589,30 @@ if (protectedPaths.some(p => window.location.pathname.endsWith(p))) {
 }
 
 // Make a global logout function available to all pages
-window.logout = function() {
-  signOut(auth).then(() => {
-    window.location.href = "index.html";
-  }).catch((err) => {
+window.logout = async function() {
+  try {
+    // Sign out from Firebase
+    await signOut(auth);
+  } catch (err) {
     console.error('Logout failed:', err);
-    // Fallback: still redirect to login
-    window.location.href = "index.html";
-  });
+    // proceed with cleanup and redirect even if signOut failed
+  }
+
+  try {
+    // Clear per-tab session data (do not aggressively clear localStorage that may hold user preferences)
+    sessionStorage.clear();
+  } catch (e) {
+    console.warn('Failed to clear sessionStorage', e);
+  }
+
+  // Replace history entry so Back button won't return to an authenticated page
+  // This helps avoid browsers restoring an auth-backed UI from the bfcache.
+  try {
+    location.replace('index.html');
+  } catch (e) {
+    // fallback
+    window.location.href = 'index.html';
+  }
 };
 
 /* User Profile Page Scripts */
@@ -446,8 +622,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const editProfileModal = document.getElementById('editProfileModal');
   const changePasswordModal = document.getElementById('changePasswordModal');
-  const editProfileBtn = document.querySelector('.edit-profile-btn');
-  const changePasswordBtn = document.querySelector('.change-password-btn');
+  // Select the buttons specifically inside the user-info card to avoid matching the logout button
+  const editProfileBtn = document.querySelector('.user-info-card .edit-profile-btn');
+  const changePasswordBtn = document.querySelector('.user-info-card .change-password-btn');
   const changePasswordMessage = document.getElementById('changePasswordMessage');
   // per-field error elements (Edit Profile)
   const errorEditFullname = document.getElementById('error-edit-fullname');
@@ -475,7 +652,25 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Edit Profile Modal
-  editProfileBtn?.addEventListener('click', () => {
+  editProfileBtn?.addEventListener('click', async () => {
+    // Clear previous inline errors
+    [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
+
+    // Reload latest user data from Firestore and populate edit form to discard unsaved edits.
+    // We await here so the modal shows the current saved values (not any unsaved inputs).
+    try {
+      await loadUserData();
+    } catch (err) {
+      console.warn('Failed to reload user data before opening edit modal:', err);
+    }
+
+    // Ensure any transient form state is cleaned
+    const editProfileFormEl = document.getElementById('editProfileForm');
+    if (editProfileFormEl) {
+      // remove any custom validation classes if present
+      editProfileFormEl.classList.remove('was-validated');
+    }
+
     editProfileModal.style.display = 'block';
   });
 
@@ -486,6 +681,8 @@ document.addEventListener('DOMContentLoaded', function() {
       changePasswordMessage.style.display = 'none';
       changePasswordMessage.textContent = '';
     }
+    // Clear any previous per-field errors and reset inputs so unsaved attempts are discarded
+    [errorCurrentPassword, errorNewPassword, errorConfirmPassword].forEach(el => { if (el) clearErrorSignup(el); });
     changePasswordForm?.reset();
     changePasswordModal.style.display = 'block';
   });
@@ -493,21 +690,52 @@ document.addEventListener('DOMContentLoaded', function() {
   // Close modals when clicking close button
   closeButtons.forEach(button => {
     button.addEventListener('click', () => {
+      // Hide modals
       editProfileModal.style.display = 'none';
       changePasswordModal.style.display = 'none';
+
       // clear password modal message and reset fields
       if (changePasswordMessage) {
         changePasswordMessage.style.display = 'none';
         changePasswordMessage.textContent = '';
       }
-      changePasswordForm?.reset();
+  changePasswordForm?.reset();
+
+      // Reset edit profile form inputs and clear inline errors so unsaved edits are discarded
+      const editProfileFormEl = document.getElementById('editProfileForm');
+      if (editProfileFormEl) {
+        editProfileFormEl.reset();
+        [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
+      }
+
+      // Reset change password form inputs and clear per-field errors
+      const chFormEl = document.getElementById('changePasswordForm');
+      if (chFormEl) {
+        chFormEl.reset();
+        [errorCurrentPassword, errorNewPassword, errorConfirmPassword].forEach(el => { if (el) clearErrorSignup(el); });
+      }
     });
   });
 
   // Close modals when clicking outside
   window.addEventListener('click', (e) => {
-    if (e.target === editProfileModal) editProfileModal.style.display = 'none';
-    if (e.target === changePasswordModal) changePasswordModal.style.display = 'none';
+    if (e.target === editProfileModal) {
+      editProfileModal.style.display = 'none';
+      // Reset edit profile form inputs & clear inline errors when modal closed by clicking outside
+      const editProfileFormEl = document.getElementById('editProfileForm');
+      if (editProfileFormEl) {
+        editProfileFormEl.reset();
+        [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
+      }
+    }
+    if (e.target === changePasswordModal) {
+      changePasswordModal.style.display = 'none';
+      const chFormEl = document.getElementById('changePasswordForm');
+      if (chFormEl) {
+        chFormEl.reset();
+        [errorCurrentPassword, errorNewPassword, errorConfirmPassword].forEach(el => { if (el) clearErrorSignup(el); });
+      }
+    }
   });
 
   // Make Request Dropdown
@@ -584,6 +812,10 @@ document.addEventListener('DOMContentLoaded', function() {
       address: address
     };
 
+    // Show spinner on save button
+    const editSaveButton = document.querySelector('#editProfileForm .save-changes');
+    const editSpinner = showButtonSpinner(editSaveButton);
+
     try {
       // Update Firestore
       await setDoc(doc(db, "users", user.uid), updates, { merge: true });
@@ -595,11 +827,19 @@ document.addEventListener('DOMContentLoaded', function() {
         console.warn('Failed to update Auth displayName:', err);
       }
 
-      editProfileModal.style.display = 'none';
-      loadUserData(); // Reload the user data
+      // Visual confirmation + close modal + reload user data (use unified toast duration)
+      try { showToast('Profile updated successfully!', true); } catch (e) {}
+      // Close modal after toast duration so user sees the toast while modal is visible briefly
+      setTimeout(async () => {
+        editProfileModal.style.display = 'none';
+        try { await loadUserData(); } catch (e) { console.warn('Failed to reload user data after update:', e); }
+      }, TOAST_DURATION);
     } catch (error) {
       console.error("Error updating profile:", error);
       showAlert('Failed to update profile. Please try again.');
+    } finally {
+      // hide spinner and re-enable
+      hideButtonSpinner(editSaveButton);
     }
   });
 
@@ -671,26 +911,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (!valid) return;
 
-    // Disable save button while processing
-    const saveButton = document.querySelector('#changePasswordForm .save-changes');
-    if (saveButton) saveButton.disabled = true;
+  // Show spinner on save button while processing
+  const saveButton = document.querySelector('#changePasswordForm .save-changes');
+  if (saveButton) showButtonSpinner(saveButton);
 
     try {
       const credential = EmailAuthProvider.credential(user.email, currentPassword);
       await reauthenticateWithCredential(user, credential);
       await updatePassword(user, newPassword);
 
-      // Show success banner and close after short delay
-      setChangePasswordMessage('Password Changed Successfully!', true);
+      // Show success toast and close modal after unified duration
+      try { showToast('Password changed successfully!', true); } catch (e) {}
       setTimeout(() => {
         changePasswordModal.style.display = 'none';
         changePasswordForm?.reset();
+        // ensure inline change password message is cleared (we prefer toasts)
         if (changePasswordMessage) { changePasswordMessage.style.display = 'none'; changePasswordMessage.textContent = ''; }
-        if (saveButton) saveButton.disabled = false;
-      }, 1600);
+        if (saveButton) hideButtonSpinner(saveButton);
+      }, TOAST_DURATION);
     } catch (error) {
       console.error('Error updating password:', error);
-      if (saveButton) saveButton.disabled = false;
+  if (saveButton) hideButtonSpinner(saveButton);
       switch (error.code) {
         case 'auth/wrong-password':
         case 'auth/invalid-credential':
