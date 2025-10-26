@@ -1566,3 +1566,108 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') || windo
 /* =====================================================
    END OF ADMIN CONFERENCE ROOM REQUESTS SCRIPT
 ===================================================== */
+
+
+/* =====================================================
+   START OF ADMIN CONFERENCE ROOM CALENDAR SCRIPT
+===================================================== */
+
+let currentDate = new Date();
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+// Sample booked dates - you can modify this array
+const bookedDates = [
+    '2025-10-27', '2025-10-28', '2025-10-29', '2025-10-30', '2025-10-31',
+    '2025-11-05', '2025-11-12', '2025-11-19'
+];
+
+const dayHeaders = ['SUN', 'MON', 'TUES', 'WED', 'THURS', 'FRI', 'SAT'];
+const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                  'July', 'August', 'September', 'October', 'November', 'December'];
+
+function renderCalendar() {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    // Update month/year display
+    document.getElementById('monthYear').textContent = `${monthNames[month]} ${year}`;
+    
+    // Clear calendar
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+    
+    // Add day headers
+    dayHeaders.forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'day-header';
+        header.textContent = day;
+        grid.appendChild(header);
+    });
+    
+    // Get first day of month and number of days
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Add empty cells for days before month starts
+    for (let i = 0; i < firstDay; i++) {
+        const emptyDay = document.createElement('div');
+        emptyDay.className = 'calendar-day empty';
+        emptyDay.innerHTML = '<span class="day-number">-</span>';
+        grid.appendChild(emptyDay);
+    }
+    
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayCell = document.createElement('div');
+        dayCell.className = 'calendar-day';
+        
+        const currentDateObj = new Date(year, month, day);
+        currentDateObj.setHours(0, 0, 0, 0);
+        
+        const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        
+        // Check if it's today
+        if (currentDateObj.getTime() === today.getTime()) {
+            dayCell.classList.add('today');
+        }
+        
+        // Check if date is in the past
+        if (currentDateObj < today) {
+            dayCell.classList.add('disabled');
+        } else {
+            dayCell.classList.add('clickable');
+            const link = document.createElement('a');
+            link.href = `reservationDetails.html?date=${dateString}`;
+            link.style.textDecoration = 'none';
+            link.style.color = 'inherit';
+            link.innerHTML = dayCell.innerHTML;
+            dayCell.innerHTML = '';
+            dayCell.appendChild(link);
+        }
+        
+        dayCell.innerHTML = `<span class="day-number">${day}</span>`;
+        
+        // Add booked indicator if date is booked
+        if (bookedDates.includes(dateString)) {
+            const indicator = document.createElement('div');
+            indicator.className = 'booked-indicator';
+            dayCell.appendChild(indicator);
+        }
+        
+        grid.appendChild(dayCell);
+    }
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+    currentDate.setMonth(currentDate.getMonth() - 1);
+    renderCalendar();
+});
+
+document.getElementById('nextBtn').addEventListener('click', () => {
+    currentDate.setMonth(currentDate.getMonth() + 1);
+    renderCalendar();
+});
+
+// Initial render
+renderCalendar();
