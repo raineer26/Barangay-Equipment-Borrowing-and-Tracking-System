@@ -1286,3 +1286,292 @@ if (window.location.pathname.endsWith('adminDashboard.html') || window.location.
 /* =====================================================
    END OF ADMIN DASHBOARD SCRIPT
 ===================================================== */
+
+// Admin Inventory: edit / save behavior with confirmation modal
+function initInventory() {
+  const editBtn = document.getElementById('editInventory');
+  const saveBtn = document.getElementById('saveInventory');
+  const inventoryCard = document.querySelector('.inventory-card');
+  const inputs = inventoryCard ? Array.from(inventoryCard.querySelectorAll('.item-fields input[type="number"]')) : [];
+
+  const modal = document.getElementById('saveConfirmModal');
+  const modalList = document.getElementById('saveChangesList');
+  const confirmYes = document.getElementById('confirmSaveYes');
+  const confirmNo = document.getElementById('confirmSaveNo');
+  const modalClose = document.getElementById('saveConfirmClose');
+
+  if (!saveBtn) return; // nothing to initialize on this page
+
+  let originalValues = {};
+
+  // Ensure a consistent initial state: not editable, save disabled
+  function setEditMode(on) {
+    inputs.forEach(input => {
+      if (on) {
+        input.removeAttribute('readonly');
+        input.classList.add('editing');
+      } else {
+        input.setAttribute('readonly', '');
+        input.classList.remove('editing');
+      }
+    });
+    if (saveBtn) saveBtn.disabled = !on;
+    if (editBtn) editBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  setEditMode(false);
+
+  // Capture current values so we can show diffs later
+  function captureOriginals() {
+    originalValues = {};
+    inputs.forEach(input => {
+      if (input.id) originalValues[input.id] = String(input.value);
+    });
+  }
+
+  // When Edit clicked -> enable editing and save snapshot
+  editBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    setEditMode(true);
+    captureOriginals();
+    // Focus first editable input for convenience
+    const first = inputs.find(i => !i.hasAttribute('readonly'));
+    if (first) first.focus();
+  });
+
+  function showModal() {
+    if (!modal) return;
+    modal.style.display = 'block';
+    modal.setAttribute('aria-hidden', 'false');
+  }
+  function hideModal() {
+    if (!modal) return;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  // When Save clicked -> show confirmation modal with change summary and computed Available
+  let pendingComputed = {};
+  saveBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+
+    // Normalize simple values (prevent negatives)
+    inputs.forEach(inp => {
+      if (inp.type === 'number') {
+        const val = Number(inp.value);
+        if (!Number.isFinite(val) || val < 0) inp.value = 0;
+      }
+    });
+
+    // Iterate per inventory item to compute expected Available = Total - InUse
+    const itemEls = inventoryCard ? Array.from(inventoryCard.querySelectorAll('.inventory-item')) : [];
+    const changes = [];
+    pendingComputed = {};
+
+    itemEls.forEach(itemEl => {
+      const itemName = itemEl.querySelector('h3')?.textContent?.trim() || 'Item';
+      const totalInput = itemEl.querySelector('input[id$="-total"]');
+      const inuseInput = itemEl.querySelector('input[id$="-inuse"]');
+      const availableInput = itemEl.querySelector('input[id$="-available"]');
+
+      const origTotal = totalInput && originalValues[totalInput.id] !== undefined ? originalValues[totalInput.id] : (totalInput ? String(totalInput.defaultValue || totalInput.value) : '0');
+      const origInuse = inuseInput && originalValues[inuseInput.id] !== undefined ? originalValues[inuseInput.id] : (inuseInput ? String(inuseInput.defaultValue || inuseInput.value) : '0');
+      const origAvailable = availableInput && originalValues[availableInput.id] !== undefined ? originalValues[availableInput.id] : (availableInput ? String(availableInput.defaultValue || availableInput.value) : '0');
+
+      const currTotal = totalInput ? String(totalInput.value) : '0';
+      const currInuse = inuseInput ? String(inuseInput.value) : '0';
+      const currAvailable = availableInput ? String(availableInput.value) : '0';
+
+      const totalNum = Number(currTotal) || 0;
+      const inuseNum = Number(currInuse) || 0;
+      // Compute expected available and clamp to >= 0
+      const expectedAvailableNum = Math.max(0, totalNum - inuseNum);
+      const expectedAvailable = String(expectedAvailableNum);
+
+      // Record the expected available so we can apply it if user confirms
+      if (availableInput && availableInput.id) pendingComputed[availableInput.id] = expectedAvailable;
+
+      // Decide whether to include this item in the modal: include if any of total/inuse changed or available differs from expected
+      const totalChanged = origTotal !== currTotal;
+      const inuseChanged = origInuse !== currInuse;
+      const availableMismatch = origAvailable !== expectedAvailable || currAvailable !== expectedAvailable;
+
+      if (totalChanged || inuseChanged || availableMismatch) {
+        changes.push(`${itemName}:`);
+        // Total stock line
+        changes.push(`  Total stock: ${origTotal}${origTotal !== currTotal ? ` → ${currTotal}` : ``}`);
+        // In-Use line
+        changes.push(`  In-Use: ${origInuse}${origInuse !== currInuse ? ` → ${currInuse}` : ``}`);
+        // Available line - show original -> expected if different
+        const displayOrigAvailable = origAvailable;
+        if (displayOrigAvailable !== expectedAvailable) {
+          changes.push(`  Available: ${displayOrigAvailable} → ${expectedAvailable}`);
+        } else {
+          changes.push(`  Available: ${expectedAvailable}`);
+        }
+      }
+    });
+
+    if (changes.length === 0) {
+      // Nothing changed
+      try { if (typeof showAlert === 'function') showAlert('No changes to save.'); } catch (err) { console.log('No changes to save.'); }
+      return;
+    }
+
+    // Build structured DOM inside modalList
+    modalList.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    // We'll reconstruct items from pendingComputed and inputs by scanning inventory items again
+    itemEls.forEach(itemEl => {
+      const itemName = itemEl.querySelector('h3')?.textContent?.trim() || 'Item';
+      const totalInput = itemEl.querySelector('input[id$="-total"]');
+      const inuseInput = itemEl.querySelector('input[id$="-inuse"]');
+      const availableInput = itemEl.querySelector('input[id$="-available"]');
+
+      const idTotal = totalInput?.id;
+      const idInuse = inuseInput?.id;
+      const idAvailable = availableInput?.id;
+
+      const origTotal = idTotal && originalValues[idTotal] !== undefined ? originalValues[idTotal] : (totalInput ? String(totalInput.defaultValue || totalInput.value) : '0');
+      const origInuse = idInuse && originalValues[idInuse] !== undefined ? originalValues[idInuse] : (inuseInput ? String(inuseInput.defaultValue || inuseInput.value) : '0');
+      const origAvailable = idAvailable && originalValues[idAvailable] !== undefined ? originalValues[idAvailable] : (availableInput ? String(availableInput.defaultValue || availableInput.value) : '0');
+
+      const currTotal = totalInput ? String(totalInput.value) : '0';
+      const currInuse = inuseInput ? String(inuseInput.value) : '0';
+      const expectedAvailable = idAvailable && pendingComputed[idAvailable] !== undefined ? String(pendingComputed[idAvailable]) : (availableInput ? String(availableInput.value) : '0');
+
+      const totalChanged = origTotal !== currTotal;
+      const inuseChanged = origInuse !== currInuse;
+      const availableMismatch = origAvailable !== expectedAvailable;
+
+      if (!(totalChanged || inuseChanged || availableMismatch)) return; // skip unchanged items
+
+      const itemNode = document.createElement('div');
+      itemNode.className = 'change-item';
+
+      const title = document.createElement('div');
+      title.className = 'change-item-title';
+      title.textContent = itemName;
+      itemNode.appendChild(title);
+
+      // Total stock line
+      const totalLine = document.createElement('div');
+      totalLine.className = 'change-line';
+      const totalLabel = document.createElement('div'); totalLabel.className = 'label'; totalLabel.textContent = 'Total stock:';
+      const totalValue = document.createElement('div'); totalValue.className = 'value value-total';
+      // Build old -> new as separate spans so arrow can keep neutral color and numbers keep the value color
+      if (totalChanged) {
+        const oldSpan = document.createElement('span'); oldSpan.className = 'num old'; oldSpan.textContent = origTotal;
+        const arrowSpan = document.createElement('span'); arrowSpan.className = 'value-arrow'; arrowSpan.textContent = ' → ';
+        const newSpan = document.createElement('span'); newSpan.className = 'num new'; newSpan.textContent = currTotal;
+        totalValue.appendChild(oldSpan);
+        totalValue.appendChild(arrowSpan);
+        totalValue.appendChild(newSpan);
+      } else {
+        const single = document.createElement('span'); single.className = 'num'; single.textContent = currTotal;
+        totalValue.appendChild(single);
+      }
+      totalLine.appendChild(totalLabel);
+      totalLine.appendChild(totalValue);
+      itemNode.appendChild(totalLine);
+
+      // In-Use line
+      const inuseLine = document.createElement('div');
+      inuseLine.className = 'change-line';
+      const inuseLabel = document.createElement('div'); inuseLabel.className = 'label'; inuseLabel.textContent = 'In-Use:';
+      const inuseValue = document.createElement('div'); inuseValue.className = 'value value-inuse';
+      if (inuseChanged) {
+        const oldSpan = document.createElement('span'); oldSpan.className = 'num old'; oldSpan.textContent = origInuse;
+        const arrowSpan = document.createElement('span'); arrowSpan.className = 'value-arrow'; arrowSpan.textContent = ' → ';
+        const newSpan = document.createElement('span'); newSpan.className = 'num new'; newSpan.textContent = currInuse;
+        inuseValue.appendChild(oldSpan);
+        inuseValue.appendChild(arrowSpan);
+        inuseValue.appendChild(newSpan);
+      } else {
+        const single = document.createElement('span'); single.className = 'num'; single.textContent = currInuse;
+        inuseValue.appendChild(single);
+      }
+      inuseLine.appendChild(inuseLabel);
+      inuseLine.appendChild(inuseValue);
+      itemNode.appendChild(inuseLine);
+
+      // Available line
+      const availLine = document.createElement('div');
+      availLine.className = 'change-line';
+      const availLabel = document.createElement('div'); availLabel.className = 'label'; availLabel.textContent = 'Available:';
+      const availValue = document.createElement('div'); availValue.className = 'value value-available';
+      if (availableMismatch) {
+        const oldSpan = document.createElement('span'); oldSpan.className = 'num old'; oldSpan.textContent = origAvailable;
+        const arrowSpan = document.createElement('span'); arrowSpan.className = 'value-arrow'; arrowSpan.textContent = ' → ';
+        const newSpan = document.createElement('span'); newSpan.className = 'num new'; newSpan.textContent = expectedAvailable;
+        availValue.appendChild(oldSpan);
+        availValue.appendChild(arrowSpan);
+        availValue.appendChild(newSpan);
+      } else {
+        const single = document.createElement('span'); single.className = 'num'; single.textContent = expectedAvailable;
+        availValue.appendChild(single);
+      }
+      availLine.appendChild(availLabel);
+      availLine.appendChild(availValue);
+      itemNode.appendChild(availLine);
+
+      fragment.appendChild(itemNode);
+    });
+
+    modalList.appendChild(fragment);
+    showModal();
+  });
+
+  // Confirm (Yes) -> perform save (UI-only) and close modal
+  confirmYes?.addEventListener('click', (e) => {
+    e.preventDefault();
+    // Persist/normalize again if needed and apply computed Available values
+    inputs.forEach(inp => {
+      if (inp.type === 'number') {
+        const val = Number(inp.value);
+        if (!Number.isFinite(val) || val < 0) inp.value = 0;
+      }
+    });
+
+    // Apply pending computed Available values to inputs
+    Object.keys(pendingComputed).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = pendingComputed[id];
+    });
+
+    // Exit edit mode
+    setEditMode(false);
+    hideModal();
+
+    // Update snapshot to current values
+    captureOriginals();
+
+    // Show success
+    try { if (typeof showAlert === 'function') showAlert('Inventory saved successfully!', true); } catch (err) { console.log('Inventory saved (UI).'); }
+
+    // TODO: persist changes to Firestore if desired
+  });
+
+  // Cancel/No -> hide modal and keep edit mode
+  confirmNo?.addEventListener('click', (e) => {
+    e.preventDefault();
+    hideModal();
+  });
+
+  // Close button
+  modalClose?.addEventListener('click', (e) => {
+    e.preventDefault();
+    hideModal();
+  });
+
+  // Close modal by clicking outside content
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) hideModal();
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initInventory);
+} else {
+  initInventory();
+}

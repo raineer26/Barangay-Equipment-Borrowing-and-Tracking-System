@@ -2030,7 +2030,7 @@ footer a:hover {
 .modal {
   display: none;
   position: fixed;
-  z-index: 1000;
+  z-index: 2000; /* raise above sidebar and other UI */
   left: 0;
   top: 0;
   width: 100%;
@@ -2052,7 +2052,7 @@ footer a:hover {
   border: none;
   border-radius: 12px;
   width: 90%;
-  max-width: 650px;
+  max-width: 520px; /* slightly smaller than before */
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   animation: slideDown 0.4s ease;
 }
@@ -2076,6 +2076,64 @@ footer a:hover {
   font-weight: 700;
 }
 
+/* Fancy but elegant modal header accent */
+.modal-content {
+  position: relative;
+  overflow: hidden;
+}
+.modal-content:before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 6px;
+  width: 100%;
+  background: linear-gradient(90deg,#281ABC,#6a24e0,#2BBBAD);
+}
+
+/* Change list inside modal */
+#saveChangesList {
+  padding: 8px 12px;
+  background: #fbfbff;
+  border-radius: 8px;
+  max-height: 320px;
+  overflow: auto;
+  box-shadow: inset 0 1px 0 rgba(0,0,0,0.02);
+}
+
+.change-item {
+  padding: 10px 6px;
+  border-bottom: 1px dashed rgba(0,0,0,0.06);
+}
+.change-item:last-child { border-bottom: none; }
+.change-item-title {
+  font-weight: 700;
+  color: #2319B2;
+  margin-bottom: 6px;
+  font-family: 'League Spartan', sans-serif;
+}
+.change-line {
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  color: #444;
+  margin: 2px 0;
+}
+.change-line .label { color: #666; }
+.change-line .value { font-weight:700; }
+.value-total { color: #6a24e0; }
+.value-available { color: #2BBBAD; }
+.value-inuse { color: #ff8c00; }
+.value-arrow { margin: 0 6px; color: #999; }
+
+/* Modal action buttons - subtle elevation */
+.modal-actions .edit-btn, .modal-actions .save-btn {
+  box-shadow: 0 6px 16px rgba(34,56,120,0.08);
+}
+
 .close-modal {
   color: #aaa;
   float: right;
@@ -2090,6 +2148,34 @@ footer a:hover {
 .close-modal:focus {
   color: #281ABC;
 }
+
+/* Modal actions (confirm/cancel) for inventory save */
+.modal-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.modal-actions .edit-btn,
+.modal-actions .save-btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.modal-actions .edit-btn {
+  background: #d32f2f; /* red-ish for No */
+  color: #fff;
+}
+
+.modal-actions .save-btn {
+  background: #0066cc; /* blue for Yes */
+  color: #fff;
+}
+
+.modal-actions .edit-btn:hover { opacity: 0.95; }
+.modal-actions .save-btn:hover { opacity: 0.95; }
 
 /* Form Styles */
 .form-row {
@@ -2940,4 +3026,131 @@ footer a:hover {
     width: 20px;
     height: 20px;
   }
+}
+
+.admin-content {
+  padding: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.content-title {
+  color: #2319B2;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+/* Inventory Card */
+.inventory-card {
+  background: #F5F3FF;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  max-width: 900px;
+  margin: 0 auto;
+ 
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 40px;
+  margin-bottom: 32px;
+}
+
+.inventory-item {
+  text-align: center;
+}
+
+.item-image {
+  width: 100%;
+  height: 160px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.inventory-item h3 {
+  color: #2319B2;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.item-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.item-fields label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: #333;
+}
+
+.item-fields input {
+  width: 80px;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.item-fields input[readonly] {
+  background: #f5f5f5;
+}
+
+.inventory-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.edit-btn, .save-btn {
+  padding: 12px 32px;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+.edit-btn {
+  background: #22C55E;
+}
+
+.save-btn {
+  background: #0066cc;
+}
+
+.edit-btn:hover {
+  background: #1ca04a;
+}
+
+.save-btn:hover {
+  background: #0052a3;
+}
+
+.save-btn:disabled {
+  background: #99ccff;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
