@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin Dashboard - Barangay Mapulang Lupa</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body class="admin-body">
+    <!-- SIDEBAR -->
+<aside class="admin-sidebar">
+  <div class="sidebar-header">
+    <img src="Assets/BrgyLogo.png" alt="Barangay Logo" class="sidebar-logo">
+    <h3>BARANGAY MAPULANG LUPA</h3>
+    <p>OFFICIAL SITE</p>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a href="adminDashboard.html" class="sidebar-link active">
+      <img src="Assets/dashboard.png" alt="Dashboard Icon" class="nav-icon">
+      <span>Dashboard</span>
+    </a>
+
+    <div class="sidebar-dropdown">
+      <a href="#" class="sidebar-link dropdown-toggle" id="reviewRequestsToggle">
+        <img src="Assets/review.png" alt="Review Icon" class="nav-icon">
+        <span>Review Requests</span>
+        <span class="dropdown-arrow">▼</span>
+      </a>
+      <div class="dropdown-content" id="reviewRequestsDropdown">
+        <a href="admin-conference-requests.html" class="dropdown-link">Conference Room</a>
+        <a href="admin-tents-requests.html" class="dropdown-link">Tents & Chairs</a>
+      </div>
+    </div>
+
+    <div class="sidebar-dropdown">
+      <a href="#" class="sidebar-link dropdown-toggle" id="manageCalendarToggle">
+        <img src="Assets/calendar-dashboard.png" alt="Calendar Icon" class="nav-icon">
+        <span>Manage Calendar</span>
+        <span class="dropdown-arrow">▼</span>
+      </a>
+      <div class="dropdown-content" id="manageCalendarDropdown">
+        <a href="admin-calendar-conference.html" class="dropdown-link">Conference Room</a>
+        <a href="admin-calendar-tents.html" class="dropdown-link">Tents & Chairs</a>
+      </div>
+    </div>
+
+    <a href="admin-manage-inventory.html" class="sidebar-link">
+      <img src="Assets/inventory.png" alt="Inventory Icon" class="nav-icon">
+      <span>Manage Inventory</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <button onclick="window.logout()" class="logout-btn">
+      <span>Log Out</span>
+    </button>
+  </div>
+</aside>
+
+
+
+    <!-- MOBILE MENU TOGGLE -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+      <span>☰</span>
+    </button>
+
+    <!-- MAIN CONTENT -->
+    <main class="admin-main">
+  <!-- Hero Section -->
+  <section class="admin-hero">
+    <div class="admin-hero-overlay"></div>
+    <div class="admin-hero-content">
+      <h1>WELCOME, <span class="highlight-yellow">ADMIN!</span></h1>
+      <p>Manage Tents and Chairs Calendar here.</p>
+    </div>
+  </section>
+
+  <!-- Calendar Section -->
+  <div class="calendar-wrapper">
+    
+
+    <div class="calendar-container">
+      <div class="calendar-top-row">
+        <div class="legend">
+          <div class="legend-item">
+            <span class="booked-dot"></span>
+            <span>Booked</span>
+          </div>
+        </div>
+
+        <div class="calendar-header">
+          <button class="nav-btn" id="prevBtn">‹</button>
+          <div class="month-year" id="monthYear"></div>
+          <button class="nav-btn" id="nextBtn">›</button>
+        </div>
+      </div>
+
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+  </div>
+</main>
+    
+    <script src="script.js" type="module"></script>
+  </body>
+</html>
