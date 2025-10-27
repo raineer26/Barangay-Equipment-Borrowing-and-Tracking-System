@@ -12,7 +12,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import { signInWithEmailAndPassword, getAuth, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 // ====== Your Firebase config
 const firebaseConfig = {
@@ -507,7 +507,21 @@ signupForm?.addEventListener("submit", async (e) => {
     // Update display name
     await updateProfile(user, { displayName: fullname });
 
-    // Save extra info to Firestore
+    // Save user data to Firestore
+    const userData = {
+      fullName: fullname,
+      email: email,
+      contactNumber: contact,
+      address: sanitizedAddress,
+      role: "user", // Default role for new signups
+      createdAt: serverTimestamp()
+    };
+
+    // Save to Firestore using setDoc with the user's UID as the document ID
+    await setDoc(doc(db, "users", user.uid), userData);
+
+    // Redirect to success page or login
+    window.location.href = "index.html";
     // Save user profile using consistent camelCase field names
     await setDoc(doc(db, "users", user.uid), {
       fullName: fullname,
