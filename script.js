@@ -10,8 +10,8 @@
 // 1. Firebase setup & Firestore import (ES6 Module)
 // =============================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { signInWithEmailAndPassword, getAuth, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 // ====== Your Firebase config
@@ -28,6 +28,7 @@ const firebaseConfig = {
 // ====== Initialize Firebase & Firestore
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 // =============================
 // 2. Unique Custom Alert Function (no naming conflicts FOR BACKEND)
@@ -1932,9 +1933,7 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
    END OF TENTS & CHAIRS REQUEST FORM SCRIPT
 ===================================================== */
 
-/* =====================================================
-   CONFERENCE ROOM REQUEST FORM SCRIPT
-   Add this section to your script.js file
+
 
 // Check if we're on the conference room request form page
 if (window.location.pathname.endsWith('conference-request.html') || window.location.pathname.endsWith('/conference-request')) {
@@ -2152,3 +2151,4 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
 
 /* =====================================================
    END OF CONFERENCE ROOM REQUEST FORM SCRIPT
+===================================================== */
