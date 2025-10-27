@@ -5,11 +5,16 @@
    LOGIN PAGE SCRIPT
    (from index.html)
 ====================== */
+/* --- LOGIN PAGE SCRIPT --- */
+// =============================
+// 1. Firebase setup & Firestore import (ES6 Module)
+// =============================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
-// Firebase Config
+// ====== Your Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyAYwzAJ45Lng5RvurB-LCqY0AUJLsmyvkM",
   authDomain: "f5-softdev.firebaseapp.com",
@@ -20,14 +25,191 @@ const firebaseConfig = {
   measurementId: "G-RDKKY98HWY"
 };
 
+// ====== Initialize Firebase & Firestore
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
+
+// =============================
+// 2. Unique Custom Alert Function (no naming conflicts FOR BACKEND)
+// =============================
+function showBookingFormAlert(message, type = "success") {
+  let alertBox = document.getElementById("bookingFormAlertBox");
+  if (!alertBox) {
+    alertBox = document.createElement("div");
+    alertBox.id = "bookingFormAlertBox";
+    alertBox.style.position = "fixed";
+    alertBox.style.top = "20px";
+    alertBox.style.right = "20px";
+    alertBox.style.padding = "12px 20px";
+    alertBox.style.borderRadius = "8px";
+    alertBox.style.fontWeight = "bold";
+    alertBox.style.color = "#fff";
+    alertBox.style.zIndex = "9999";
+    alertBox.style.transition = "all 0.3s ease";
+    document.body.appendChild(alertBox);
+  }
+  alertBox.style.backgroundColor = type === "success" ? "#28a745" : "#dc3545";
+  alertBox.textContent = message;
+  alertBox.style.display = "block";
+  alertBox.style.opacity = "1";
+  setTimeout(() => {
+    alertBox.style.opacity = "0";
+    setTimeout(() => (alertBox.style.display = "none"), 300);
+  }, 3000);
+}
+
+// =============================
+// 3. Tents & Chairs Form Handler FOR BACKEND
+// =============================
+document.addEventListener("DOMContentLoaded", () => {
+  const tentsChairsForm = document.getElementById("tentsChairsForm");
+
+  async function handleTentsChairsSubmit(e) {
+    e.preventDefault();
+    
+    // Get form values
+    const fullName = document.getElementById("fullName").value.trim();
+    const contactNumber = document.getElementById("contactNumber").value.trim();
+    const completeAddress = document.getElementById("completeAddress").value.trim();
+    const modeOfReceiving = document.getElementById("modeOfReceiving").value.trim();
+    const quantityChairs = document.getElementById("quantityChairs").value.trim();
+    const quantityTents = document.getElementById("quantityTents").value.trim();
+    const startDate = document.getElementById("startDate").value.trim();
+    const endDate = document.getElementById("endDate").value.trim();
+
+  
+
+   // Validation flags
+let hasError = false;
+
+// Validate full name
+if (!fullName) {
+  document.getElementById("fullName").classList.add("error");
+  hasError = true;
+}
+
+// Validate contact (must be numbers only and proper length)
+if (!contactNumber || !/^\d{11}$/.test(contactNumber)) {
+  document.getElementById("contactNumber").classList.add("error");
+  hasError = true;
+}
+
+// Validate address
+if (!completeAddress) {
+  document.getElementById("completeAddress").classList.add("error");
+  hasError = true;
+}
+
+// Validate chairs quantity (must be number between 20–600)
+if (!quantityChairs || quantityChairs < 20 || quantityChairs > 600) {
+  document.getElementById("quantityChairs").classList.add("error");
+  hasError = true;
+}
+
+// Validate tents quantity (must be number between 1–24)
+if (!quantityTents || quantityTents < 1 || quantityTents > 24) {
+  document.getElementById("quantityTents").classList.add("error");
+  hasError = true;
+}
+
+// Validate dates
+if (!startDate || !endDate) {
+  document.getElementById("startDate").classList.add("error");
+  document.getElementById("endDate").classList.add("error");
+  hasError = true;
+} else if (endDate < startDate) {
+  document.getElementById("endDate").classList.add("error");
+  hasError = true;
+}
+
+// Validate receiving mode
+if (!modeOfReceiving) {
+  document.getElementById("modeOfReceiving").classList.add("error");
+  hasError = true;
+}
+
+// If any validation failed, stop form submission
+if (hasError) {
+  return false;
+}
+
+
+    try {
+      await addDoc(collection(db, "tentsChairsBookings"), {
+        fullName,
+        contactNumber,
+        completeAddress,
+        modeOfReceiving,
+        quantityChairs: parseInt(quantityChairs),
+        quantityTents: parseInt(quantityTents),
+        startDate,
+        endDate,
+        status: "pending",
+        createdAt: serverTimestamp(),
+      });
+
+
+      showAlert('Your tents & chairs request has been submitted successfully! You can check the status in your profile.', true, () => {
+        window.location.href = 'UserProfile.html';
+      });
+
+    } catch (error) {
+      console.error("Error submitting request:", error);
+      showAlert("Error submitting your request. Please try again.", false);
+    }
+  }
+
+  if (tentsChairsForm) {
+    tentsChairsForm.addEventListener("submit", handleTentsChairsSubmit);
+  }
+});
+
+// =============================
 
 // Login Validation
 const loginForm = document.getElementById("loginForm");
 const errorLoginEmail = document.getElementById("error-login-email");
 const errorLoginPassword = document.getElementById("error-login-password");
+
+// Helper to clear sensitive form fields (used when signed-out or page restored from bfcache)
+function clearSensitiveLoginFields() {
+  try {
+    const emailEl = document.getElementById('login-email');
+    const passEl = document.getElementById('login-password');
+    if (emailEl) {
+      // Prevent browser autofill hints where possible and clear value
+      emailEl.setAttribute('autocomplete', 'off');
+      emailEl.value = '';
+    }
+    if (passEl) {
+      passEl.setAttribute('autocomplete', 'off');
+      passEl.value = '';
+    }
+    if (loginForm) {
+      loginForm.setAttribute('autocomplete', 'off');
+    }
+  } catch (e) {
+    console.warn('Failed to clear login fields:', e);
+  }
+}
+
+// Ensure login inputs are cleared on pageshow (handles back/forward cache restoring the page)
+window.addEventListener('pageshow', (event) => {
+  // If this page is the login page (index.html) and there is no authenticated user, clear fields
+  const path = window.location.pathname || '';
+  if (path.endsWith('index.html') || path === '/' || path === '') {
+    // If auth.currentUser is falsy, clear fields to avoid restored values from previous sessions
+    if (!auth.currentUser) clearSensitiveLoginFields();
+  }
+  // For protected pages, if the page was restored from bfcache and the user is no longer signed in, force redirect
+  if (event.persisted) {
+    const protectedPaths = ["/user.html", "/admin.html", "user.html", "admin.html", "/UserProfile.html", "UserProfile.html"];
+    if (protectedPaths.some(p => window.location.pathname.endsWith(p)) && !auth.currentUser) {
+      // Force a redirect to login (replace so back doesn't loop)
+      try { location.replace('index.html'); } catch (e) { window.location.href = 'index.html'; }
+    }
+  }
+});
 
 function validateEmail(email) {
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -146,7 +328,7 @@ loginForm?.addEventListener("submit", async (e) => {
 // ...signup imports consolidated at the top (createUserWithEmailAndPassword, updateProfile, setDoc)
 
 const signupForm = document.getElementById("signupForm");
-const errorUsername = document.getElementById("error-username");
+const errorFullname = document.getElementById("error-fullname");
 const errorEmail = document.getElementById("error-email");
 const errorPassword = document.getElementById("error-password");
 const errorConfirm = document.getElementById("error-confirm");
@@ -235,25 +417,25 @@ signupForm?.addEventListener("submit", async (e) => {
   const email = document.getElementById("signup-email").value.trim();
   const password = document.getElementById("signup-password").value;
   const confirmPassword = document.getElementById("signup-confirm").value;
-  const username = document.getElementById("signup-username").value.trim();
+  const fullname = document.getElementById("signup-fullname").value.trim();
   const contact = document.getElementById("signup-contact").value.trim();
   const address = document.getElementById("signup-address").value.trim();
 
   // Reset all previous errors
-  [errorUsername, errorEmail, errorPassword, errorConfirm, errorContact, errorAddress]
+  [errorFullname, errorEmail, errorPassword, errorConfirm, errorContact, errorAddress]
     .forEach(clearErrorSignup);
 
   let valid = true;
 
-  // Username validation
-  if (!username) {
-    setErrorSignup(errorUsername, "Username can't be blank");
+  // Fullname validation
+  if (!fullname) {
+    setErrorSignup(errorFullname, "Full Name can't be blank");
     valid = false;
-  } else if (username.length < 3) {
-    setErrorSignup(errorUsername, "Username must be at least 3 characters");
+  } else if (fullname.length < 3) {
+    setErrorSignup(errorFullname, "Full Name must be at least 3 characters");
     valid = false;
   } else {
-    setSuccessSignup(errorUsername);
+    setSuccessSignup(errorFullname);
   }
 
   // Email validation
@@ -314,7 +496,7 @@ signupForm?.addEventListener("submit", async (e) => {
   if (!valid) return;
 
   // Clear all errors before Firebase
-  [errorUsername, errorEmail, errorPassword, errorConfirm, errorContact, errorAddress].forEach(clearErrorSignup);
+  [errorFullname, errorEmail, errorPassword, errorConfirm, errorContact, errorAddress].forEach(clearErrorSignup);
 
   try {
     // Create Auth user
@@ -322,13 +504,14 @@ signupForm?.addEventListener("submit", async (e) => {
     const user = userCredential.user;
 
     // Update display name
-    await updateProfile(user, { displayName: username });
+    await updateProfile(user, { displayName: fullname });
 
     // Save extra info to Firestore
+    // Save user profile using consistent camelCase field names
     await setDoc(doc(db, "users", user.uid), {
-      username: username,
+      fullName: fullname,
       email: email,
-      contact: contact,
+      contactNumber: contact,
       address: address,
       role: "user", // default role
       createdAt: new Date()
@@ -368,46 +551,270 @@ signupForm?.addEventListener("submit", async (e) => {
 // Logout logic for both user and admin pages
 // Custom Alert Functions
 function showAlert(message, isSuccess = false, callback = null) {
-  const alertBox = document.getElementById('customAlert');
-  const overlay = document.getElementById('overlay');
-  const alertMessage = document.getElementById('alertMessage');
+  // Prefer existing box used in HTML so your styles stay intact
+  let alertBox = document.getElementById('formAlertBox') || document.getElementById('customAlert');
+  let overlay = document.getElementById('overlay');
 
-  if (isSuccess) {
-    alertBox.classList.add('success');
-  } else {
-    alertBox.classList.remove('success');
+  // Create overlay only if missing
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'overlay';
+    Object.assign(overlay.style, {
+      position: 'fixed',
+      inset: '0',
+      background: 'rgba(0,0,0,0.35)',
+      display: 'none',
+      zIndex: '9998'
+    });
+    document.body.appendChild(overlay);
   }
 
+  // If no alert container exists, create a minimal one (keeps UI unobtrusive)
+  if (!alertBox) {
+    const box = document.createElement('div');
+    box.id = 'customAlert';
+    box.className = 'form-alert';
+    Object.assign(box.style, {
+      position: 'fixed',
+      left: '50%',
+      top: '50%',
+      transform: 'translate(-50%,-50%)',
+      background: '#fff',
+      padding: '14px 18px',
+      borderRadius: '8px',
+      boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
+      zIndex: '10000',
+      display: 'none',
+      textAlign: 'center'
+    });
+    document.body.appendChild(box);
+    alertBox = box;
+  }
+
+  // Ensure alertBox appears above overlay and is centered if necessary
+  try {
+    const cs = window.getComputedStyle(alertBox);
+    const overlayZi = parseInt(window.getComputedStyle(overlay).zIndex) || 9998;
+    const boxZi = parseInt(cs.zIndex) || 0;
+
+    if (cs.position === 'static' || cs.position === '' || cs.position === 'relative') {
+      // Only set positioning properties if the element isn't already explicitly positioned
+      alertBox.style.position = alertBox.style.position || 'fixed';
+      if (!alertBox.style.left && !alertBox.style.right) alertBox.style.left = '50%';
+      if (!alertBox.style.top && !alertBox.style.bottom) alertBox.style.top = '50%';
+      if (!alertBox.style.transform) alertBox.style.transform = 'translate(-50%,-50%)';
+    }
+
+    if (boxZi <= overlayZi) {
+      alertBox.style.zIndex = (overlayZi + 1).toString();
+    }
+  } catch (e) {
+    // Fallback if computed style access fails
+    alertBox.style.position = alertBox.style.position || 'fixed';
+    alertBox.style.left = alertBox.style.left || '50%';
+    alertBox.style.top = alertBox.style.top || '50%';
+    alertBox.style.transform = alertBox.style.transform || 'translate(-50%,-50%)';
+    alertBox.style.zIndex = alertBox.style.zIndex || '10000';
+  }
+
+  // Ensure there is a message container inside the alertBox (prefer existing IDs/classes)
+  let alertMessage = alertBox.querySelector('.alert-message') || document.getElementById('alertMessage');
+  if (!alertMessage) {
+    alertMessage = document.createElement('div');
+    alertMessage.className = 'alert-message';
+    alertMessage.id = 'alertMessage';
+    alertBox.insertBefore(alertMessage, alertBox.firstChild);
+  }
+
+  // Ensure there's an OK button for closing (preserve any existing classes/IDs)
+  let okBtn = alertBox.querySelector('.alert-ok-btn') || alertBox.querySelector('#alertOkButton');
+  if (!okBtn) {
+    okBtn = document.createElement('button');
+    okBtn.className = 'alert-ok-btn';
+    okBtn.id = 'alertOkButton';
+    okBtn.type = 'button';
+    okBtn.textContent = 'OK';
+    // Minimal inline styles so your CSS can override them if present
+    Object.assign(okBtn.style, {
+      marginTop: '10px',
+      cursor: 'pointer'
+    });
+    okBtn.addEventListener('click', closeAlert);
+    alertBox.appendChild(okBtn);
+  } else {
+    // Ensure click handler is bound
+    try { okBtn.removeEventListener && okBtn.removeEventListener('click', closeAlert); } catch {}
+    okBtn.addEventListener('click', closeAlert);
+  }
+
+  // Safely toggle success class without throwing
+  if (isSuccess) {
+    if (alertBox.classList) alertBox.classList.add('success');
+  } else {
+    if (alertBox.classList) alertBox.classList.remove('success');
+  }
+
+  // Set message text
   alertMessage.textContent = message;
+
+  // Show overlay and alert
   overlay.style.display = 'block';
   alertBox.style.display = 'block';
 
-  // Store callback if provided
-  if (callback) {
-    alertBox.setAttribute('data-callback', 'true');
+  // Save callback if provided
+  if (callback && typeof callback === 'function') {
+    alertBox.setAttribute && alertBox.setAttribute('data-callback', 'true');
     window.alertCallback = callback;
   } else {
-    alertBox.removeAttribute('data-callback');
+    alertBox.removeAttribute && alertBox.removeAttribute('data-callback');
     window.alertCallback = null;
   }
+
+  // Focus OK button for accessibility
+  if (okBtn && typeof okBtn.focus === 'function') okBtn.focus();
 }
 
 function closeAlert() {
-  const alertBox = document.getElementById('customAlert');
+  const alertBox = document.getElementById('formAlertBox') || document.getElementById('customAlert');
   const overlay = document.getElementById('overlay');
-  
-  alertBox.style.display = 'none';
-  overlay.style.display = 'none';
 
-  // Execute callback if exists
-  if (alertBox.hasAttribute('data-callback') && window.alertCallback) {
-    window.alertCallback();
+  if (alertBox) alertBox.style.display = 'none';
+  if (overlay) overlay.style.display = 'none';
+
+  try {
+    if (alertBox && alertBox.hasAttribute && alertBox.hasAttribute('data-callback') && typeof window.alertCallback === 'function') {
+      window.alertCallback();
+    }
+  } catch (err) {
+    console.error('Alert callback error:', err);
+  } finally {
     window.alertCallback = null;
+    if (alertBox && alertBox.removeAttribute) alertBox.removeAttribute('data-callback');
   }
 }
 
 // Make closeAlert available globally
 window.closeAlert = closeAlert;
+
+  /* --------------------------------------------------
+     Toast notifications (top-right) — lightweight
+     Usage: showToast(message, isSuccess = true, duration = 3000)
+  -------------------------------------------------- */
+  const TOAST_DURATION = 1600;
+
+  function ensureToastContainer() {
+    let container = document.getElementById('top-right-toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'top-right-toast-container';
+      container.style.position = 'fixed';
+      container.style.top = '16px';
+      container.style.right = '16px';
+      container.style.zIndex = '99999';
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
+      container.style.gap = '8px';
+      document.body.appendChild(container);
+    }
+    return container;
+  }
+
+  function showToast(message, isSuccess = true, duration = TOAST_DURATION) {
+    const container = ensureToastContainer();
+    // Create toast with white background, blue/black text and check icon on left to match site design
+    const toast = document.createElement('div');
+    toast.className = 'tr-toast';
+    toast.style.display = 'flex';
+    toast.style.alignItems = 'center';
+    toast.style.gap = '10px';
+    toast.style.minWidth = '240px';
+    toast.style.maxWidth = '360px';
+    toast.style.padding = '10px 14px';
+    toast.style.color = '#0b3b8c';
+    toast.style.background = '#ffffff';
+    toast.style.border = '1px solid rgba(11,59,140,0.12)';
+    toast.style.borderLeft = '4px solid #0b3b8c';
+    toast.style.borderRadius = '8px';
+    toast.style.boxShadow = '0 6px 18px rgba(0,0,0,0.06)';
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 240ms ease, transform 240ms ease';
+    toast.style.transform = 'translateY(-6px)';
+
+    // icon (check) - blue
+    const icon = document.createElement('span');
+    icon.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 6L9 17L4 12" stroke="#0b3b8c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    icon.style.flex = '0 0 auto';
+    toast.appendChild(icon);
+
+    const text = document.createElement('div');
+    text.textContent = message;
+    text.style.color = '#0b3b8c';
+    text.style.fontWeight = '600';
+    toast.appendChild(text);
+
+    container.appendChild(toast);
+
+    // animate in
+    requestAnimationFrame(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    });
+
+    // remove after duration
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(-6px)';
+      setTimeout(() => {
+        try { container.removeChild(toast); } catch (e) {}
+      }, 260);
+    }, duration);
+  }
+
+  /* --------------------------------------------------
+     Button spinner helpers (attach to Save buttons)
+  -------------------------------------------------- */
+  function createSpinnerElement(size = 16, color = '#0b3b8c') {
+    const spinner = document.createElement('span');
+    spinner.className = 'btn-spinner';
+    spinner.style.display = 'inline-block';
+    spinner.style.width = `${size}px`;
+    spinner.style.height = `${size}px`;
+    spinner.style.border = `${Math.max(2, Math.floor(size/8))}px solid rgba(11,59,140,0.18)`;
+    spinner.style.borderTopColor = color;
+    spinner.style.borderRadius = '50%';
+    spinner.style.boxSizing = 'border-box';
+    spinner.style.marginRight = '8px';
+    spinner.style.animation = 'tr-spin 0.9s linear infinite';
+    // add minimal keyframes if not present
+    if (!document.getElementById('tr-spin-style')) {
+      const style = document.createElement('style');
+      style.id = 'tr-spin-style';
+      style.textContent = `@keyframes tr-spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }`;
+      document.head.appendChild(style);
+    }
+    return spinner;
+  }
+
+  function showButtonSpinner(button) {
+    if (!button) return null;
+    button.disabled = true;
+    // avoid duplicating spinner
+    if (button.querySelector('.btn-spinner')) return button.querySelector('.btn-spinner');
+    const spinner = createSpinnerElement(16, '#0b3b8c');
+    // insert at start of button
+    button.insertBefore(spinner, button.firstChild);
+    return spinner;
+  }
+
+  function hideButtonSpinner(button) {
+    if (!button) return;
+    const spinner = button.querySelector('.btn-spinner');
+    if (spinner) spinner.remove();
+    button.disabled = false;
+  }
 
 /* =====================
    PAGE PROTECTION & GLOBAL LOGOUT
@@ -416,7 +823,8 @@ window.closeAlert = closeAlert;
    - window.logout signs the current user out and redirects to login
 ====================== */
 // Protect specific pages by pathname
-const protectedPaths = ["/user.html", "/admin.html", "user.html", "admin.html"];
+// Include UserProfile page so profile view is protected as well
+const protectedPaths = ["/user.html", "/admin.html", "user.html", "admin.html", "/UserProfile.html", "UserProfile.html"];
 if (protectedPaths.some(p => window.location.pathname.endsWith(p))) {
   onAuthStateChanged(auth, (user) => {
     if (!user) {
@@ -427,15 +835,402 @@ if (protectedPaths.some(p => window.location.pathname.endsWith(p))) {
 }
 
 // Make a global logout function available to all pages
-window.logout = function() {
-  signOut(auth).then(() => {
-    window.location.href = "index.html";
-  }).catch((err) => {
+window.logout = async function() {
+  try {
+    // Sign out from Firebase
+    await signOut(auth);
+  } catch (err) {
     console.error('Logout failed:', err);
-    // Fallback: still redirect to login
-    window.location.href = "index.html";
-  });
+    // proceed with cleanup and redirect even if signOut failed
+  }
+
+  try {
+    // Clear per-tab session data (do not aggressively clear localStorage that may hold user preferences)
+    sessionStorage.clear();
+  } catch (e) {
+    console.warn('Failed to clear sessionStorage', e);
+  }
+
+  // Replace history entry so Back button won't return to an authenticated page
+  // This helps avoid browsers restoring an auth-backed UI from the bfcache.
+  try {
+    location.replace('index.html');
+  } catch (e) {
+    // fallback
+    window.location.href = 'index.html';
+  }
 };
+
+/* User Profile Page Scripts */
+document.addEventListener('DOMContentLoaded', function() {
+  // Only run this code on the UserProfile page
+  if (!document.querySelector('.user-profile-layout')) return;
+
+  const editProfileModal = document.getElementById('editProfileModal');
+  const changePasswordModal = document.getElementById('changePasswordModal');
+  // Select the buttons specifically inside the user-info card to avoid matching the logout button
+  const editProfileBtn = document.querySelector('.user-info-card .edit-profile-btn');
+  const changePasswordBtn = document.querySelector('.user-info-card .change-password-btn');
+  const changePasswordMessage = document.getElementById('changePasswordMessage');
+  // per-field error elements (Edit Profile)
+  const errorEditFullname = document.getElementById('error-edit-fullname');
+  const errorEditContact = document.getElementById('error-edit-contact');
+  const errorEditEmail = document.getElementById('error-edit-email');
+  const errorEditAddress = document.getElementById('error-edit-address');
+  // per-field error elements (Change Password)
+  const errorCurrentPassword = document.getElementById('error-current-password');
+  const errorNewPassword = document.getElementById('error-new-password');
+  const errorConfirmPassword = document.getElementById('error-confirm-password');
+  const logoutBtn = document.querySelector('.logout-btn');
+  const makeRequestBtn = document.querySelector('.make-request-btn');
+  const dropdownContent = document.querySelector('.dropdown-content');
+  const closeButtons = document.querySelectorAll('.close-modal');
+
+  // Load user data after Firebase confirms auth state so auth.currentUser is available
+  onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      // Not signed in -> go to login
+      window.location.href = "index.html";
+      return;
+    }
+    // User signed in -> populate profile
+    loadUserData();
+  });
+
+  // Edit Profile Modal
+  editProfileBtn?.addEventListener('click', async () => {
+    // Clear previous inline errors
+    [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
+
+    // Reload latest user data from Firestore and populate edit form to discard unsaved edits.
+    // We await here so the modal shows the current saved values (not any unsaved inputs).
+    try {
+      await loadUserData();
+    } catch (err) {
+      console.warn('Failed to reload user data before opening edit modal:', err);
+    }
+
+    // Ensure any transient form state is cleaned
+    const editProfileFormEl = document.getElementById('editProfileForm');
+    if (editProfileFormEl) {
+      // remove any custom validation classes if present
+      editProfileFormEl.classList.remove('was-validated');
+    }
+
+    editProfileModal.style.display = 'block';
+  });
+
+  // Change Password Modal
+  changePasswordBtn?.addEventListener('click', () => {
+    // Clear any previous messages and inputs when opening
+    if (changePasswordMessage) {
+      changePasswordMessage.style.display = 'none';
+      changePasswordMessage.textContent = '';
+    }
+    // Clear any previous per-field errors and reset inputs so unsaved attempts are discarded
+    [errorCurrentPassword, errorNewPassword, errorConfirmPassword].forEach(el => { if (el) clearErrorSignup(el); });
+    changePasswordForm?.reset();
+    changePasswordModal.style.display = 'block';
+  });
+
+  // Close modals when clicking close button
+  closeButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      // Hide modals
+      editProfileModal.style.display = 'none';
+      changePasswordModal.style.display = 'none';
+
+      // clear password modal message and reset fields
+      if (changePasswordMessage) {
+        changePasswordMessage.style.display = 'none';
+        changePasswordMessage.textContent = '';
+      }
+  changePasswordForm?.reset();
+
+      // Reset edit profile form inputs and clear inline errors so unsaved edits are discarded
+      const editProfileFormEl = document.getElementById('editProfileForm');
+      if (editProfileFormEl) {
+        editProfileFormEl.reset();
+        [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
+      }
+
+      // Reset change password form inputs and clear per-field errors
+      const chFormEl = document.getElementById('changePasswordForm');
+      if (chFormEl) {
+        chFormEl.reset();
+        [errorCurrentPassword, errorNewPassword, errorConfirmPassword].forEach(el => { if (el) clearErrorSignup(el); });
+      }
+    });
+  });
+
+  // Close modals when clicking outside
+  window.addEventListener('click', (e) => {
+    if (e.target === editProfileModal) {
+      editProfileModal.style.display = 'none';
+      // Reset edit profile form inputs & clear inline errors when modal closed by clicking outside
+      const editProfileFormEl = document.getElementById('editProfileForm');
+      if (editProfileFormEl) {
+        editProfileFormEl.reset();
+        [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
+      }
+    }
+    if (e.target === changePasswordModal) {
+      changePasswordModal.style.display = 'none';
+      const chFormEl = document.getElementById('changePasswordForm');
+      if (chFormEl) {
+        chFormEl.reset();
+        [errorCurrentPassword, errorNewPassword, errorConfirmPassword].forEach(el => { if (el) clearErrorSignup(el); });
+      }
+    }
+  });
+
+  // Make Request Dropdown
+  makeRequestBtn?.addEventListener('click', () => {
+    dropdownContent.style.display = dropdownContent.style.display === 'block' ? 'none' : 'block';
+  });
+
+  // Close dropdown when clicking outside
+  window.addEventListener('click', (e) => {
+    if (!e.target.matches('.make-request-btn')) {
+      dropdownContent.style.display = 'none';
+    }
+  });
+
+  // Logout functionality
+  logoutBtn?.addEventListener('click', () => {
+    window.logout();
+  });
+
+  // Handle Edit Profile Form Submit
+  const editProfileForm = document.getElementById('editProfileForm');
+  editProfileForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) return;
+
+    // Clear previous errors
+    [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => {
+      if (el) clearErrorSignup(el);
+    });
+
+    const fullName = document.getElementById('editFullName').value.trim();
+    const contact = document.getElementById('editContactNumber').value.trim();
+    const address = document.getElementById('editAddress').value.trim();
+
+    let valid = true;
+
+    // Fullname validation
+    if (!fullName) {
+      setErrorSignup(errorEditFullname, "Full Name can't be blank");
+      valid = false;
+    } else if (fullName.length < 3) {
+      setErrorSignup(errorEditFullname, "Full Name must be at least 3 characters");
+      valid = false;
+    }
+
+    // Contact validation
+    if (!contact) {
+      setErrorSignup(errorEditContact, "Contact number can't be blank");
+      valid = false;
+    } else if (!/^\d+$/.test(contact)) {
+      setErrorSignup(errorEditContact, "Contact number must contain only numbers");
+      valid = false;
+    } else if (!/^09\d{9}$/.test(contact)) {
+      setErrorSignup(errorEditContact, "Contact number must be 11 digits and start with '09'");
+      valid = false;
+    }
+
+    // Address validation
+    const sanitizedAddress = address.replace(/<[^>]*>/g, '');
+    if (!sanitizedAddress) {
+      setErrorSignup(errorEditAddress, "Address can't be blank");
+      valid = false;
+    } else if (sanitizedAddress !== address) {
+      setErrorSignup(errorEditAddress, "Address contains invalid characters");
+      valid = false;
+    }
+
+    if (!valid) return;
+
+    const updates = {
+      fullName: fullName,
+      contactNumber: contact,
+      address: address
+    };
+
+    // Show spinner on save button
+    const editSaveButton = document.querySelector('#editProfileForm .save-changes');
+    const editSpinner = showButtonSpinner(editSaveButton);
+
+    try {
+      // Update Firestore
+      await setDoc(doc(db, "users", user.uid), updates, { merge: true });
+
+      // Also update the Auth displayName so Auth and Firestore stay in sync
+      try {
+        await updateProfile(user, { displayName: updates.fullName });
+      } catch (err) {
+        console.warn('Failed to update Auth displayName:', err);
+      }
+
+      // Visual confirmation + close modal + reload user data (use unified toast duration)
+      try { showToast('Profile updated successfully!', true); } catch (e) {}
+      // Close modal after toast duration so user sees the toast while modal is visible briefly
+      setTimeout(async () => {
+        editProfileModal.style.display = 'none';
+        try { await loadUserData(); } catch (e) { console.warn('Failed to reload user data after update:', e); }
+      }, TOAST_DURATION);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      showAlert('Failed to update profile. Please try again.');
+    } finally {
+      // hide spinner and re-enable
+      hideButtonSpinner(editSaveButton);
+    }
+  });
+
+  // Handle Change Password Form Submit
+  const changePasswordForm = document.getElementById('changePasswordForm');
+  // helper to show inline message in change password modal (kept for success banner)
+  function setChangePasswordMessage(msg, isSuccess = false) {
+    if (!changePasswordMessage) return;
+    changePasswordMessage.textContent = msg;
+    changePasswordMessage.style.display = 'block';
+    changePasswordMessage.style.color = isSuccess ? '#2e7d32' : '#d32f2f';
+  }
+
+  // Clear inline message and per-field errors when user types
+  document.getElementById('currentPassword')?.addEventListener('input', () => {
+    if (changePasswordMessage) changePasswordMessage.style.display = 'none';
+    if (errorCurrentPassword) clearErrorSignup(errorCurrentPassword);
+  });
+  document.getElementById('newPassword')?.addEventListener('input', () => {
+    if (changePasswordMessage) changePasswordMessage.style.display = 'none';
+    if (errorNewPassword) clearErrorSignup(errorNewPassword);
+  });
+  document.getElementById('confirmPassword')?.addEventListener('input', () => {
+    if (changePasswordMessage) changePasswordMessage.style.display = 'none';
+    if (errorConfirmPassword) clearErrorSignup(errorConfirmPassword);
+  });
+
+  // Also clear edit-profile errors while typing
+  document.getElementById('editFullName')?.addEventListener('input', () => { if (errorEditFullname) clearErrorSignup(errorEditFullname); });
+  document.getElementById('editContactNumber')?.addEventListener('input', () => { if (errorEditContact) clearErrorSignup(errorEditContact); });
+  document.getElementById('editAddress')?.addEventListener('input', () => { if (errorEditAddress) clearErrorSignup(errorEditAddress); });
+
+  changePasswordForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) return;
+
+    // Clear previous per-field errors
+    [errorCurrentPassword, errorNewPassword, errorConfirmPassword].forEach(el => { if (el) clearErrorSignup(el); });
+
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    let valid = true;
+
+    if (!currentPassword) {
+      if (errorCurrentPassword) setErrorSignup(errorCurrentPassword, 'Please enter your current password');
+      valid = false;
+    }
+
+    if (!newPassword) {
+      if (errorNewPassword) setErrorSignup(errorNewPassword, 'Please enter a new password');
+      valid = false;
+    } else {
+      const passValidation = validatePasswordSignup(newPassword);
+      if (!passValidation.isValid) {
+        if (errorNewPassword) setErrorSignup(errorNewPassword, passValidation.message);
+        valid = false;
+      }
+    }
+
+    if (!confirmPassword) {
+      if (errorConfirmPassword) setErrorSignup(errorConfirmPassword, 'Please confirm your new password');
+      valid = false;
+    } else if (newPassword !== confirmPassword) {
+      if (errorConfirmPassword) setErrorSignup(errorConfirmPassword, 'Passwords do not match');
+      valid = false;
+    }
+
+    if (!valid) return;
+
+  // Show spinner on save button while processing
+  const saveButton = document.querySelector('#changePasswordForm .save-changes');
+  if (saveButton) showButtonSpinner(saveButton);
+
+    try {
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, newPassword);
+
+      // Show success toast and close modal after unified duration
+      try { showToast('Password changed successfully!', true); } catch (e) {}
+      setTimeout(() => {
+        changePasswordModal.style.display = 'none';
+        changePasswordForm?.reset();
+        // ensure inline change password message is cleared (we prefer toasts)
+        if (changePasswordMessage) { changePasswordMessage.style.display = 'none'; changePasswordMessage.textContent = ''; }
+        if (saveButton) hideButtonSpinner(saveButton);
+      }, TOAST_DURATION);
+    } catch (error) {
+      console.error('Error updating password:', error);
+  if (saveButton) hideButtonSpinner(saveButton);
+      switch (error.code) {
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          if (errorCurrentPassword) setErrorSignup(errorCurrentPassword, 'Incorrect password. Please try again.');
+          break;
+        case 'auth/weak-password':
+          if (errorNewPassword) setErrorSignup(errorNewPassword, 'New password is too weak. Choose a stronger password.');
+          break;
+        case 'auth/requires-recent-login':
+          if (errorCurrentPassword) setErrorSignup(errorCurrentPassword, 'Please sign in again and retry changing your password.');
+          break;
+        default:
+          if (errorCurrentPassword) setErrorSignup(errorCurrentPassword, 'Failed to update password. Try again later.');
+      }
+    }
+  });
+});
+
+// Function to load user data
+async function loadUserData() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  try {
+    const docRef = doc(db, "users", user.uid);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      const userData = docSnap.data();
+      
+      // Support both legacy keys and new camelCase keys (backwards compatibility)
+      const fullName = userData.fullName || userData.fullname || user.displayName || 'User';
+      const contactNumber = userData.contactNumber || userData.contact || 'Not provided';
+      const email = userData.email || user.email || 'Not provided';
+      const address = userData.address || 'Not provided';
+
+      // Update profile information
+      document.getElementById('profileFullName').textContent = fullName;
+      document.getElementById('infoFullName').textContent = fullName;
+      document.getElementById('infoContactNumber').textContent = contactNumber;
+      document.getElementById('infoEmail').textContent = email;
+      document.getElementById('infoAddress').textContent = address;
+
+      // Pre-fill edit form
+      document.getElementById('editFullName').value = userData.fullName || userData.fullname || '';
+      document.getElementById('editContactNumber').value = userData.contactNumber || userData.contact || '';
+      document.getElementById('editEmail').value = userData.email || '';
+      document.getElementById('editAddress').value = userData.address || '';
+    }
+  } catch (error) {
+    console.error("Error loading user data:", error);
+  }
+}
 
 /* ==========================================================================
    USER PROFILE PAGE SCRIPT (for user.html)
@@ -447,51 +1242,45 @@ window.logout = function() {
 
 // This function fetches data and updates the profile page elements
 async function fetchAndDisplayUserData(user) {
-    // Get references to the HTML elements that will display the user's info.
-    // Make sure your HTML has these IDs.
-    const profileNameEl = document.querySelector('.profile-name');
-    const infoFullNameEl = document.getElementById('infoFullName');
-    const infoContactNumberEl = document.getElementById('infoContactNumber');
-    const infoEmailEl = document.getElementById('infoEmail');
-    const infoAddressEl = document.getElementById('infoAddress');
+  // Get references to the HTML elements that will display the user's info.
+  // Use the IDs used in `UserProfile.html` so the function works there.
+  const profileNameEl = document.getElementById('profileFullName');
+  const infoFullNameEl = document.getElementById('infoFullName');
+  const infoContactNumberEl = document.getElementById('infoContactNumber');
+  const infoEmailEl = document.getElementById('infoEmail');
+  const infoAddressEl = document.getElementById('infoAddress');
 
-    // A quick check to make sure the elements exist on the page before we try to use them.
-    if (!profileNameEl || !infoFullNameEl) {
-        console.log("Profile elements not found on this page, skipping data population.");
-        return;
+  // If required elements are not on the page, skip silently.
+  if (!profileNameEl && !infoFullNameEl) {
+    console.log("Profile elements not found on this page, skipping data population.");
+    return;
+  }
+
+  try {
+    const docRef = doc(db, "users", user.uid);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      const userData = docSnap.data();
+
+      // Use the camelCase field names we store at signup (fullName, contactNumber)
+      if (profileNameEl) profileNameEl.textContent = userData.fullName || user.displayName || "User";
+      if (infoFullNameEl) infoFullNameEl.textContent = userData.fullName || user.displayName || "Not provided";
+      if (infoContactNumberEl) infoContactNumberEl.textContent = userData.contactNumber || "Not provided";
+      if (infoEmailEl) infoEmailEl.textContent = userData.email || user.email || "Not provided";
+      if (infoAddressEl) infoAddressEl.textContent = userData.address || "Not provided";
+    } else {
+      console.warn("No user profile document found in Firestore, using Auth fallback.");
+      if (profileNameEl) profileNameEl.textContent = user.displayName || "User";
+      if (infoFullNameEl) infoFullNameEl.textContent = user.displayName || "Not provided";
+      if (infoEmailEl) infoEmailEl.textContent = user.email || "Not provided";
+      if (infoContactNumberEl) infoContactNumberEl.textContent = "Not provided";
+      if (infoAddressEl) infoAddressEl.textContent = "Not provided";
     }
-
-    try {
-        // Create a reference to the user's specific document in Firestore using their UID
-        const docRef = doc(db, "users", user.uid);
-        // Fetch the document
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-            const userData = docSnap.data();
-
-            // Populate the HTML elements with the data from Firestore
-            profileNameEl.textContent = userData.username || "User Profile";
-            infoFullNameEl.textContent = userData.username || "Not Available";
-            infoContactNumberEl.textContent = userData.contact || "Not Available";
-            infoEmailEl.textContent = userData.email || "Not Available";
-            infoAddressEl.textContent = userData.address || "Not Available";
-            
-        } else {
-            // This case is unlikely if your signup process is working correctly
-            console.warn("No user profile document found in Firestore!");
-            // Fallback to display info from the Auth object itself
-            profileNameEl.textContent = user.displayName || "User Profile";
-            infoFullNameEl.textContent = user.displayName || "Not Available";
-            infoEmailEl.textContent = user.email || "Not Available";
-            infoContactNumberEl.textContent = "Data Not Found";
-            infoAddressEl.textContent = "Data Not Found";
-        }
-    } catch (error) {
-        console.error("Error fetching user data from Firestore:", error);
-        // Use your existing showAlert function to notify the user of the error
-        showAlert("Failed to load your profile information. Please refresh the page.");
-    }
+  } catch (error) {
+    console.error("Error fetching user data from Firestore:", error);
+    showAlert("Failed to load your profile information. Please refresh the page.");
+  }
 }
 
 // Check if the current page is 'user.html' before running the profile logic.
@@ -579,6 +1368,29 @@ if (window.location.pathname.endsWith('about.html') || window.location.pathname.
     window.addEventListener('scroll', throttle(handleScrollAnimation, 100));
     // Run once on page load
     setTimeout(handleScrollAnimation, 100);
+}
+
+// Initialize scroll-triggered keyframe animations on user.html
+if (window.location.pathname.endsWith('user.html') || window.location.pathname.endsWith('/user')) {
+  const animElements = document.querySelectorAll('.animate-on-scroll');
+
+  // Ensure elements start hidden (CSS class handles this, but keep as a safeguard)
+  animElements.forEach(el => {
+    el.classList.remove('animated');
+  });
+
+  function handleUserAnimations() {
+    animElements.forEach(el => {
+      if (isInViewport(el) && !el.classList.contains('animated')) {
+        el.classList.add('animated');
+      }
+    });
+  }
+
+  // Throttled scroll listener
+  window.addEventListener('scroll', throttle(handleUserAnimations, 100));
+  // Run once on load
+  setTimeout(handleUserAnimations, 120);
 }
 
 
@@ -989,11 +1801,11 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     if (!quantityChairs) {
       setFieldError('quantityChairs', 'Quantity of chairs is required');
       isValid = false;
-    } else if (parseInt(quantityChairs) < 1) {
-      setFieldError('quantityChairs', 'Quantity must be at least 1');
+    } else if (parseInt(quantityChairs) < 20) {
+      setFieldError('quantityChairs', 'Quantity must be at least 20');
       isValid = false;
-    } else if (parseInt(quantityChairs) > 100) {
-      setFieldError('quantityChairs', 'Quantity cannot exceed 100');
+    } else if (parseInt(quantityChairs) > 600) {
+      setFieldError('quantityChairs', 'Quantity cannot exceed 600');
       isValid = false;
     }
 
@@ -1004,8 +1816,8 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     } else if (parseInt(quantityTents) < 1) {
       setFieldError('quantityTents', 'Quantity must be at least 1');
       isValid = false;
-    } else if (parseInt(quantityTents) > 20) {
-      setFieldError('quantityTents', 'Quantity cannot exceed 20');
+    } else if (parseInt(quantityTents) > 24) {
+      setFieldError('quantityTents', 'Quantity cannot exceed 24');
       isValid = false;
     }
 
@@ -1123,7 +1935,6 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
 /* =====================================================
    CONFERENCE ROOM REQUEST FORM SCRIPT
    Add this section to your script.js file
-===================================================== */
 
 // Check if we're on the conference room request form page
 if (window.location.pathname.endsWith('conference-request.html') || window.location.pathname.endsWith('/conference-request')) {
@@ -1341,4 +2152,3 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
 
 /* =====================================================
    END OF CONFERENCE ROOM REQUEST FORM SCRIPT
-===================================================== */
