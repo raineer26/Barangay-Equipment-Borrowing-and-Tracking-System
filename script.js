@@ -77,59 +77,60 @@ document.addEventListener("DOMContentLoaded", () => {
 
   
 
-    // Validation flags
-    let hasError = false;
+   // Validation flags
+let hasError = false;
 
-    // Validate full name
-    if (!fullName) {
-      showAlert("Please enter your full name", false);
-      hasError = true;
-    }
+// Validate full name
+if (!fullName) {
+  document.getElementById("fullName").classList.add("error");
+  hasError = true;
+}
 
-    // Validate contact (must be numbers only and proper length)
-    if (!contactNumber || !/^\d{11}$/.test(contactNumber)) {
-      showAlert("Please enter a valid 11-digit contact number", false);
-      hasError = true;
-    }
+// Validate contact (must be numbers only and proper length)
+if (!contactNumber || !/^\d{11}$/.test(contactNumber)) {
+  document.getElementById("contactNumber").classList.add("error");
+  hasError = true;
+}
 
-    // Validate address
-    if (!completeAddress) {
-      showAlert("Please enter your complete address", false);
-      hasError = true;
-    }
+// Validate address
+if (!completeAddress) {
+  document.getElementById("completeAddress").classList.add("error");
+  hasError = true;
+}
 
-    // Validate chairs quantity (must be number between 20-600)
-    if (!quantityChairs || quantityChairs < 20 || quantityChairs > 600) {
-      showAlert("Please select a valid number of chairs (20-600)", false);
-      hasError = true;
-    }
+// Validate chairs quantity (must be number between 20–600)
+if (!quantityChairs || quantityChairs < 20 || quantityChairs > 600) {
+  document.getElementById("quantityChairs").classList.add("error");
+  hasError = true;
+}
 
-    // Validate tents quantity (must be number between 1-24)
-    if (!quantityTents || quantityTents < 1 || quantityTents > 24) {
-      showAlert("Please select a valid number of tents (1-24)", false);
-      hasError = true;
-    }
+// Validate tents quantity (must be number between 1–24)
+if (!quantityTents || quantityTents < 1 || quantityTents > 24) {
+  document.getElementById("quantityTents").classList.add("error");
+  hasError = true;
+}
 
-    // Validate dates
-    if (!startDate || !endDate) {
-      showAlert("Please select both start and end dates", false);
-      hasError = true;
-    }
-    if (endDate < startDate) {
-      showAlert("End date must be after start date", false);
-      hasError = true;
-    }
+// Validate dates
+if (!startDate || !endDate) {
+  document.getElementById("startDate").classList.add("error");
+  document.getElementById("endDate").classList.add("error");
+  hasError = true;
+} else if (endDate < startDate) {
+  document.getElementById("endDate").classList.add("error");
+  hasError = true;
+}
 
-    // Validate receiving mode
-    if (!modeOfReceiving) {
-      showAlert("Please select a mode of receiving", false);
-      hasError = true;
-    }
+// Validate receiving mode
+if (!modeOfReceiving) {
+  document.getElementById("modeOfReceiving").classList.add("error");
+  hasError = true;
+}
 
-    // If any validation failed, stop form submission
-    if (hasError) {
-      return false;
-    }
+// If any validation failed, stop form submission
+if (hasError) {
+  return false;
+}
+
 
     try {
       await addDoc(collection(db, "tentsChairsBookings"), {
@@ -1358,7 +1359,7 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       setFieldError('quantityChairs', 'Quantity of chairs is required');
       isValid = false;
     } else if (parseInt(quantityChairs) < 20) {
-      setFieldError('quantityChairs', 'Quantity must be at least 1');
+      setFieldError('quantityChairs', 'Quantity must be at least 20');
       isValid = false;
     } else if (parseInt(quantityChairs) > 600) {
       setFieldError('quantityChairs', 'Quantity cannot exceed 600');
