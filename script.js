@@ -31,9 +31,9 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 // =============================
-// 2. Unique Custom Alert Function (no naming conflicts FOR BACKEND)
+// 1. Custom Alert Function (Shared for all booking forms)
 // =============================
-function showBookingFormAlert(message, type = "success") {
+function showBookingFormAlert(message, type = "success", callback = null) {
   let alertBox = document.getElementById("bookingFormAlertBox");
   if (!alertBox) {
     alertBox = document.createElement("div");
@@ -49,121 +49,154 @@ function showBookingFormAlert(message, type = "success") {
     alertBox.style.transition = "all 0.3s ease";
     document.body.appendChild(alertBox);
   }
+
   alertBox.style.backgroundColor = type === "success" ? "#28a745" : "#dc3545";
   alertBox.textContent = message;
   alertBox.style.display = "block";
   alertBox.style.opacity = "1";
+
   setTimeout(() => {
     alertBox.style.opacity = "0";
-    setTimeout(() => (alertBox.style.display = "none"), 300);
+    setTimeout(() => {
+      alertBox.style.display = "none";
+      if (callback) callback();
+    }, 300);
   }, 3000);
 }
 
 // =============================
-// 3. Tents & Chairs Form Handler FOR BACKEND
+// 4. Page Detection
 // =============================
 document.addEventListener("DOMContentLoaded", () => {
   const tentsChairsForm = document.getElementById("tentsChairsForm");
+  const conferenceRoomForm = document.getElementById("conferenceRoomForm");
 
-  async function handleTentsChairsSubmit(e) {
-    e.preventDefault();
-    
-    // Get form values
-    const fullName = document.getElementById("fullName").value.trim();
-    const contactNumber = document.getElementById("contactNumber").value.trim();
-    const completeAddress = document.getElementById("completeAddress").value.trim();
-    const modeOfReceiving = document.getElementById("modeOfReceiving").value.trim();
-    const quantityChairs = document.getElementById("quantityChairs").value.trim();
-    const quantityTents = document.getElementById("quantityTents").value.trim();
-    const startDate = document.getElementById("startDate").value.trim();
-    const endDate = document.getElementById("endDate").value.trim();
+  // =============================
+  // 🏕️ TENTS & CHAIRS FORM HANDLER
+  // =============================
+  if (tentsChairsForm) {
+    tentsChairsForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-  
+      // Get form values
+      const fullName = document.getElementById("fullName").value.trim();
+      const contactNumber = document.getElementById("contactNumber").value.trim();
+      const completeAddress = document.getElementById("completeAddress").value.trim();
+      const modeOfReceiving = document.getElementById("modeOfReceiving").value.trim();
+      const quantityChairs = document.getElementById("quantityChairs").value.trim();
+      const quantityTents = document.getElementById("quantityTents").value.trim();
+      const startDate = document.getElementById("startDate").value.trim();
+      const endDate = document.getElementById("endDate").value.trim();
 
-   // Validation flags
-let hasError = false;
+      // Basic validation (no popups)
+      let hasError = false;
+      const requiredFields = [
+        { id: "fullName", value: fullName },
+        { id: "contactNumber", value: contactNumber },
+        { id: "completeAddress", value: completeAddress },
+        { id: "modeOfReceiving", value: modeOfReceiving },
+        { id: "quantityChairs", value: quantityChairs },
+        { id: "quantityTents", value: quantityTents },
+        { id: "startDate", value: startDate },
+        { id: "endDate", value: endDate },
+      ];
 
-// Validate full name
-if (!fullName) {
-  document.getElementById("fullName").classList.add("error");
-  hasError = true;
-}
-
-// Validate contact (must be numbers only and proper length)
-if (!contactNumber || !/^\d{11}$/.test(contactNumber)) {
-  document.getElementById("contactNumber").classList.add("error");
-  hasError = true;
-}
-
-// Validate address
-if (!completeAddress) {
-  document.getElementById("completeAddress").classList.add("error");
-  hasError = true;
-}
-
-// Validate chairs quantity (must be number between 20–600)
-if (!quantityChairs || quantityChairs < 20 || quantityChairs > 600) {
-  document.getElementById("quantityChairs").classList.add("error");
-  hasError = true;
-}
-
-// Validate tents quantity (must be number between 1–24)
-if (!quantityTents || quantityTents < 1 || quantityTents > 24) {
-  document.getElementById("quantityTents").classList.add("error");
-  hasError = true;
-}
-
-// Validate dates
-if (!startDate || !endDate) {
-  document.getElementById("startDate").classList.add("error");
-  document.getElementById("endDate").classList.add("error");
-  hasError = true;
-} else if (endDate < startDate) {
-  document.getElementById("endDate").classList.add("error");
-  hasError = true;
-}
-
-// Validate receiving mode
-if (!modeOfReceiving) {
-  document.getElementById("modeOfReceiving").classList.add("error");
-  hasError = true;
-}
-
-// If any validation failed, stop form submission
-if (hasError) {
-  return false;
-}
-
-
-    try {
-      await addDoc(collection(db, "tentsChairsBookings"), {
-        fullName,
-        contactNumber,
-        completeAddress,
-        modeOfReceiving,
-        quantityChairs: parseInt(quantityChairs),
-        quantityTents: parseInt(quantityTents),
-        startDate,
-        endDate,
-        status: "pending",
-        createdAt: serverTimestamp(),
+      requiredFields.forEach((field) => {
+        const input = document.getElementById(field.id);
+        if (!field.value) {
+          input.classList.add("error");
+          hasError = true;
+        } else {
+          input.classList.remove("error");
+        }
       });
 
+      if (hasError) return;
 
-      showAlert('Your tents & chairs request has been submitted successfully! You can check the status in your profile.', true, () => {
-        window.location.href = 'UserProfile.html';
-      });
+      // Save to Firestore
+      try {
+        await addDoc(collection(db, "tentsChairsBookings"), {
+          fullName,
+          contactNumber,
+          completeAddress,
+          modeOfReceiving,
+          quantityChairs,
+          quantityTents,
+          startDate,
+          endDate,
+          timestamp: serverTimestamp(),
+        });
 
-    } catch (error) {
-      console.error("Error submitting request:", error);
-      showAlert("Error submitting your request. Please try again.", false);
-    }
+        tentsChairsForm.reset();
+        showBookingFormAlert("Tents and Chairs booking submitted successfully!", "success");
+      } catch (error) {
+        console.error("Error saving Tents & Chairs booking:", error);
+      }
+    });
   }
 
-  if (tentsChairsForm) {
-    tentsChairsForm.addEventListener("submit", handleTentsChairsSubmit);
+  // =============================
+  // 🏛️ CONFERENCE ROOM FORM HANDLER
+  // =============================
+  if (conferenceRoomForm) {
+    conferenceRoomForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      // Get form values (specific to conference form)
+      const fullName = document.getElementById("fullName").value.trim();
+      const purpose = document.getElementById("purpose").value.trim();
+      const contactNumber = document.getElementById("contactNumber").value.trim();
+      const eventDate = document.getElementById("eventDate").value.trim();
+      const address = document.getElementById("address").value.trim();
+      const startTime = document.getElementById("startTime").value.trim();
+      const endTime = document.getElementById("endTime").value.trim();
+
+      // Validate required fields visually only
+      let hasError = false;
+      const requiredFields = [
+        { id: "fullName", value: fullName },
+        { id: "purpose", value: purpose },
+        { id: "contactNumber", value: contactNumber },
+        { id: "eventDate", value: eventDate },
+        { id: "address", value: address },
+        { id: "startTime", value: startTime },
+        { id: "endTime", value: endTime },
+      ];
+
+      requiredFields.forEach((field) => {
+        const input = document.getElementById(field.id);
+        if (!field.value) {
+          input.classList.add("error");
+          hasError = true;
+        } else {
+          input.classList.remove("error");
+        }
+      });
+
+      if (hasError) return;
+
+      // Save to Firestore (new collection)
+      try {
+        await addDoc(collection(db, "conferenceRoomRequests"), {
+          fullName,
+          purpose,
+          contactNumber,
+          eventDate,
+          address,
+          startTime,
+          endTime,
+          timestamp: serverTimestamp(),
+        });
+
+        conferenceRoomForm.reset();
+        showBookingFormAlert("Conference Room booking submitted successfully!", "success");
+      } catch (error) {
+        console.error("Error saving Conference Room booking:", error);
+      }
+    });
   }
 });
+
 
 // =============================
 
@@ -1544,7 +1577,7 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
 
   function openBookingModal(dateStr) {
     // Redirect to request form page with date parameter
-    window.location.href = `conference-room-request.html?date=${dateStr}`;
+    window.location.href = `conference-request.html?date=${dateStr}`;
   }
 
   function closeBookingModal() {
@@ -1719,9 +1752,7 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
 /* =====================================================
    END OF TENTS AND CHAIRS CALENDAR SCRIPT
 ===================================================== */
-/* =====================================================
-   END OF CONFERENCE ROOM CALENDAR SCRIPT
-===================================================== */
+
 
 /* =====================================================
    TENTS & CHAIRS REQUEST FORM SCRIPT
@@ -1990,22 +2021,50 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
   });
 
   function populateTimeDropdowns() {
-    const startTimeSelect = document.getElementById('startTime');
-    const endTimeSelect = document.getElementById('endTime');
+    try {
+      const startTimeSelect = document.getElementById('startTime');
+      const endTimeSelect = document.getElementById('endTime');
 
-    // Clear existing options
-    startTimeSelect.innerHTML = '<option value="">Start Time</option>';
-    endTimeSelect.innerHTML = '<option value="">End Time</option>';
+      if (!startTimeSelect || !endTimeSelect) {
+        // Elements are not present on this page — nothing to populate.
+        console.debug('populateTimeDropdowns: start/end time selects not found; skipping.');
+        return;
+      }
 
-    // Generate time options from 8:00 AM to 5:00 PM
-    for (let hour = 8; hour <= 17; hour++) {
-      const timeString = hour.toString().padStart(2, '0') + ':00';
-      const displayTime = hour < 12 ? timeString + ' AM' : 
-                         (hour === 12 ? timeString + ' PM' : 
-                         (hour - 12).toString().padStart(2, '0') + ':00 PM');
-      
-      startTimeSelect.add(new Option(displayTime, timeString));
-      endTimeSelect.add(new Option(displayTime, timeString));
+      // Clear existing options safely
+      startTimeSelect.innerHTML = '';
+      endTimeSelect.innerHTML = '';
+
+      // Add default placeholder options
+      const placeholderStart = document.createElement('option');
+      placeholderStart.value = '';
+      placeholderStart.textContent = 'Start Time';
+      startTimeSelect.appendChild(placeholderStart);
+
+      const placeholderEnd = document.createElement('option');
+      placeholderEnd.value = '';
+      placeholderEnd.textContent = 'End Time';
+      endTimeSelect.appendChild(placeholderEnd);
+
+      // Generate time options from 8:00 AM to 5:00 PM (inclusive)
+      for (let hour = 8; hour <= 17; hour++) {
+        const hour24 = hour.toString().padStart(2, '0') + ':00';
+        let displayTime;
+        if (hour === 12) {
+          displayTime = '12:00 PM';
+        } else if (hour > 12) {
+          displayTime = (hour - 12).toString().padStart(2, '0') + ':00 PM';
+        } else {
+          displayTime = hour.toString().padStart(2, '0') + ':00 AM';
+        }
+
+        const optStart = new Option(displayTime, hour24);
+        const optEnd = new Option(displayTime, hour24);
+        startTimeSelect.add(optStart);
+        endTimeSelect.add(optEnd);
+      }
+    } catch (err) {
+      console.error('Error populating time dropdowns:', err);
     }
   }
 
