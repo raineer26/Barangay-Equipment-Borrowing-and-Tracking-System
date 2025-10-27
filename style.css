@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 html {
   scroll-behavior: smooth;
 }
@@ -6,6 +7,7 @@ body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-family: 'Poppins', sans-serif; /* Use Poppins as primary UI font */
 }
 
 /* NAVIGATION */
@@ -919,7 +921,10 @@ footer {
 .user-profile-header {
   display: flex;
   align-items: center;
-  gap: 32px;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 900px;
   margin-bottom: 24px;
 }
 
@@ -930,7 +935,13 @@ footer {
   font-family: 'League Spartan', sans-serif;
   color: #281abc;
   font-weight: bold;
-  margin-left: -450px;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 
@@ -953,13 +964,17 @@ footer {
   display: flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap; /* prevent text wrapping */
+  box-sizing: border-box; /* make borders part of the element size */
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.12s ease;
   
 }
 
 .change-password-btn {
   background: #281abc;
   color: #fff;
-  border: none;
+  /* keep a consistent border width so hover doesn't change layout */
+  border: 2px solid transparent;
   border-radius: 8px;
   padding: 8px 22px;
   font-size: .9rem;
@@ -969,6 +984,9 @@ footer {
   display: flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap; /* prevent text wrapping */
+  box-sizing: border-box; /* make borders part of the element size */
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.12s ease;
 }
 
 .user-profile-content {
@@ -1094,7 +1112,8 @@ footer {
 .make-request-btn {
   background: #281abc;
   color: #fff;
-  border: none;
+  /* keep a consistent border so hover doesn't change layout */
+  border: 2px solid transparent;
   border-radius: 8px;
   padding: 12px 38px;
   font-size: 1.08rem;
@@ -1104,9 +1123,81 @@ footer {
   margin-top: 24px;
   align-self: flex-end;
   border-radius: 6px 6px 0 0;
-  cursor: pointer;
+  box-sizing: border-box; /* include border in width calculations */
   width: 100%;
-  transition: background 0.2s;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+
+/* Custom dropdown (user profile card) overrides */
+.custom-dropdown {
+  position: relative; /* ensure absolute menu is positioned to this container */
+  width: 100%;
+  max-width: 420px; /* prevents overly wide menu on large screens */
+}
+
+.custom-dropdown .make-request-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Caret replaced with inline SVG for crisper rendering; supports rotation on open */
+.custom-dropdown .make-request-btn .dropdown-caret {
+  display: inline-block;
+  margin-left: 10px;
+  transition: transform 180ms ease;
+  transform-origin: center;
+  vertical-align: middle;
+}
+
+/* Rotate caret when dropdown is open (hover or focus-within) */
+.custom-dropdown:hover .dropdown-caret,
+.custom-dropdown:focus-within .dropdown-caret {
+  transform: rotate(180deg);
+}
+
+/* Dropdown menu aligned to button width and visually distinct */
+.custom-dropdown .dropdown-menu {
+  display: none; /* shown on hover of parent */
+  position: absolute;
+  top: calc(100% - 2px); /* slightly overlap to avoid 1px gap */
+  left: 0;
+  width: 100%; /* match button width exactly */
+  background: #ffffff;
+  list-style: none;
+  padding: 6px 0;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 10px 30px rgba(6, 18, 69, 0.12);
+  z-index: 1200;
+  box-sizing: border-box;
+}
+
+/* Show when hovering parent (keeps visible while moving from button to menu) */
+.custom-dropdown:hover .dropdown-menu,
+.custom-dropdown:focus-within .dropdown-menu {
+  display: block;
+}
+
+.custom-dropdown .dropdown-menu li a {
+  display: block;
+  padding: 14px 20px;
+  color: #222;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Slightly darker hover for clarity (tad bit darker as requested) */
+.custom-dropdown .dropdown-menu li a:hover {
+  background: #eef2ff; /* subtle pale blue */
+  color: #281ABC;
+}
+
+/* Prevent layout shifts when hover border appears */
+.custom-dropdown .make-request-btn,
+.custom-dropdown .make-request-btn:hover {
+  border-width: 2px; /* keep the same border width on hover */
 }
 
 /* CONTACT PAGE STYLES*/
@@ -2049,12 +2140,12 @@ footer a:hover {
 
 .modal-content {
   background-color: #fff;
-  margin: 5% auto;
-  padding: 35px 40px;
+  margin: 6% auto;
+  padding: 36px 44px;
   border: none;
   border-radius: 12px;
-  width: 90%;
-  max-width: 650px;
+  width: 92%;
+  max-width: 820px; /* increased modal width for better visibility */
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   animation: slideDown 0.4s ease;
 }
@@ -2104,12 +2195,12 @@ footer a:hover {
   background: #fff;
   color: #2563eb;
   border: 2px solid #2563eb;
-  border-radius: 6px;
-  padding: 8px 20px;
+  border-radius: 8px;
+  padding: 10px 18px;
   font-weight: 600;
   font-size: 15px;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.18s, color 0.18s, transform 0.08s;
 }
 
 .close-modal:hover {
@@ -2119,18 +2210,64 @@ footer a:hover {
 
 /* Modal Button Styles - Updated to match provided design */
 .save-changes {
-  background: #2563eb;
+  background: #0b3b8c; /* deep blue to match brand */
   color: #fff;
   border: none;
-  border-radius: 6px;
-  padding: 8px 20px;
+  border-radius: 8px;
+  padding: 10px 18px;
   font-weight: 600;
   font-size: 15px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.18s, transform 0.08s;
 }
 .save-changes:hover {
-  background: #1742a0;
+  background: #08306a;
+}
+
+/* Modal buttons container to align and equalize button sizes */
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 14px;
+}
+.modal-buttons .close-modal,
+.modal-buttons .save-changes {
+  min-width: 140px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Toast styling override (complements inline styles set in script.js) */
+#top-right-toast-container {
+  position: fixed !important;
+  top: 18px !important;
+  right: 18px !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+.tr-toast {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  color: #0b3b8c;
+  background: #ffffff;
+  border-left: 4px solid #0b3b8c;
+  padding: 10px 14px;
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(11,59,140,0.07);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+/* Spinner inside buttons spacing */
+.btn-spinner {
+  margin-right: 8px;
 }
 
 /* Form Styles */
@@ -2792,50 +2929,67 @@ input[type="number"]::-webkit-outer-spin-button {
   width: 100%;
 }
 .custom-dropdown .make-request-btn {
-  background: #281ABC;
+  background: linear-gradient(90deg,#281ABC 0%, #2e2bd6 100%);
   color: #fff;
   border: none;
-  border-radius: 12px;  /* Make fully rounded */
-  padding: 12px 24px;
-  font-weight: bold;
-  font-size: 16px;
+  border-radius: 12px;  /* rounded */
+  padding: 14px 22px;
+  font-weight: 700;
+  font-size: 1rem;
   cursor: pointer;
   width: 100%;
   text-align: left;
-  transition: background 0.2s;
-  margin-bottom: 4px; /* Add small gap */
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  margin-bottom: 8px; /* small gap */
+  box-shadow: 0 8px 20px rgba(40,26,188,0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
 }
-.custom-dropdown .make-request-btn:after {
-  content: '';
+.custom-dropdown .make-request-btn .mr-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
 }
+.custom-dropdown .make-request-btn .mr-caret {
+  font-size: 0.95rem;
+  opacity: 0.95;
+}
+.custom-dropdown .make-request-btn:focus,
+.custom-dropdown .make-request-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(40,26,188,0.16);
+}
+
 .custom-dropdown .dropdown-menu {
   display: none;
   position: absolute;
   left: 0;
-  top: 100%;
-  background: #281ABC;
-  border-radius: 12px; /* Make fully rounded */
+  top: calc(100% + 8px);
+  background: #fff;
+  border-radius: 12px; /* rounded */
   width: 100%;
-  box-shadow: 0 8px 16px rgba(0,0,0,0.12);
-  z-index: 10;
-  margin: 0; /* Remove overlap */
-  padding: 4px 0; /* Add some padding to menu */
+  box-shadow: 0 14px 40px rgba(7,18,57,0.12);
+  z-index: 40;
+  margin: 0;
+  padding: 8px 8px;
+  border: 1px solid rgba(11,59,140,0.06);
 }
-.custom-dropdown .dropdown-menu li {
-  list-style: none;
-}
+.custom-dropdown .dropdown-menu li { list-style: none; }
 .custom-dropdown .dropdown-menu a {
-  color: #fff;
-  padding: 16px 24px;
+  color: #222;
+  padding: 12px 16px;
   display: block;
   text-decoration: none;
-  font-weight: 500;
-  font-size: 16px;
-  border-radius: 0 0 12px 12px;
-  transition: background 0.2s;
+  font-weight: 600;
+  font-size: 0.98rem;
+  border-radius: 8px;
+  transition: background 0.12s, color 0.12s;
 }
+.custom-dropdown .dropdown-menu a + a { margin-top: 6px; }
 .custom-dropdown .dropdown-menu a:hover {
-  background: #1a159c;
+  background: #f4f6ff;
+  color: #0b3b8c;
 }
 .custom-dropdown:hover .dropdown-menu,
 .custom-dropdown:focus-within .dropdown-menu,
@@ -2844,7 +2998,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 /* Make logout button match edit-profile-btn */
-.logout-btn.edit-profile-btn {
+.logout-btn, .logout-btn.edit-profile-btn {
   background: #ffffff;
   color: #281ABC;
   border-radius: 8px;
@@ -2859,7 +3013,7 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 1rem;
   border: 2px solid #281abc;
 }
-.logout-btn.edit-profile-btn:hover {
+.logout-btn:hover, .logout-btn.edit-profile-btn:hover {
   background: #1f148d;
   color: white;
 }

@@ -10,6 +10,8 @@
 // 1. Firebase setup & Firestore import (ES6 Module)
 // =============================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 // ====== Your Firebase config
@@ -168,6 +170,46 @@ if (hasError) {
 const loginForm = document.getElementById("loginForm");
 const errorLoginEmail = document.getElementById("error-login-email");
 const errorLoginPassword = document.getElementById("error-login-password");
+
+// Helper to clear sensitive form fields (used when signed-out or page restored from bfcache)
+function clearSensitiveLoginFields() {
+  try {
+    const emailEl = document.getElementById('login-email');
+    const passEl = document.getElementById('login-password');
+    if (emailEl) {
+      // Prevent browser autofill hints where possible and clear value
+      emailEl.setAttribute('autocomplete', 'off');
+      emailEl.value = '';
+    }
+    if (passEl) {
+      passEl.setAttribute('autocomplete', 'off');
+      passEl.value = '';
+    }
+    if (loginForm) {
+      loginForm.setAttribute('autocomplete', 'off');
+    }
+  } catch (e) {
+    console.warn('Failed to clear login fields:', e);
+  }
+}
+
+// Ensure login inputs are cleared on pageshow (handles back/forward cache restoring the page)
+window.addEventListener('pageshow', (event) => {
+  // If this page is the login page (index.html) and there is no authenticated user, clear fields
+  const path = window.location.pathname || '';
+  if (path.endsWith('index.html') || path === '/' || path === '') {
+    // If auth.currentUser is falsy, clear fields to avoid restored values from previous sessions
+    if (!auth.currentUser) clearSensitiveLoginFields();
+  }
+  // For protected pages, if the page was restored from bfcache and the user is no longer signed in, force redirect
+  if (event.persisted) {
+    const protectedPaths = ["/user.html", "/admin.html", "user.html", "admin.html", "/UserProfile.html", "UserProfile.html"];
+    if (protectedPaths.some(p => window.location.pathname.endsWith(p)) && !auth.currentUser) {
+      // Force a redirect to login (replace so back doesn't loop)
+      try { location.replace('index.html'); } catch (e) { window.location.href = 'index.html'; }
+    }
+  }
+});
 
 function validateEmail(email) {
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -465,10 +507,11 @@ signupForm?.addEventListener("submit", async (e) => {
     await updateProfile(user, { displayName: fullname });
 
     // Save extra info to Firestore
+    // Save user profile using consistent camelCase field names
     await setDoc(doc(db, "users", user.uid), {
-      fullname: fullname,
+      fullName: fullname,
       email: email,
-      contact: contact,
+      contactNumber: contact,
       address: address,
       role: "user", // default role
       createdAt: new Date()
@@ -650,6 +693,129 @@ function closeAlert() {
   }
 }
 
+// Make closeAlert available globally
+window.closeAlert = closeAlert;
+
+  /* --------------------------------------------------
+     Toast notifications (top-right) — lightweight
+     Usage: showToast(message, isSuccess = true, duration = 3000)
+  -------------------------------------------------- */
+  const TOAST_DURATION = 1600;
+
+  function ensureToastContainer() {
+    let container = document.getElementById('top-right-toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'top-right-toast-container';
+      container.style.position = 'fixed';
+      container.style.top = '16px';
+      container.style.right = '16px';
+      container.style.zIndex = '99999';
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
+      container.style.gap = '8px';
+      document.body.appendChild(container);
+    }
+    return container;
+  }
+
+  function showToast(message, isSuccess = true, duration = TOAST_DURATION) {
+    const container = ensureToastContainer();
+    // Create toast with white background, blue/black text and check icon on left to match site design
+    const toast = document.createElement('div');
+    toast.className = 'tr-toast';
+    toast.style.display = 'flex';
+    toast.style.alignItems = 'center';
+    toast.style.gap = '10px';
+    toast.style.minWidth = '240px';
+    toast.style.maxWidth = '360px';
+    toast.style.padding = '10px 14px';
+    toast.style.color = '#0b3b8c';
+    toast.style.background = '#ffffff';
+    toast.style.border = '1px solid rgba(11,59,140,0.12)';
+    toast.style.borderLeft = '4px solid #0b3b8c';
+    toast.style.borderRadius = '8px';
+    toast.style.boxShadow = '0 6px 18px rgba(0,0,0,0.06)';
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 240ms ease, transform 240ms ease';
+    toast.style.transform = 'translateY(-6px)';
+
+    // icon (check) - blue
+    const icon = document.createElement('span');
+    icon.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 6L9 17L4 12" stroke="#0b3b8c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    icon.style.flex = '0 0 auto';
+    toast.appendChild(icon);
+
+    const text = document.createElement('div');
+    text.textContent = message;
+    text.style.color = '#0b3b8c';
+    text.style.fontWeight = '600';
+    toast.appendChild(text);
+
+    container.appendChild(toast);
+
+    // animate in
+    requestAnimationFrame(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    });
+
+    // remove after duration
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(-6px)';
+      setTimeout(() => {
+        try { container.removeChild(toast); } catch (e) {}
+      }, 260);
+    }, duration);
+  }
+
+  /* --------------------------------------------------
+     Button spinner helpers (attach to Save buttons)
+  -------------------------------------------------- */
+  function createSpinnerElement(size = 16, color = '#0b3b8c') {
+    const spinner = document.createElement('span');
+    spinner.className = 'btn-spinner';
+    spinner.style.display = 'inline-block';
+    spinner.style.width = `${size}px`;
+    spinner.style.height = `${size}px`;
+    spinner.style.border = `${Math.max(2, Math.floor(size/8))}px solid rgba(11,59,140,0.18)`;
+    spinner.style.borderTopColor = color;
+    spinner.style.borderRadius = '50%';
+    spinner.style.boxSizing = 'border-box';
+    spinner.style.marginRight = '8px';
+    spinner.style.animation = 'tr-spin 0.9s linear infinite';
+    // add minimal keyframes if not present
+    if (!document.getElementById('tr-spin-style')) {
+      const style = document.createElement('style');
+      style.id = 'tr-spin-style';
+      style.textContent = `@keyframes tr-spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }`;
+      document.head.appendChild(style);
+    }
+    return spinner;
+  }
+
+  function showButtonSpinner(button) {
+    if (!button) return null;
+    button.disabled = true;
+    // avoid duplicating spinner
+    if (button.querySelector('.btn-spinner')) return button.querySelector('.btn-spinner');
+    const spinner = createSpinnerElement(16, '#0b3b8c');
+    // insert at start of button
+    button.insertBefore(spinner, button.firstChild);
+    return spinner;
+  }
+
+  function hideButtonSpinner(button) {
+    if (!button) return;
+    const spinner = button.querySelector('.btn-spinner');
+    if (spinner) spinner.remove();
+    button.disabled = false;
+  }
+
 /* =====================
    PAGE PROTECTION & GLOBAL LOGOUT
    Used by: user.html, admin.html
@@ -657,7 +823,8 @@ function closeAlert() {
    - window.logout signs the current user out and redirects to login
 ====================== */
 // Protect specific pages by pathname
-const protectedPaths = ["/user.html", "/admin.html", "user.html", "admin.html"];
+// Include UserProfile page so profile view is protected as well
+const protectedPaths = ["/user.html", "/admin.html", "user.html", "admin.html", "/UserProfile.html", "UserProfile.html"];
 if (protectedPaths.some(p => window.location.pathname.endsWith(p))) {
   onAuthStateChanged(auth, (user) => {
     if (!user) {
@@ -668,14 +835,30 @@ if (protectedPaths.some(p => window.location.pathname.endsWith(p))) {
 }
 
 // Make a global logout function available to all pages
-window.logout = function() {
-  signOut(auth).then(() => {
-    window.location.href = "index.html";
-  }).catch((err) => {
+window.logout = async function() {
+  try {
+    // Sign out from Firebase
+    await signOut(auth);
+  } catch (err) {
     console.error('Logout failed:', err);
-    // Fallback: still redirect to login
-    window.location.href = "index.html";
-  });
+    // proceed with cleanup and redirect even if signOut failed
+  }
+
+  try {
+    // Clear per-tab session data (do not aggressively clear localStorage that may hold user preferences)
+    sessionStorage.clear();
+  } catch (e) {
+    console.warn('Failed to clear sessionStorage', e);
+  }
+
+  // Replace history entry so Back button won't return to an authenticated page
+  // This helps avoid browsers restoring an auth-backed UI from the bfcache.
+  try {
+    location.replace('index.html');
+  } catch (e) {
+    // fallback
+    window.location.href = 'index.html';
+  }
 };
 
 /* User Profile Page Scripts */
@@ -685,38 +868,120 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const editProfileModal = document.getElementById('editProfileModal');
   const changePasswordModal = document.getElementById('changePasswordModal');
-  const editProfileBtn = document.querySelector('.edit-profile-btn');
-  const changePasswordBtn = document.querySelector('.change-password-btn');
+  // Select the buttons specifically inside the user-info card to avoid matching the logout button
+  const editProfileBtn = document.querySelector('.user-info-card .edit-profile-btn');
+  const changePasswordBtn = document.querySelector('.user-info-card .change-password-btn');
+  const changePasswordMessage = document.getElementById('changePasswordMessage');
+  // per-field error elements (Edit Profile)
+  const errorEditFullname = document.getElementById('error-edit-fullname');
+  const errorEditContact = document.getElementById('error-edit-contact');
+  const errorEditEmail = document.getElementById('error-edit-email');
+  const errorEditAddress = document.getElementById('error-edit-address');
+  // per-field error elements (Change Password)
+  const errorCurrentPassword = document.getElementById('error-current-password');
+  const errorNewPassword = document.getElementById('error-new-password');
+  const errorConfirmPassword = document.getElementById('error-confirm-password');
   const logoutBtn = document.querySelector('.logout-btn');
   const makeRequestBtn = document.querySelector('.make-request-btn');
   const dropdownContent = document.querySelector('.dropdown-content');
   const closeButtons = document.querySelectorAll('.close-modal');
 
-  // Load user data
-  loadUserData();
+  // Load user data after Firebase confirms auth state so auth.currentUser is available
+  onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      // Not signed in -> go to login
+      window.location.href = "index.html";
+      return;
+    }
+    // User signed in -> populate profile
+    loadUserData();
+  });
 
   // Edit Profile Modal
-  editProfileBtn?.addEventListener('click', () => {
+  editProfileBtn?.addEventListener('click', async () => {
+    // Clear previous inline errors
+    [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
+
+    // Reload latest user data from Firestore and populate edit form to discard unsaved edits.
+    // We await here so the modal shows the current saved values (not any unsaved inputs).
+    try {
+      await loadUserData();
+    } catch (err) {
+      console.warn('Failed to reload user data before opening edit modal:', err);
+    }
+
+    // Ensure any transient form state is cleaned
+    const editProfileFormEl = document.getElementById('editProfileForm');
+    if (editProfileFormEl) {
+      // remove any custom validation classes if present
+      editProfileFormEl.classList.remove('was-validated');
+    }
+
     editProfileModal.style.display = 'block';
   });
 
   // Change Password Modal
   changePasswordBtn?.addEventListener('click', () => {
+    // Clear any previous messages and inputs when opening
+    if (changePasswordMessage) {
+      changePasswordMessage.style.display = 'none';
+      changePasswordMessage.textContent = '';
+    }
+    // Clear any previous per-field errors and reset inputs so unsaved attempts are discarded
+    [errorCurrentPassword, errorNewPassword, errorConfirmPassword].forEach(el => { if (el) clearErrorSignup(el); });
+    changePasswordForm?.reset();
     changePasswordModal.style.display = 'block';
   });
 
   // Close modals when clicking close button
   closeButtons.forEach(button => {
     button.addEventListener('click', () => {
+      // Hide modals
       editProfileModal.style.display = 'none';
       changePasswordModal.style.display = 'none';
+
+      // clear password modal message and reset fields
+      if (changePasswordMessage) {
+        changePasswordMessage.style.display = 'none';
+        changePasswordMessage.textContent = '';
+      }
+  changePasswordForm?.reset();
+
+      // Reset edit profile form inputs and clear inline errors so unsaved edits are discarded
+      const editProfileFormEl = document.getElementById('editProfileForm');
+      if (editProfileFormEl) {
+        editProfileFormEl.reset();
+        [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
+      }
+
+      // Reset change password form inputs and clear per-field errors
+      const chFormEl = document.getElementById('changePasswordForm');
+      if (chFormEl) {
+        chFormEl.reset();
+        [errorCurrentPassword, errorNewPassword, errorConfirmPassword].forEach(el => { if (el) clearErrorSignup(el); });
+      }
     });
   });
 
   // Close modals when clicking outside
   window.addEventListener('click', (e) => {
-    if (e.target === editProfileModal) editProfileModal.style.display = 'none';
-    if (e.target === changePasswordModal) changePasswordModal.style.display = 'none';
+    if (e.target === editProfileModal) {
+      editProfileModal.style.display = 'none';
+      // Reset edit profile form inputs & clear inline errors when modal closed by clicking outside
+      const editProfileFormEl = document.getElementById('editProfileForm');
+      if (editProfileFormEl) {
+        editProfileFormEl.reset();
+        [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
+      }
+    }
+    if (e.target === changePasswordModal) {
+      changePasswordModal.style.display = 'none';
+      const chFormEl = document.getElementById('changePasswordForm');
+      if (chFormEl) {
+        chFormEl.reset();
+        [errorCurrentPassword, errorNewPassword, errorConfirmPassword].forEach(el => { if (el) clearErrorSignup(el); });
+      }
+    }
   });
 
   // Make Request Dropdown
@@ -743,35 +1008,190 @@ document.addEventListener('DOMContentLoaded', function() {
     const user = auth.currentUser;
     if (!user) return;
 
+    // Clear previous errors
+    [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => {
+      if (el) clearErrorSignup(el);
+    });
+
+    const fullName = document.getElementById('editFullName').value.trim();
+    const contact = document.getElementById('editContactNumber').value.trim();
+    const address = document.getElementById('editAddress').value.trim();
+
+    let valid = true;
+
+    // Fullname validation
+    if (!fullName) {
+      setErrorSignup(errorEditFullname, "Full Name can't be blank");
+      valid = false;
+    } else if (fullName.length < 3) {
+      setErrorSignup(errorEditFullname, "Full Name must be at least 3 characters");
+      valid = false;
+    }
+
+    // Contact validation
+    if (!contact) {
+      setErrorSignup(errorEditContact, "Contact number can't be blank");
+      valid = false;
+    } else if (!/^\d+$/.test(contact)) {
+      setErrorSignup(errorEditContact, "Contact number must contain only numbers");
+      valid = false;
+    } else if (!/^09\d{9}$/.test(contact)) {
+      setErrorSignup(errorEditContact, "Contact number must be 11 digits and start with '09'");
+      valid = false;
+    }
+
+    // Address validation
+    const sanitizedAddress = address.replace(/<[^>]*>/g, '');
+    if (!sanitizedAddress) {
+      setErrorSignup(errorEditAddress, "Address can't be blank");
+      valid = false;
+    } else if (sanitizedAddress !== address) {
+      setErrorSignup(errorEditAddress, "Address contains invalid characters");
+      valid = false;
+    }
+
+    if (!valid) return;
+
     const updates = {
-      fullName: document.getElementById('editFullName').value,
-      contactNumber: document.getElementById('editContactNumber').value,
-      email: document.getElementById('editEmail').value,
-      address: document.getElementById('editAddress').value
+      fullName: fullName,
+      contactNumber: contact,
+      address: address
     };
 
+    // Show spinner on save button
+    const editSaveButton = document.querySelector('#editProfileForm .save-changes');
+    const editSpinner = showButtonSpinner(editSaveButton);
+
     try {
+      // Update Firestore
       await setDoc(doc(db, "users", user.uid), updates, { merge: true });
-      editProfileModal.style.display = 'none';
-      loadUserData(); // Reload the user data
+
+      // Also update the Auth displayName so Auth and Firestore stay in sync
+      try {
+        await updateProfile(user, { displayName: updates.fullName });
+      } catch (err) {
+        console.warn('Failed to update Auth displayName:', err);
+      }
+
+      // Visual confirmation + close modal + reload user data (use unified toast duration)
+      try { showToast('Profile updated successfully!', true); } catch (e) {}
+      // Close modal after toast duration so user sees the toast while modal is visible briefly
+      setTimeout(async () => {
+        editProfileModal.style.display = 'none';
+        try { await loadUserData(); } catch (e) { console.warn('Failed to reload user data after update:', e); }
+      }, TOAST_DURATION);
     } catch (error) {
       console.error("Error updating profile:", error);
+      showAlert('Failed to update profile. Please try again.');
+    } finally {
+      // hide spinner and re-enable
+      hideButtonSpinner(editSaveButton);
     }
   });
 
   // Handle Change Password Form Submit
   const changePasswordForm = document.getElementById('changePasswordForm');
+  // helper to show inline message in change password modal (kept for success banner)
+  function setChangePasswordMessage(msg, isSuccess = false) {
+    if (!changePasswordMessage) return;
+    changePasswordMessage.textContent = msg;
+    changePasswordMessage.style.display = 'block';
+    changePasswordMessage.style.color = isSuccess ? '#2e7d32' : '#d32f2f';
+  }
+
+  // Clear inline message and per-field errors when user types
+  document.getElementById('currentPassword')?.addEventListener('input', () => {
+    if (changePasswordMessage) changePasswordMessage.style.display = 'none';
+    if (errorCurrentPassword) clearErrorSignup(errorCurrentPassword);
+  });
+  document.getElementById('newPassword')?.addEventListener('input', () => {
+    if (changePasswordMessage) changePasswordMessage.style.display = 'none';
+    if (errorNewPassword) clearErrorSignup(errorNewPassword);
+  });
+  document.getElementById('confirmPassword')?.addEventListener('input', () => {
+    if (changePasswordMessage) changePasswordMessage.style.display = 'none';
+    if (errorConfirmPassword) clearErrorSignup(errorConfirmPassword);
+  });
+
+  // Also clear edit-profile errors while typing
+  document.getElementById('editFullName')?.addEventListener('input', () => { if (errorEditFullname) clearErrorSignup(errorEditFullname); });
+  document.getElementById('editContactNumber')?.addEventListener('input', () => { if (errorEditContact) clearErrorSignup(errorEditContact); });
+  document.getElementById('editAddress')?.addEventListener('input', () => { if (errorEditAddress) clearErrorSignup(errorEditAddress); });
+
   changePasswordForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const newPassword = document.getElementById('newPassword').value;
     const user = auth.currentUser;
     if (!user) return;
 
+    // Clear previous per-field errors
+    [errorCurrentPassword, errorNewPassword, errorConfirmPassword].forEach(el => { if (el) clearErrorSignup(el); });
+
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    let valid = true;
+
+    if (!currentPassword) {
+      if (errorCurrentPassword) setErrorSignup(errorCurrentPassword, 'Please enter your current password');
+      valid = false;
+    }
+
+    if (!newPassword) {
+      if (errorNewPassword) setErrorSignup(errorNewPassword, 'Please enter a new password');
+      valid = false;
+    } else {
+      const passValidation = validatePasswordSignup(newPassword);
+      if (!passValidation.isValid) {
+        if (errorNewPassword) setErrorSignup(errorNewPassword, passValidation.message);
+        valid = false;
+      }
+    }
+
+    if (!confirmPassword) {
+      if (errorConfirmPassword) setErrorSignup(errorConfirmPassword, 'Please confirm your new password');
+      valid = false;
+    } else if (newPassword !== confirmPassword) {
+      if (errorConfirmPassword) setErrorSignup(errorConfirmPassword, 'Passwords do not match');
+      valid = false;
+    }
+
+    if (!valid) return;
+
+  // Show spinner on save button while processing
+  const saveButton = document.querySelector('#changePasswordForm .save-changes');
+  if (saveButton) showButtonSpinner(saveButton);
+
     try {
-      await user.updatePassword(newPassword);
-      changePasswordModal.style.display = 'none';
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, newPassword);
+
+      // Show success toast and close modal after unified duration
+      try { showToast('Password changed successfully!', true); } catch (e) {}
+      setTimeout(() => {
+        changePasswordModal.style.display = 'none';
+        changePasswordForm?.reset();
+        // ensure inline change password message is cleared (we prefer toasts)
+        if (changePasswordMessage) { changePasswordMessage.style.display = 'none'; changePasswordMessage.textContent = ''; }
+        if (saveButton) hideButtonSpinner(saveButton);
+      }, TOAST_DURATION);
     } catch (error) {
-      console.error("Error updating password:", error);
+      console.error('Error updating password:', error);
+  if (saveButton) hideButtonSpinner(saveButton);
+      switch (error.code) {
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          if (errorCurrentPassword) setErrorSignup(errorCurrentPassword, 'Incorrect password. Please try again.');
+          break;
+        case 'auth/weak-password':
+          if (errorNewPassword) setErrorSignup(errorNewPassword, 'New password is too weak. Choose a stronger password.');
+          break;
+        case 'auth/requires-recent-login':
+          if (errorCurrentPassword) setErrorSignup(errorCurrentPassword, 'Please sign in again and retry changing your password.');
+          break;
+        default:
+          if (errorCurrentPassword) setErrorSignup(errorCurrentPassword, 'Failed to update password. Try again later.');
+      }
     }
   });
 });
@@ -788,16 +1208,22 @@ async function loadUserData() {
     if (docSnap.exists()) {
       const userData = docSnap.data();
       
+      // Support both legacy keys and new camelCase keys (backwards compatibility)
+      const fullName = userData.fullName || userData.fullname || user.displayName || 'User';
+      const contactNumber = userData.contactNumber || userData.contact || 'Not provided';
+      const email = userData.email || user.email || 'Not provided';
+      const address = userData.address || 'Not provided';
+
       // Update profile information
-      document.getElementById('profileFullName').textContent = userData.fullName || 'User';
-      document.getElementById('infoFullName').textContent = userData.fullName || 'Not provided';
-      document.getElementById('infoContactNumber').textContent = userData.contactNumber || 'Not provided';
-      document.getElementById('infoEmail').textContent = userData.email || 'Not provided';
-      document.getElementById('infoAddress').textContent = userData.address || 'Not provided';
+      document.getElementById('profileFullName').textContent = fullName;
+      document.getElementById('infoFullName').textContent = fullName;
+      document.getElementById('infoContactNumber').textContent = contactNumber;
+      document.getElementById('infoEmail').textContent = email;
+      document.getElementById('infoAddress').textContent = address;
 
       // Pre-fill edit form
-      document.getElementById('editFullName').value = userData.fullName || '';
-      document.getElementById('editContactNumber').value = userData.contactNumber || '';
+      document.getElementById('editFullName').value = userData.fullName || userData.fullname || '';
+      document.getElementById('editContactNumber').value = userData.contactNumber || userData.contact || '';
       document.getElementById('editEmail').value = userData.email || '';
       document.getElementById('editAddress').value = userData.address || '';
     }
@@ -816,51 +1242,45 @@ async function loadUserData() {
 
 // This function fetches data and updates the profile page elements
 async function fetchAndDisplayUserData(user) {
-    // Get references to the HTML elements that will display the user's info.
-    // Make sure your HTML has these IDs.
-    const profileNameEl = document.querySelector('.profile-name');
-    const infoFullNameEl = document.getElementById('infoFullName');
-    const infoContactNumberEl = document.getElementById('infoContactNumber');
-    const infoEmailEl = document.getElementById('infoEmail');
-    const infoAddressEl = document.getElementById('infoAddress');
+  // Get references to the HTML elements that will display the user's info.
+  // Use the IDs used in `UserProfile.html` so the function works there.
+  const profileNameEl = document.getElementById('profileFullName');
+  const infoFullNameEl = document.getElementById('infoFullName');
+  const infoContactNumberEl = document.getElementById('infoContactNumber');
+  const infoEmailEl = document.getElementById('infoEmail');
+  const infoAddressEl = document.getElementById('infoAddress');
 
-    // A quick check to make sure the elements exist on the page before we try to use them.
-    if (!profileNameEl || !infoFullNameEl) {
-        console.log("Profile elements not found on this page, skipping data population.");
-        return;
+  // If required elements are not on the page, skip silently.
+  if (!profileNameEl && !infoFullNameEl) {
+    console.log("Profile elements not found on this page, skipping data population.");
+    return;
+  }
+
+  try {
+    const docRef = doc(db, "users", user.uid);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      const userData = docSnap.data();
+
+      // Use the camelCase field names we store at signup (fullName, contactNumber)
+      if (profileNameEl) profileNameEl.textContent = userData.fullName || user.displayName || "User";
+      if (infoFullNameEl) infoFullNameEl.textContent = userData.fullName || user.displayName || "Not provided";
+      if (infoContactNumberEl) infoContactNumberEl.textContent = userData.contactNumber || "Not provided";
+      if (infoEmailEl) infoEmailEl.textContent = userData.email || user.email || "Not provided";
+      if (infoAddressEl) infoAddressEl.textContent = userData.address || "Not provided";
+    } else {
+      console.warn("No user profile document found in Firestore, using Auth fallback.");
+      if (profileNameEl) profileNameEl.textContent = user.displayName || "User";
+      if (infoFullNameEl) infoFullNameEl.textContent = user.displayName || "Not provided";
+      if (infoEmailEl) infoEmailEl.textContent = user.email || "Not provided";
+      if (infoContactNumberEl) infoContactNumberEl.textContent = "Not provided";
+      if (infoAddressEl) infoAddressEl.textContent = "Not provided";
     }
-
-    try {
-        // Create a reference to the user's specific document in Firestore using their UID
-        const docRef = doc(db, "users", user.uid);
-        // Fetch the document
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-            const userData = docSnap.data();
-
-            // Populate the HTML elements with the data from Firestore
-            profileNameEl.textContent = userData.fullname || "User Profile";
-            infoFullNameEl.textContent = userData.fullname || "Not Available";
-            infoContactNumberEl.textContent = userData.contact || "Not Available";
-            infoEmailEl.textContent = userData.email || "Not Available";
-            infoAddressEl.textContent = userData.address || "Not Available";
-            
-        } else {
-            // This case is unlikely if your signup process is working correctly
-            console.warn("No user profile document found in Firestore!");
-            // Fallback to display info from the Auth object itself
-            profileNameEl.textContent = user.displayName || "User Profile";
-            infoFullNameEl.textContent = user.displayName || "Not Available";
-            infoEmailEl.textContent = user.email || "Not Available";
-            infoContactNumberEl.textContent = "Data Not Found";
-            infoAddressEl.textContent = "Data Not Found";
-        }
-    } catch (error) {
-        console.error("Error fetching user data from Firestore:", error);
-        // Use your existing showAlert function to notify the user of the error
-        showAlert("Failed to load your profile information. Please refresh the page.");
-    }
+  } catch (error) {
+    console.error("Error fetching user data from Firestore:", error);
+    showAlert("Failed to load your profile information. Please refresh the page.");
+  }
 }
 
 // Check if the current page is 'user.html' before running the profile logic.
