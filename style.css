@@ -1,9 +1,11 @@
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
- 
-  
 }
 
 /* NAVIGATION */
@@ -226,6 +228,13 @@ nav a {
   flex-direction: column;
   align-items: center;
   gap: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s;
+}
+
+.floating-card .quick-item:hover {
+  transform: translateY(-5px);
 }
 .floating-card .quick-item img {
   width: 98px;
@@ -660,6 +669,8 @@ input.error {
   margin-left: 10px;
 }
 .service-btn {
+  display: inline-block;
+  text-decoration: none;
   background: #281abc;
   color: #fff;
   font-family: 'Poppins', sans-serif;
@@ -751,6 +762,8 @@ input.error {
   margin-top: 8px;
   box-shadow: 0 2px 8px #d1d1ff;
   transition: background 0.2s, color 0.2s;
+  text-decoration: none;
+  text-align: center;
 }
 .about-btn:hover, .about-btn:focus {
   background: #fff;
@@ -814,6 +827,7 @@ input.error {
   margin-top: 8px;
   box-shadow: 0 2px 8px #d1d1ff;
   transition: background 0.2s, color 0.2s;
+  text-decoration: none;
 }
 .contact-btn:hover, .contact-btn:focus {
   background: #fff;
@@ -2054,6 +2068,28 @@ footer a:hover {
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+/* Scroll animation keyframes (used on about.html and user.html) */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Utility classes to mark elements for scroll-triggered animation */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(20px);
+  will-change: opacity, transform;
+}
+.animate-on-scroll.animated {
+  animation: fadeInUp 0.8s ease-out forwards;
 }
 
 .modal-content h2 {
