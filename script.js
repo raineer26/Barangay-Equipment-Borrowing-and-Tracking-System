@@ -1932,3 +1932,223 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
    END OF TENTS & CHAIRS REQUEST FORM SCRIPT
 ===================================================== */
 
+/* =====================================================
+   CONFERENCE ROOM REQUEST FORM SCRIPT
+   Add this section to your script.js file
+
+// Check if we're on the conference room request form page
+if (window.location.pathname.endsWith('conference-request.html') || window.location.pathname.endsWith('/conference-request')) {
+  
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('conferenceRoomForm');
+    
+    // Get URL parameters (if redirected from calendar with a date)
+    const urlParams = new URLSearchParams(window.location.search);
+    const preselectedDate = urlParams.get('date');
+    
+    if (preselectedDate) {
+      document.getElementById('eventDate').value = preselectedDate;
+    }
+
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('eventDate').min = today;
+
+    // Populate time dropdowns
+    populateTimeDropdowns();
+
+    // Clear error on input
+    const inputs = form.querySelectorAll('input, select');
+    inputs.forEach(input => {
+      input.addEventListener('input', function() {
+        clearFieldError(this);
+      });
+    });
+
+    // Form submission
+    form.addEventListener('submit', handleConferenceRoomSubmit);
+  });
+
+  function populateTimeDropdowns() {
+    const startTimeSelect = document.getElementById('startTime');
+    const endTimeSelect = document.getElementById('endTime');
+
+    // Clear existing options
+    startTimeSelect.innerHTML = '<option value="">Start Time</option>';
+    endTimeSelect.innerHTML = '<option value="">End Time</option>';
+
+    // Generate time options from 8:00 AM to 5:00 PM
+    for (let hour = 8; hour <= 17; hour++) {
+      const timeString = hour.toString().padStart(2, '0') + ':00';
+      const displayTime = hour < 12 ? timeString + ' AM' : 
+                         (hour === 12 ? timeString + ' PM' : 
+                         (hour - 12).toString().padStart(2, '0') + ':00 PM');
+      
+      startTimeSelect.add(new Option(displayTime, timeString));
+      endTimeSelect.add(new Option(displayTime, timeString));
+    }
+  }
+
+  async function handleConferenceRoomSubmit(e) {
+    e.preventDefault();
+
+    // Get form values
+    const fullName = document.getElementById('fullName').value.trim();
+    const purpose = document.getElementById('purpose').value.trim();
+    const contactNumber = document.getElementById('contactNumber').value.trim();
+    const eventDate = document.getElementById('eventDate').value;
+    const address = document.getElementById('address').value.trim();
+    const startTime = document.getElementById('startTime').value;
+    const endTime = document.getElementById('endTime').value;
+
+    // Reset all errors
+    clearAllErrors();
+
+    let isValid = true;
+
+    // Validate Full Name
+    if (!fullName) {
+      setFieldError('fullName', 'Please enter your full name');
+      isValid = false;
+    } else if (fullName.length < 5) {
+      setFieldError('fullName', 'Full name must be at least 5 characters long');
+      isValid = false;
+    } else if (!/^[a-zA-Z\s]+$/.test(fullName)) {
+      setFieldError('fullName', 'Full name can only contain letters and spaces');
+      isValid = false;
+    }
+
+    // Validate Purpose
+    if (!purpose) {
+      setFieldError('purpose', 'Purpose of use is required');
+      isValid = false;
+    } else if (purpose.length < 5) {
+      setFieldError('purpose', 'Please provide a more detailed purpose');
+      isValid = false;
+    }
+
+    // Validate Contact Number
+    if (!contactNumber) {
+      setFieldError('contactNumber', 'Contact number is required');
+      isValid = false;
+    } else if (!/^09\d{9}$/.test(contactNumber)) {
+      setFieldError('contactNumber', 'Contact must be 11 digits starting with 09');
+      isValid = false;
+    }
+
+    // Validate Event Date
+    if (!eventDate) {
+      setFieldError('eventDate', 'Event date is required');
+      isValid = false;
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDate = new Date(eventDate + 'T00:00:00');
+      
+      if (selectedDate < today) {
+        setFieldError('eventDate', 'Event date cannot be in the past');
+        isValid = false;
+      }
+    }
+
+    // Validate Address
+    if (!address) {
+      setFieldError('address', 'Address is required');
+      isValid = false;
+    } else if (address.length < 10) {
+      setFieldError('address', 'Please provide a complete address');
+      isValid = false;
+    }
+
+    // Validate Time
+    if (!startTime) {
+      setFieldError('startTime', 'Start time is required');
+      isValid = false;
+    }
+    
+    if (!endTime) {
+      setFieldError('endTime', 'End time is required');
+      isValid = false;
+    } else if (startTime && endTime <= startTime) {
+      setFieldError('endTime', 'End time must be after start time');
+      isValid = false;
+    }
+
+    if (!isValid) {
+      // Scroll to first error
+      const firstError = document.querySelector('.error-message:not(:empty)');
+      if (firstError) {
+        firstError.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
+    // Prepare form data
+    const formData = {
+      fullName: fullName,
+      purpose: purpose,
+      contactNumber: contactNumber,
+      eventDate: eventDate,
+      address: address,
+      startTime: startTime,
+      endTime: endTime,
+      status: 'pending',
+      requestDate: new Date().toISOString(),
+      type: 'conference-room'
+    };
+
+    try {
+      // TODO: In production, save to Firestore
+      // const user = auth.currentUser;
+      // if (!user) {
+      //   showAlert('Please login to submit a request.');
+      //   return;
+      // }
+      // await setDoc(doc(db, "requests", `request_${Date.now()}`), {
+      //   ...formData,
+      //   userId: user.uid,
+      //   userEmail: user.email
+      // });
+
+      console.log('Conference Room Request:', formData);
+
+      // Show success message
+      showAlert('Your conference room reservation request has been submitted successfully! You can check the status in your profile.', true, () => {
+        window.location.href = 'user.html';
+      });
+
+    } catch (error) {
+      console.error('Error submitting request:', error);
+      showAlert('Failed to submit request. Please try again.');
+    }
+  }
+
+  function setFieldError(fieldId, message) {
+    const field = document.getElementById(fieldId);
+    const errorElement = document.getElementById(`error${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`);
+    
+    field.classList.add('error');
+    errorElement.textContent = message;
+  }
+
+  function clearFieldError(field) {
+    field.classList.remove('error');
+    const fieldId = field.id;
+    const errorElementId = `error${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`;
+    const errorElement = document.getElementById(errorElementId);
+    if (errorElement) {
+      errorElement.textContent = '';
+    }
+  }
+
+  function clearAllErrors() {
+    const errorElements = document.querySelectorAll('.error-message');
+    errorElements.forEach(el => el.textContent = '');
+    
+    const errorFields = document.querySelectorAll('.error');
+    errorFields.forEach(field => field.classList.remove('error'));
+  }
+}
+
+/* =====================================================
+   END OF CONFERENCE ROOM REQUEST FORM SCRIPT

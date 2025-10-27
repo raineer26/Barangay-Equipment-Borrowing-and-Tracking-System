@@ -1607,6 +1607,40 @@ footer a:hover {
   margin-bottom: 0;
 }
 
+/* Conference Room Form Time Input Styles */
+.time-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.time-inputs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.time-input-container {
+  flex: 1;
+}
+
+.time-separator {
+  font-size: 1.2rem;
+  color: #666;
+  margin: 0 5px;
+  padding-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .time-inputs {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .time-separator {
+    display: none;
+  }
+}
+
 /* Media query for larger screens */
 @media (min-width: 768px) {
   .history-section .about-content {
