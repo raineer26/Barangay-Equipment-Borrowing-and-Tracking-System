@@ -39,6 +39,7 @@ nav ul {
   font-family: 'league spartan', sans-serif;
   margin-right: 20px;
   font-size: large;
+  align-items: center;
 }
 
 nav a {
@@ -94,6 +95,12 @@ nav a {
   align-items: center;
   padding: 0 10px;
 }
+
+.user-icon-li img {
+  width: 40px;
+  height: 40px;
+}
+
 .user-icon-btn {
   width: 52px;
   height: 52px;
@@ -1461,6 +1468,7 @@ footer a:hover {
   margin: 0 auto;
   padding: 20px;
   gap: 30px;
+  justify-content: center;
 }
 
 .history-image {
@@ -1469,6 +1477,7 @@ footer a:hover {
   overflow: hidden;
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  opacity: 1;
 }
 
 .history-image img {
@@ -1479,7 +1488,17 @@ footer a:hover {
 }
 
 .history-text {
-  width: 100%;
+  width: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Vertically center text */
+}
+
+.history-text h1 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1.6rem;
+  color: #281ABC;
+  margin-bottom: 15px;
 }
 
 .history-text p {
@@ -1498,9 +1517,14 @@ footer a:hover {
 /* Media query for larger screens */
 @media (min-width: 768px) {
   .history-section .about-content {
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 40px;
+    display: flex;
+    flex-direction: row; /* Changed from column to row */
+    align-items: center; /* Vertically center text and image */
+    justify-content: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    gap: 30px;
   }
 
   .about-section history-section .about-content.reverse {
@@ -1515,6 +1539,10 @@ footer a:hover {
   .history-text {
     flex: 1;
     padding-top: 20px;
+  }
+  .history-text h1 {
+    font-size: 1.4rem;
+    margin-bottom: 15px;
   }
 }
 
