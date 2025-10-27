@@ -12,7 +12,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import { signInWithEmailAndPassword, getAuth, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 
-import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 // ====== Your Firebase config
 const firebaseConfig = {
@@ -273,21 +273,28 @@ loginForm?.addEventListener("submit", async (e) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // Get Firestore role
-    const docRef = doc(db, "users", user.uid);
-    const docSnap = await getDoc(docRef);
+    try {
+      // Get Firestore role
+      const docRef = doc(db, "users", user.uid);
+      const docSnap = await getDoc(docRef);
 
-    if (docSnap.exists()) {
-      const userData = docSnap.data();
-      if (userData.role === "admin") {
-        window.location.href = "admin.html";
-      } else if (userData.role === "user") {
-        window.location.href = "user.html";
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        if (userData.role === "admin") {
+          window.location.href = "admin.html";
+        } else if (userData.role === "user") {
+          window.location.href = "user.html";
+        } else {
+          console.error("Unknown role:", userData.role);
+          alert("⚠️ Unknown role. Contact support.");
+        }
       } else {
-        alert("⚠️ Unknown role. Contact support.");
+        console.error("No user document found for uid:", user.uid);
+        alert("⚠️ No user profile found. Contact admin.");
       }
-    } else {
-      alert("⚠️ No user profile found. Contact admin.");
+    } catch (firestoreError) {
+      console.error("Firestore error:", firestoreError);
+      alert("⚠️ Error loading user profile. Please try again.");
     }
   } catch (error) {
     clearError(errorLoginEmail);
