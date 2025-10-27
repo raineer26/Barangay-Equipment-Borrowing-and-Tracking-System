@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tents & Chairs Request - Barangay Mapulang Lupa</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <header>
+      <div class="nav-container">
+        <div class="logo">
+          <img src="Assets/BrgyLogo.png" alt="Barangay Seal">
+          <span>BARANGAY MAPULANG LUPA <br> Official Site</span>
+        </div>
+        <nav>
+          <ul>
+            <li><a href="user.html">HOME</a></li>
+            <li class="dropdown">
+              <a href="#">CALENDAR OF ACTIVITIES ▾</a>
+              <ul class="dropdown-menu">
+                <li><a href="tents-calendar.html">Tents and Chairs</a></li>
+                <li><a href="conference-room.html">Conference Room</a></li>
+              </ul>
+            </li>
+            <li><a href="about.html">ABOUT US</a></li>
+            <li><a href="ContactPage.html">CONTACT US</a></li>
+            <li class="user-icon-li">
+              <a href="user.html"><img src="Assets/account.png" alt="User" class="user-icon-btn" width="32" height="32"></a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <!-- HERO SECTION -->
+    <section class="request-hero">
+      <div class="request-hero-overlay"></div>
+      <div class="request-hero-content">
+        <h1>TENTS & CHAIRS</h1>
+        <p class="breadcrumb">HOME | TENTS & CHAIRS REQUEST FORM</p>
+      </div>
+    </section>
+
+    <!-- REQUEST FORM SECTION -->
+    <section class="request-form-section">
+      <div class="request-form-sidebar">
+        <a href="tents-calendar.html" class="back-to-calendar-btn">
+          <span class="back-text">BACK TO<br>CALENDAR</span>
+        </a>
+      </div>
+
+      <div class="request-form-container">
+        <h2 class="form-title">Tents & Chairs Borrowing Request Form</h2>
+        <p class="form-subtitle">Hosting an event soon? Just fill in the form below with your details and the items you need, and we'll take care of the rest!</p>
+
+        <form id="tentsChairsForm" class="request-form">
+          <!-- Row 1: Full Name and Quantity of Chairs -->
+          <div class="form-row-2col">
+            <div class="form-group">
+              <label for="fullName">FULL NAME:</label>
+              <input type="text" id="fullName" name="fullName">
+              <div class="error-message" id="errorFullName"></div>
+            </div>
+            <div class="form-group">
+              <label for="quantityChairs">QUANTITY OF CHAIR/S:</label>
+              <input type="number" id="quantityChairs" name="quantityChairs" min="1">
+              <div class="error-message" id="errorQuantityChairs"></div>
+            </div>
+          </div>
+
+          <!-- Row 2: Contact Number and Quantity of Tents -->
+          <div class="form-row-2col">
+            <div class="form-group">
+              <label for="contactNumber">CONTACT NUMBER:</label>
+              <input type="tel" id="contactNumber" name="contactNumber">
+              <div class="error-message" id="errorContactNumber"></div>
+            </div>
+            <div class="form-group">
+              <label for="quantityTents">QUANTITY OF TENT/S:</label>
+              <input type="number" id="quantityTents" name="quantityTents" min="1">
+              <div class="error-message" id="errorQuantityTents"></div>
+            </div>
+          </div>
+
+          <!-- Row 3: Complete Address and Mode of Receiving -->
+          <div class="form-row-2col">
+            <div class="form-group">
+              <label for="completeAddress">COMPLETE ADDRESS:</label>
+              <input type="text" id="completeAddress" name="completeAddress">
+              <div class="error-message" id="errorCompleteAddress"></div>
+            </div>
+            <div class="form-group">
+              <label for="modeOfReceiving">MODE OF RECEIVING:</label>
+              <select id="modeOfReceiving" name="modeOfReceiving">
+                <option value="">Select Mode</option>
+                <option value="Delivery">Delivery</option>
+                <option value="Pick-up">Pick-up</option>
+              </select>
+              <div class="error-message" id="errorModeOfReceiving"></div>
+            </div>
+          </div>
+
+          <!-- Row 4: Start Date and End Date -->
+          <div class="form-row-2col">
+            <div class="form-group">
+              <label for="startDate">START DATE:</label>
+              <input type="date" id="startDate" name="startDate">
+              <div class="error-message" id="errorStartDate"></div>
+            </div>
+            <div class="form-group">
+              <label for="endDate">END DATE:</label>
+              <input type="date" id="endDate" name="endDate">
+              <div class="error-message" id="errorEndDate"></div>
+            </div>
+          </div>
+
+          <!-- Note -->
+          <p class="form-note">Note: Once you've submitted the form, you can view your request status in your profile.</p>
+
+          <!-- Submit Button -->
+          <div class="form-button-container">
+            <button type="submit" class="submit-request-btn">SUBMIT REQUEST</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+      <div class="footer-logo">
+        <img src="Assets/BrgyLogo.png" alt="Barangay Seal">
+        <p>Barangay Mapulang Lupa <br> Official Site</p>
+      </div>
+      <div class="footer-container">
+        <div class="footer-links">
+          <h3>Home</h3>
+          <ul>
+            <li><a href="user.html">Calendars</a></li>
+            <li><a href="user.html">Service Offered</a></li>
+            <li><a href="about.html">About the Barangay</a></li>
+            <li><a href="ContactPage.html">Contact Us</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h3>Calendar of Activities</h3>
+          <ul>
+            <li><a href="tents-calendar.html">Tents and Chairs</a></li>
+            <li><a href="conference-room.html">Conference Room</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h3>About Us</h3>
+          <ul>
+            <li><a href="about.html">About Barangay</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h3>Contact Us</h3>
+          <p>📍 Address: Barangay Mapulang Lupa, Valenzuela City</p>
+          <p>📞 Phone: (02) 123-4567</p>
+          <p>📧 Email: mapulanglupa.brgy@email.com</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2025 Barangay Mapulang Lupa. Website Design by F5.</p>
+      </div>
+    </footer>
+    <div id="formAlertBox" class="form-alert" style="display:none;"></div>
+    <script src="script.js" type="module"></script>
+  </body>
+</html>
