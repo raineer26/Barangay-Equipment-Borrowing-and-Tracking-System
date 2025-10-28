@@ -955,7 +955,8 @@ footer {
 .user-profile-actions {
   display: flex;
   gap: 12px;
-  margin-top: 100px;
+  margin-top: auto;
+  padding-top: 24px;
 }
 
 .edit-profile-btn {
@@ -1002,6 +1003,7 @@ footer {
   gap: 40px;
   width: 100%;
   max-width: 900px;
+  align-items: start;
 }
 
 .user-info-card {
@@ -1012,6 +1014,8 @@ footer {
   font-family: 'Poppins', sans-serif;
   box-shadow: 0 2px 8px rgba(44,44,255,0.08);
   min-width: 320px;
+  display: flex;
+  flex-direction: column;
 }
 
 .user-info-card h2 {
@@ -1040,6 +1044,7 @@ footer {
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative;
 }
 .request-status-header {
   display: flex;
@@ -1062,31 +1067,179 @@ footer {
   margin-left: 18px;
 }
 .request-cards {
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
   margin-bottom: 16px;
   padding-right: 8px;
+  flex: 1;
+  min-height: 0;
 }
+
 .request-card {
   background: #fff;
-  border: 1px solid #222;
-  border-radius: 12px;
-  padding: 22px 24px 18px 24px;
-  box-shadow: none;
-  min-width: 340px;
-  max-width: 700px;
-  margin-bottom: 0;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  margin-bottom: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
 }
+
+.request-card:hover {
+  box-shadow: 0 4px 12px rgba(40, 26, 188, 0.1);
+  border-color: #281abc;
+}
+
 .request-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
+
+.request-card-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #222;
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+}
+
+.request-card-body {
+  margin-bottom: 8px;
+}
+
+.request-card-body p {
+  font-size: 0.875rem;
+  color: #888;
+  margin: 0;
+  line-height: 1.5;
+  font-family: 'Poppins', sans-serif;
+}
+
+.request-card-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.view-details-link {
+  color: #281abc;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  font-family: 'Poppins', sans-serif;
+  transition: color 0.2s ease;
+}
+
+.view-details-link:hover {
+  color: #1a0f7a;
+  text-decoration: underline;
+}
+
+/* Status Badges */
+.status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 12px;
+  display: inline-block;
+  font-family: 'Poppins', sans-serif;
+  text-transform: capitalize;
+}
+
+.status-badge.status-approved {
+  background: #d4f4dd;
+  color: #1e7e34;
+}
+
+.status-badge.status-pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-badge.status-in-progress {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.status-badge.status-completed {
+  background: #e2d4f7;
+  color: #5a2e8b;
+}
+
+/* Request Details Modal */
+.request-details-modal {
+  max-width: 600px;
+  padding: 30px;
+}
+
+.request-details-modal h2 {
+  color: #281abc;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  font-family: 'League Spartan', sans-serif;
+}
+
+.request-details-content {
+  margin-bottom: 24px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-row.status-row {
+  padding: 16px 0;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #333;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.9rem;
+}
+
+.detail-value {
+  color: #666;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.9rem;
+  text-align: right;
+  max-width: 60%;
+  word-wrap: break-word;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.close-details-btn {
+  background: #281abc;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  transition: background 0.2s ease;
+}
+
+.close-details-btn:hover {
+  background: #1a0f7a;
+}
+
 .request-title {
   font-weight: bold;
   font-size: 1.15rem;
@@ -1140,6 +1293,7 @@ footer {
   position: relative; /* ensure absolute menu is positioned to this container */
   width: 100%;
   max-width: 420px; /* prevents overly wide menu on large screens */
+  z-index: 100;
 }
 
 .custom-dropdown .make-request-btn {
@@ -2615,7 +2769,7 @@ footer a:hover {
 
 .form-group input::placeholder {
   color: #999;
-  font-style: italic;
+  font-style: normal;
 }
 
 .form-group select {

@@ -12,7 +12,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import { signInWithEmailAndPassword, getAuth, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 
-import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 // ====== Your Firebase config
 const firebaseConfig = {
@@ -60,8 +60,11 @@ function showBookingFormAlert(message, type = "success") {
 }
 
 // =============================
-// 3. Tents & Chairs Form Handler FOR BACKEND
+// 3. Tents & Chairs Form Handler FOR BACKEND (LEGACY - COMMENTED OUT)
+// NOTE: This handler is not currently used. The active handler is in the 
+// tents-chairs-request.html section (around line 1774). Keeping this for reference.
 // =============================
+/*
 document.addEventListener("DOMContentLoaded", () => {
   const tentsChairsForm = document.getElementById("tentsChairsForm");
 
@@ -164,6 +167,7 @@ if (hasError) {
     tentsChairsForm.addEventListener("submit", handleTentsChairsSubmit);
   }
 });
+*/
 
 // =============================
 
@@ -280,7 +284,15 @@ loginForm?.addEventListener("submit", async (e) => {
 
       if (docSnap.exists()) {
         const userData = docSnap.data();
-        if (userData.role === "admin") {
+        
+        // Check if there's a redirect parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectTo = urlParams.get('redirect');
+        
+        if (redirectTo) {
+          // Decode and redirect to the original page
+          window.location.href = decodeURIComponent(redirectTo);
+        } else if (userData.role === "admin") {
           window.location.href = "admin.html";
         } else if (userData.role === "user") {
           window.location.href = "user.html";
@@ -904,19 +916,24 @@ document.addEventListener('DOMContentLoaded', function() {
   const errorNewPassword = document.getElementById('error-new-password');
   const errorConfirmPassword = document.getElementById('error-confirm-password');
   const logoutBtn = document.querySelector('.logout-btn');
-  const makeRequestBtn = document.querySelector('.make-request-btn');
-  const dropdownContent = document.querySelector('.dropdown-content');
   const closeButtons = document.querySelectorAll('.close-modal');
+
+  console.log('[UserProfile] Page initialized');
+  console.log('[UserProfile] Logout button found:', !!logoutBtn);
 
   // Load user data after Firebase confirms auth state so auth.currentUser is available
   onAuthStateChanged(auth, (user) => {
+    console.log('[UserProfile] Auth state changed. User:', user ? user.email : 'Not logged in');
     if (!user) {
       // Not signed in -> go to login
+      console.log('[UserProfile] No user, redirecting to login');
       window.location.href = "index.html";
       return;
     }
-    // User signed in -> populate profile
+    // User signed in -> populate profile and requests
+    console.log('[UserProfile] Loading user data and requests');
     loadUserData();
+    loadUserRequests();
   });
 
   // Edit Profile Modal
@@ -1006,20 +1023,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // Make Request Dropdown
-  makeRequestBtn?.addEventListener('click', () => {
-    dropdownContent.style.display = dropdownContent.style.display === 'block' ? 'none' : 'block';
-  });
-
-  // Close dropdown when clicking outside
-  window.addEventListener('click', (e) => {
-    if (!e.target.matches('.make-request-btn')) {
-      dropdownContent.style.display = 'none';
-    }
-  });
-
   // Logout functionality
   logoutBtn?.addEventListener('click', () => {
+    console.log('[UserProfile] Logout button clicked');
     window.logout();
   });
 
@@ -1252,6 +1258,292 @@ async function loadUserData() {
   } catch (error) {
     console.error("Error loading user data:", error);
   }
+}
+
+// Function to load user requests and display them
+async function loadUserRequests() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const requestCardsContainer = document.querySelector('.request-cards');
+  if (!requestCardsContainer) return;
+
+  try {
+    // Query tents/chairs bookings (without orderBy to avoid index requirement)
+    const tentsQuery = query(
+      collection(db, "tentsChairsBookings"),
+      where("userId", "==", user.uid)
+    );
+    const tentsSnapshot = await getDocs(tentsQuery);
+
+    // Query conference room bookings (without orderBy to avoid index requirement)
+    const conferenceQuery = query(
+      collection(db, "conferenceRoomBookings"),
+      where("userId", "==", user.uid)
+    );
+    const conferenceSnapshot = await getDocs(conferenceQuery);
+
+    // Clear existing cards
+    requestCardsContainer.innerHTML = '';
+
+    // Combine and sort all requests
+    const allRequests = [];
+
+    tentsSnapshot.forEach(doc => {
+      const data = doc.data();
+      allRequests.push({
+        id: doc.id,
+        type: 'tents-chairs',
+        ...data,
+        timestamp: data.createdAt?.toMillis() || 0
+      });
+    });
+
+    conferenceSnapshot.forEach(doc => {
+      const data = doc.data();
+      allRequests.push({
+        id: doc.id,
+        type: 'conference-room',
+        ...data,
+        timestamp: data.createdAt?.toMillis() || 0
+      });
+    });
+
+    // Sort by timestamp (newest first)
+    allRequests.sort((a, b) => b.timestamp - a.timestamp);
+
+    if (allRequests.length === 0) {
+      requestCardsContainer.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No requests found. Make your first request!</p>';
+      return;
+    }
+
+    // Render request cards
+    allRequests.forEach(request => {
+      const card = createRequestCard(request);
+      requestCardsContainer.appendChild(card);
+    });
+
+  } catch (error) {
+    console.error("Error loading user requests:", error);
+    console.error("Error code:", error.code);
+    console.error("Error message:", error.message);
+    requestCardsContainer.innerHTML = '<p style="text-align: center; color: #d32f2f; padding: 20px;">Failed to load requests. Please refresh the page.</p>';
+  }
+}
+
+// Helper function to create a request card
+function createRequestCard(request) {
+  const card = document.createElement('div');
+  card.className = 'request-card';
+
+  // Determine status badge class
+  const statusClass = `status-${request.status?.toLowerCase().replace(/\s+/g, '-') || 'pending'}`;
+  
+  // Format date
+  const dateStr = request.eventDate || request.startDate || 'N/A';
+  const endDateStr = request.endDate || '';
+  
+  // Determine card title and subtitle based on type
+  let cardTitle = '';
+  let cardSubtitle = '';
+  
+  if (request.type === 'Conference Room') {
+    cardTitle = 'Conference Room Reservation';
+    const timeStr = request.startTime && request.endTime 
+      ? ` • ${request.startTime} - ${request.endTime}` 
+      : (request.eventTime ? ` • ${request.eventTime}` : '');
+    cardSubtitle = `Date: ${dateStr}${timeStr}`;
+    if (request.purpose) {
+      cardSubtitle += `\nPurpose: ${request.purpose}`;
+    } else if (request.eventTitle) {
+      cardSubtitle += `\nPurpose: ${request.eventTitle}`;
+    }
+  } else if (request.type === 'conference-room' || request.eventDate) {
+    // Handle conference-room type (from Firestore)
+    cardTitle = 'Conference Room Reservation';
+    const timeStr = request.startTime && request.endTime 
+      ? ` • ${request.startTime} - ${request.endTime}` 
+      : (request.eventTime ? ` • ${request.eventTime}` : '');
+    cardSubtitle = `Date: ${dateStr}${timeStr}`;
+    if (request.purpose) {
+      cardSubtitle += `\nPurpose: ${request.purpose}`;
+    } else if (request.eventTitle) {
+      cardSubtitle += `\nPurpose: ${request.eventTitle}`;
+    }
+  } else {
+    cardTitle = 'Tents & Chairs Borrowing';
+    cardSubtitle = `Date: ${dateStr}${endDateStr && endDateStr !== dateStr ? ' - ' + endDateStr : ''}`;
+    const items = [];
+    if (request.quantityChairs) items.push(`${request.quantityChairs} chairs`);
+    if (request.quantityTents) items.push(`${request.quantityTents} tents`);
+    if (items.length > 0) {
+      cardSubtitle += `\nQty: ${items.join(', ')}`;
+    }
+  }
+
+  card.innerHTML = `
+    <div class="request-card-header">
+      <h3>${cardTitle}</h3>
+      <span class="status-badge ${statusClass}">${request.status || 'Pending'}</span>
+    </div>
+    <div class="request-card-body">
+      <p>${cardSubtitle.replace(/\n/g, '<br>')}</p>
+    </div>
+    <div class="request-card-footer">
+      <a href="#" class="view-details-link">View</a>
+    </div>
+  `;
+
+  // Add click handler to view details
+  card.querySelector('.view-details-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    showRequestDetailsModal(request);
+  });
+
+  return card;
+}
+
+// Function to show request details modal
+function showRequestDetailsModal(request) {
+  // Create modal if it doesn't exist
+  let modal = document.getElementById('requestDetailsModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'requestDetailsModal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content request-details-modal">
+        <h2 id="modalRequestType">Request Details</h2>
+        <div id="modalRequestContent" class="request-details-content"></div>
+        <div class="modal-actions">
+          <button type="button" class="close-details-btn">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Add close handlers
+    const closeDetailsBtn = modal.querySelector('.close-details-btn');
+    
+    closeDetailsBtn.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+
+    window.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+  }
+
+  // Populate modal with request details
+  const modalTitle = modal.querySelector('#modalRequestType');
+  const modalContent = modal.querySelector('#modalRequestContent');
+  
+  // Set proper modal title
+  const modalTitleText = request.type === 'conference-room' || request.eventDate 
+    ? 'Conference Room Reservation Request' 
+    : 'Tents & Chairs Borrowing Request';
+  modalTitle.textContent = modalTitleText;
+
+  // Debug: Log request type and data
+  console.log('Request type:', request.type);
+  console.log('Request data:', request);
+
+  // Determine status badge class
+  const statusClass = `status-${request.status?.toLowerCase().replace(/\s+/g, '-') || 'pending'}`;
+  
+  let detailsHTML = `
+    <div class="detail-row status-row">
+      <span class="detail-label">Status:</span>
+      <span class="status-badge ${statusClass}">${request.status || 'Pending'}</span>
+    </div>
+  `;
+
+  // Check if this is a conference room request (check multiple possible values)
+  const isConferenceRoom = request.type === 'Conference Room' || 
+                           request.type === 'conference-room' || 
+                           request.eventDate || 
+                           request.purpose;
+
+  if (isConferenceRoom) {
+    const timeStr = request.startTime && request.endTime 
+      ? `${request.startTime} - ${request.endTime}` 
+      : (request.eventTime || 'N/A');
+    detailsHTML += `
+      <div class="detail-row">
+        <span class="detail-label">Full Name:</span>
+        <span class="detail-value">${request.fullName || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Contact Number:</span>
+        <span class="detail-value">${request.contactNumber || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Address:</span>
+        <span class="detail-value">${request.address || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Event Date:</span>
+        <span class="detail-value">${request.eventDate || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Event Time:</span>
+        <span class="detail-value">${timeStr}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Purpose of Use:</span>
+        <span class="detail-value">${request.purpose || request.eventPurpose || 'N/A'}</span>
+      </div>
+    `;
+  } else {
+    detailsHTML += `
+      <div class="detail-row">
+        <span class="detail-label">Full Name:</span>
+        <span class="detail-value">${request.fullName || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Contact Number:</span>
+        <span class="detail-value">${request.contactNumber || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Complete Address:</span>
+        <span class="detail-value">${request.completeAddress || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Start Date:</span>
+        <span class="detail-value">${request.startDate || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">End Date:</span>
+        <span class="detail-value">${request.endDate || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Quantity of Chairs:</span>
+        <span class="detail-value">${request.quantityChairs || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Quantity of Tents:</span>
+        <span class="detail-value">${request.quantityTents || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Mode of Receiving:</span>
+        <span class="detail-value">${request.modeOfReceiving || 'N/A'}</span>
+      </div>
+    `;
+  }
+
+  detailsHTML += `
+    <div class="detail-row">
+      <span class="detail-label">Submitted On:</span>
+      <span class="detail-value">${request.createdAt ? new Date(request.timestamp).toLocaleString() : 'N/A'}</span>
+    </div>
+  `;
+
+  modalContent.innerHTML = detailsHTML;
+  
+  // Show modal
+  modal.style.display = 'block';
 }
 
 /* ==========================================================================
@@ -1544,7 +1836,7 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
 
   function openBookingModal(dateStr) {
     // Redirect to request form page with date parameter
-    window.location.href = `conference-room-request.html?date=${dateStr}`;
+    window.location.href = `conference-request.html?date=${dateStr}`;
   }
 
   function closeBookingModal() {
@@ -1552,7 +1844,7 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
   }
 
   async function handleFormSubmit(e) {
-    // Form submission now handled on conference-room-request.html page
+    // Form submission now handled on conference-request.html page
   }
 
   // Helper function to check if a date is booked (for integration with Firestore)
@@ -1898,23 +2190,28 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     };
 
     try {
-      // TODO: In production, save to Firestore
-      // const user = auth.currentUser;
-      // if (!user) {
-      //   showAlert('Please login to submit a request.');
-      //   return;
-      // }
-      // await setDoc(doc(db, "requests", `request_${Date.now()}`), {
-      //   ...formData,
-      //   userId: user.uid,
-      //   userEmail: user.email
-      // });
+      // Check if user is logged in
+      const user = auth.currentUser;
+      if (!user) {
+        showAlert('Please login to submit a request.', false, () => {
+          window.location.href = `index.html?redirect=${encodeURIComponent(window.location.pathname)}`;
+        });
+        return;
+      }
+
+      // Save to Firestore with user information
+      await addDoc(collection(db, "tentsChairsBookings"), {
+        ...formData,
+        userId: user.uid,
+        userEmail: user.email,
+        createdAt: serverTimestamp()
+      });
 
       console.log('Tents & Chairs Request:', formData);
 
       // Show success message
       showAlert('Your tents & chairs request has been submitted successfully! You can check the status in your profile.', true, () => {
-        window.location.href = 'user.html';
+        window.location.href = 'UserProfile.html';
       });
 
     } catch (error) {
@@ -2118,23 +2415,28 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
     };
 
     try {
-      // TODO: In production, save to Firestore
-      // const user = auth.currentUser;
-      // if (!user) {
-      //   showAlert('Please login to submit a request.');
-      //   return;
-      // }
-      // await setDoc(doc(db, "requests", `request_${Date.now()}`), {
-      //   ...formData,
-      //   userId: user.uid,
-      //   userEmail: user.email
-      // });
+      // Check if user is logged in
+      const user = auth.currentUser;
+      if (!user) {
+        showAlert('Please login to submit a request.', false, () => {
+          window.location.href = `index.html?redirect=${encodeURIComponent(window.location.pathname)}`;
+        });
+        return;
+      }
+
+      // Save to Firestore with user information
+      await addDoc(collection(db, "conferenceRoomBookings"), {
+        ...formData,
+        userId: user.uid,
+        userEmail: user.email,
+        createdAt: serverTimestamp()
+      });
 
       console.log('Conference Room Request:', formData);
 
       // Show success message
       showAlert('Your conference room reservation request has been submitted successfully! You can check the status in your profile.', true, () => {
-        window.location.href = 'user.html';
+        window.location.href = 'UserProfile.html';
       });
 
     } catch (error) {
