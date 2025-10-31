@@ -1370,6 +1370,12 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
+    // Check if new password is the same as current password
+    if (newPassword && currentPassword && newPassword === currentPassword) {
+      if (errorNewPassword) setErrorSignup(errorNewPassword, 'New password must be different from your current password');
+      valid = false;
+    }
+
     if (!confirmPassword) {
       if (errorConfirmPassword) setErrorSignup(errorConfirmPassword, 'Please confirm your new password');
       valid = false;
