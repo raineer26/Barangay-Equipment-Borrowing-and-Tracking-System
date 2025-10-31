@@ -57,7 +57,20 @@
         <div class="user-request-status">
           <div class="request-status-header">
             <h2>Request Status</h2>
+            <div class="request-filters-inline">
+              <label for="statusFilter">Filter:</label>
+              <select id="statusFilter" class="filter-select">
+                <option value="all">All Requests</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="in-progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
           </div>
+          
           <div class="request-cards">
             <!-- Request cards will be dynamically loaded here -->
           </div>

@@ -18,12 +18,12 @@
       </div>
       <nav>
         <ul>
-          <li><a href="index.html">HOME</a></li>
+          <li><a href="user.html">HOME</a></li>
           <li class="dropdown">
             <a href="#">CALENDAR OF ACTIVITIES ▾</a>
             <ul class="dropdown-menu">
-              <li><a href="index.html">Tents and Chairs</a></li>
-              <li><a href="index.html">Conference Room</a></li>
+              <li><a href="tents-calendar.html">Tents and Chairs</a></li>
+              <li><a href="conference-room.html">Conference Room</a></li>
             </ul>
           </li>
           <li><a href="about.html">ABOUT US</a></li>
@@ -54,12 +54,35 @@
       <input type="password" id="login-password" placeholder="Enter your password" required>
       <div class="error-message" id="error-login-password"></div>
 
+      <div class="forgot-password-link">
+        <a href="#" id="forgotPasswordLink">Forgot Password?</a>
+      </div>
+
       <div class="form-buttons">
         <button type="submit" class="btn primary">LOGIN</button>
         <a href="signup.html" class="btn secondary">SIGNUP</a>
       </div>
     </form>
   </section>
+
+  <!-- Forgot Password Modal -->
+  <div id="forgotPasswordModal" class="modal">
+    <div class="modal-content">
+      <h2>Reset Password</h2>
+      <p style="color: #666; margin-bottom: 20px; font-size: 0.9rem;">Enter your email address and we'll send you a link to reset your password.</p>
+      <form id="forgotPasswordForm">
+        <div class="form-group">
+          <label for="resetEmail">Email Address</label>
+          <input type="email" id="resetEmail" placeholder="Enter your email" required>
+          <div class="error-message" id="error-reset-email"></div>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" class="close-modal">Cancel</button>
+          <button type="submit" class="save-changes">Send Reset Link</button>
+        </div>
+      </form>
+    </div>
+  </div>
   
   
 

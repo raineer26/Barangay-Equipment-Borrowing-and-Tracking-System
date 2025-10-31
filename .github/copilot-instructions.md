@@ -21,7 +21,8 @@
 
 - **`users` collection**: `{uid}` docs with fields (camelCase): `fullName`, `email`, `contactNumber`, `address`, `role` ("user"|"admin"), `createdAt`.
   - Backwards compat: code checks `fullName || fullname` to support legacy docs.
-- **`tentsChairsBookings` collection**: created by tents/chairs request form. Fields: `fullName`, `contactNumber`, `completeAddress`, `modeOfReceiving`, `quantityChairs`, `quantityTents`, `startDate`, `endDate`, `status: "pending"`, `createdAt`.
+- **`tentsChairsBookings` collection**: created by tents/chairs request form. Fields: `fullName`, `contactNumber`, `completeAddress`, `modeOfReceiving`, `quantityChairs`, `quantityTents`, `startDate`, `endDate`, `status: "pending"|"approved"|"in-progress"|"completed"|"rejected"|"cancelled"`, `userId`, `userEmail`, `createdAt`, `cancelledAt` (optional).
+- **`conferenceRoomBookings` collection**: created by conference room request form. Fields: `fullName`, `contactNumber`, `address`, `purpose`, `eventDate`, `startTime`, `endTime`, `status: "pending"|"approved"|"in-progress"|"completed"|"rejected"|"cancelled"`, `userId`, `userEmail`, `createdAt`, `cancelledAt` (optional).
 - **Planned `bookings` collection** (TODOs in calendar scripts): will store `date: "YYYY-MM-DD"`, `type: "conference-room"|"tents-and-chairs"`, `status: "pending"|"approved"`, `userId`.
 
 ## Key Patterns to Preserve
@@ -53,6 +54,65 @@ Always keep at top of `script.js`. If splitting modules, export `auth` and `db` 
 - **Password**: `validatePasswordSignup(password)` checks min 8 chars, uppercase, lowercase, number, special. Returns `{isValid, requirements, message, strength}`.
 - **Contact**: Philippine mobile format `^09\d{9}$` (11 digits starting with "09").
 - **Error display**: `setError(element, message)` and `setErrorSignup(element, message)` set red border on `element.previousElementSibling` (the input) and show error text. **Do not change sibling relationship without updating all callers.**
+
+### Duplicate Request Prevention
+**CRITICAL**: Different validation logic for each booking type:
+
+#### Tents & Chairs (Identical Request Prevention)
+Only blocks **IDENTICAL** requests (same dates AND same quantities):
+- Query: `where("userId", "==", uid) && where("startDate", "==", date) && where("endDate", "==", date)`
+- Additional check: `quantityChairs` AND `quantityTents` must match
+- **Excludes**: Cancelled requests are NOT counted as duplicates
+- **Allows**:
+  - ✅ Same user, same dates, DIFFERENT quantities
+  - ✅ Same user, DIFFERENT dates, same quantities
+  - ✅ Same user, OVERLAPPING dates, different quantities
+  - ✅ Resubmitting after cancelling a request
+- **Blocks**:
+  - ❌ Same user, IDENTICAL dates AND quantities (with pending/approved status)
+
+#### Conference Room (Time Overlap Prevention)
+Blocks **OVERLAPPING** time slots on the same date:
+- Query: `where("userId", "==", uid) && where("eventDate", "==", date)`
+- Additional check: `timeRangesOverlap(requestStart, requestEnd, existingStart, existingEnd)`
+- Formula: `requestStartTime < existingEndTime AND requestEndTime > existingStartTime`
+- **Excludes**: Cancelled requests are NOT counted as duplicates
+- **Allows**:
+  - ✅ Same user, DIFFERENT dates, any time
+  - ✅ Same user, same date, NON-OVERLAPPING times
+  - ✅ Resubmitting after cancelling a request
+- **Blocks**:
+  - ❌ Same user, same date, OVERLAPPING times (with pending/approved status)
+
+**Helper Functions**:
+- `timeRangesOverlap(start1, end1, start2, end2)` — checks if two time ranges overlap
+- `sanitizeInput(text)` — XSS prevention via HTML entity encoding
+- `formatTime12Hour(time)` — converts "14:00" to "2:00 PM"
+
+### Request Cancellation
+Users can cancel **ONLY pending requests**:
+- Modal shows "Cancel Request" button for pending requests only
+- Confirmation dialog prevents accidental cancellation
+- Updates request status to "cancelled" and adds `cancelledAt` timestamp
+- Cancelled requests are excluded from duplicate detection
+- Users can submit new requests after cancelling
+- **Important**: Approved and completed requests cannot be cancelled (must contact admin)
+
+### Request Status Lifecycle
+Request statuses follow this flow:
+1. **Pending** - Initial status when user submits request (can be cancelled by user)
+2. **Approved** - Admin approves request (cannot be cancelled, only admin can modify)
+3. **In Progress** - Event date has arrived, equipment is currently in use (active status)
+4. **Completed** - Equipment returned/event finished (final state, cannot be modified)
+5. **Rejected** - Admin rejects request (final state, user can submit new request)
+6. **Cancelled** - User cancelled pending request (final state, excluded from duplicate checks)
+
+### Request Status Filtering
+User profile page includes status filter dropdown:
+- **Filter Options**: All Requests, Pending, Approved, In Progress, Completed, Rejected, Cancelled
+- **Function**: `loadUserRequests(filterStatus)` handles filtering logic
+- **Empty States**: Dynamic messages based on filter ("No pending requests found")
+- **Logging**: Comprehensive console logs for debugging filter behavior
 
 ### Alert System
 - **`showAlert(message, isSuccess, callback)`** — centered modal overlay for important messages (e.g., after signup/profile update). Callback runs when user clicks OK.
@@ -122,7 +182,9 @@ querySnapshot.forEach(doc => {
 
 - **Firebase config in `script.js`** is intentional for frontend apps (API key restricts to allowed domains in Firebase console).
 - **Firestore security rules** (not in this repo) should enforce user can only read/write their own data. Check Firebase console.
-- **XSS prevention**: Address input already sanitized with `.replace(/<[^>]*>/g, '')` in signup/profile forms.
+- **XSS prevention**: All text inputs sanitized with `sanitizeInput()` using HTML entity encoding (`&lt;`, `&gt;`, `&amp;`, `&quot;`, `&#x27;`, `&#x2F;`).
+- **Authentication checks**: All form submissions validate `auth.currentUser` and verify `userId` before Firestore operations.
+- **Loading states**: Submit buttons show spinner during validation and submission, with state restoration in `finally` blocks.
 - **Browser back/forward cache**: `pageshow` event listener on login page clears inputs to prevent credential restoration after logout.
 
 ## DOM Contract Points (Do Not Rename)
