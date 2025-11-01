@@ -50,24 +50,17 @@
       <p class="signup-subtitle">Please fill out the information below:</p>
       
       <form class="signup-form" id="signupForm">
-        <div class="signup-row">
+        <!-- Row 1: First Name, Last Name, Contact Number (3 columns) -->
+        <div class="signup-row signup-row-3col">
           <div class="signup-group">
-            <label for="signup-fullname">FULL NAME:</label>
-            <input type="text" id="signup-fullname" required>
-            <div class="error-message" id="error-fullname"></div>
+            <label for="signup-firstname">FIRST NAME:</label>
+            <input type="text" id="signup-firstname" required>
+            <div class="error-message" id="error-firstname"></div>
           </div>
           <div class="signup-group">
-            <label for="signup-email">EMAIL:</label>
-            <input type="email" id="signup-email" required>
-            <div class="error-message" id="error-email"></div>
-          </div>
-        </div>
-
-        <div class="signup-row">
-          <div class="signup-group">
-            <label for="signup-password">PASSWORD: <span style="font-weight: normal; display: none;" id="password-strength-text">(Password Strength: ...)</span></label>
-            <input type="password" id="signup-password" required>
-            <div class="error-message" id="error-password"></div>
+            <label for="signup-lastname">LAST NAME:</label>
+            <input type="text" id="signup-lastname" required>
+            <div class="error-message" id="error-lastname"></div>
           </div>
           <div class="signup-group">
             <label for="signup-contact">CONTACT NUMBER:</label>
@@ -76,16 +69,31 @@
           </div>
         </div>
 
+        <!-- Row 2: Complete Address and Mode of Receiving (2 columns) -->
         <div class="signup-row">
-          <div class="signup-group">
-            <label for="signup-confirm">CONFIRM PASSWORD:</label>
-            <input type="password" id="signup-confirm" required>
-            <div class="error-message" id="error-confirm"></div>
-          </div>
           <div class="signup-group">
             <label for="signup-address">COMPLETE ADDRESS:</label>
             <input type="text" id="signup-address">
             <div class="error-message" id="error-address"></div>
+          </div>
+          <div class="signup-group">
+            <label for="signup-email">EMAIL:</label>
+            <input type="email" id="signup-email" required>
+            <div class="error-message" id="error-email"></div>
+          </div>
+        </div>
+
+        <!-- Row 3: Password and Confirm Password (2 columns) -->
+        <div class="signup-row">
+          <div class="signup-group">
+            <label for="signup-password">PASSWORD: <span style="font-weight: normal; display: none;" id="password-strength-text">(Password Strength: ...)</span></label>
+            <input type="password" id="signup-password" required>
+            <div class="error-message" id="error-password"></div>
+          </div>
+          <div class="signup-group">
+            <label for="signup-confirm">CONFIRM PASSWORD:</label>
+            <input type="password" id="signup-confirm" required>
+            <div class="error-message" id="error-confirm"></div>
           </div>
         </div>
 

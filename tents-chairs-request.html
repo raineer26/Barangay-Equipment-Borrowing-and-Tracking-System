@@ -58,35 +58,26 @@
         <p class="form-subtitle">Hosting an event soon? Just fill in the form below with your details and the items you need, and we'll take care of the rest!</p>
 
         <form id="tentsChairsForm" class="request-form">
-          <!-- Row 1: Full Name and Quantity of Chairs -->
-          <div class="form-row-2col">
+          <!-- Row 1: First Name, Last Name, Contact Number (3 columns) -->
+          <div class="form-row-3col">
             <div class="form-group">
-              <label for="fullName">FULL NAME:</label>
-              <input type="text" id="fullName" name="fullName">
-              <div class="error-message" id="errorFullName"></div>
+              <label for="firstName">FIRST NAME:</label>
+              <input type="text" id="firstName" name="firstName">
+              <div class="error-message" id="errorFirstName"></div>
             </div>
             <div class="form-group">
-              <label for="quantityChairs">QUANTITY OF CHAIR/S:</label>
-              <input type="number" id="quantityChairs" name="quantityChairs" min="1">
-              <div class="error-message" id="errorQuantityChairs"></div>
+              <label for="lastName">LAST NAME:</label>
+              <input type="text" id="lastName" name="lastName">
+              <div class="error-message" id="errorLastName"></div>
             </div>
-          </div>
-
-          <!-- Row 2: Contact Number and Quantity of Tents -->
-          <div class="form-row-2col">
             <div class="form-group">
               <label for="contactNumber">CONTACT NUMBER:</label>
               <input type="tel" id="contactNumber" name="contactNumber">
               <div class="error-message" id="errorContactNumber"></div>
             </div>
-            <div class="form-group">
-              <label for="quantityTents">QUANTITY OF TENT/S:</label>
-              <input type="number" id="quantityTents" name="quantityTents" min="1">
-              <div class="error-message" id="errorQuantityTents"></div>
-            </div>
           </div>
 
-          <!-- Row 3: Complete Address and Mode of Receiving -->
+          <!-- Row 2: Complete Address and Mode of Receiving -->
           <div class="form-row-2col">
             <div class="form-group">
               <label for="completeAddress">COMPLETE ADDRESS:</label>
@@ -101,6 +92,20 @@
                 <option value="Pick-up">Pick-up</option>
               </select>
               <div class="error-message" id="errorModeOfReceiving"></div>
+            </div>
+          </div>
+
+          <!-- Row 3: Quantity of Chairs and Quantity of Tents -->
+          <div class="form-row-2col">
+            <div class="form-group">
+              <label for="quantityChairs">QUANTITY OF CHAIR/S:</label>
+              <input type="number" id="quantityChairs" name="quantityChairs" min="1">
+              <div class="error-message" id="errorQuantityChairs"></div>
+            </div>
+            <div class="form-group">
+              <label for="quantityTents">QUANTITY OF TENT/S:</label>
+              <input type="number" id="quantityTents" name="quantityTents" min="1">
+              <div class="error-message" id="errorQuantityTents"></div>
             </div>
           </div>
 
