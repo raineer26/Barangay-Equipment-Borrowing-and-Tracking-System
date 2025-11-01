@@ -1167,12 +1167,101 @@ document.addEventListener('DOMContentLoaded', function() {
     changePasswordModal.style.display = 'block';
   });
 
+  // Forgot Password Modal (UserProfile page)
+  const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+  const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+  const forgotPasswordLink = document.getElementById('forgotPasswordFromProfile');
+  const resetEmailInput = document.getElementById('resetEmail');
+  const errorResetEmail = document.getElementById('error-reset-email');
+
+  // Open forgot password modal from change password modal
+  forgotPasswordLink?.addEventListener('click', (e) => {
+    e.preventDefault();
+    console.log('[UserProfile] Forgot password link clicked');
+    
+    // Close the change password modal
+    if (changePasswordModal) {
+      changePasswordModal.style.display = 'none';
+    }
+    
+    // Open the forgot password modal
+    if (forgotPasswordModal) {
+      forgotPasswordModal.style.display = 'block';
+      if (resetEmailInput) resetEmailInput.value = '';
+      if (errorResetEmail) errorResetEmail.textContent = '';
+    }
+  });
+
+  // Handle forgot password form submission
+  forgotPasswordForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = resetEmailInput?.value.trim();
+
+    console.log('[UserProfile - Forgot Password] Form submitted with email:', email);
+
+    // Clear previous errors
+    if (errorResetEmail) errorResetEmail.textContent = '';
+
+    // Validate email
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      console.log('[UserProfile - Forgot Password] Email validation failed:', emailValidation.message);
+      if (errorResetEmail) {
+        errorResetEmail.textContent = emailValidation.message;
+        errorResetEmail.style.display = 'block';
+      }
+      return;
+    }
+
+    // Show spinner on button
+    const submitBtn = forgotPasswordForm.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn?.textContent || 'Send Reset Link';
+    if (submitBtn) showButtonSpinner(submitBtn);
+
+    try {
+      console.log('[UserProfile - Forgot Password] Sending password reset email to:', email);
+      await sendPasswordResetEmail(auth, email);
+      
+      console.log('[UserProfile - Forgot Password] Password reset email sent successfully');
+      
+      // Show success alert
+      showAlert(
+        `Password reset link sent to ${email}. Please check your inbox and spam folder.`,
+        true,
+        () => {
+          // Close modal after user acknowledges
+          if (forgotPasswordModal) forgotPasswordModal.style.display = 'none';
+          if (forgotPasswordForm) forgotPasswordForm.reset();
+        }
+      );
+    } catch (error) {
+      console.error('[UserProfile - Forgot Password] Error sending reset email:', error);
+      
+      // Show error message
+      if (errorResetEmail) {
+        if (error.code === 'auth/user-not-found') {
+          errorResetEmail.textContent = 'No account found with this email address.';
+        } else if (error.code === 'auth/invalid-email') {
+          errorResetEmail.textContent = 'Invalid email format.';
+        } else {
+          errorResetEmail.textContent = 'Failed to send reset link. Please try again.';
+        }
+        errorResetEmail.style.display = 'block';
+      }
+    } finally {
+      // Restore button state
+      console.log('[UserProfile - Forgot Password] Restoring button state');
+      if (submitBtn) hideButtonSpinner(submitBtn, originalBtnText);
+    }
+  });
+
   // Close modals when clicking close button
   closeButtons.forEach(button => {
     button.addEventListener('click', () => {
       // Hide modals
       editProfileModal.style.display = 'none';
       changePasswordModal.style.display = 'none';
+      if (forgotPasswordModal) forgotPasswordModal.style.display = 'none';
 
       // clear password modal message and reset fields
       if (changePasswordMessage) {
@@ -1215,6 +1304,11 @@ document.addEventListener('DOMContentLoaded', function() {
         chFormEl.reset();
         [errorCurrentPassword, errorNewPassword, errorConfirmPassword].forEach(el => { if (el) clearErrorSignup(el); });
       }
+    }
+    if (e.target === forgotPasswordModal) {
+      forgotPasswordModal.style.display = 'none';
+      if (forgotPasswordForm) forgotPasswordForm.reset();
+      if (errorResetEmail) errorResetEmail.textContent = '';
     }
   });
 
@@ -1712,9 +1806,11 @@ function createRequestCard(request) {
   // Determine status badge class
   const statusClass = `status-${request.status?.toLowerCase().replace(/\s+/g, '-') || 'pending'}`;
   
-  // Format date
-  const dateStr = request.eventDate || request.startDate || 'N/A';
-  const endDateStr = request.endDate || '';
+  // Format date (show words, e.g. "October 31, 2025")
+  const rawDate = request.eventDate || request.startDate || '';
+  const rawEndDate = request.endDate || '';
+  const dateStr = rawDate ? formatDateToWords(rawDate) : 'N/A';
+  const endDateStr = rawEndDate ? formatDateToWords(rawEndDate) : '';
   
   // Determine card title and subtitle based on type
   let cardTitle = '';
@@ -1778,6 +1874,15 @@ function createRequestCard(request) {
   });
 
   return card;
+}
+
+// Function to format date as "Month Day, Year" (e.g., "October 31, 2025")
+function formatDateToWords(dateString) {
+  if (!dateString) return 'N/A';
+  
+  const date = new Date(dateString + 'T00:00:00'); // Add time to avoid timezone issues
+  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  return date.toLocaleDateString('en-US', options);
 }
 
 // Function to show request details modal
@@ -1862,7 +1967,7 @@ function showRequestDetailsModal(request) {
       </div>
       <div class="detail-row">
         <span class="detail-label">Event Date:</span>
-        <span class="detail-value">${request.eventDate || 'N/A'}</span>
+        <span class="detail-value">${formatDateToWords(request.eventDate)}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Event Time:</span>
@@ -1889,11 +1994,11 @@ function showRequestDetailsModal(request) {
       </div>
       <div class="detail-row">
         <span class="detail-label">Start Date:</span>
-        <span class="detail-value">${request.startDate || 'N/A'}</span>
+        <span class="detail-value">${formatDateToWords(request.startDate)}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">End Date:</span>
-        <span class="detail-value">${request.endDate || 'N/A'}</span>
+        <span class="detail-value">${formatDateToWords(request.endDate)}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Quantity of Chairs:</span>
