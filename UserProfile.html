@@ -33,10 +33,19 @@
     </div>
     </header>
 
+    <!-- HERO SECTION -->
+    <section class="profile-hero">
+      <div class="profile-hero-overlay"></div>
+      <div class="profile-hero-text">
+        <h1>USER PROFILE</h1>
+        <p>HOME | CONTACT US</p>
+      </div>
+    </section>
+
     <main class="profile-main-content">
     <div class="user-profile-layout">
       <div class="user-profile-header">
-        <div class="user-profile-name" id="profileFullName">Loading...</div>
+        <div class="user-profile-name" id="profileFullName"></div>
         <div class="header-actions">
           <button class="logout-btn">Logout</button>
         </div>
@@ -44,10 +53,10 @@
       <div class="user-profile-content">
         <div class="user-info-card">
           <h2>Personal Information</h2>
-          <div class="info-item"><span class="info-label">Full Name</span><span id="infoFullName">Loading...</span></div>
-          <div class="info-item"><span class="info-label">Contact Number</span><span id="infoContactNumber">Loading...</span></div>
-          <div class="info-item"><span class="info-label">Email Address</span><span id="infoEmail">Loading...</span></div>
-          <div class="info-item"><span class="info-label">Address</span><span id="infoAddress">Loading...</span></div>
+          <div class="info-item"><span class="info-label">Full Name</span><span id="infoFullName"></span></div>
+          <div class="info-item"><span class="info-label">Contact Number</span><span id="infoContactNumber"></span></div>
+          <div class="info-item"><span class="info-label">Email Address</span><span id="infoEmail"></span></div>
+          <div class="info-item"><span class="info-label">Address</span><span id="infoAddress"></span></div>
           <!-- Moved buttons here -->
           <div class="user-profile-actions">
             <button class="edit-profile-btn"><span>🖉</span> Edit Profile</button>
@@ -57,23 +66,22 @@
         <div class="user-request-status">
           <div class="request-status-header">
             <h2>Request Status</h2>
+            <div class="request-filters-inline">
+              <label for="statusFilter">Filter:</label>
+              <select id="statusFilter" class="filter-select">
+                <option value="all">All Requests</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="in-progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
           </div>
+          
           <div class="request-cards">
-            <div class="request-card">
-              <div class="request-title">Conference Room</div>
-              <div class="request-details">Date: Sept 15, 2025 · 2:00 PM - 5:00 PM<br>Purpose: Team Meeting</div>
-              <div class="request-status approved">Approved</div>
-            </div>
-            <div class="request-card">
-              <div class="request-title">Conference Room</div>
-              <div class="request-details">Date: Sept 15, 2025 · 2:00 PM - 5:00 PM<br>Purpose: Team Meeting</div>
-              <div class="request-status approved">Approved</div>
-            </div>
-            <div class="request-card">
-              <div class="request-title">Tents & Chairs</div>
-              <div class="request-details">Date: Sept 20, 2025 – Sept 21, 2025<br>Qty: 20 chairs, 3 tents</div>
-              <div class="request-status pending">Pending</div>
-            </div>
+            <!-- Request cards will be dynamically loaded here -->
           </div>
           <div class="dropdown custom-dropdown">
             <button class="make-request-btn" aria-haspopup="true" aria-expanded="false">
@@ -145,9 +153,31 @@
                 <div class="error-message" id="error-confirm-password"></div>
               </div>
               <!-- Inline message area removed: toasts are used for success feedback -->
+              <div class="forgot-password-link modal-forgot-left">
+                <a href="#" id="forgotPasswordFromProfile">Forgot Password?</a>
+              </div>
               <div class="modal-buttons">
                 <button type="button" class="close-modal">Cancel</button>
                 <button type="submit" class="save-changes">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Forgot Password Modal -->
+        <div id="forgotPasswordModal" class="modal">
+          <div class="modal-content">
+            <h2>Reset Password</h2>
+            <p style="color: #666; margin-bottom: 20px; font-size: 0.9rem;">Enter your email address and we'll send you a link to reset your password.</p>
+            <form id="forgotPasswordForm">
+              <div class="form-group">
+                <label for="resetEmail">Email Address</label>
+                <input type="email" id="resetEmail" placeholder="Enter your email" required>
+                <div class="error-message" id="error-reset-email"></div>
+              </div>
+              <div class="modal-buttons">
+                <button type="button" class="close-modal">Cancel</button>
+                <button type="submit" class="save-changes">Send Reset Link</button>
               </div>
             </form>
           </div>

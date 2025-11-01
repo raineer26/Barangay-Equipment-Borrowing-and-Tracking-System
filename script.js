@@ -10,9 +10,9 @@
 // 1. Firebase setup & Firestore import (ES6 Module)
 // =============================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { signInWithEmailAndPassword, getAuth, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+import { signInWithEmailAndPassword, getAuth, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 
-import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 // ====== Your Firebase config
 const firebaseConfig = {
@@ -60,8 +60,11 @@ function showBookingFormAlert(message, type = "success") {
 }
 
 // =============================
-// 3. Tents & Chairs Form Handler FOR BACKEND
+// 3. Tents & Chairs Form Handler FOR BACKEND (LEGACY - COMMENTED OUT)
+// NOTE: This handler is not currently used. The active handler is in the 
+// tents-chairs-request.html section (around line 1774). Keeping this for reference.
 // =============================
+/*
 document.addEventListener("DOMContentLoaded", () => {
   const tentsChairsForm = document.getElementById("tentsChairsForm");
 
@@ -164,6 +167,7 @@ if (hasError) {
     tentsChairsForm.addEventListener("submit", handleTentsChairsSubmit);
   }
 });
+*/
 
 // =============================
 
@@ -204,7 +208,7 @@ window.addEventListener('pageshow', (event) => {
   }
   // For protected pages, if the page was restored from bfcache and the user is no longer signed in, force redirect
   if (event.persisted) {
-    const protectedPaths = ["/user.html", "/admin.html", "user.html", "admin.html", "/UserProfile.html", "UserProfile.html"];
+    const protectedPaths = ["/admin.html", "admin.html", "/UserProfile.html", "UserProfile.html"];
     if (protectedPaths.some(p => window.location.pathname.endsWith(p)) && !auth.currentUser) {
       // Force a redirect to login (replace so back doesn't loop)
       try { location.replace('index.html'); } catch (e) { window.location.href = 'index.html'; }
@@ -280,7 +284,15 @@ loginForm?.addEventListener("submit", async (e) => {
 
       if (docSnap.exists()) {
         const userData = docSnap.data();
-        if (userData.role === "admin") {
+        
+        // Check if there's a redirect parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectTo = urlParams.get('redirect');
+        
+        if (redirectTo) {
+          // Decode and redirect to the original page
+          window.location.href = decodeURIComponent(redirectTo);
+        } else if (userData.role === "admin") {
           window.location.href = "admin.html";
         } else if (userData.role === "user") {
           window.location.href = "user.html";
@@ -328,6 +340,124 @@ loginForm?.addEventListener("submit", async (e) => {
     }
   }
 });
+
+/* =====================
+   FORGOT PASSWORD FUNCTIONALITY
+====================== */
+if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
+  const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+  const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+  const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+  const resetEmailInput = document.getElementById('resetEmail');
+  const errorResetEmail = document.getElementById('error-reset-email');
+  const closeModalBtn = forgotPasswordModal?.querySelector('.close-modal');
+
+  // Open forgot password modal
+  forgotPasswordLink?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (forgotPasswordModal) {
+      forgotPasswordModal.style.display = 'block';
+      resetEmailInput.value = '';
+      if (errorResetEmail) errorResetEmail.textContent = '';
+    }
+  });
+
+  // Close modal
+  closeModalBtn?.addEventListener('click', () => {
+    if (forgotPasswordModal) {
+      forgotPasswordModal.style.display = 'none';
+    }
+  });
+
+  // Close modal when clicking outside
+  window.addEventListener('click', (e) => {
+    if (e.target === forgotPasswordModal) {
+      forgotPasswordModal.style.display = 'none';
+    }
+  });
+
+  // Handle forgot password form submission
+  forgotPasswordForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const email = resetEmailInput.value.trim();
+    console.log('[Forgot Password] Form submitted with email:', email);
+    
+    // Validate email
+    if (!email) {
+      if (errorResetEmail) {
+        errorResetEmail.innerHTML = `<span style='color:#d32f2f;font-size:14px;'>Email cannot be blank</span>`;
+      }
+      return;
+    }
+
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      console.log('[Forgot Password] Email validation failed:', emailValidation.message);
+      if (errorResetEmail) {
+        errorResetEmail.innerHTML = `<span style='color:#d32f2f;font-size:14px;'>${emailValidation.message}</span>`;
+      }
+      return;
+    }
+
+    // Clear error
+    if (errorResetEmail) errorResetEmail.textContent = '';
+
+    // Show loading state on button
+    const submitBtn = forgotPasswordForm.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.textContent;
+    console.log('[Forgot Password] Showing spinner and sending reset email...');
+    showButtonSpinner(submitBtn);
+
+    try {
+      // Send password reset email
+      console.log('[Forgot Password] Calling sendPasswordResetEmail for:', email);
+      await sendPasswordResetEmail(auth, email);
+      console.log('[Forgot Password] Password reset email sent successfully!');
+      
+      // Close modal
+      if (forgotPasswordModal) {
+        forgotPasswordModal.style.display = 'none';
+      }
+
+      // Show success message
+      showAlert(
+        `Password reset email sent to ${email}. Please check your inbox (and spam folder) and follow the instructions to reset your password.`,
+        true
+      );
+      
+    } catch (error) {
+      console.error('[Forgot Password] Error:', error);
+      console.error('[Forgot Password] Error code:', error.code);
+      console.error('[Forgot Password] Error message:', error.message);
+      
+      let errorMessage = 'Failed to send reset email. Please try again.';
+      
+      switch(error.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email address.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Invalid email address.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many requests. Please try again later.';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error. Please check your connection.';
+          break;
+      }
+      
+      if (errorResetEmail) {
+        errorResetEmail.innerHTML = `<span style='color:#d32f2f;font-size:14px;'>${errorMessage}</span>`;
+      }
+    } finally {
+      // Restore button state
+      console.log('[Forgot Password] Restoring button state');
+      hideButtonSpinner(submitBtn, originalBtnText);
+    }
+  });
+}
 
 /* =====================
    SIGNUP PAGE SCRIPT
@@ -527,20 +657,9 @@ signupForm?.addEventListener("submit", async (e) => {
     // Save to Firestore using setDoc with the user's UID as the document ID
     await setDoc(doc(db, "users", user.uid), userData);
 
-    // Redirect to success page or login
-    window.location.href = "index.html";
-    // Save user profile using consistent camelCase field names
-    await setDoc(doc(db, "users", user.uid), {
-      fullName: fullname,
-      email: email,
-      contactNumber: contact,
-      address: address,
-      role: "user", // default role
-      createdAt: new Date()
-    });
-
-    showAlert("Account created successfully!", true, () => {
-      window.location.href = "user.html"; // back to login
+    // Show success message and redirect to user landing page (already logged in)
+    showAlert("Account created successfully! Welcome to Barangay Mapulang Lupa.", true, () => {
+      window.location.href = "user.html"; // Redirect to landing page, user is already authenticated
     });
   } catch (error) {
     // Handle specific Firebase Auth errors
@@ -649,7 +768,11 @@ function showAlert(message, isSuccess = false, callback = null) {
   }
 
   // Ensure there's an OK button for closing (preserve any existing classes/IDs)
-  let okBtn = alertBox.querySelector('.alert-ok-btn') || alertBox.querySelector('#alertOkButton');
+  let okBtn = alertBox.querySelector('.alert-ok-btn') || 
+              alertBox.querySelector('#alertOkButton') || 
+              alertBox.querySelector('.alert-button') || 
+              alertBox.querySelector('button');
+  
   if (!okBtn) {
     okBtn = document.createElement('button');
     okBtn.className = 'alert-ok-btn';
@@ -661,13 +784,13 @@ function showAlert(message, isSuccess = false, callback = null) {
       marginTop: '10px',
       cursor: 'pointer'
     });
-    okBtn.addEventListener('click', closeAlert);
     alertBox.appendChild(okBtn);
-  } else {
-    // Ensure click handler is bound
-    try { okBtn.removeEventListener && okBtn.removeEventListener('click', closeAlert); } catch {}
-    okBtn.addEventListener('click', closeAlert);
   }
+  
+  // Ensure click handler is bound (remove old handlers first to avoid duplicates)
+  okBtn.onclick = null; // Clear inline onclick if exists
+  okBtn.removeEventListener('click', closeAlert);
+  okBtn.addEventListener('click', closeAlert);
 
   // Safely toggle success class without throwing
   if (isSuccess) {
@@ -717,6 +840,76 @@ function closeAlert() {
 
 // Make closeAlert available globally
 window.closeAlert = closeAlert;
+
+// Custom Confirm Dialog (matches alert styling)
+function showConfirm(message, onConfirm, onCancel = null) {
+  let confirmBox = document.getElementById('customConfirm');
+  let overlay = document.getElementById('overlay');
+
+  // Create overlay if missing
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'overlay';
+    Object.assign(overlay.style, {
+      position: 'fixed',
+      inset: '0',
+      background: 'rgba(0,0,0,0.35)',
+      display: 'none',
+      zIndex: '9998'
+    });
+    document.body.appendChild(overlay);
+  }
+
+  // Create confirm box if it doesn't exist
+  if (!confirmBox) {
+    confirmBox = document.createElement('div');
+    confirmBox.id = 'customConfirm';
+    confirmBox.className = 'custom-confirm-dialog';
+    document.body.appendChild(confirmBox);
+  }
+
+  // Build the confirm dialog content
+  confirmBox.innerHTML = `
+    <div class="confirm-message">${message.replace(/\n/g, '<br>')}</div>
+    <div class="confirm-buttons">
+      <button class="confirm-cancel-btn" type="button">Cancel</button>
+      <button class="confirm-ok-btn" type="button">OK</button>
+    </div>
+  `;
+
+  // Show overlay and confirm box
+  overlay.style.display = 'block';
+  confirmBox.style.display = 'block';
+
+  // Get buttons
+  const okBtn = confirmBox.querySelector('.confirm-ok-btn');
+  const cancelBtn = confirmBox.querySelector('.confirm-cancel-btn');
+
+  // Close function
+  const closeConfirm = () => {
+    confirmBox.style.display = 'none';
+    overlay.style.display = 'none';
+  };
+
+  // OK button handler
+  okBtn.onclick = () => {
+    closeConfirm();
+    if (onConfirm && typeof onConfirm === 'function') {
+      onConfirm();
+    }
+  };
+
+  // Cancel button handler
+  cancelBtn.onclick = () => {
+    closeConfirm();
+    if (onCancel && typeof onCancel === 'function') {
+      onCancel();
+    }
+  };
+
+  // Focus OK button for accessibility
+  okBtn.focus();
+}
 
   /* --------------------------------------------------
      Toast notifications (top-right) — lightweight
@@ -845,8 +1038,8 @@ window.closeAlert = closeAlert;
    - window.logout signs the current user out and redirects to login
 ====================== */
 // Protect specific pages by pathname
-// Include UserProfile page so profile view is protected as well
-const protectedPaths = ["/user.html", "/admin.html", "user.html", "admin.html", "/UserProfile.html", "UserProfile.html"];
+// Only admin.html and UserProfile.html are protected (user.html is now public)
+const protectedPaths = ["/admin.html", "admin.html", "/UserProfile.html", "UserProfile.html"];
 if (protectedPaths.some(p => window.location.pathname.endsWith(p))) {
   onAuthStateChanged(auth, (user) => {
     if (!user) {
@@ -904,20 +1097,39 @@ document.addEventListener('DOMContentLoaded', function() {
   const errorNewPassword = document.getElementById('error-new-password');
   const errorConfirmPassword = document.getElementById('error-confirm-password');
   const logoutBtn = document.querySelector('.logout-btn');
-  const makeRequestBtn = document.querySelector('.make-request-btn');
-  const dropdownContent = document.querySelector('.dropdown-content');
   const closeButtons = document.querySelectorAll('.close-modal');
+
+  console.log('[UserProfile] Page initialized');
+  console.log('[UserProfile] Logout button found:', !!logoutBtn);
 
   // Load user data after Firebase confirms auth state so auth.currentUser is available
   onAuthStateChanged(auth, (user) => {
+    console.log('[UserProfile] Auth state changed. User:', user ? user.email : 'Not logged in');
     if (!user) {
       // Not signed in -> go to login
+      console.log('[UserProfile] No user, redirecting to login');
       window.location.href = "index.html";
       return;
     }
-    // User signed in -> populate profile
+    // User signed in -> populate profile and requests
+    console.log('[UserProfile] Loading user data and requests');
     loadUserData();
+    loadUserRequests();
   });
+
+  // Status Filter Event Listener
+  const statusFilter = document.getElementById('statusFilter');
+  if (statusFilter) {
+    console.log('[UserProfile] Status filter found, attaching event listener');
+    statusFilter.addEventListener('change', (e) => {
+      const selectedStatus = e.target.value;
+      console.log('[Filter] Filter dropdown changed to:', selectedStatus);
+      console.log('[Filter] Triggering loadUserRequests with filter:', selectedStatus);
+      loadUserRequests(selectedStatus);
+    });
+  } else {
+    console.warn('[UserProfile] Status filter element not found in DOM');
+  }
 
   // Edit Profile Modal
   editProfileBtn?.addEventListener('click', async () => {
@@ -955,12 +1167,101 @@ document.addEventListener('DOMContentLoaded', function() {
     changePasswordModal.style.display = 'block';
   });
 
+  // Forgot Password Modal (UserProfile page)
+  const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+  const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+  const forgotPasswordLink = document.getElementById('forgotPasswordFromProfile');
+  const resetEmailInput = document.getElementById('resetEmail');
+  const errorResetEmail = document.getElementById('error-reset-email');
+
+  // Open forgot password modal from change password modal
+  forgotPasswordLink?.addEventListener('click', (e) => {
+    e.preventDefault();
+    console.log('[UserProfile] Forgot password link clicked');
+    
+    // Close the change password modal
+    if (changePasswordModal) {
+      changePasswordModal.style.display = 'none';
+    }
+    
+    // Open the forgot password modal
+    if (forgotPasswordModal) {
+      forgotPasswordModal.style.display = 'block';
+      if (resetEmailInput) resetEmailInput.value = '';
+      if (errorResetEmail) errorResetEmail.textContent = '';
+    }
+  });
+
+  // Handle forgot password form submission
+  forgotPasswordForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = resetEmailInput?.value.trim();
+
+    console.log('[UserProfile - Forgot Password] Form submitted with email:', email);
+
+    // Clear previous errors
+    if (errorResetEmail) errorResetEmail.textContent = '';
+
+    // Validate email
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      console.log('[UserProfile - Forgot Password] Email validation failed:', emailValidation.message);
+      if (errorResetEmail) {
+        errorResetEmail.textContent = emailValidation.message;
+        errorResetEmail.style.display = 'block';
+      }
+      return;
+    }
+
+    // Show spinner on button
+    const submitBtn = forgotPasswordForm.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn?.textContent || 'Send Reset Link';
+    if (submitBtn) showButtonSpinner(submitBtn);
+
+    try {
+      console.log('[UserProfile - Forgot Password] Sending password reset email to:', email);
+      await sendPasswordResetEmail(auth, email);
+      
+      console.log('[UserProfile - Forgot Password] Password reset email sent successfully');
+      
+      // Show success alert
+      showAlert(
+        `Password reset link sent to ${email}. Please check your inbox and spam folder.`,
+        true,
+        () => {
+          // Close modal after user acknowledges
+          if (forgotPasswordModal) forgotPasswordModal.style.display = 'none';
+          if (forgotPasswordForm) forgotPasswordForm.reset();
+        }
+      );
+    } catch (error) {
+      console.error('[UserProfile - Forgot Password] Error sending reset email:', error);
+      
+      // Show error message
+      if (errorResetEmail) {
+        if (error.code === 'auth/user-not-found') {
+          errorResetEmail.textContent = 'No account found with this email address.';
+        } else if (error.code === 'auth/invalid-email') {
+          errorResetEmail.textContent = 'Invalid email format.';
+        } else {
+          errorResetEmail.textContent = 'Failed to send reset link. Please try again.';
+        }
+        errorResetEmail.style.display = 'block';
+      }
+    } finally {
+      // Restore button state
+      console.log('[UserProfile - Forgot Password] Restoring button state');
+      if (submitBtn) hideButtonSpinner(submitBtn, originalBtnText);
+    }
+  });
+
   // Close modals when clicking close button
   closeButtons.forEach(button => {
     button.addEventListener('click', () => {
       // Hide modals
       editProfileModal.style.display = 'none';
       changePasswordModal.style.display = 'none';
+      if (forgotPasswordModal) forgotPasswordModal.style.display = 'none';
 
       // clear password modal message and reset fields
       if (changePasswordMessage) {
@@ -1004,22 +1305,16 @@ document.addEventListener('DOMContentLoaded', function() {
         [errorCurrentPassword, errorNewPassword, errorConfirmPassword].forEach(el => { if (el) clearErrorSignup(el); });
       }
     }
-  });
-
-  // Make Request Dropdown
-  makeRequestBtn?.addEventListener('click', () => {
-    dropdownContent.style.display = dropdownContent.style.display === 'block' ? 'none' : 'block';
-  });
-
-  // Close dropdown when clicking outside
-  window.addEventListener('click', (e) => {
-    if (!e.target.matches('.make-request-btn')) {
-      dropdownContent.style.display = 'none';
+    if (e.target === forgotPasswordModal) {
+      forgotPasswordModal.style.display = 'none';
+      if (forgotPasswordForm) forgotPasswordForm.reset();
+      if (errorResetEmail) errorResetEmail.textContent = '';
     }
   });
 
   // Logout functionality
   logoutBtn?.addEventListener('click', () => {
+    console.log('[UserProfile] Logout button clicked');
     window.logout();
   });
 
@@ -1169,6 +1464,12 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
+    // Check if new password is the same as current password
+    if (newPassword && currentPassword && newPassword === currentPassword) {
+      if (errorNewPassword) setErrorSignup(errorNewPassword, 'New password must be different from your current password');
+      valid = false;
+    }
+
     if (!confirmPassword) {
       if (errorConfirmPassword) setErrorSignup(errorConfirmPassword, 'Please confirm your new password');
       valid = false;
@@ -1252,6 +1553,536 @@ async function loadUserData() {
   } catch (error) {
     console.error("Error loading user data:", error);
   }
+}
+
+// Function to update filter dropdown with counts
+function updateFilterCounts(allRequests) {
+  const statusFilter = document.getElementById('statusFilter');
+  if (!statusFilter) return;
+
+  // Calculate counts for each status
+  const counts = {
+    all: allRequests.length,
+    pending: allRequests.filter(r => r.status?.toLowerCase() === 'pending').length,
+    approved: allRequests.filter(r => r.status?.toLowerCase() === 'approved').length,
+    'in-progress': allRequests.filter(r => r.status?.toLowerCase() === 'in-progress').length,
+    completed: allRequests.filter(r => r.status?.toLowerCase() === 'completed').length,
+    rejected: allRequests.filter(r => r.status?.toLowerCase() === 'rejected').length,
+    cancelled: allRequests.filter(r => r.status?.toLowerCase() === 'cancelled').length
+  };
+
+  console.log('[Filter Counts]', counts);
+
+  // Update option text with counts
+  const currentValue = statusFilter.value;
+  statusFilter.options[0].text = `All Requests (${counts.all})`;
+  statusFilter.options[1].text = `Pending (${counts.pending})`;
+  statusFilter.options[2].text = `Approved (${counts.approved})`;
+  statusFilter.options[3].text = `In Progress (${counts['in-progress']})`;
+  statusFilter.options[4].text = `Completed (${counts.completed})`;
+  statusFilter.options[5].text = `Rejected (${counts.rejected})`;
+  statusFilter.options[6].text = `Cancelled (${counts.cancelled})`;
+  
+  // Restore selected value
+  statusFilter.value = currentValue;
+}
+
+// Function to load user requests and display them
+async function loadUserRequests(filterStatus = 'all') {
+  console.log('[Filter] loadUserRequests called with filter:', filterStatus);
+  
+  const user = auth.currentUser;
+  if (!user) {
+    console.log('[Filter] No authenticated user found');
+    return;
+  }
+
+  console.log('[Filter] Current user ID:', user.uid);
+
+  const requestCardsContainer = document.querySelector('.request-cards');
+  if (!requestCardsContainer) {
+    console.log('[Filter] Request cards container not found');
+    return;
+  }
+
+  try {
+    console.log('[Filter] Fetching requests from Firestore...');
+    
+    // Query tents/chairs bookings (without orderBy to avoid index requirement)
+    const tentsQuery = query(
+      collection(db, "tentsChairsBookings"),
+      where("userId", "==", user.uid)
+    );
+    const tentsSnapshot = await getDocs(tentsQuery);
+    console.log('[Filter] Tents & Chairs requests found:', tentsSnapshot.size);
+
+    // Query conference room bookings (without orderBy to avoid index requirement)
+    const conferenceQuery = query(
+      collection(db, "conferenceRoomBookings"),
+      where("userId", "==", user.uid)
+    );
+    const conferenceSnapshot = await getDocs(conferenceQuery);
+    console.log('[Filter] Conference Room requests found:', conferenceSnapshot.size);
+
+    // Clear existing cards
+    requestCardsContainer.innerHTML = '';
+
+    // Combine and sort all requests
+    const allRequests = [];
+
+    tentsSnapshot.forEach(doc => {
+      const data = doc.data();
+      allRequests.push({
+        id: doc.id,
+        type: 'tents-chairs',
+        ...data,
+        timestamp: data.createdAt?.toMillis() || 0
+      });
+    });
+
+    conferenceSnapshot.forEach(doc => {
+      const data = doc.data();
+      allRequests.push({
+        id: doc.id,
+        type: 'conference-room',
+        ...data,
+        timestamp: data.createdAt?.toMillis() || 0
+      });
+    });
+
+    console.log('[Filter] Total requests before filtering:', allRequests.length);
+    console.log('[Filter] All requests:', allRequests.map(r => ({ id: r.id, type: r.type, status: r.status })));
+
+    // Update filter dropdown with counts
+    updateFilterCounts(allRequests);
+
+    // Filter by status if not "all"
+    let filteredRequests = allRequests;
+    if (filterStatus !== 'all') {
+      filteredRequests = allRequests.filter(request => {
+        const matches = request.status?.toLowerCase() === filterStatus.toLowerCase();
+        console.log(`[Filter] Request ${request.id} (${request.status}) matches filter "${filterStatus}":`, matches);
+        return matches;
+      });
+      console.log('[Filter] Requests after filtering by status:', filteredRequests.length);
+    }
+
+    // Sort by timestamp (newest first)
+    filteredRequests.sort((a, b) => b.timestamp - a.timestamp);
+    console.log('[Filter] Requests sorted by timestamp (newest first)');
+
+    if (filteredRequests.length === 0) {
+      console.log('[Filter] No requests to display. Showing enhanced empty state');
+      
+      // Enhanced empty state with CTAs
+      const emptyStateHTML = filterStatus === 'all' 
+        ? `
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <h3 class="empty-state-title">No Requests Yet</h3>
+            <p class="empty-state-text">You haven't made any equipment requests or room reservations yet.</p>
+            <div class="empty-state-actions">
+              <a href="tents-calendar.html" class="empty-state-btn"><span>🪑</span> Browse Tents & Chairs</a>
+              <a href="conference-room.html" class="empty-state-btn"><span>🏢</span> Book Conference Room</a>
+            </div>
+          </div>
+        `
+        : `
+          <div class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <h3 class="empty-state-title">No ${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Requests</h3>
+            <p class="empty-state-text">You don't have any ${filterStatus} requests at the moment.</p>
+            <div class="empty-state-actions">
+              <button class="empty-state-btn" onclick="document.getElementById('statusFilter').value='all'; document.getElementById('statusFilter').dispatchEvent(new Event('change'));"><span>👁️</span> View All Requests</button>
+            </div>
+          </div>
+        `;
+      
+      requestCardsContainer.innerHTML = emptyStateHTML;
+      return;
+    }
+
+    console.log('[Filter] Rendering', filteredRequests.length, 'request cards...');
+    // Render request cards
+    filteredRequests.forEach((request, index) => {
+      console.log(`[Filter] Rendering card ${index + 1}/${filteredRequests.length}:`, request.id, request.type, request.status);
+      const card = createRequestCard(request);
+      requestCardsContainer.appendChild(card);
+    });
+    console.log('[Filter] All cards rendered successfully');
+
+  } catch (error) {
+    console.error("Error loading user requests:", error);
+    console.error("Error code:", error.code);
+    console.error("Error message:", error.message);
+    requestCardsContainer.innerHTML = '<p style="text-align: center; color: #d32f2f; padding: 20px;">Failed to load requests. Please refresh the page.</p>';
+  }
+}
+
+// Helper function to format military time to 12-hour format
+function formatTime12Hour(time24) {
+  if (!time24) return '';
+  
+  const [hours, minutes] = time24.split(':');
+  const hour = parseInt(hours);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  
+  return `${hour12}:${minutes} ${ampm}`;
+}
+
+// Helper function to get relative time (e.g., "2 days ago")
+function getRelativeTime(timestamp) {
+  if (!timestamp) return 'Unknown';
+  
+  const now = Date.now();
+  const diffMs = now - timestamp;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  const diffWeek = Math.floor(diffDay / 7);
+  const diffMonth = Math.floor(diffDay / 30);
+  const diffYear = Math.floor(diffDay / 365);
+  
+  if (diffSec < 60) return 'Just now';
+  if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? 's' : ''} ago`;
+  if (diffHour < 24) return `${diffHour} hour${diffHour !== 1 ? 's' : ''} ago`;
+  if (diffDay < 7) return `${diffDay} day${diffDay !== 1 ? 's' : ''} ago`;
+  if (diffWeek < 4) return `${diffWeek} week${diffWeek !== 1 ? 's' : ''} ago`;
+  if (diffMonth < 12) return `${diffMonth} month${diffMonth !== 1 ? 's' : ''} ago`;
+  return `${diffYear} year${diffYear !== 1 ? 's' : ''} ago`;
+}
+
+// Helper function to sanitize text input (prevent XSS)
+function sanitizeInput(input) {
+  if (typeof input !== 'string') return input;
+  
+  // Remove HTML tags and encode special characters
+  const div = document.createElement('div');
+  div.textContent = input;
+  return div.innerHTML
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
+// Helper function to check if date ranges overlap
+function dateRangesOverlap(start1, end1, start2, end2) {
+  // Convert to Date objects for comparison
+  const d1Start = new Date(start1);
+  const d1End = new Date(end1);
+  const d2Start = new Date(start2);
+  const d2End = new Date(end2);
+  
+  // Check overlap: start1 <= end2 AND end1 >= start2
+  return d1Start <= d2End && d1End >= d2Start;
+}
+
+// Helper function to check if time ranges overlap
+function timeRangesOverlap(start1, end1, start2, end2) {
+  // Convert times to minutes for easier comparison
+  const timeToMinutes = (time) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+  
+  const t1Start = timeToMinutes(start1);
+  const t1End = timeToMinutes(end1);
+  const t2Start = timeToMinutes(start2);
+  const t2End = timeToMinutes(end2);
+  
+  // Check overlap: start1 < end2 AND end1 > start2
+  return t1Start < t2End && t1End > t2Start;
+}
+
+// Helper function to create a request card
+function createRequestCard(request) {
+  const card = document.createElement('div');
+  card.className = 'request-card';
+
+  // Determine status badge class
+  const statusClass = `status-${request.status?.toLowerCase().replace(/\s+/g, '-') || 'pending'}`;
+  
+  // Format date (show words, e.g. "October 31, 2025")
+  const rawDate = request.eventDate || request.startDate || '';
+  const rawEndDate = request.endDate || '';
+  const dateStr = rawDate ? formatDateToWords(rawDate) : 'N/A';
+  const endDateStr = rawEndDate ? formatDateToWords(rawEndDate) : '';
+  
+  // Determine card title and subtitle based on type
+  let cardTitle = '';
+  let cardSubtitle = '';
+  
+  if (request.type === 'Conference Room') {
+    cardTitle = 'Conference Room Reservation';
+    const timeStr = request.startTime && request.endTime 
+      ? ` • ${formatTime12Hour(request.startTime)} - ${formatTime12Hour(request.endTime)}` 
+      : (request.eventTime ? ` • ${request.eventTime}` : '');
+    cardSubtitle = `Date: ${dateStr}${timeStr}`;
+    if (request.purpose) {
+      cardSubtitle += `\nPurpose: ${request.purpose}`;
+    } else if (request.eventTitle) {
+      cardSubtitle += `\nPurpose: ${request.eventTitle}`;
+    }
+  } else if (request.type === 'conference-room' || request.eventDate) {
+    // Handle conference-room type (from Firestore)
+    cardTitle = 'Conference Room Reservation';
+    const timeStr = request.startTime && request.endTime 
+      ? ` • ${formatTime12Hour(request.startTime)} - ${formatTime12Hour(request.endTime)}` 
+      : (request.eventTime ? ` • ${request.eventTime}` : '');
+    cardSubtitle = `Date: ${dateStr}${timeStr}`;
+    if (request.purpose) {
+      cardSubtitle += `\nPurpose: ${request.purpose}`;
+    } else if (request.eventTitle) {
+      cardSubtitle += `\nPurpose: ${request.eventTitle}`;
+    }
+  } else {
+    cardTitle = 'Tents & Chairs Borrowing';
+    cardSubtitle = `Date: ${dateStr}${endDateStr && endDateStr !== dateStr ? ' - ' + endDateStr : ''}`;
+    const items = [];
+    if (request.quantityChairs) items.push(`${request.quantityChairs} chairs`);
+    if (request.quantityTents) items.push(`${request.quantityTents} tents`);
+    if (items.length > 0) {
+      cardSubtitle += `\nQty: ${items.join(', ')}`;
+    }
+  }
+
+  // Add relative timestamp
+  const relativeTime = getRelativeTime(request.timestamp);
+
+  card.innerHTML = `
+    <div class="request-card-header">
+      <h3>${cardTitle}</h3>
+      <span class="status-badge ${statusClass}">${request.status || 'Pending'}</span>
+    </div>
+    <div class="request-card-body">
+      <p>${cardSubtitle.replace(/\n/g, '<br>')}</p>
+      <p class="request-timestamp">Submitted ${relativeTime}</p>
+    </div>
+    <div class="request-card-footer">
+      <a href="#" class="view-details-link">View</a>
+    </div>
+  `;
+
+  // Add click handler to view details
+  card.querySelector('.view-details-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    showRequestDetailsModal(request);
+  });
+
+  return card;
+}
+
+// Function to format date as "Month Day, Year" (e.g., "October 31, 2025")
+function formatDateToWords(dateString) {
+  if (!dateString) return 'N/A';
+  
+  const date = new Date(dateString + 'T00:00:00'); // Add time to avoid timezone issues
+  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  return date.toLocaleDateString('en-US', options);
+}
+
+// Function to show request details modal
+function showRequestDetailsModal(request) {
+  // Create modal if it doesn't exist
+  let modal = document.getElementById('requestDetailsModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'requestDetailsModal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content request-details-modal">
+        <h2 id="modalRequestType">Request Details</h2>
+        <div id="modalRequestContent" class="request-details-content"></div>
+        <div class="modal-actions">
+          <button type="button" class="close-details-btn">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Add close handlers
+    const closeDetailsBtn = modal.querySelector('.close-details-btn');
+    
+    closeDetailsBtn.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+
+    window.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+  }
+
+  // Populate modal with request details
+  const modalTitle = modal.querySelector('#modalRequestType');
+  const modalContent = modal.querySelector('#modalRequestContent');
+  
+  // Set proper modal title
+  const modalTitleText = request.type === 'conference-room' || request.eventDate 
+    ? 'Conference Room Reservation Request' 
+    : 'Tents & Chairs Borrowing Request';
+  modalTitle.textContent = modalTitleText;
+
+  // Debug: Log request type and data
+  console.log('Request type:', request.type);
+  console.log('Request data:', request);
+
+  // Determine status badge class
+  const statusClass = `status-${request.status?.toLowerCase().replace(/\s+/g, '-') || 'pending'}`;
+  
+  let detailsHTML = `
+    <div class="detail-row status-row">
+      <span class="detail-label">Status:</span>
+      <span class="status-badge ${statusClass}">${request.status || 'Pending'}</span>
+    </div>
+  `;
+
+  // Check if this is a conference room request (check multiple possible values)
+  const isConferenceRoom = request.type === 'Conference Room' || 
+                           request.type === 'conference-room' || 
+                           request.eventDate || 
+                           request.purpose;
+
+  if (isConferenceRoom) {
+    const timeStr = request.startTime && request.endTime 
+      ? `${formatTime12Hour(request.startTime)} - ${formatTime12Hour(request.endTime)}` 
+      : (request.eventTime || 'N/A');
+    detailsHTML += `
+      <div class="detail-row">
+        <span class="detail-label">Full Name:</span>
+        <span class="detail-value">${request.fullName || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Contact Number:</span>
+        <span class="detail-value">${request.contactNumber || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Address:</span>
+        <span class="detail-value">${request.address || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Event Date:</span>
+        <span class="detail-value">${formatDateToWords(request.eventDate)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Event Time:</span>
+        <span class="detail-value">${timeStr}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Purpose of Use:</span>
+        <span class="detail-value">${request.purpose || request.eventPurpose || 'N/A'}</span>
+      </div>
+    `;
+  } else {
+    detailsHTML += `
+      <div class="detail-row">
+        <span class="detail-label">Full Name:</span>
+        <span class="detail-value">${request.fullName || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Contact Number:</span>
+        <span class="detail-value">${request.contactNumber || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Complete Address:</span>
+        <span class="detail-value">${request.completeAddress || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Start Date:</span>
+        <span class="detail-value">${formatDateToWords(request.startDate)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">End Date:</span>
+        <span class="detail-value">${formatDateToWords(request.endDate)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Quantity of Chairs:</span>
+        <span class="detail-value">${request.quantityChairs || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Quantity of Tents:</span>
+        <span class="detail-value">${request.quantityTents || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Mode of Receiving:</span>
+        <span class="detail-value">${request.modeOfReceiving || 'N/A'}</span>
+      </div>
+    `;
+  }
+
+  detailsHTML += `
+    <div class="detail-row">
+      <span class="detail-label">Submitted On:</span>
+      <span class="detail-value">${request.createdAt ? new Date(request.timestamp).toLocaleString() : 'N/A'}</span>
+    </div>
+  `;
+
+  modalContent.innerHTML = detailsHTML;
+  
+  // Update modal actions to include cancel button for pending requests
+  const modalActions = modal.querySelector('.modal-actions');
+  
+  if (request.status?.toLowerCase() === 'pending') {
+    modalActions.innerHTML = `
+      <button type="button" class="cancel-request-btn" data-request-id="${request.id}" data-request-type="${request.type}">Cancel Request</button>
+      <button type="button" class="close-details-btn">Close</button>
+    `;
+    
+    // Add cancel button handler
+    const cancelBtn = modalActions.querySelector('.cancel-request-btn');
+    cancelBtn.addEventListener('click', () => handleCancelRequest(request));
+  } else {
+    modalActions.innerHTML = `
+      <button type="button" class="close-details-btn">Close</button>
+    `;
+  }
+  
+  // Re-attach close handler
+  const closeBtn = modalActions.querySelector('.close-details-btn');
+  closeBtn.addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+  
+  // Show modal
+  modal.style.display = 'block';
+}
+
+// Function to handle request cancellation
+async function handleCancelRequest(request) {
+  const confirmMessage = `Are you sure you want to cancel this ${request.type === 'conference-room' ? 'Conference Room Reservation' : 'Tents & Chairs Borrowing'} request?\n\nThis action cannot be undone, but you can submit a new request afterwards.`;
+  
+  showConfirm(confirmMessage, async () => {
+    try {
+      const collectionName = request.type === 'conference-room' ? 'conferenceRoomBookings' : 'tentsChairsBookings';
+      
+      // Update request status to 'cancelled'
+      await updateDoc(doc(db, collectionName, request.id), {
+        status: 'cancelled',
+        cancelledAt: serverTimestamp()
+      });
+
+      // Close modal
+      const modal = document.getElementById('requestDetailsModal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+
+      // Show success message and reload requests
+      showAlert('Your request has been cancelled successfully. You can now submit a new request.', true, () => {
+        // Reload the requests list
+        loadUserRequests();
+      });
+
+    } catch (error) {
+      console.error('Error cancelling request:', error);
+      showAlert('Failed to cancel request. Please try again.', false);
+    }
+  });
 }
 
 /* ==========================================================================
@@ -1370,6 +2201,22 @@ function throttle(func, limit) {
 
 // Initialize the animations if we're on the about page
 if (window.location.pathname.endsWith('about.html') || window.location.pathname.endsWith('/about')) {
+    // Handle navigation visibility based on auth state
+    onAuthStateChanged(auth, (user) => {
+        const userIconNav = document.getElementById('userIconNav');
+        const loginButtonNav = document.getElementById('loginButtonNav');
+        
+        if (user) {
+            // User is logged in - show profile icon, hide login button
+            if (userIconNav) userIconNav.style.display = 'block';
+            if (loginButtonNav) loginButtonNav.style.display = 'none';
+        } else {
+            // User is logged out - hide profile icon, show login button
+            if (userIconNav) userIconNav.style.display = 'none';
+            if (loginButtonNav) loginButtonNav.style.display = 'block';
+        }
+    });
+
     // Set initial styles
     const sections = document.querySelectorAll('.history-section, .mission-vision-section, .officials-section');
     const missionVisionBoxes = document.querySelectorAll('.mission-box, .vision-box');
@@ -1394,6 +2241,22 @@ if (window.location.pathname.endsWith('about.html') || window.location.pathname.
 
 // Initialize scroll-triggered keyframe animations on user.html
 if (window.location.pathname.endsWith('user.html') || window.location.pathname.endsWith('/user')) {
+  // Handle navigation visibility based on auth state
+  onAuthStateChanged(auth, (user) => {
+    const userIconNav = document.getElementById('userIconNav');
+    const loginButtonNav = document.getElementById('loginButtonNav');
+    
+    if (user) {
+      // User is logged in - show profile icon, hide login button
+      if (userIconNav) userIconNav.style.display = 'block';
+      if (loginButtonNav) loginButtonNav.style.display = 'none';
+    } else {
+      // User is logged out - hide profile icon, show login button
+      if (userIconNav) userIconNav.style.display = 'none';
+      if (loginButtonNav) loginButtonNav.style.display = 'block';
+    }
+  });
+
   const animElements = document.querySelectorAll('.animate-on-scroll');
 
   // Ensure elements start hidden (CSS class handles this, but keep as a safeguard)
@@ -1415,6 +2278,24 @@ if (window.location.pathname.endsWith('user.html') || window.location.pathname.e
   setTimeout(handleUserAnimations, 120);
 }
 
+// Initialize ContactPage.html navigation visibility
+if (window.location.pathname.endsWith('ContactPage.html') || window.location.pathname.endsWith('/ContactPage')) {
+    onAuthStateChanged(auth, (user) => {
+        const userIconNav = document.getElementById('userIconNav');
+        const loginButtonNav = document.getElementById('loginButtonNav');
+        
+        if (user) {
+            // User is logged in - show profile icon, hide login button
+            if (userIconNav) userIconNav.style.display = 'block';
+            if (loginButtonNav) loginButtonNav.style.display = 'none';
+        } else {
+            // User is logged out - hide profile icon, show login button
+            if (userIconNav) userIconNav.style.display = 'none';
+            if (loginButtonNav) loginButtonNav.style.display = 'block';
+        }
+    });
+}
+
 
 /* =====================================================
    CONFERENCE ROOM CALENDAR SCRIPT
@@ -1425,6 +2306,22 @@ if (window.location.pathname.endsWith('user.html') || window.location.pathname.e
 // Check if we're on the conference room calendar page
 if (window.location.pathname.endsWith('conference-room.html') || window.location.pathname.endsWith('/conference-room')) {
   
+  // Handle navigation visibility based on auth state
+  onAuthStateChanged(auth, (user) => {
+    const userIconNav = document.getElementById('userIconNav');
+    const loginButtonNav = document.getElementById('loginButtonNav');
+    
+    if (user) {
+      // User is logged in - show profile icon, hide login button
+      if (userIconNav) userIconNav.style.display = 'block';
+      if (loginButtonNav) loginButtonNav.style.display = 'none';
+    } else {
+      // User is logged out - hide profile icon, show login button
+      if (userIconNav) userIconNav.style.display = 'none';
+      if (loginButtonNav) loginButtonNav.style.display = 'block';
+    }
+  });
+
   // TODO: In production, fetch booked dates from Firebase
   // Example of how to fetch booked dates:
   /*
@@ -1543,8 +2440,14 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
   }
 
   function openBookingModal(dateStr) {
+    // Check if user is logged in before allowing booking
+    const user = auth.currentUser;
+    if (!user) {
+      showAlert('Please log in to book a date. You must be logged in to make a reservation.', false);
+      return;
+    }
     // Redirect to request form page with date parameter
-    window.location.href = `conference-room-request.html?date=${dateStr}`;
+    window.location.href = `conference-request.html?date=${dateStr}`;
   }
 
   function closeBookingModal() {
@@ -1552,7 +2455,7 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
   }
 
   async function handleFormSubmit(e) {
-    // Form submission now handled on conference-room-request.html page
+    // Form submission now handled on conference-request.html page
   }
 
   // Helper function to check if a date is booked (for integration with Firestore)
@@ -1581,6 +2484,22 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
 // Check if we're on the tents calendar page
 if (window.location.pathname.endsWith('tents-calendar.html') || window.location.pathname.endsWith('/tents-calendar')) {
   
+  // Handle navigation visibility based on auth state
+  onAuthStateChanged(auth, (user) => {
+    const userIconNav = document.getElementById('userIconNav');
+    const loginButtonNav = document.getElementById('loginButtonNav');
+    
+    if (user) {
+      // User is logged in - show profile icon, hide login button
+      if (userIconNav) userIconNav.style.display = 'block';
+      if (loginButtonNav) loginButtonNav.style.display = 'none';
+    } else {
+      // User is logged out - hide profile icon, show login button
+      if (userIconNav) userIconNav.style.display = 'none';
+      if (loginButtonNav) loginButtonNav.style.display = 'block';
+    }
+  });
+
   // TODO: In production, fetch booked dates from Firebase
   // Example of how to fetch booked dates:
   /*
@@ -1696,6 +2615,12 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
   }
 
   function openBookingModal(dateStr) {
+    // Check if user is logged in before allowing booking
+    const user = auth.currentUser;
+    if (!user) {
+      showAlert('Please log in to book a date. You must be logged in to make a reservation.', false);
+      return;
+    }
     // Redirect to request form page with date parameter
     window.location.href = `tents-chairs-request.html?date=${dateStr}`;
   }
@@ -1884,9 +2809,9 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
 
     // Prepare form data
     const formData = {
-      fullName: fullName,
-      contactNumber: contactNumber,
-      completeAddress: completeAddress,
+      fullName: sanitizeInput(fullName),
+      contactNumber: contactNumber, // Phone numbers don't need sanitization
+      completeAddress: sanitizeInput(completeAddress),
       quantityChairs: parseInt(quantityChairs),
       quantityTents: parseInt(quantityTents),
       modeOfReceiving: modeOfReceiving,
@@ -1897,29 +2822,102 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       type: 'tents-chairs'
     };
 
+    // Show loading spinner on submit button
+    const submitBtn = document.querySelector('#tentsChairsForm button[type="submit"]');
+    const originalBtnText = submitBtn?.textContent;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner"></span> Checking...';
+    }
+
     try {
-      // TODO: In production, save to Firestore
-      // const user = auth.currentUser;
-      // if (!user) {
-      //   showAlert('Please login to submit a request.');
-      //   return;
-      // }
-      // await setDoc(doc(db, "requests", `request_${Date.now()}`), {
-      //   ...formData,
-      //   userId: user.uid,
-      //   userEmail: user.email
-      // });
+      // Check if user is logged in
+      const user = auth.currentUser;
+      if (!user) {
+        showAlert('Please login to submit a request.', false, () => {
+          window.location.href = `index.html?redirect=${encodeURIComponent(window.location.pathname)}`;
+        });
+        return;
+      }
+
+      // Verify userId matches authenticated user (security check)
+      if (!user.uid) {
+        showAlert('Authentication error. Please log out and log in again.', false);
+        return;
+      }
+
+      // Check for identical duplicate requests (same dates AND quantities)
+      console.log('[Tents Duplicate Check] Checking for identical requests...');
+      console.log('[Tents Duplicate Check] userId:', user.uid);
+      console.log('[Tents Duplicate Check] Requested dates:', startDate, 'to', endDate);
+      console.log('[Tents Duplicate Check] Quantities - Chairs:', quantityChairs, 'Tents:', quantityTents);
+      
+      const duplicateQuery = query(
+        collection(db, "tentsChairsBookings"),
+        where("userId", "==", user.uid),
+        where("startDate", "==", startDate),
+        where("endDate", "==", endDate)
+      );
+      
+      const duplicateSnapshot = await getDocs(duplicateQuery);
+      console.log('[Tents Duplicate Check] Found', duplicateSnapshot.size, 'requests with same dates');
+      
+      // Filter for identical quantities with pending/approved status (exclude cancelled)
+      const identicalRequests = duplicateSnapshot.docs.filter(doc => {
+        const data = doc.data();
+        const isPendingOrApproved = data.status === 'pending' || data.status === 'approved';
+        
+        // Exclude cancelled requests
+        if (!isPendingOrApproved || data.status === 'cancelled') return false;
+        
+        // Check if quantities are identical
+        const sameChairs = parseInt(data.quantityChairs) === parseInt(quantityChairs);
+        const sameTents = parseInt(data.quantityTents) === parseInt(quantityTents);
+        
+        return sameChairs && sameTents;
+      });
+      
+      if (identicalRequests.length > 0) {
+        const existingRequest = identicalRequests[0].data();
+        console.log('[Tents Duplicate Check] Identical request found:', existingRequest);
+        showAlert(
+          `You already have a ${existingRequest.status} request for the same dates (${existingRequest.startDate} to ${existingRequest.endDate}) with the same quantities (${existingRequest.quantityChairs} chairs, ${existingRequest.quantityTents} tents). Please wait for approval, modify your existing request, or cancel it before submitting a new one.`,
+          false
+        );
+        return;
+      }
+      
+      console.log('[Tents Duplicate Check] No identical requests found, proceeding with submission...');
+
+      // Update button to show submitting state
+      if (submitBtn) {
+        submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
+      }
+
+      // Save to Firestore with user information
+      await addDoc(collection(db, "tentsChairsBookings"), {
+        ...formData,
+        userId: user.uid,
+        userEmail: user.email,
+        createdAt: serverTimestamp()
+      });
 
       console.log('Tents & Chairs Request:', formData);
 
       // Show success message
       showAlert('Your tents & chairs request has been submitted successfully! You can check the status in your profile.', true, () => {
-        window.location.href = 'user.html';
+        window.location.href = 'UserProfile.html';
       });
 
     } catch (error) {
       console.error('Error submitting request:', error);
       showAlert('Failed to submit request. Please try again.');
+    } finally {
+      // Restore button state
+      if (submitBtn && originalBtnText) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+      }
     }
   }
 
@@ -2105,11 +3103,11 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
 
     // Prepare form data
     const formData = {
-      fullName: fullName,
-      purpose: purpose,
-      contactNumber: contactNumber,
+      fullName: sanitizeInput(fullName),
+      purpose: sanitizeInput(purpose),
+      contactNumber: contactNumber, // Phone numbers don't need sanitization
       eventDate: eventDate,
-      address: address,
+      address: sanitizeInput(address),
       startTime: startTime,
       endTime: endTime,
       status: 'pending',
@@ -2117,29 +3115,100 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
       type: 'conference-room'
     };
 
+    // Show loading spinner on submit button
+    const submitBtn = document.querySelector('#conferenceRoomForm button[type="submit"]');
+    const originalBtnText = submitBtn?.textContent;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner"></span> Checking...';
+    }
+
     try {
-      // TODO: In production, save to Firestore
-      // const user = auth.currentUser;
-      // if (!user) {
-      //   showAlert('Please login to submit a request.');
-      //   return;
-      // }
-      // await setDoc(doc(db, "requests", `request_${Date.now()}`), {
-      //   ...formData,
-      //   userId: user.uid,
-      //   userEmail: user.email
-      // });
+      // Check if user is logged in
+      const user = auth.currentUser;
+      if (!user) {
+        showAlert('Please login to submit a request.', false, () => {
+          window.location.href = `index.html?redirect=${encodeURIComponent(window.location.pathname)}`;
+        });
+        return;
+      }
+
+      // Verify userId matches authenticated user (security check)
+      if (!user.uid) {
+        showAlert('Authentication error. Please log out and log in again.', false);
+        return;
+      }
+
+      // Check for overlapping time requests on the same date
+      console.log('[Duplicate Check] Checking for overlapping time requests...');
+      console.log('[Duplicate Check] userId:', user.uid);
+      console.log('[Duplicate Check] eventDate:', eventDate);
+      console.log('[Duplicate Check] time range:', startTime, '-', endTime);
+      
+      const duplicateQuery = query(
+        collection(db, "conferenceRoomBookings"),
+        where("userId", "==", user.uid),
+        where("eventDate", "==", eventDate)
+      );
+      
+      const duplicateSnapshot = await getDocs(duplicateQuery);
+      console.log('[Duplicate Check] Found', duplicateSnapshot.size, 'requests on same date');
+      
+      // Filter for overlapping times with pending/approved status (exclude cancelled)
+      const overlappingRequests = duplicateSnapshot.docs.filter(doc => {
+        const data = doc.data();
+        const isPendingOrApproved = data.status === 'pending' || data.status === 'approved';
+        
+        // Exclude cancelled requests
+        if (!isPendingOrApproved || data.status === 'cancelled') return false;
+        
+        // Check if time ranges overlap
+        const hasOverlap = timeRangesOverlap(startTime, endTime, data.startTime, data.endTime);
+        
+        return hasOverlap;
+      });
+      
+      if (overlappingRequests.length > 0) {
+        const existingRequest = overlappingRequests[0].data();
+        console.log('[Duplicate Check] Overlapping request found:', existingRequest);
+        showAlert(
+          `You already have a ${existingRequest.status} reservation for ${eventDate} from ${formatTime12Hour(existingRequest.startTime)} to ${formatTime12Hour(existingRequest.endTime)} which overlaps with your requested time. Please choose a different time slot or cancel your existing request.`,
+          false
+        );
+        return;
+      }
+      
+      console.log('[Duplicate Check] No overlapping requests found, proceeding with submission...');
+
+      // Update button to show submitting state
+      if (submitBtn) {
+        submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
+      }
+
+      // Save to Firestore with user information
+      await addDoc(collection(db, "conferenceRoomBookings"), {
+        ...formData,
+        userId: user.uid,
+        userEmail: user.email,
+        createdAt: serverTimestamp()
+      });
 
       console.log('Conference Room Request:', formData);
 
       // Show success message
       showAlert('Your conference room reservation request has been submitted successfully! You can check the status in your profile.', true, () => {
-        window.location.href = 'user.html';
+        window.location.href = 'UserProfile.html';
       });
 
     } catch (error) {
       console.error('Error submitting request:', error);
       showAlert('Failed to submit request. Please try again.');
+    } finally {
+      // Restore button state
+      if (submitBtn && originalBtnText) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+      }
     }
   }
 
@@ -2165,6 +3234,7 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
     const errorElements = document.querySelectorAll('.error-message');
     errorElements.forEach(el => el.textContent = '');
     
+    
     const errorFields = document.querySelectorAll('.error');
     errorFields.forEach(field => field.classList.remove('error'));
   }
@@ -2173,3 +3243,80 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
 /* =====================================================
    END OF CONFERENCE ROOM REQUEST FORM SCRIPT
 ===================================================== */
+
+// === CONFERENCE REQUEST PAGE AUTH NAVIGATION ===
+if (window.location.pathname.endsWith('conference-request.html')) {
+  onAuthStateChanged(auth, (user) => {
+    const userIconNav = document.getElementById('userIconNav');
+    const loginButtonNav = document.getElementById('loginButtonNav');
+    
+    if (user) {
+      // User is logged in - show profile icon, hide LOGIN button
+      if (userIconNav) userIconNav.style.display = 'block';
+      if (loginButtonNav) loginButtonNav.style.display = 'none';
+    } else {
+      // User is logged out - hide profile icon, show LOGIN button
+      if (userIconNav) userIconNav.style.display = 'none';
+      if (loginButtonNav) loginButtonNav.style.display = 'block';
+    }
+  });
+}
+
+// === TENTS & CHAIRS REQUEST PAGE AUTH NAVIGATION ===
+if (window.location.pathname.endsWith('tents-chairs-request.html')) {
+  onAuthStateChanged(auth, (user) => {
+    const userIconNav = document.getElementById('userIconNav');
+    const loginButtonNav = document.getElementById('loginButtonNav');
+    
+    if (user) {
+      // User is logged in - show profile icon, hide LOGIN button
+      if (userIconNav) userIconNav.style.display = 'block';
+      if (loginButtonNav) loginButtonNav.style.display = 'none';
+    } else {
+      // User is logged out - hide profile icon, show LOGIN button
+      if (userIconNav) userIconNav.style.display = 'none';
+      if (loginButtonNav) loginButtonNav.style.display = 'block';
+    }
+  });
+}
+
+// === ADMIN PAGE AUTH NAVIGATION & PROTECTION ===
+if (window.location.pathname.endsWith('admin.html')) {
+  onAuthStateChanged(auth, async (user) => {
+    const userIconNav = document.getElementById('userIconNav');
+    const loginButtonNav = document.getElementById('loginButtonNav');
+    
+    if (user) {
+      // User is logged in - verify admin role
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const userRole = userData.role;
+          
+          if (userRole === 'admin') {
+            // Admin confirmed - show profile icon, hide LOGIN button
+            if (userIconNav) userIconNav.style.display = 'block';
+            if (loginButtonNav) loginButtonNav.style.display = 'none';
+          } else {
+            // Not an admin - redirect to user page
+            console.warn('Non-admin user attempted to access admin.html');
+            showAlert('Access denied. This page is for administrators only.', false, () => {
+              window.location.href = 'user.html';
+            });
+          }
+        } else {
+          // User document doesn't exist - redirect to login
+          window.location.href = 'index.html';
+        }
+      } catch (error) {
+        console.error('Error checking admin role:', error);
+        window.location.href = 'index.html';
+      }
+    } else {
+      // User is logged out - redirect to login
+      window.location.href = 'index.html';
+    }
+  });
+}
+
