@@ -3661,3 +3661,383 @@ if (window.location.pathname.endsWith('adminDashboard.html') || window.location.
 /* =====================================================
    END OF ADMIN DASHBOARD SCRIPT
 ===================================================== */
+
+/* =====================================================
+   ADMIN CONFERENCE ROOM REQUESTS SCRIPT
+   Add this section to your script.js file
+===================================================== */
+
+// Check if we're on the admin conference requests page
+if (window.location.pathname.endsWith('admin-conference-requests.html') || window.location.pathname.endsWith('/admin-conference-requests')) {
+  
+  // Global variables for confirmation modal
+  let pendingAction = null;
+  let pendingRequestId = null;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Setup mobile menu
+    setupMobileMenu();
+    
+    // Setup sidebar dropdowns
+    setupSidebarDropdowns();
+    
+    // Validate table on load
+    validateTable();
+  });
+
+  // Validate that table has data and buttons are functional
+  function validateTable() {
+    const tbody = document.getElementById('requestsTableBody');
+    const rows = tbody.querySelectorAll('tr');
+    
+    if (rows.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
+            No conference room requests found.
+          </td>
+        </tr>
+      `;
+    }
+
+    // Validate that all buttons have onclick handlers
+    const actionButtons = document.querySelectorAll('.action-btn, .notify-btn');
+    actionButtons.forEach(button => {
+      if (!button.onclick && !button.getAttribute('onclick')) {
+        console.warn('Button without handler found:', button);
+      }
+    });
+  }
+
+  // Mark request as completed
+  function markAsCompleted(requestId) {
+    showConfirmModal(
+      'Mark as Completed',
+      'Are you sure you want to mark this request as completed?',
+      () => {
+        console.log('Marking request as completed:', requestId);
+        
+        // TODO: Update Firestore
+        // const requestRef = doc(db, "requests", requestId);
+        // await updateDoc(requestRef, {
+        //   status: 'completed',
+        //   completedAt: new Date().toISOString()
+        // });
+
+        // Remove the row from table (frontend only for now)
+        const row = document.querySelector(`tr[data-request-id="${requestId}"]`);
+        if (row) {
+          row.style.opacity = '0';
+          setTimeout(() => {
+            row.remove();
+            validateTable();
+            showFeedback('Request marked as completed successfully!', 'success');
+          }, 300);
+        }
+      }
+    );
+  }
+
+  // Approve request
+  function approveRequest(requestId) {
+    showConfirmModal(
+      'Approve Request',
+      'Are you sure you want to approve this conference room request?',
+      () => {
+        console.log('Approving request:', requestId);
+        
+        // TODO: Update Firestore
+        // const requestRef = doc(db, "requests", requestId);
+        // await updateDoc(requestRef, {
+        //   status: 'approved',
+        //   approvedAt: new Date().toISOString()
+        // });
+
+        // Update the row (frontend only for now)
+        const row = document.querySelector(`tr[data-request-id="${requestId}"]`);
+        if (row) {
+          const actionsCell = row.querySelector('.actions-cell');
+          actionsCell.innerHTML = `
+            <button class="action-btn completed-btn" onclick="markAsCompleted('${requestId}')">Mark as Completed</button>
+          `;
+          showFeedback('Request approved successfully!', 'success');
+        }
+      }
+    );
+  }
+
+  // Deny request
+  function denyRequest(requestId) {
+    showConfirmModal(
+      'Deny Request',
+      'Are you sure you want to deny this conference room request? This action cannot be undone.',
+      () => {
+        console.log('Denying request:', requestId);
+        
+        // TODO: Update Firestore
+        // const requestRef = doc(db, "requests", requestId);
+        // await updateDoc(requestRef, {
+        //   status: 'denied',
+        //   deniedAt: new Date().toISOString()
+        // });
+
+        // Remove the row from table (frontend only for now)
+        const row = document.querySelector(`tr[data-request-id="${requestId}"]`);
+        if (row) {
+          row.style.opacity = '0';
+          setTimeout(() => {
+            row.remove();
+            validateTable();
+            showFeedback('Request denied successfully!', 'success');
+          }, 300);
+        }
+      }
+    );
+  }
+
+  // Notify user (Time's Up)
+  function notifyUser(requestId) {
+    showConfirmModal(
+      'Notify User',
+      'Send a "Time\'s Up" notification to the user?',
+      () => {
+        console.log('Notifying user for request:', requestId);
+        
+        // TODO: Send notification via Firebase/Email
+        // const requestRef = doc(db, "requests", requestId);
+        // const requestData = await getDoc(requestRef);
+        // Send email or push notification to user
+
+        showFeedback('User notified successfully!', 'success');
+      }
+    );
+  }
+
+  // Show confirmation modal
+  function showConfirmModal(title, message, onConfirm) {
+    const modal = document.getElementById('confirmModal');
+    const overlay = document.getElementById('confirmOverlay');
+    const titleEl = document.getElementById('confirmTitle');
+    const messageEl = document.getElementById('confirmMessage');
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+
+    modal.classList.add('active');
+    overlay.classList.add('active');
+
+    // Store the confirm action
+    pendingAction = onConfirm;
+  }
+
+  // Close confirmation modal
+  function closeConfirmModal() {
+    const modal = document.getElementById('confirmModal');
+    const overlay = document.getElementById('confirmOverlay');
+
+    modal.classList.remove('active');
+    overlay.classList.remove('active');
+
+    pendingAction = null;
+    pendingRequestId = null;
+  }
+
+  // Confirm action
+  function confirmAction() {
+    if (pendingAction) {
+      try {
+        // Run the pending action; if it throws we still close the modal
+        pendingAction();
+      } catch (err) {
+        console.error('Error running confirm action:', err);
+        // Optionally show feedback of error
+        showFeedback('An error occurred while performing the action.', 'info');
+      } finally {
+        // Ensure modal closes regardless
+        try { closeConfirmModal(); } catch (e) { console.error('Error closing confirm modal:', e); }
+      }
+    }
+  }
+
+  // Show feedback message (simple alert for now)
+  function showFeedback(message, type = 'info') {
+    // Use existing showAlert function if available, or create a simple one
+    if (typeof showAlert === 'function') {
+      showAlert(message, type === 'success');
+    } else {
+      alert(message);
+    }
+  }
+
+  // Make functions globally available
+  window.markAsCompleted = markAsCompleted;
+  window.approveRequest = approveRequest;
+  window.denyRequest = denyRequest;
+  window.notifyUser = notifyUser;
+  window.closeConfirmModal = closeConfirmModal;
+  window.confirmAction = confirmAction;
+
+  // Setup mobile menu
+  function setupMobileMenu() {
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.admin-sidebar');
+
+    if (menuToggle) {
+      menuToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('open');
+      });
+
+      document.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768) {
+          if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+            sidebar.classList.remove('open');
+          }
+        }
+      });
+    }
+  }
+
+  // Sidebar dropdowns setup is provided globally above (setupSidebarDropdowns)
+
+  // Function to load requests from Firestore (to be implemented)
+  async function loadConferenceRoomRequests() {
+    // TODO: Implement Firestore query
+    // const requestsRef = collection(db, "requests");
+    // const q = query(requestsRef,
+    //   where("type", "==", "conference-room"),
+    //   orderBy("requestDate", "desc")
+    // );
+    // const querySnapshot = await getDocs(q);
+    // 
+    // const tbody = document.getElementById('requestsTableBody');
+    // tbody.innerHTML = '';
+    // 
+    // querySnapshot.forEach((doc) => {
+    //   const request = { id: doc.id, ...doc.data() };
+    //   const row = createRequestRow(request);
+    //   tbody.appendChild(row);
+    // });
+    // 
+    // validateTable();
+  }
+
+  // Function to create a table row (to be implemented with real data)
+  function createRequestRow(request) {
+    // TODO: Create row element from Firestore data
+    // const row = document.createElement('tr');
+    // row.setAttribute('data-request-id', request.id);
+    // row.innerHTML = `...`;
+    // return row;
+  }
+}
+
+
+
+/* =====================================================
+   END OF ADMIN CONFERENCE ROOM REQUESTS SCRIPT
+===================================================== */
+
+
+/* =====================================================
+   START OF ADMIN CONFERENCE ROOM CALENDAR SCRIPT
+===================================================== */
+
+let currentDate = new Date();
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+// Sample booked dates - you can modify this array
+const bookedDates = [
+    '2025-10-27', '2025-10-28', '2025-10-29', '2025-10-30', '2025-10-31',
+    '2025-11-05', '2025-11-12', '2025-11-19'
+];
+
+const dayHeaders = ['SUN', 'MON', 'TUES', 'WED', 'THURS', 'FRI', 'SAT'];
+const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                  'July', 'August', 'September', 'October', 'November', 'December'];
+
+function renderCalendar() {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    // Update month/year display
+    document.getElementById('monthYear').textContent = `${monthNames[month]} ${year}`;
+    
+    // Clear calendar
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+    
+    // Add day headers
+    dayHeaders.forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'day-header';
+        header.textContent = day;
+        grid.appendChild(header);
+    });
+    
+    // Get first day of month and number of days
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Add empty cells for days before month starts
+    for (let i = 0; i < firstDay; i++) {
+        const emptyDay = document.createElement('div');
+        emptyDay.className = 'calendar-day empty';
+        emptyDay.innerHTML = '<span class="day-number">-</span>';
+        grid.appendChild(emptyDay);
+    }
+    
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayCell = document.createElement('div');
+        dayCell.className = 'calendar-day';
+        
+        const currentDateObj = new Date(year, month, day);
+        currentDateObj.setHours(0, 0, 0, 0);
+        
+        const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        
+        // Check if it's today
+        if (currentDateObj.getTime() === today.getTime()) {
+            dayCell.classList.add('today');
+        }
+        
+        // Check if date is in the past
+        if (currentDateObj < today) {
+            dayCell.classList.add('disabled');
+        } else {
+            dayCell.classList.add('clickable');
+            const link = document.createElement('a');
+            link.href = `reservationDetails.html?date=${dateString}`;
+            link.style.textDecoration = 'none';
+            link.style.color = 'inherit';
+            link.innerHTML = dayCell.innerHTML;
+            dayCell.innerHTML = '';
+            dayCell.appendChild(link);
+        }
+        
+        dayCell.innerHTML = `<span class="day-number">${day}</span>`;
+        
+        // Add booked indicator if date is booked
+        if (bookedDates.includes(dateString)) {
+            const indicator = document.createElement('div');
+            indicator.className = 'booked-indicator';
+            dayCell.appendChild(indicator);
+        }
+        
+        grid.appendChild(dayCell);
+    }
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+    currentDate.setMonth(currentDate.getMonth() - 1);
+    renderCalendar();
+});
+
+document.getElementById('nextBtn').addEventListener('click', () => {
+    currentDate.setMonth(currentDate.getMonth() + 1);
+    renderCalendar();
+});
+
+// Initial render
+renderCalendar();
