@@ -466,7 +466,8 @@ if (window.location.pathname.endsWith('index.html') || window.location.pathname 
 // ...signup imports consolidated at the top (createUserWithEmailAndPassword, updateProfile, setDoc)
 
 const signupForm = document.getElementById("signupForm");
-const errorFullname = document.getElementById("error-fullname");
+const errorFirstname = document.getElementById("error-firstname");
+const errorLastname = document.getElementById("error-lastname");
 const errorEmail = document.getElementById("error-email");
 const errorPassword = document.getElementById("error-password");
 const errorConfirm = document.getElementById("error-confirm");
@@ -555,25 +556,43 @@ signupForm?.addEventListener("submit", async (e) => {
   const email = document.getElementById("signup-email").value.trim();
   const password = document.getElementById("signup-password").value;
   const confirmPassword = document.getElementById("signup-confirm").value;
-  const fullname = document.getElementById("signup-fullname").value.trim();
+  const firstName = document.getElementById("signup-firstname").value.trim();
+  const lastName = document.getElementById("signup-lastname").value.trim();
   const contact = document.getElementById("signup-contact").value.trim();
   const address = document.getElementById("signup-address").value.trim();
 
   // Reset all previous errors
-  [errorFullname, errorEmail, errorPassword, errorConfirm, errorContact, errorAddress]
+  [errorFirstname, errorLastname, errorEmail, errorPassword, errorConfirm, errorContact, errorAddress]
     .forEach(clearErrorSignup);
 
   let valid = true;
 
-  // Fullname validation
-  if (!fullname) {
-    setErrorSignup(errorFullname, "Full Name can't be blank");
+  // First Name validation
+  if (!firstName) {
+    setErrorSignup(errorFirstname, "First Name can't be blank");
     valid = false;
-  } else if (fullname.length < 3) {
-    setErrorSignup(errorFullname, "Full Name must be at least 3 characters");
+  } else if (firstName.length < 2) {
+    setErrorSignup(errorFirstname, "First Name must be at least 2 characters");
+    valid = false;
+  } else if (!/^[a-zA-Z\s'-]+$/.test(firstName)) {
+    setErrorSignup(errorFirstname, "First Name can only contain letters, spaces, hyphens, and apostrophes");
     valid = false;
   } else {
-    setSuccessSignup(errorFullname);
+    setSuccessSignup(errorFirstname);
+  }
+
+  // Last Name validation
+  if (!lastName) {
+    setErrorSignup(errorLastname, "Last Name can't be blank");
+    valid = false;
+  } else if (lastName.length < 2) {
+    setErrorSignup(errorLastname, "Last Name must be at least 2 characters");
+    valid = false;
+  } else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) {
+    setErrorSignup(errorLastname, "Last Name can only contain letters, spaces, hyphens, and apostrophes");
+    valid = false;
+  } else {
+    setSuccessSignup(errorLastname);
   }
 
   // Email validation
@@ -634,19 +653,21 @@ signupForm?.addEventListener("submit", async (e) => {
   if (!valid) return;
 
   // Clear all errors before Firebase
-  [errorFullname, errorEmail, errorPassword, errorConfirm, errorContact, errorAddress].forEach(clearErrorSignup);
+  [errorFirstname, errorLastname, errorEmail, errorPassword, errorConfirm, errorContact, errorAddress].forEach(clearErrorSignup);
 
   try {
     // Create Auth user
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // Update display name
-    await updateProfile(user, { displayName: fullname });
+    // Update display name with full name
+    const fullName = `${firstName} ${lastName}`;
+    await updateProfile(user, { displayName: fullName });
 
     // Save user data to Firestore
     const userData = {
-      fullName: fullname,
+      firstName: firstName,
+      lastName: lastName,
       email: email,
       contactNumber: contact,
       address: sanitizedAddress,
@@ -1088,7 +1109,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const changePasswordBtn = document.querySelector('.user-info-card .change-password-btn');
   const changePasswordMessage = document.getElementById('changePasswordMessage');
   // per-field error elements (Edit Profile)
-  const errorEditFullname = document.getElementById('error-edit-fullname');
+  const errorEditFirstname = document.getElementById('error-edit-firstname');
+  const errorEditLastname = document.getElementById('error-edit-lastname');
   const errorEditContact = document.getElementById('error-edit-contact');
   const errorEditEmail = document.getElementById('error-edit-email');
   const errorEditAddress = document.getElementById('error-edit-address');
@@ -1134,7 +1156,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Edit Profile Modal
   editProfileBtn?.addEventListener('click', async () => {
     // Clear previous inline errors
-    [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
+    [errorEditFirstname, errorEditLastname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
 
     // Reload latest user data from Firestore and populate edit form to discard unsaved edits.
     // We await here so the modal shows the current saved values (not any unsaved inputs).
@@ -1274,7 +1296,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const editProfileFormEl = document.getElementById('editProfileForm');
       if (editProfileFormEl) {
         editProfileFormEl.reset();
-        [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
+        [errorEditFirstname, errorEditLastname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
       }
 
       // Reset change password form inputs and clear per-field errors
@@ -1294,7 +1316,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const editProfileFormEl = document.getElementById('editProfileForm');
       if (editProfileFormEl) {
         editProfileFormEl.reset();
-        [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
+        [errorEditFirstname, errorEditLastname, errorEditContact, errorEditAddress].forEach(el => { if (el) clearErrorSignup(el); });
       }
     }
     if (e.target === changePasswordModal) {
@@ -1326,22 +1348,38 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!user) return;
 
     // Clear previous errors
-    [errorEditFullname, errorEditContact, errorEditAddress].forEach(el => {
+    [errorEditFirstname, errorEditLastname, errorEditContact, errorEditAddress].forEach(el => {
       if (el) clearErrorSignup(el);
     });
 
-    const fullName = document.getElementById('editFullName').value.trim();
+    const firstName = document.getElementById('editFirstName').value.trim();
+    const lastName = document.getElementById('editLastName').value.trim();
     const contact = document.getElementById('editContactNumber').value.trim();
     const address = document.getElementById('editAddress').value.trim();
 
     let valid = true;
 
-    // Fullname validation
-    if (!fullName) {
-      setErrorSignup(errorEditFullname, "Full Name can't be blank");
+    // First Name validation
+    if (!firstName) {
+      setErrorSignup(errorEditFirstname, "First Name can't be blank");
       valid = false;
-    } else if (fullName.length < 3) {
-      setErrorSignup(errorEditFullname, "Full Name must be at least 3 characters");
+    } else if (firstName.length < 2) {
+      setErrorSignup(errorEditFirstname, "First Name must be at least 2 characters");
+      valid = false;
+    } else if (!/^[a-zA-Z\s'-]+$/.test(firstName)) {
+      setErrorSignup(errorEditFirstname, "First Name can only contain letters, spaces, hyphens, and apostrophes");
+      valid = false;
+    }
+
+    // Last Name validation
+    if (!lastName) {
+      setErrorSignup(errorEditLastname, "Last Name can't be blank");
+      valid = false;
+    } else if (lastName.length < 2) {
+      setErrorSignup(errorEditLastname, "Last Name must be at least 2 characters");
+      valid = false;
+    } else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) {
+      setErrorSignup(errorEditLastname, "Last Name can only contain letters, spaces, hyphens, and apostrophes");
       valid = false;
     }
 
@@ -1370,7 +1408,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!valid) return;
 
     const updates = {
-      fullName: fullName,
+      firstName: firstName,
+      lastName: lastName,
       contactNumber: contact,
       address: address
     };
@@ -1384,8 +1423,9 @@ document.addEventListener('DOMContentLoaded', function() {
       await setDoc(doc(db, "users", user.uid), updates, { merge: true });
 
       // Also update the Auth displayName so Auth and Firestore stay in sync
+      const fullName = `${firstName} ${lastName}`;
       try {
-        await updateProfile(user, { displayName: updates.fullName });
+        await updateProfile(user, { displayName: fullName });
       } catch (err) {
         console.warn('Failed to update Auth displayName:', err);
       }
@@ -1431,7 +1471,8 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Also clear edit-profile errors while typing
-  document.getElementById('editFullName')?.addEventListener('input', () => { if (errorEditFullname) clearErrorSignup(errorEditFullname); });
+  document.getElementById('editFirstName')?.addEventListener('input', () => { if (errorEditFirstname) clearErrorSignup(errorEditFirstname); });
+  document.getElementById('editLastName')?.addEventListener('input', () => { if (errorEditLastname) clearErrorSignup(errorEditLastname); });
   document.getElementById('editContactNumber')?.addEventListener('input', () => { if (errorEditContact) clearErrorSignup(errorEditContact); });
   document.getElementById('editAddress')?.addEventListener('input', () => { if (errorEditAddress) clearErrorSignup(errorEditAddress); });
 
@@ -1531,21 +1572,25 @@ async function loadUserData() {
     if (docSnap.exists()) {
       const userData = docSnap.data();
       
-      // Support both legacy keys and new camelCase keys (backwards compatibility)
-      const fullName = userData.fullName || userData.fullname || user.displayName || 'User';
+      // Get firstName and lastName from Firestore
+      const firstName = userData.firstName || '';
+      const lastName = userData.lastName || '';
+      const fullName = `${firstName} ${lastName}`.trim() || user.displayName || 'User';
       const contactNumber = userData.contactNumber || userData.contact || 'Not provided';
       const email = userData.email || user.email || 'Not provided';
       const address = userData.address || 'Not provided';
 
-      // Update profile information
+      // Update profile information (combined name in header)
       document.getElementById('profileFullName').textContent = fullName;
-      document.getElementById('infoFullName').textContent = fullName;
+      document.getElementById('infoFirstName').textContent = firstName || 'Not provided';
+      document.getElementById('infoLastName').textContent = lastName || 'Not provided';
       document.getElementById('infoContactNumber').textContent = contactNumber;
       document.getElementById('infoEmail').textContent = email;
       document.getElementById('infoAddress').textContent = address;
 
-      // Pre-fill edit form
-      document.getElementById('editFullName').value = userData.fullName || userData.fullname || '';
+      // Pre-fill edit form with separate name fields
+      document.getElementById('editFirstName').value = firstName;
+      document.getElementById('editLastName').value = lastName;
       document.getElementById('editContactNumber').value = userData.contactNumber || userData.contact || '';
       document.getElementById('editEmail').value = userData.email || '';
       document.getElementById('editAddress').value = userData.address || '';
@@ -1952,10 +1997,13 @@ function showRequestDetailsModal(request) {
     const timeStr = request.startTime && request.endTime 
       ? `${formatTime12Hour(request.startTime)} - ${formatTime12Hour(request.endTime)}` 
       : (request.eventTime || 'N/A');
+    const fullName = request.firstName && request.lastName 
+      ? `${request.firstName} ${request.lastName}` 
+      : (request.fullName || 'N/A');
     detailsHTML += `
       <div class="detail-row">
         <span class="detail-label">Full Name:</span>
-        <span class="detail-value">${request.fullName || 'N/A'}</span>
+        <span class="detail-value">${fullName}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Contact Number:</span>
@@ -1979,10 +2027,13 @@ function showRequestDetailsModal(request) {
       </div>
     `;
   } else {
+    const fullName = request.firstName && request.lastName 
+      ? `${request.firstName} ${request.lastName}` 
+      : (request.fullName || 'N/A');
     detailsHTML += `
       <div class="detail-row">
         <span class="detail-label">Full Name:</span>
-        <span class="detail-value">${request.fullName || 'N/A'}</span>
+        <span class="detail-value">${fullName}</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Contact Number:</span>
@@ -2098,13 +2149,14 @@ async function fetchAndDisplayUserData(user) {
   // Get references to the HTML elements that will display the user's info.
   // Use the IDs used in `UserProfile.html` so the function works there.
   const profileNameEl = document.getElementById('profileFullName');
-  const infoFullNameEl = document.getElementById('infoFullName');
+  const infoFirstNameEl = document.getElementById('infoFirstName');
+  const infoLastNameEl = document.getElementById('infoLastName');
   const infoContactNumberEl = document.getElementById('infoContactNumber');
   const infoEmailEl = document.getElementById('infoEmail');
   const infoAddressEl = document.getElementById('infoAddress');
 
   // If required elements are not on the page, skip silently.
-  if (!profileNameEl && !infoFullNameEl) {
+  if (!profileNameEl && !infoFirstNameEl && !infoLastNameEl) {
     console.log("Profile elements not found on this page, skipping data population.");
     return;
   }
@@ -2116,16 +2168,22 @@ async function fetchAndDisplayUserData(user) {
     if (docSnap.exists()) {
       const userData = docSnap.data();
 
-      // Use the camelCase field names we store at signup (fullName, contactNumber)
-      if (profileNameEl) profileNameEl.textContent = userData.fullName || user.displayName || "User";
-      if (infoFullNameEl) infoFullNameEl.textContent = userData.fullName || user.displayName || "Not provided";
+      // Get firstName and lastName, construct full name
+      const firstName = userData.firstName || '';
+      const lastName = userData.lastName || '';
+      const fullName = `${firstName} ${lastName}`.trim() || user.displayName || 'User';
+
+      if (profileNameEl) profileNameEl.textContent = fullName;
+      if (infoFirstNameEl) infoFirstNameEl.textContent = firstName || "Not provided";
+      if (infoLastNameEl) infoLastNameEl.textContent = lastName || "Not provided";
       if (infoContactNumberEl) infoContactNumberEl.textContent = userData.contactNumber || "Not provided";
       if (infoEmailEl) infoEmailEl.textContent = userData.email || user.email || "Not provided";
       if (infoAddressEl) infoAddressEl.textContent = userData.address || "Not provided";
     } else {
       console.warn("No user profile document found in Firestore, using Auth fallback.");
       if (profileNameEl) profileNameEl.textContent = user.displayName || "User";
-      if (infoFullNameEl) infoFullNameEl.textContent = user.displayName || "Not provided";
+      if (infoFirstNameEl) infoFirstNameEl.textContent = "Not provided";
+      if (infoLastNameEl) infoLastNameEl.textContent = "Not provided";
       if (infoEmailEl) infoEmailEl.textContent = user.email || "Not provided";
       if (infoContactNumberEl) infoContactNumberEl.textContent = "Not provided";
       if (infoAddressEl) infoAddressEl.textContent = "Not provided";
@@ -2684,6 +2742,19 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       }
     });
 
+    // Autofill user data when auth state is ready
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Autofill name, contact, and complete address fields
+        autofillUserData({
+          'firstName': 'firstName',
+          'lastName': 'lastName',
+          'contactNumber': 'contactNumber',
+          'completeAddress': 'address'
+        });
+      }
+    });
+
     // Clear error on input
     const inputs = form.querySelectorAll('input, select');
     inputs.forEach(input => {
@@ -2700,7 +2771,8 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     e.preventDefault();
 
     // Get form values
-    const fullName = document.getElementById('fullName').value.trim();
+    const firstName = document.getElementById('firstName').value.trim();
+    const lastName = document.getElementById('lastName').value.trim();
     const contactNumber = document.getElementById('contactNumber').value.trim();
     const completeAddress = document.getElementById('completeAddress').value.trim();
     const quantityChairs = document.getElementById('quantityChairs').value.trim();
@@ -2714,17 +2786,29 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
 
     let isValid = true;
 
-    // Validate Full Name
-  if (!fullName) {
-    setFieldError('fullName', 'Please enter your full name');
-    isValid = false;
-  } else if (fullName.length < 5) {
-    setFieldError('fullName', 'Full name must be at least 5 characters long');
-    isValid = false;
-  } else if (!/^[a-zA-Z\s]+$/.test(fullName)) {
-    setFieldError('fullName', 'Full name can only contain letters and spaces');
-    isValid = false;
-  }
+    // Validate First Name
+    if (!firstName) {
+      setFieldError('firstName', 'Please enter your first name');
+      isValid = false;
+    } else if (firstName.length < 2) {
+      setFieldError('firstName', 'First name must be at least 2 characters long');
+      isValid = false;
+    } else if (!/^[a-zA-Z\s'-]+$/.test(firstName)) {
+      setFieldError('firstName', 'First name can only contain letters, spaces, hyphens, and apostrophes');
+      isValid = false;
+    }
+
+    // Validate Last Name
+    if (!lastName) {
+      setFieldError('lastName', 'Please enter your last name');
+      isValid = false;
+    } else if (lastName.length < 2) {
+      setFieldError('lastName', 'Last name must be at least 2 characters long');
+      isValid = false;
+    } else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) {
+      setFieldError('lastName', 'Last name can only contain letters, spaces, hyphens, and apostrophes');
+      isValid = false;
+    }
 
     // Validate Contact Number
     if (!contactNumber) {
@@ -2809,7 +2893,8 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
 
     // Prepare form data
     const formData = {
-      fullName: sanitizeInput(fullName),
+      firstName: sanitizeInput(firstName),
+      lastName: sanitizeInput(lastName),
       contactNumber: contactNumber, // Phone numbers don't need sanitization
       completeAddress: sanitizeInput(completeAddress),
       quantityChairs: parseInt(quantityChairs),
@@ -2952,6 +3037,65 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
    END OF TENTS & CHAIRS REQUEST FORM SCRIPT
 ===================================================== */
 
+/* =====================================================
+   AUTOFILL USER DATA HELPER FUNCTION
+   - Fetches user profile data from Firestore
+   - Autofills name, contact, and address fields
+   - Adds subtle visual indicator (light background)
+   - Fails silently if profile is incomplete
+   - All fields remain editable
+===================================================== */
+async function autofillUserData(fieldMappings) {
+  try {
+    // Check if user is logged in
+    const user = auth.currentUser;
+    if (!user) {
+      console.log('[Autofill] User not logged in, skipping autofill');
+      return;
+    }
+
+    console.log('[Autofill] Fetching user data for:', user.uid);
+
+    // Fetch user data from Firestore
+    const userDocRef = doc(db, "users", user.uid);
+    const userDocSnap = await getDoc(userDocRef);
+
+    if (!userDocSnap.exists()) {
+      console.log('[Autofill] User document not found, skipping autofill');
+      return;
+    }
+
+    const userData = userDocSnap.data();
+    console.log('[Autofill] User data retrieved successfully');
+
+    // Autofill each field based on mappings
+    Object.keys(fieldMappings).forEach(fieldId => {
+      const dataKey = fieldMappings[fieldId];
+      const fieldElement = document.getElementById(fieldId);
+      const value = userData[dataKey];
+
+      if (fieldElement && value) {
+        fieldElement.value = value;
+        // Add autofill class for visual indicator
+        fieldElement.classList.add('autofilled');
+        console.log(`[Autofill] Filled ${fieldId} with ${dataKey}:`, value);
+      } else if (fieldElement && !value) {
+        console.log(`[Autofill] No data for ${fieldId} (${dataKey}), skipping`);
+      } else if (!fieldElement) {
+        console.warn(`[Autofill] Field element not found: ${fieldId}`);
+      }
+    });
+
+    console.log('[Autofill] Autofill completed successfully');
+  } catch (error) {
+    // Fail silently - don't show error to user
+    console.error('[Autofill] Error autofilling user data:', error);
+  }
+}
+/* =====================================================
+   END OF AUTOFILL USER DATA HELPER FUNCTION
+===================================================== */
+
 
 
 // Check if we're on the conference room request form page
@@ -2974,6 +3118,19 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
 
     // Populate time dropdowns
     populateTimeDropdowns();
+
+    // Autofill user data when auth state is ready
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Autofill name, contact, and address fields
+        autofillUserData({
+          'firstName': 'firstName',
+          'lastName': 'lastName',
+          'contactNumber': 'contactNumber',
+          'address': 'address'
+        });
+      }
+    });
 
     // Clear error on input
     const inputs = form.querySelectorAll('input, select');
@@ -3011,7 +3168,8 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
     e.preventDefault();
 
     // Get form values
-    const fullName = document.getElementById('fullName').value.trim();
+    const firstName = document.getElementById('firstName').value.trim();
+    const lastName = document.getElementById('lastName').value.trim();
     const purpose = document.getElementById('purpose').value.trim();
     const contactNumber = document.getElementById('contactNumber').value.trim();
     const eventDate = document.getElementById('eventDate').value;
@@ -3024,15 +3182,27 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
 
     let isValid = true;
 
-    // Validate Full Name
-    if (!fullName) {
-      setFieldError('fullName', 'Please enter your full name');
+    // Validate First Name
+    if (!firstName) {
+      setFieldError('firstName', 'Please enter your first name');
       isValid = false;
-    } else if (fullName.length < 5) {
-      setFieldError('fullName', 'Full name must be at least 5 characters long');
+    } else if (firstName.length < 2) {
+      setFieldError('firstName', 'First name must be at least 2 characters long');
       isValid = false;
-    } else if (!/^[a-zA-Z\s]+$/.test(fullName)) {
-      setFieldError('fullName', 'Full name can only contain letters and spaces');
+    } else if (!/^[a-zA-Z\s'-]+$/.test(firstName)) {
+      setFieldError('firstName', 'First name can only contain letters, spaces, hyphens, and apostrophes');
+      isValid = false;
+    }
+
+    // Validate Last Name
+    if (!lastName) {
+      setFieldError('lastName', 'Please enter your last name');
+      isValid = false;
+    } else if (lastName.length < 2) {
+      setFieldError('lastName', 'Last name must be at least 2 characters long');
+      isValid = false;
+    } else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) {
+      setFieldError('lastName', 'Last name can only contain letters, spaces, hyphens, and apostrophes');
       isValid = false;
     }
 
@@ -3103,7 +3273,8 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
 
     // Prepare form data
     const formData = {
-      fullName: sanitizeInput(fullName),
+      firstName: sanitizeInput(firstName),
+      lastName: sanitizeInput(lastName),
       purpose: sanitizeInput(purpose),
       contactNumber: contactNumber, // Phone numbers don't need sanitization
       eventDate: eventDate,

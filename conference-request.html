@@ -58,12 +58,31 @@
         <p class="form-subtitle">Hosting an event soon? Just fill in the form below with your details and the items you need, and we'll take care of the rest!</p>
 
         <form id="conferenceRoomForm" class="request-form">
-          <!-- Row 1: Full Name and Purpose of Use -->
+          <!-- Row 1: First Name, Last Name, Contact Number (3 columns) -->
+          <div class="form-row-3col">
+            <div class="form-group">
+              <label for="firstName">FIRST NAME:</label>
+              <input type="text" id="firstName" name="firstName">
+              <div class="error-message" id="errorFirstName"></div>
+            </div>
+            <div class="form-group">
+              <label for="lastName">LAST NAME:</label>
+              <input type="text" id="lastName" name="lastName">
+              <div class="error-message" id="errorLastName"></div>
+            </div>
+            <div class="form-group">
+              <label for="contactNumber">CONTACT NUMBER:</label>
+              <input type="tel" id="contactNumber" name="contactNumber">
+              <div class="error-message" id="errorContactNumber"></div>
+            </div>
+          </div>
+
+          <!-- Row 2: Address and Purpose of Use -->
           <div class="form-row-2col">
             <div class="form-group">
-              <label for="fullName">FULL NAME:</label>
-              <input type="text" id="fullName" name="fullName">
-              <div class="error-message" id="errorFullName"></div>
+              <label for="address">ADDRESS:</label>
+              <input type="text" id="address" name="address">
+              <div class="error-message" id="errorAddress"></div>
             </div>
             <div class="form-group">
               <label for="purpose">PURPOSE OF USE:</label>
@@ -72,45 +91,29 @@
             </div>
           </div>
 
-          <!-- Row 2: Contact Number and Date -->
+          <!-- Row 3: Date and Time -->
           <div class="form-row-2col">
-            <div class="form-group">
-              <label for="contactNumber">CONTACT NUMBER:</label>
-              <input type="tel" id="contactNumber" name="contactNumber">
-              <div class="error-message" id="errorContactNumber"></div>
-            </div>
             <div class="form-group">
               <label for="eventDate">DATE:</label>
               <input type="date" id="eventDate" name="eventDate">
               <div class="error-message" id="errorEventDate"></div>
             </div>
-          </div>
-
-          <!-- Row 3: Address and Time -->
-          <div class="form-row-2col">
-            <div class="form-group">
-              <label for="address">ADDRESS:</label>
-              <input type="text" id="address" name="address">
-              <div class="error-message" id="errorAddress"></div>
-            </div>
             <div class="form-group time-group">
               <label>TIME:</label>
               <div class="time-inputs">
-                <div class="time-input-container">
-                  <select id="startTime" name="startTime">
-                    <option value="">Start Time</option>
-                    <!-- Time options will be populated by JavaScript -->
-                  </select>
-                  <div class="error-message" id="errorStartTime"></div>
-                </div>
-                <span class="time-separator">-</span>
-                <div class="time-input-container">
-                  <select id="endTime" name="endTime">
-                    <option value="">End Time</option>
-                    <!-- Time options will be populated by JavaScript -->
-                  </select>
-                  <div class="error-message" id="errorEndTime"></div>
-                </div>
+                <select id="startTime" name="startTime" style="flex: 1;">
+                  <option value="">Start Time</option>
+                  <!-- Time options will be populated by JavaScript -->
+                </select>
+                <span class="time-separator">–</span>
+                <select id="endTime" name="endTime" style="flex: 1;">
+                  <option value="">End Time</option>
+                  <!-- Time options will be populated by JavaScript -->
+                </select>
+              </div>
+              <div class="time-errors">
+                <div class="error-message" id="errorStartTime"></div>
+                <div class="error-message" id="errorEndTime"></div>
               </div>
             </div>
           </div>

@@ -6,6 +6,31 @@
   <title>Barangay Mapulang Lupa - Login</title>
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@100..900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <!-- Redirect root to user.html so the landing page is the first thing seen.
+       ONLY redirect if accessing via root path (/) or typing index.html in browser.
+       Do NOT redirect if coming from a navigation link (has referrer from same site). -->
+  <script>
+    (function() {
+      try {
+        // Check if this is a direct visit (typing URL) vs navigation from within the site
+        const referrer = document.referrer;
+        const isFromSameSite = referrer && (referrer.includes(window.location.hostname) || referrer.includes('localhost') || referrer.includes('127.0.0.1'));
+        
+        // If visitor came from a link on the site (like LOGIN button), show login page
+        if (isFromSameSite) {
+          console.log('[Index] Navigation from same site detected, showing login page');
+          return;
+        }
+        
+        // If accessing root directly (typing URL or bookmark), redirect to landing page
+        console.log('[Index] Direct access detected, redirecting to user.html');
+        window.location.replace('user.html');
+      } catch (e) {
+        // If anything fails, don't block the page — allow default behaviour
+        console.error('Redirect logic failed:', e);
+      }
+    })();
+  </script>
 </head>
 <body>
 
