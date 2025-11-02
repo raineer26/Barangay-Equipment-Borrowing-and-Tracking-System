@@ -17,7 +17,7 @@
       </div>
 
       <nav class="sidebar-nav">
-        <a href="adminDashboard.html" class="sidebar-link active">
+        <a href="admin.html" class="sidebar-link active">
           <img src="Assets/dashboard.png" alt="Dashboard Icon" class="nav-icon" />
           <span>Dashboard</span>
         </a>
@@ -77,28 +77,62 @@
 
       <!-- Dashboard Content Grid -->
       <div class="admin-dashboard-grid">
-        <!-- Left Column: Quick Access -->
+        <!-- Left Column: Pending Requests & Inventory -->
         <div class="dashboard-left">
-          <div class="quick-access-section">
-            <h2 class="section-title">QUICK ACCESS</h2>
+          <!-- PENDING REQUESTS Section -->
+          <div class="pending-requests-section">
+            <h2 class="section-title">PENDING REQUESTS</h2>
             <p class="section-subtitle">Choose a request to review.</p>
 
-            <!-- Conference Room Card -->
-            <div class="quick-access-card">
-              <div class="card-icon">
-                <img src="Assets/calendar.png" alt="Conference Room" class="access-icon" />
+            <div class="pending-cards-grid">
+              <!-- Conference Room Requests Card -->
+              <div class="pending-request-card">
+                <div class="pending-card-icon">
+                  <img src="Assets/calendar.png" alt="Conference Room" class="pending-icon" />
+                </div>
+                <div class="pending-badge" id="conferenceRoomBadge">2 Pending</div>
+                <h3 class="pending-card-title">CONFERENCE ROOM REQUESTS</h3>
+                <button onclick="window.location.href='admin-conference-requests.html'" class="review-now-btn">Review Now</button>
               </div>
-              <h3 class="card-title">CONFERENCE ROOM REQUESTS</h3>
-              <button onclick="window.location.href='admin-conference-requests.html'" class="review-btn">Review</button>
-            </div>
 
-            <!-- Tents & Chairs Card -->
-            <div class="quick-access-card">
-              <div class="card-icon">
-                <img src="Assets/calendar.png" alt="Tents & Chairs" class="access-icon" />
+              <!-- Tents & Chairs Requests Card -->
+              <div class="pending-request-card">
+                <div class="pending-card-icon">
+                  <img src="Assets/calendar.png" alt="Tents & Chairs" class="pending-icon" />
+                </div>
+                <div class="pending-badge" id="tentsChairsBadge">2 Pending</div>
+                <h3 class="pending-card-title">TENTS & CHAIRS REQUESTS</h3>
+                <button onclick="window.location.href='admin-tents-requests.html'" class="review-now-btn">Review Now</button>
               </div>
-              <h3 class="card-title">TENTS & CHAIRS REQUESTS</h3>
-              <button onclick="window.location.href='admin-tents-requests.html'" class="review-btn">Review</button>
+            </div>
+          </div>
+
+          <!-- INVENTORY STOCKS Section -->
+          <div class="inventory-stocks-section">
+            <h2 class="section-title">INVENTORY STOCKS</h2>
+
+            <div class="inventory-cards-grid">
+              <!-- Available Tents Card -->
+              <div class="inventory-card">
+                <div class="inventory-left">
+                  <div class="inventory-icon">
+                    <img src="Assets/tent.png" alt="Tent" class="inventory-item-icon" />
+                  </div>
+                  <p class="inventory-label">AVAILABLE TENTS</p>
+                </div>
+                <h3 class="inventory-count" id="availableTents">24</h3>
+              </div>
+
+              <!-- Available Chairs Card -->
+              <div class="inventory-card">
+                <div class="inventory-left">
+                  <div class="inventory-icon">
+                    <img src="Assets/chair.png" alt="Chair" class="inventory-item-icon" />
+                  </div>
+                  <p class="inventory-label">AVAILABLE CHAIRS</p>
+                </div>
+                <h3 class="inventory-count" id="availableChairs">600</h3>
+              </div>
             </div>
           </div>
         </div>
@@ -107,7 +141,8 @@
         <div class="dashboard-right">
           <!-- Week Calendar -->
           <div class="week-calendar-card">
-            <h3 class="calendar-title" id="weekCalendarMonth">SEPTEMBER 2025</h3>
+            <h3 class="calendar-title" id="weekCalendarMonth">NOVEMBER 2025</h3>
+            <p class="calendar-subtitle">Reservations this week.</p>
             <div class="week-calendar-grid" id="weekCalendarGrid">
               <!-- Populated by JavaScript -->
             </div>
@@ -115,7 +150,7 @@
 
           <!-- Reservations Today -->
           <div class="reservations-card">
-            <h3 class="reservations-title">RESERVATIONS TODAY</h3>
+            <h3 class="reservations-title" id="reservationsTitle">Reservations for Today</h3>
             <p class="reservations-subtitle">Here are the schedules for this day.</p>
 
             <div class="reservations-list" id="reservationsList">
