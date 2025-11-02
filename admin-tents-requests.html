@@ -22,12 +22,12 @@
         </a>
 
         <div class="sidebar-dropdown">
-          <a href="#" class="sidebar-link dropdown-toggle active" id="reviewRequestsToggle">
+          <a href="#" class="sidebar-link dropdown-toggle open" id="reviewRequestsToggle">
             <img src="Assets/review.png" alt="Review Icon" class="nav-icon" />
             <span>Review Requests</span>
             <span class="dropdown-arrow">▼</span>
           </a>
-          <div class="dropdown-content" id="reviewRequestsDropdown" style="display: block;">
+          <div class="dropdown-content open" id="reviewRequestsDropdown">
             <a href="admin-conference-requests.html" class="dropdown-link">Conference Room</a>
             <a href="admin-tents-requests.html" class="dropdown-link active">Tents & Chairs</a>
           </div>
@@ -49,29 +49,168 @@
           <img src="Assets/inventory.png" alt="Inventory Icon" class="nav-icon" />
           <span>Manage Inventory</span>
         </a>
-
-        <a href="#" class="sidebar-link" onclick="window.logout(); return false;">
-          <img src="Assets/logout.png" alt="Logout Icon" class="nav-icon" />
-          <span>Log Out</span>
-        </a>
       </nav>
+
+      <div class="sidebar-footer">
+        <button onclick="window.logout()" class="logout-btn">
+          <span>Log Out</span>
+        </button>
+      </div>
     </aside>
+
+    <!-- MOBILE MENU TOGGLE -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+      <span>☰</span>
+    </button>
 
     <!-- MAIN CONTENT -->
     <main class="admin-main">
-      <header class="admin-header">
-        <div class="header-left">
-          <button class="mobile-menu-toggle" aria-label="Toggle Menu">☰</button>
-          <h1>Tents & Chairs Requests</h1>
-        </div>
-      </header>
+      <div class="tents-page-wrapper">
+        <!-- Header -->
+        <section class="admin-hero">
+          <div class="admin-hero-overlay"></div>
+          <div class="admin-hero-content">
+            <h1><span class="highlight-yellow">TENTS & CHAIRS</span> REQUESTS</h1>
+            <p>View and manage all tents and chairs bookings. Approve or deny requests quickly.</p>
+          </div>
+        </section>
 
-      <div class="admin-content">
-        <div class="placeholder-content">
-          <div class="placeholder-icon">🎪</div>
-          <h2>Tents & Chairs Request Management</h2>
-          <p>This page will display all pending, approved, and completed tents and chairs booking requests.</p>
-          <p class="placeholder-note">Coming Soon - Backend Integration Required</p>
+        <!-- Stats Cards -->
+        <div class="tents-stats-container">
+        <div class="tents-stat-card blue">
+          <div class="stat-number" id="availableTentsCount">24</div>
+          <div class="stat-label">Available Tents</div>
+        </div>
+        <div class="tents-stat-card blue">
+          <div class="stat-number" id="availableChairsCount">600</div>
+          <div class="stat-label">Available Chairs</div>
+        </div>
+        <div class="tents-stat-card orange">
+          <div class="stat-number" id="tentsInUseCount">0</div>
+          <div class="stat-label">Tents in Use</div>
+        </div>
+        <div class="tents-stat-card orange">
+          <div class="stat-number" id="chairsInUseCount">0</div>
+          <div class="stat-label">Chairs in Use</div>
+        </div>
+      </div>
+
+      <!-- Main Content Card -->
+      <div class="tents-content-card">
+        <!-- Tabs -->
+        <div class="tents-tabs-section">
+          <div class="tents-tabs">
+            <button class="tents-tab active" id="allRequestsTab">All Requests</button>
+            <button class="tents-tab" id="historyTab">History</button>
+          </div>
+          <div class="tents-header-actions">
+            <!-- Export Dropdown (History Tab Only) -->
+            <div class="tents-export-dropdown" id="exportDropdown" style="display: none;">
+              <button class="btn-export" onclick="toggleExportMenu()">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                Export
+              </button>
+              <div class="tents-dropdown-menu" id="exportMenu">
+                <button class="tents-dropdown-item" onclick="exportData('csv')">Export as CSV</button>
+              </div>
+            </div>
+            <!-- View Toggle (All Requests Tab Only) -->
+            <div class="tents-view-buttons" id="viewToggle">
+              <button class="tents-view-btn active" id="tableViewBtn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+              </button>
+              <button class="tents-view-btn" id="calendarViewBtn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters (Table View) -->
+        <div class="tents-filters-section" id="tableFilters">
+          <div class="tents-filter-group">
+            <label>Search Name</label>
+            <div class="tents-search-wrapper">
+              <svg class="tents-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="text" id="searchInput" placeholder="Search by name...">
+            </div>
+          </div>
+          <div class="tents-filter-group">
+            <label>Status</label>
+            <select id="statusFilter">
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="in-progress">In Progress</option>
+            </select>
+          </div>
+          <div class="tents-filter-group">
+            <label>Date</label>
+            <input type="date" id="dateFilter">
+          </div>
+          <div class="tents-filter-group">
+            <label>Delivery Mode</label>
+            <select id="deliveryFilter">
+              <option value="all">All Modes</option>
+              <option value="Self-Pickup">Self-Pickup</option>
+              <option value="Delivery">Delivery</option>
+            </select>
+          </div>
+          <div class="tents-filter-group">
+            <label>Sort By</label>
+            <select id="sortByFilter">
+              <option value="submitted-desc">Date Submitted (Newest First)</option>
+              <option value="submitted-asc">Date Submitted (Oldest First)</option>
+              <option value="event-desc">Event Date (Newest First)</option>
+              <option value="event-asc">Event Date (Oldest First)</option>
+              <option value="name-asc">Last Name (A-Z)</option>
+              <option value="name-desc">Last Name (Z-A)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Booking Buttons (Calendar View) -->
+        <div class="tents-booking-buttons" id="calendarButtons" style="display: none;">
+          <button class="btn-booking" onclick="openManualBookingModal('tents')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+            Add Tent Booking
+          </button>
+          <button class="btn-booking" onclick="openManualBookingModal('chairs')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+            Add Chair Booking
+          </button>
+        </div>
+
+        <!-- Content Area (Table or Calendar) -->
+        <div id="tentsContentArea"></div>
+      </div>
+      </div> <!-- Close tents-page-wrapper -->
+
+      <!-- Modal for Calendar Date Click & Manual Booking -->
+      <div class="tents-modal-overlay" id="tentsModalOverlay" onclick="closeModalOnOverlay(event)">
+        <div class="tents-modal">
+          <div class="tents-modal-header">
+            <h3 id="tentsModalTitle">Bookings for Selected Date</h3>
+            <button class="tents-modal-close" onclick="closeTentsModal()">&times;</button>
+          </div>
+          <div class="tents-modal-body" id="tentsModalBody"></div>
+        </div>
+      </div>
+
+      <!-- Confirmation Modal -->
+      <div class="tents-confirm-modal-overlay" id="tentsConfirmModal">
+        <div class="tents-confirm-modal">
+          <div class="tents-confirm-modal-header">
+            <h3 id="tentsConfirmTitle">Confirm Action</h3>
+          </div>
+          <div class="tents-confirm-modal-body">
+            <p id="tentsConfirmMessage">Are you sure you want to perform this action?</p>
+            <div id="tentsConfirmInventory" class="tents-inventory-preview"></div>
+          </div>
+          <div class="tents-confirm-modal-footer">
+            <button class="tents-confirm-btn-yes" id="tentsConfirmYes">Yes</button>
+            <button class="tents-confirm-btn-no" id="tentsConfirmNo">No</button>
+          </div>
         </div>
       </div>
     </main>

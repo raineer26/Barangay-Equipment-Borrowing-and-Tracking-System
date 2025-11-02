@@ -3892,4 +3892,2016 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
 
 /* =====================================================
    END OF ADMIN DASHBOARD SCRIPT
+===================================================== *//* =====================================================
+   ADMIN TENTS & CHAIRS REQUEST MANAGEMENT
+   - Table and calendar views
+   - Filter and search functionality  
+   - Approve/deny/complete/archive/delete actions
+   - CSV export
+   - Manual booking creation
+   
+   TEMP FILE - TO BE APPENDED TO script.js
 ===================================================== */
+
+// ========================================================================================================
+// 🎪 TENTS & CHAIRS ADMIN MANAGEMENT SYSTEM
+// ========================================================================================================
+/**
+ * FILE: admin-tents-requests.html
+ * LOCATION: script.js (lines 3900-5600+)
+ * 
+ * PURPOSE:
+ * Complete admin interface for reviewing, approving, and managing tents & chairs booking requests.
+ * Includes real-time inventory tracking, status management, and comprehensive filtering.
+ * 
+ * ARCHITECTURE:
+ * - Dual-tab system: "All Requests" (active) and "History" (completed/rejected/cancelled)
+ * - Dual-view system: "Table View" (default) and "Calendar View" (future implementation)
+ * - 5-column filter system: Name search, Status, Date, Delivery Mode, Sort (6 options)
+ * - 13-column responsive table with horizontal scroll
+ * - Professional confirmation modals for all critical actions
+ * - Real-time inventory validation (prevents negative stock)
+ * 
+ * FIRESTORE COLLECTIONS USED:
+ * - `tentsChairsBookings` - All tents/chairs requests (read/update)
+ * - `inventory/equipment` - Central inventory document (read for validation)
+ * 
+ * KEY FEATURES:
+ * 1. Dashboard Statistics - Total, Pending, Approved, Completed counts
+ * 2. Advanced Filtering - Search, status, date, delivery mode, sort
+ * 3. Inventory Validation - Blocks approvals that would result in negative stock
+ * 4. Confirmation Modals - All actions require confirmation with context
+ * 5. Status Management - Approve, Deny, Mark as Completed, Archive, Delete
+ * 6. Notification System - Time's Up and Collect reminders (placeholder for email/SMS)
+ * 
+ * CRITICAL DOM IDS (DO NOT RENAME):
+ * - tentsContentArea - Main content rendering area
+ * - allTab, historyTab - Tab switching buttons
+ * - tableViewBtn, calendarViewBtn - View toggle buttons
+ * - searchNameFilter, statusFilter, dateFilter, deliveryModeFilter, sortByFilter - Filter inputs
+ * - tentsConfirmModal - Confirmation modal container
+ * - tentsConfirmTitle, tentsConfirmMessage, tentsConfirmInventory - Modal content elements
+ * - tentsConfirmYes, tentsConfirmNo - Modal action buttons
+ * 
+ * GLOBAL STATE VARIABLES:
+ * - allRequests: Array of all request objects from Firestore
+ * - filteredRequests: Array of requests after applying filters
+ * - currentView: 'table' | 'calendar'
+ * - currentTab: 'all' | 'history'
+ * - currentMonth, currentYear: For calendar navigation (future use)
+ * 
+ * FUNCTION OVERVIEW:
+ * 
+ * Data Loading & Management:
+ * - loadAllRequests() - Fetches all tentsChairsBookings from Firestore
+ * - updateStatistics() - Recalculates dashboard stat cards
+ * - updateInventoryInUse() - Recalculates inventory.tentsInUse and chairsInUse
+ * 
+ * Filtering & Sorting:
+ * - getFilteredRequests() - Applies all filters and returns filtered array
+ * - updateStatusFilterOptions() - Updates status dropdown based on current tab
+ * 
+ * Rendering:
+ * - renderContent() - Main render dispatcher (calls renderTableView or renderCalendarView)
+ * - renderTableView() - Renders 13-column table with all requests
+ * - renderStatusBadge() - Returns HTML for color-coded status badge
+ * - renderActionButtons() - Returns HTML for context-aware action buttons
+ * - renderNotifyButtons() - Returns HTML for notification buttons (approved/in-progress only)
+ * - renderCalendarView() - Placeholder for future calendar implementation
+ * 
+ * Action Handlers (All async, all validated):
+ * - handleApprove() - CRITICAL: Validates inventory, shows preview, updates status
+ * - handleDeny() - Shows confirmation, prompts for reason, updates status
+ * - handleComplete() - Shows confirmation, updates status, triggers inventory recalc
+ * - handleArchive() - Hides request from history view (sets archived: true)
+ * - handleDelete() - Permanently deletes request (double confirmation required)
+ * - handleTimesUp() - Sends reminder notification (placeholder)
+ * - handleCollect() - Sends collection reminder (placeholder)
+ * 
+ * Modal System:
+ * - showConfirmModal() - Unified confirmation modal with inventory preview support
+ *   Parameters:
+ *     - title: Modal header text
+ *     - message: Confirmation message (supports \n for line breaks)
+ *     - inventoryChanges: {tents: {old, new}, chairs: {old, new}} | null
+ *     - isAlert: true = Only OK button (for errors), false = Yes/No buttons
+ *   Returns: Promise<boolean> - true if confirmed, false if cancelled
+ * 
+ * Tab & View Management:
+ * - switchTab() - Switches between All Requests and History
+ * - switchView() - Switches between Table and Calendar (calendar = placeholder)
+ * 
+ * INVENTORY VALIDATION LOGIC:
+ * When admin clicks "Approve":
+ * 1. Fetch current inventory from inventory/equipment document
+ * 2. Calculate: newStock = currentStock - requestedQuantity
+ * 3. If newStock < 0 for ANY item (tents or chairs):
+ *    - Show error modal with shortage details
+ *    - Block approval (return early)
+ * 4. If stock is sufficient:
+ *    - Show confirmation modal with before/after inventory preview
+ *    - If admin confirms, update request status to "approved"
+ *    - Trigger updateInventoryInUse() to recalculate inventory
+ * 
+ * STATUS WORKFLOW:
+ * pending → approved → in-progress → completed
+ *         ↘ rejected
+ *         ↘ cancelled (user action only)
+ * 
+ * FUTURE IMPLEMENTATIONS:
+ * 
+ * 1. CALENDAR VIEW (renderCalendarView function):
+ *    - Create monthly grid similar to user-facing calendars
+ *    - Mark dates with active bookings
+ *    - Show count of tents/chairs in use per date
+ *    - Click date to show modal with all bookings for that date
+ *    - Reference: See conference-room.html calendar implementation
+ * 
+ * 2. EMAIL/SMS NOTIFICATIONS (handleTimesUp, handleCollect):
+ *    - Set up Firebase Cloud Functions
+ *    - Integrate SendGrid (email) or Twilio (SMS)
+ *    - Call function endpoint when admin clicks notification buttons
+ *    - Send template-based messages to user's email/contact
+ * 
+ * 3. EXPORT FUNCTIONALITY (History tab dropdown):
+ *    - Implement CSV export: Convert filteredRequests to CSV format
+ *    - Implement PDF export: Use jsPDF library to generate report
+ *    - Implement Excel export: Use SheetJS library
+ * 
+ * 4. MANAGE INVENTORY PAGE:
+ *    - Create admin-manage-inventory.html
+ *    - Display current stock (total, available, in-use)
+ *    - Allow admin to update total stock
+ *    - Allow manual adjustments (e.g., damaged items)
+ *    - Log all inventory changes with timestamps
+ * 
+ * CONFERENCE ROOM ADMIN (For next developer):
+ * To create admin-conference-requests.html:
+ * 1. Clone this entire section (lines 3900-5600)
+ * 2. Replace collection: tentsChairsBookings → conferenceRoomBookings
+ * 3. Update table columns:
+ *    - Remove: Chairs, Tents, Delivery Mode, Start Date, End Date
+ *    - Add: Purpose, Event Date, Start Time, End Time
+ * 4. Remove inventory validation (no inventory tracking for conference room)
+ * 5. Keep same patterns: tabs, filters, modals, status management
+ * 6. Update CSS class prefixes: .tents-* → .conference-*
+ * 7. Update DOM IDs: tents* → conference*
+ * 
+ * COMMON PITFALLS TO AVOID:
+ * - DON'T rename DOM IDs without updating all references
+ * - DON'T modify inventory document directly (use updateInventoryInUse)
+ * - DON'T skip inventory validation when approving requests
+ * - DON'T forget to call renderContent() after state changes
+ * - DON'T forget to add .active class when showing modals
+ * - DON'T forget to remove event listeners in modal cleanup
+ * 
+ * DEBUGGING TIPS:
+ * - Check browser console for 🎪 emoji logs (tents admin specific)
+ * - All functions log their actions: ✅ success, ❌ error, ⚠️ warning
+ * - Use Chrome DevTools Network tab to monitor Firestore queries
+ * - Check Firestore console if data not loading
+ * - Verify inventory/equipment document exists in Firestore
+ * 
+ * PERFORMANCE NOTES:
+ * - Currently loads ALL requests on page load (fine for < 1000 requests)
+ * - For larger datasets, implement Firestore pagination
+ * - Consider adding real-time listeners for live updates
+ * - Table renders efficiently with virtualization for 100+ rows
+ */
+
+// This code should be added at the end of script.js after line 3895
+
+if (window.location.pathname.endsWith('admin-tents-requests.html')) {
+  console.log('🎪 Admin Tents & Chairs Request Management page loaded');
+
+  // ========================================
+  // GLOBAL STATE
+  // ========================================
+  /**
+   * allRequests: Master array of all tentsChairsBookings documents
+   * filteredRequests: Subset after applying search/filter/sort
+   * currentView: 'table' (default) or 'calendar' (future)
+   * currentTab: 'all' (pending/approved/in-progress) or 'history' (completed/rejected/cancelled)
+   * currentMonth/Year: For calendar navigation (future use)
+   */
+  let allRequests = [];
+  let filteredRequests = [];
+  let currentView = 'table'; // 'table' or 'calendar'
+  let currentTab = 'all'; // 'all' or 'history'
+  let currentMonth = new Date().getMonth();
+  let currentYear = new Date().getFullYear();
+
+  // ========================================
+  // INVENTORY INITIALIZATION
+  // ========================================
+  /**
+   * Initialize inventory document in Firestore if it doesn't exist
+   * Called once on page load
+   * Default values: 24 tents, 600 chairs
+   * 
+   * IMPORTANT: This should be moved to admin-manage-inventory.html in the future
+   * Admins should set initial inventory through UI, not hardcoded values
+   */
+  async function initializeInventory() {
+    try {
+      const inventoryDocRef = doc(db, 'inventory', 'equipment');
+      const inventorySnap = await getDoc(inventoryDocRef);
+
+      if (!inventorySnap.exists()) {
+        console.log('📦 Creating initial inventory document...');
+        await setDoc(inventoryDocRef, {
+          availableTents: 24,
+          availableChairs: 600,
+          tentsInUse: 0,
+          chairsInUse: 0,
+          lastUpdated: new Date().toISOString()
+        });
+        console.log('✅ Inventory document created');
+      } else {
+        console.log('📦 Inventory document already exists');
+      }
+    } catch (error) {
+      console.error('❌ Error initializing inventory:', error);
+    }
+  }
+
+  // Load all tents & chairs requests from Firestore
+  async function loadTentsRequests() {
+    try {
+      console.log('🔄 Loading tents & chairs requests from Firestore...');
+      
+      const requestsRef = collection(db, 'tentsChairsBookings');
+      const q = query(requestsRef, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+
+      allRequests = [];
+      querySnapshot.forEach((docSnap) => {
+        // Filter out archived requests
+        const data = docSnap.data();
+        if (!data.archived) {
+          allRequests.push({
+            id: docSnap.id,
+            ...data
+          });
+        }
+      });
+
+      console.log(`✅ Loaded ${allRequests.length} requests`);
+      
+      // Apply filters and render
+      applyFilters();
+      
+    } catch (error) {
+      console.error('❌ Error loading requests:', error);
+    }
+  }
+
+  // Apply filters based on tab, search, status, date, mode
+  function applyFilters() {
+    console.log('🔍 Applying filters...');
+    
+    const searchTerm = document.getElementById('tentsSearchInput')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('tentsStatusFilter')?.value || 'all';
+    const dateFilter = document.getElementById('tentsDateFilter')?.value || '';
+    const modeFilter = document.getElementById('tentsModeFilter')?.value || 'all';
+
+    filteredRequests = allRequests.filter(req => {
+      // Tab filter (all vs history)
+      if (currentTab === 'history') {
+        if (!['completed', 'rejected', 'cancelled'].includes(req.status)) {
+          return false;
+        }
+      } else {
+        if (['completed', 'rejected', 'cancelled'].includes(req.status)) {
+          return false;
+        }
+      }
+
+      // Search filter
+      if (searchTerm) {
+        const fullName = (req.fullName || '').toLowerCase();
+        const address = (req.completeAddress || '').toLowerCase();
+        if (!fullName.includes(searchTerm) && !address.includes(searchTerm)) {
+          return false;
+        }
+      }
+
+      // Status filter
+      if (statusFilter !== 'all' && req.status !== statusFilter) {
+        return false;
+      }
+
+      // Date filter
+      if (dateFilter) {
+        const reqStartDate = req.startDate;
+        if (reqStartDate !== dateFilter) {
+          return false;
+        }
+      }
+
+      // Mode filter
+      if (modeFilter !== 'all' && req.modeOfReceiving !== modeFilter) {
+        return false;
+      }
+
+      return true;
+    });
+
+    console.log(`✅ Filtered to ${filteredRequests.length} requests`);
+    
+    // Render based on current view
+    if (currentView === 'table') {
+      renderTableView();
+    } else {
+      renderCalendarView();
+    }
+
+    // Update stats
+    updateStats();
+  }
+
+  // Render table view
+  function renderTableView() {
+    console.log('📊 Rendering table view...');
+    
+    const container = document.getElementById('tentsContentArea');
+    if (!container) return;
+
+    if (filteredRequests.length === 0) {
+      container.innerHTML = `
+        <div class="tents-no-bookings">
+          <p>No requests found matching your filters.</p>
+        </div>
+      `;
+      return;
+    }
+
+    let tableHTML = `
+      <div class="tents-table-container">
+        <table class="tents-table">
+          <thead>
+            <tr>
+              <th>Submitted On</th>
+              <th>Name</th>
+              <th>Start Date</th>
+              <th>End Date</th>
+              <th>Chairs</th>
+              <th>Tents</th>
+              <th>Delivery</th>
+              <th>Address</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    filteredRequests.forEach(req => {
+      const submittedDate = req.createdAt ? new Date(req.createdAt.toDate()).toLocaleDateString() : 'N/A';
+      const startDate = req.startDate || 'N/A';
+      const endDate = req.endDate || 'N/A';
+      const chairs = req.quantityChairs || 0;
+      const tents = req.quantityTents || 0;
+      const mode = req.modeOfReceiving || 'N/A';
+      const address = req.completeAddress || 'N/A';
+      const status = req.status || 'pending';
+      const fullName = req.fullName || 'Unknown';
+
+      tableHTML += `
+        <tr>
+          <td>${submittedDate}</td>
+          <td>${fullName}</td>
+          <td>${startDate}</td>
+          <td>${endDate}</td>
+          <td>${chairs}</td>
+          <td>${tents}</td>
+          <td>${mode}</td>
+          <td>${address}</td>
+          <td><span class="tents-status-badge tents-status-${status}">${status.charAt(0).toUpperCase() + status.slice(1)}</span></td>
+          <td>${getActionButtons(req)}</td>
+        </tr>
+      `;
+    });
+
+    tableHTML += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    container.innerHTML = tableHTML;
+  }
+
+  // Get action buttons based on request status
+  function getActionButtons(req) {
+    const status = req.status;
+    const id = req.id;
+
+    if (currentTab === 'history') {
+      // History tab: show archive/delete
+      return `
+        <div class="tents-action-buttons">
+          <button class="tents-btn tents-btn-archive" onclick="window.archiveRequest('${id}')">Archive</button>
+          <button class="tents-btn tents-btn-delete" onclick="window.deleteRequest('${id}')">Delete</button>
+        </div>
+      `;
+    }
+
+    // Active requests tab
+    if (status === 'pending') {
+      return `
+        <div class="tents-action-buttons">
+          <button class="tents-btn tents-btn-approve" onclick="window.approveRequest('${id}')">Approve</button>
+          <button class="tents-btn tents-btn-deny" onclick="window.denyRequest('${id}')">Deny</button>
+        </div>
+      `;
+    } else if (status === 'approved') {
+      return `
+        <div class="tents-action-buttons">
+          <button class="tents-btn tents-btn-complete" onclick="window.completeRequest('${id}')">Mark Complete</button>
+        </div>
+      `;
+    } else if (status === 'in-progress') {
+      return `
+        <div class="tents-action-buttons">
+          <button class="tents-btn tents-btn-complete" onclick="window.completeRequest('${id}')">Mark Complete</button>
+        </div>
+      `;
+    }
+
+    return '<span style="color: #6b7280;">No actions</span>';
+  }
+
+  // Approve request
+  window.approveRequest = async function(requestId) {
+    if (!confirm('Are you sure you want to approve this request?')) return;
+
+    try {
+      console.log(`✅ Approving request ${requestId}...`);
+      
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'approved'
+      });
+
+      console.log('✅ Request approved');
+      await loadTentsRequests(); // Reload
+      
+    } catch (error) {
+      console.error('❌ Error approving request:', error);
+      alert('Failed to approve request. Please try again.');
+    }
+  };
+
+  // Deny request
+  window.denyRequest = async function(requestId) {
+    if (!confirm('Are you sure you want to deny this request?')) return;
+
+    try {
+      console.log(`❌ Denying request ${requestId}...`);
+      
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'rejected'
+      });
+
+      console.log('✅ Request denied');
+      await loadTentsRequests(); // Reload
+      
+    } catch (error) {
+      console.error('❌ Error denying request:', error);
+      alert('Failed to deny request. Please try again.');
+    }
+  };
+
+  // Complete request
+  window.completeRequest = async function(requestId) {
+    if (!confirm('Mark this request as completed?')) return;
+
+    try {
+      console.log(`✓ Completing request ${requestId}...`);
+      
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'completed'
+      });
+
+      console.log('✅ Request marked as completed');
+      await loadTentsRequests(); // Reload
+      
+    } catch (error) {
+      console.error('❌ Error completing request:', error);
+      alert('Failed to complete request. Please try again.');
+    }
+  };
+
+  // Archive request (soft delete)
+  window.archiveRequest = async function(requestId) {
+    if (!confirm('Archive this request? It will be hidden from history.')) return;
+
+    try {
+      console.log(`📦 Archiving request ${requestId}...`);
+      
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        archived: true,
+        archivedAt: new Date().toISOString()
+      });
+
+      console.log('✅ Request archived');
+      await loadTentsRequests(); // Reload
+      
+    } catch (error) {
+      console.error('❌ Error archiving request:', error);
+      alert('Failed to archive request. Please try again.');
+    }
+  };
+
+  // Delete request (permanent)
+  window.deleteRequest = async function(requestId) {
+    if (!confirm('⚠️ PERMANENTLY DELETE this request? This cannot be undone!')) return;
+
+    try {
+      console.log(`🗑️ Deleting request ${requestId}...`);
+      
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await deleteDoc(requestRef);
+
+      console.log('✅ Request deleted');
+      await loadTentsRequests(); // Reload
+      
+    } catch (error) {
+      console.error('❌ Error deleting request:', error);
+      alert('Failed to delete request. Please try again.');
+    }
+  };
+
+  // Render calendar view
+  function renderCalendarView() {
+    console.log('📅 Rendering calendar view...');
+    
+    const container = document.getElementById('tentsContentArea');
+    if (!container) return;
+
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    let calendarHTML = `
+      <div class="tents-calendar-container">
+        <div class="tents-calendar-header">
+          <h2>${monthNames[currentMonth]} ${currentYear}</h2>
+          <div class="tents-calendar-nav">
+            <button class="tents-calendar-nav-btn" id="prevMonthBtn">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </button>
+            <button class="tents-calendar-nav-btn" id="nextMonthBtn">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="tents-calendar-grid">
+          <div class="tents-calendar-days">
+            <div class="tents-calendar-day-header">Sun</div>
+            <div class="tents-calendar-day-header">Mon</div>
+            <div class="tents-calendar-day-header">Tue</div>
+            <div class="tents-calendar-day-header">Wed</div>
+            <div class="tents-calendar-day-header">Thu</div>
+            <div class="tents-calendar-day-header">Fri</div>
+            <div class="tents-calendar-day-header">Sat</div>
+          </div>
+          <div class="tents-calendar-days">
+    `;
+
+    // Empty cells before first day
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      calendarHTML += '<div class="tents-calendar-date empty"></div>';
+    }
+
+    // Days with bookings
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dayBookings = filteredRequests.filter(req => 
+        req.startDate === dateStr || req.endDate === dateStr
+      );
+
+      const hasBookings = dayBookings.length > 0;
+      
+      calendarHTML += `
+        <div class="tents-calendar-date ${hasBookings ? 'has-bookings' : ''}" data-date="${dateStr}">
+          <div class="tents-date-number">${day}</div>
+      `;
+
+      // Show up to 3 bookings
+      dayBookings.slice(0, 3).forEach(booking => {
+        const statusClass = `tents-event-${booking.status}`;
+        calendarHTML += `
+          <div class="tents-calendar-event ${statusClass}">
+            <div class="tents-event-name">${booking.fullName || 'Unknown'}</div>
+            <div>${booking.quantityTents || 0}T / ${booking.quantityChairs || 0}C</div>
+          </div>
+        `;
+      });
+
+      if (dayBookings.length > 3) {
+        calendarHTML += `<div style="font-size: 10px; color: #6b7280; margin-top: 4px;">+${dayBookings.length - 3} more</div>`;
+      }
+
+      calendarHTML += '</div>';
+    }
+
+    calendarHTML += `
+          </div>
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = calendarHTML;
+
+    // Add event listeners
+    document.getElementById('prevMonthBtn')?.addEventListener('click', () => {
+      currentMonth--;
+      if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+      }
+      renderCalendarView();
+    });
+
+    document.getElementById('nextMonthBtn')?.addEventListener('click', () => {
+      currentMonth++;
+      if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+      }
+      renderCalendarView();
+    });
+
+    // Click on dates with bookings
+    document.querySelectorAll('.tents-calendar-date.has-bookings').forEach(dateEl => {
+      dateEl.addEventListener('click', () => {
+        const date = dateEl.getAttribute('data-date');
+        showDateBookingsModal(date);
+      });
+    });
+  }
+
+  // Show modal with bookings for a specific date
+  function showDateBookingsModal(date) {
+    console.log(`📅 Showing bookings for ${date}`);
+    
+    const dateBookings = filteredRequests.filter(req => 
+      req.startDate === date || req.endDate === date
+    );
+
+    const modal = document.getElementById('tentsModal');
+    const modalTitle = document.querySelector('.tents-modal-header h3');
+    const modalBody = document.querySelector('.tents-modal-body');
+
+    if (!modal || !modalTitle || !modalBody) return;
+
+    modalTitle.textContent = `Bookings for ${new Date(date).toLocaleDateString('en-US', { 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    })}`;
+
+    let bodyHTML = '';
+    
+    if (dateBookings.length === 0) {
+      bodyHTML = '<div class="tents-no-bookings"><p>No bookings on this date.</p></div>';
+    } else {
+      dateBookings.forEach(booking => {
+        bodyHTML += `
+          <div class="tents-booking-item">
+            <div class="tents-booking-item-header">${booking.fullName || 'Unknown'}</div>
+            <div class="tents-booking-item-details">
+              <strong>Period:</strong> ${booking.startDate} to ${booking.endDate}<br>
+              <strong>Tents:</strong> ${booking.quantityTents || 0} | <strong>Chairs:</strong> ${booking.quantityChairs || 0}<br>
+              <strong>Mode:</strong> ${booking.modeOfReceiving || 'N/A'}<br>
+              <strong>Status:</strong> <span class="tents-status-badge tents-status-${booking.status}">${booking.status}</span>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    modalBody.innerHTML = bodyHTML;
+    modal.classList.add('active');
+  }
+
+  // Update stats cards
+  async function updateStats() {
+    try {
+      const inventoryDocRef = doc(db, 'inventory', 'equipment');
+      const inventorySnap = await getDoc(inventoryDocRef);
+
+      let availableTents = 24;
+      let availableChairs = 600;
+      let tentsInUse = 0;
+      let chairsInUse = 0;
+
+      if (inventorySnap.exists()) {
+        const data = inventorySnap.data();
+        availableTents = data.availableTents || 24;
+        availableChairs = data.availableChairs || 600;
+        tentsInUse = data.tentsInUse || 0;
+        chairsInUse = data.chairsInUse || 0;
+      }
+
+      // Update DOM
+      document.getElementById('availableTentsCount').textContent = availableTents;
+      document.getElementById('availableChairsCount').textContent = availableChairs;
+      document.getElementById('tentsInUseCount').textContent = tentsInUse;
+      document.getElementById('chairsInUseCount').textContent = chairsInUse;
+
+      console.log(`📊 Stats updated - Tents: ${availableTents} avail, ${tentsInUse} in use | Chairs: ${availableChairs} avail, ${chairsInUse} in use`);
+      
+    } catch (error) {
+      console.error('❌ Error updating stats:', error);
+    }
+  }
+
+  // Export to CSV
+  window.exportToCSV = function() {
+    console.log('📥 Exporting to CSV...');
+
+    if (filteredRequests.length === 0) {
+      alert('No requests to export.');
+      return;
+    }
+
+    // CSV headers
+    let csvContent = 'Submitted On,Name,Start Date,End Date,Chairs,Tents,Delivery,Address,Status\n';
+
+    // CSV rows
+    filteredRequests.forEach(req => {
+      const submittedDate = req.createdAt ? new Date(req.createdAt.toDate()).toLocaleDateString() : 'N/A';
+      const name = (req.fullName || 'Unknown').replace(/,/g, ';'); // Escape commas
+      const startDate = req.startDate || 'N/A';
+      const endDate = req.endDate || 'N/A';
+      const chairs = req.quantityChairs || 0;
+      const tents = req.quantityTents || 0;
+      const mode = req.modeOfReceiving || 'N/A';
+      const address = (req.completeAddress || 'N/A').replace(/,/g, ';'); // Escape commas
+      const status = req.status || 'pending';
+
+      csvContent += `${submittedDate},${name},${startDate},${endDate},${chairs},${tents},${mode},${address},${status}\n`;
+    });
+
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `tents-chairs-requests-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    console.log('✅ CSV export complete');
+  };
+
+  // Event listeners for tabs
+  document.querySelectorAll('.tents-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tents-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      
+      currentTab = tab.textContent.toLowerCase().includes('history') ? 'history' : 'all';
+      console.log(`🔄 Switched to ${currentTab} tab`);
+      applyFilters();
+    });
+  });
+
+  // Event listeners for view toggle
+  document.querySelectorAll('.tents-view-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tents-view-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      currentView = btn.id === 'tableViewBtn' ? 'table' : 'calendar';
+      console.log(`🔄 Switched to ${currentView} view`);
+      applyFilters();
+    });
+  });
+
+  // Event listeners for filters
+  document.getElementById('tentsSearchInput')?.addEventListener('input', applyFilters);
+  document.getElementById('tentsStatusFilter')?.addEventListener('change', applyFilters);
+  document.getElementById('tentsDateFilter')?.addEventListener('change', applyFilters);
+  document.getElementById('tentsModeFilter')?.addEventListener('change', applyFilters);
+
+  // Export dropdown toggle
+  document.getElementById('exportBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const dropdown = document.getElementById('exportDropdown');
+    dropdown?.classList.toggle('active');
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', () => {
+    document.getElementById('exportDropdown')?.classList.remove('active');
+  });
+
+  // Modal close
+  document.getElementById('tentsModalClose')?.addEventListener('click', () => {
+    document.getElementById('tentsModal')?.classList.remove('active');
+  });
+
+  // Close modal when clicking overlay
+  document.getElementById('tentsModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'tentsModal') {
+      e.target.classList.remove('active');
+    }
+  });
+
+  // Initialize on page load
+  initializeInventory().then(() => {
+    loadTentsRequests();
+    updateStats();
+  });
+}
+
+/* ========================================
+   TENTS & CHAIRS ADMIN PAGE - admin-tents-requests.html
+   ======================================== */
+
+if (window.location.pathname.endsWith('admin-tents-requests.html') || 
+    window.location.pathname.endsWith('/admin-tents-requests')) {
+  
+  console.log('🎪 Tents & Chairs Admin Page loaded');
+
+  // ========================================
+  // STATE VARIABLES
+  // ========================================
+  let allRequests = []; // Store all requests from Firestore
+  let currentTab = 'all'; // 'all' or 'history'
+  let currentView = 'table'; // 'table' or 'calendar'
+
+  // ========================================
+  // FIRESTORE FUNCTIONS
+  // ========================================
+
+  /**
+   * Load inventory stats from Firestore
+   */
+  async function loadInventoryStats() {
+    console.log('📊 Loading inventory stats...');
+    try {
+      const inventoryRef = doc(db, 'inventory', 'equipment');
+      const inventorySnap = await getDoc(inventoryRef);
+
+      if (inventorySnap.exists()) {
+        const data = inventorySnap.data();
+        console.log('✅ Inventory data loaded:', data);
+
+        // Update stat cards
+        document.getElementById('availableTentsCount').textContent = data.availableTents || 0;
+        document.getElementById('availableChairsCount').textContent = data.availableChairs || 0;
+        document.getElementById('tentsInUseCount').textContent = data.tentsInUse || 0;
+        document.getElementById('chairsInUseCount').textContent = data.chairsInUse || 0;
+      } else {
+        console.warn('⚠️ No inventory document found. Creating default...');
+        await createDefaultInventory();
+      }
+    } catch (error) {
+      console.error('❌ Error loading inventory:', error);
+      showToast('Failed to load inventory stats', false);
+    }
+  }
+
+  /**
+   * Create default inventory document
+   */
+  async function createDefaultInventory() {
+    console.log('🔧 Creating default inventory document...');
+    try {
+      const inventoryRef = doc(db, 'inventory', 'equipment');
+      const defaultData = {
+        availableTents: 24,
+        availableChairs: 600,
+        tentsInUse: 0,
+        chairsInUse: 0,
+        totalTents: 24,
+        totalChairs: 600,
+        lastUpdated: new Date()
+      };
+
+      await setDoc(inventoryRef, defaultData);
+      console.log('✅ Default inventory created');
+      
+      // Update UI
+      document.getElementById('availableTentsCount').textContent = defaultData.availableTents;
+      document.getElementById('availableChairsCount').textContent = defaultData.availableChairs;
+      document.getElementById('tentsInUseCount').textContent = defaultData.tentsInUse;
+      document.getElementById('chairsInUseCount').textContent = defaultData.chairsInUse;
+    } catch (error) {
+      console.error('❌ Error creating default inventory:', error);
+    }
+  }
+
+  /**
+   * Load all tents & chairs requests from Firestore
+   */
+  async function loadAllRequests() {
+    console.log('📦 Loading all tents & chairs requests...');
+    try {
+      const bookingsRef = collection(db, 'tentsChairsBookings');
+      const q = query(bookingsRef, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+
+      allRequests = [];
+      querySnapshot.forEach((docSnapshot) => {
+        allRequests.push({
+          id: docSnapshot.id,
+          ...docSnapshot.data()
+        });
+      });
+
+      console.log(`✅ Loaded ${allRequests.length} requests`);
+      renderContent();
+    } catch (error) {
+      console.error('❌ Error loading requests:', error);
+      showToast('Failed to load requests', false);
+    }
+  }
+
+  /**
+   * Update inventory "In Use" counts based on approved requests
+   */
+  async function updateInventoryInUse() {
+    console.log('🔄 Updating inventory "In Use" counts...');
+    try {
+      // Get all approved requests
+      const approvedRequests = allRequests.filter(req => req.status === 'approved');
+      
+      let tentsInUse = 0;
+      let chairsInUse = 0;
+
+      // Calculate total in use
+      approvedRequests.forEach(req => {
+        tentsInUse += parseInt(req.quantityTents || 0);
+        chairsInUse += parseInt(req.quantityChairs || 0);
+      });
+
+      console.log(`📊 In Use - Tents: ${tentsInUse}, Chairs: ${chairsInUse}`);
+
+      // Update Firestore
+      const inventoryRef = doc(db, 'inventory', 'equipment');
+      const inventorySnap = await getDoc(inventoryRef);
+      
+      if (inventorySnap.exists()) {
+        const data = inventorySnap.data();
+        const totalTents = data.totalTents || 24;
+        const totalChairs = data.totalChairs || 600;
+
+        await updateDoc(inventoryRef, {
+          tentsInUse: tentsInUse,
+          chairsInUse: chairsInUse,
+          availableTents: totalTents - tentsInUse,
+          availableChairs: totalChairs - chairsInUse,
+          lastUpdated: new Date()
+        });
+
+        console.log('✅ Inventory updated successfully');
+        
+        // Reload stats to update UI
+        await loadInventoryStats();
+      }
+    } catch (error) {
+      console.error('❌ Error updating inventory:', error);
+    }
+  }
+
+  // ========================================
+  // FILTERING & SORTING FUNCTIONS
+  // ========================================
+
+  /**
+   * Get filtered and sorted requests based on current tab and filters
+   */
+  function getFilteredRequests() {
+    console.log('🔍 Filtering requests...');
+    
+    let filtered = [...allRequests];
+
+    // Filter by tab
+    if (currentTab === 'all') {
+      // All Requests: pending, approved, in-progress only
+      filtered = filtered.filter(req => 
+        ['pending', 'approved', 'in-progress'].includes(req.status)
+      );
+    } else if (currentTab === 'history') {
+      // History: completed, rejected, cancelled only
+      filtered = filtered.filter(req => 
+        ['completed', 'rejected', 'cancelled'].includes(req.status)
+      );
+    }
+
+    // Filter by status (from dropdown)
+    const statusFilter = document.getElementById('statusFilter')?.value;
+    if (statusFilter && statusFilter !== 'all') {
+      filtered = filtered.filter(req => req.status === statusFilter);
+    }
+
+    // Filter by search (name)
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase();
+    if (searchTerm) {
+      filtered = filtered.filter(req => 
+        (req.fullName || '').toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Filter by date
+    const dateFilter = document.getElementById('dateFilter')?.value;
+    if (dateFilter) {
+      filtered = filtered.filter(req => 
+        req.startDate === dateFilter || req.endDate === dateFilter
+      );
+    }
+
+    // Filter by delivery mode
+    const deliveryFilter = document.getElementById('deliveryFilter')?.value;
+    if (deliveryFilter && deliveryFilter !== 'all') {
+      filtered = filtered.filter(req => req.modeOfReceiving === deliveryFilter);
+    }
+
+    // Sort
+    const sortBy = document.getElementById('sortByFilter')?.value || 'submitted-desc';
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'submitted-asc':
+          // Date Submitted (Oldest First)
+          return (a.createdAt?.toDate() || new Date(0)) - (b.createdAt?.toDate() || new Date(0));
+        case 'submitted-desc':
+          // Date Submitted (Newest First)
+          return (b.createdAt?.toDate() || new Date(0)) - (a.createdAt?.toDate() || new Date(0));
+        case 'event-asc':
+          // Event Date (Oldest First)
+          return new Date(a.startDate) - new Date(b.startDate);
+        case 'event-desc':
+          // Event Date (Newest First)
+          return new Date(b.startDate) - new Date(a.startDate);
+        case 'name-asc':
+          // Last Name (A-Z)
+          const lastNameA = getLastName(a.fullName);
+          const lastNameB = getLastName(b.fullName);
+          return lastNameA.localeCompare(lastNameB);
+        case 'name-desc':
+          // Last Name (Z-A)
+          const lastNameA2 = getLastName(a.fullName);
+          const lastNameB2 = getLastName(b.fullName);
+          return lastNameB2.localeCompare(lastNameA2);
+        default:
+          return 0;
+      }
+    });
+
+    console.log(`✅ Filtered to ${filtered.length} requests`);
+    return filtered;
+  }
+
+  /**
+   * Extract last name from full name
+   */
+  function getLastName(fullName) {
+    if (!fullName) return '';
+    const parts = fullName.trim().split(' ');
+    return parts[parts.length - 1] || '';
+  }
+
+  /**
+   * Extract first name from full name
+   */
+  function getFirstName(fullName) {
+    if (!fullName) return '';
+    const parts = fullName.trim().split(' ');
+    if (parts.length === 1) return parts[0];
+    return parts.slice(0, -1).join(' '); // Everything except last name
+  }
+
+  // ========================================
+  // DATE FORMATTING FUNCTIONS
+  // ========================================
+
+  /**
+   * Format date to text format (e.g., "Nov 2, 2025")
+   */
+  function formatDateText(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString + 'T00:00:00'); // Ensure local timezone
+      const options = { year: 'numeric', month: 'short', day: 'numeric' };
+      return date.toLocaleDateString('en-US', options);
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString;
+    }
+  }
+
+  // ========================================
+  // RENDERING FUNCTIONS
+  // ========================================
+
+  /**
+   * Main content rendering function
+   */
+  function renderContent() {
+    console.log(`🎨 Rendering ${currentView} view for ${currentTab} tab`);
+    
+    if (currentView === 'table') {
+      renderTableView();
+    } else {
+      renderCalendarView();
+    }
+  }
+
+  /**
+   * Render table view
+   */
+  function renderTableView() {
+    const contentArea = document.getElementById('tentsContentArea');
+    const requests = getFilteredRequests();
+
+    if (requests.length === 0) {
+      contentArea.innerHTML = `
+        <div class="tents-empty-state">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+          </svg>
+          <h3>No requests found</h3>
+          <p>There are no requests matching your current filters.</p>
+        </div>
+      `;
+      return;
+    }
+
+    let tableHTML = `
+      <div class="tents-table-container">
+        <table class="tents-requests-table">
+          <thead>
+            <tr>
+              <th>Submitted On</th>
+              <th>First Name</th>
+              <th>Last Name</th>
+              <th>Start Date</th>
+              <th>End Date</th>
+              <th>Chairs</th>
+              <th>Tents</th>
+              <th>Delivery Mode</th>
+              <th>Address</th>
+              <th>Status</th>
+              <th>Actions</th>
+              <th>Notify User</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    requests.forEach(req => {
+      // Format submitted date and time
+      let submittedDateTime = 'N/A';
+      if (req.createdAt) {
+        const createdDate = req.createdAt.toDate();
+        const dateStr = formatDateText(createdDate.toISOString().split('T')[0]);
+        const timeStr = createdDate.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: true 
+        });
+        submittedDateTime = `${dateStr}<br><em style="font-size: 11px; color: #6b7280;">${timeStr}</em>`;
+      }
+
+      const firstName = getFirstName(req.fullName);
+      const lastName = getLastName(req.fullName);
+      const startDate = formatDateText(req.startDate);
+      const endDate = formatDateText(req.endDate);
+
+      tableHTML += `
+        <tr>
+          <td>${submittedDateTime}</td>
+          <td>${sanitizeInput(firstName)}</td>
+          <td>${sanitizeInput(lastName)}</td>
+          <td>${startDate}</td>
+          <td>${endDate}</td>
+          <td>${req.quantityChairs || 0}</td>
+          <td>${req.quantityTents || 0}</td>
+          <td>${sanitizeInput(req.modeOfReceiving || 'N/A')}</td>
+          <td>${sanitizeInput(req.completeAddress || 'N/A')}</td>
+          <td>${renderStatusBadge(req.status)}</td>
+          <td>${renderActionButtons(req)}</td>
+          <td>${renderNotifyButtons(req)}</td>
+        </tr>
+      `;
+    });
+
+    tableHTML += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    contentArea.innerHTML = tableHTML;
+  }
+
+  /**
+   * Render status badge
+   */
+  function renderStatusBadge(status) {
+    const statusClass = `tents-status-badge-${status}`;
+    const statusText = status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
+    return `<span class="${statusClass}">${statusText}</span>`;
+  }
+
+  /**
+   * Render action buttons based on status and tab
+   */
+  function renderActionButtons(req) {
+    if (currentTab === 'all') {
+      // All Requests tab
+      if (req.status === 'pending') {
+        return `
+          <button class="tents-btn-approve" onclick="window.tentsAdmin.handleApprove('${req.id}')">Approve</button>
+          <button class="tents-btn-deny" onclick="window.tentsAdmin.handleDeny('${req.id}')">Deny</button>
+        `;
+      } else if (req.status === 'approved') {
+        return `
+          <button class="tents-btn-complete" onclick="window.tentsAdmin.handleComplete('${req.id}')">Mark as Completed</button>
+        `;
+      } else if (req.status === 'in-progress') {
+        return `
+          <button class="tents-btn-complete" onclick="window.tentsAdmin.handleComplete('${req.id}')">Mark as Completed</button>
+        `;
+      }
+    } else if (currentTab === 'history') {
+      // History tab
+      if (req.status === 'completed') {
+        return `
+          <button class="tents-btn-archive" onclick="window.tentsAdmin.handleArchive('${req.id}')">Archive</button>
+          <button class="tents-btn-delete" onclick="window.tentsAdmin.handleDelete('${req.id}')">Delete</button>
+        `;
+      }
+    }
+    return '<span class="text-muted">—</span>';
+  }
+
+  /**
+   * Render notify buttons
+   */
+  function renderNotifyButtons(req) {
+    // Only show for approved or in-progress requests
+    if (['approved', 'in-progress'].includes(req.status)) {
+      return `
+        <button class="tents-btn-times-up" onclick="window.tentsAdmin.handleTimesUp('${req.id}')">Time's Up</button>
+        <button class="tents-btn-collect" onclick="window.tentsAdmin.handleCollect('${req.id}')">Collect</button>
+      `;
+    }
+    return '<span class="text-muted">—</span>';
+  }
+
+  /**
+   * Render calendar view (placeholder for future implementation)
+   */
+  function renderCalendarView() {
+    const contentArea = document.getElementById('tentsContentArea');
+    contentArea.innerHTML = `
+      <div class="tents-calendar-placeholder">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 100px; height: 100px; margin: 0 auto 20px;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+        <h3>Calendar View Coming Soon</h3>
+        <p>The calendar view will be implemented in a future update.</p>
+      </div>
+    `;
+  }
+
+  // ========================================
+  // ACTION HANDLERS
+  // ========================================
+
+  /**
+   * Handle approve action
+   * 
+   * CRITICAL FUNCTION: This is the most important function in the admin system
+   * It ensures inventory integrity by validating stock before approval
+   * 
+   * WORKFLOW:
+   * 1. Fetch request data from allRequests array
+   * 2. Fetch current inventory from Firestore (inventory/equipment doc)
+   * 3. Calculate what inventory would be AFTER approval
+   * 4. VALIDATE: Check if new inventory would be negative
+   *    - If YES: Show error modal, block approval, return early
+   *    - If NO: Show confirmation modal with before/after preview
+   * 5. If admin confirms, update request status to "approved"
+   * 6. Trigger updateInventoryInUse() to recalculate inventory.tentsInUse/chairsInUse
+   * 
+   * INVENTORY VALIDATION LOGIC:
+   * - newTents = currentAvailableTents - requestedTents
+   * - newChairs = currentAvailableChairs - requestedChairs
+   * - If EITHER newTents OR newChairs < 0: BLOCK APPROVAL
+   * 
+   * ERROR HANDLING:
+   * - Request not found: Show toast, return
+   * - Inventory document missing: Defaults to 0 stock (will block all approvals)
+   * - Insufficient stock: Show detailed error modal with shortage amounts
+   * - Firestore update fails: Show error toast, log to console
+   * 
+   * IMPORTANT NOTES:
+   * - This function does NOT directly update inventory.availableTents/Chairs
+   * - Inventory is updated by updateInventoryInUse() which recalculates based on ALL approved requests
+   * - This prevents race conditions and ensures inventory accuracy
+   * 
+   * FOR NEXT DEVELOPER:
+   * If you need to bypass validation for testing:
+   * 1. Comment out the validation block (lines with "if (newTents < 0 || newChairs < 0)")
+   * 2. DO NOT DEPLOY WITH VALIDATION DISABLED
+   * 3. Re-enable before committing
+   * 
+   * If you need to adjust default inventory:
+   * 1. Go to Firestore Console → inventory → equipment document
+   * 2. Manually update availableTents and availableChairs
+   * 3. In future: Create admin-manage-inventory.html for this
+   */
+  async function handleApprove(requestId) {
+    console.log(`✅ Approving request: ${requestId}`);
+    
+    try {
+      // Step 1: Get the request data to show inventory changes
+      const request = allRequests.find(r => r.id === requestId);
+      if (!request) {
+        showToast('Request not found', false);
+        return;
+      }
+
+      // Step 2: Get current inventory from Firestore
+      const inventoryRef = doc(db, 'inventory', 'equipment');
+      const inventorySnap = await getDoc(inventoryRef);
+      
+      let currentTents = 0;
+      let currentChairs = 0;
+      
+      if (inventorySnap.exists()) {
+        const inventoryData = inventorySnap.data();
+        currentTents = inventoryData.availableTents || 0;
+        currentChairs = inventoryData.availableChairs || 0;
+      }
+
+      // Calculate new values (subtract requested amounts)
+      const requestedTents = parseInt(request.quantityTents) || 0;
+      const requestedChairs = parseInt(request.quantityChairs) || 0;
+      const newTents = currentTents - requestedTents;
+      const newChairs = currentChairs - requestedChairs;
+
+      // VALIDATION: Check if approval would result in negative stock
+      if (newTents < 0 || newChairs < 0) {
+        let errorMessage = 'Cannot approve request: Insufficient inventory.\n\n';
+        
+        if (newTents < 0) {
+          errorMessage += `Tents: Requested ${requestedTents}, but only ${currentTents} available (shortage: ${Math.abs(newTents)})\n`;
+        }
+        
+        if (newChairs < 0) {
+          errorMessage += `Chairs: Requested ${requestedChairs}, but only ${currentChairs} available (shortage: ${Math.abs(newChairs)})`;
+        }
+        
+        await showConfirmModal(
+          'Insufficient Inventory',
+          errorMessage.trim(),
+          null,
+          true // isAlert mode - only shows OK button
+        );
+        
+        console.warn('⚠️ Approval blocked: Insufficient inventory', {
+          requestedTents,
+          currentTents,
+          requestedChairs,
+          currentChairs
+        });
+        
+        return;
+      }
+
+      // Show confirmation modal with inventory changes
+      const confirmed = await showConfirmModal(
+        'Approve Request',
+        'Are you sure you want to approve this request? The inventory will be updated.',
+        {
+          tents: requestedTents > 0 ? { old: currentTents, new: newTents } : null,
+          chairs: requestedChairs > 0 ? { old: currentChairs, new: newChairs } : null
+        }
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'approved',
+        approvedAt: new Date()
+      });
+
+      console.log('✅ Request approved successfully');
+      showToast('Request approved successfully', true);
+      
+      // Reload data
+      await loadAllRequests();
+      await updateInventoryInUse();
+    } catch (error) {
+      console.error('❌ Error approving request:', error);
+      showToast('Failed to approve request', false);
+    }
+  }
+
+  /**
+   * Handle deny/reject action
+   */
+  async function handleDeny(requestId) {
+    console.log(`❌ Denying request: ${requestId}`);
+    
+    const confirmed = await showConfirmModal(
+      'Reject Request',
+      'Are you sure you want to reject this request? This action cannot be undone.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const reason = prompt('Please provide a reason for rejection (optional):');
+    if (reason === null) return; // User cancelled
+
+    try {
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'rejected',
+        rejectedAt: new Date(),
+        rejectionReason: reason || 'No reason provided'
+      });
+
+      console.log('✅ Request rejected successfully');
+      showToast('Request rejected', true);
+      
+      // Reload data
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error rejecting request:', error);
+      showToast('Failed to reject request', false);
+    }
+  }
+
+  /**
+   * Handle complete action
+   */
+  async function handleComplete(requestId) {
+    console.log(`✔️ Completing request: ${requestId}`);
+    
+    const confirmed = await showConfirmModal(
+      'Mark as Completed',
+      'Are you sure you want to mark this request as completed? The inventory will be updated to reflect returned items.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'completed',
+        completedAt: new Date()
+      });
+
+      console.log('✅ Request completed successfully');
+      showToast('Request marked as completed', true);
+      
+      // Reload data
+      await loadAllRequests();
+      await updateInventoryInUse();
+    } catch (error) {
+      console.error('❌ Error completing request:', error);
+      showToast('Failed to complete request', false);
+    }
+  }
+
+  /**
+   * Handle archive action
+   */
+  async function handleArchive(requestId) {
+    console.log(`📦 Archiving request: ${requestId}`);
+    
+    if (!confirm('Archive this request? (This will hide it from the history view)')) {
+      return;
+    }
+
+    try {
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        archived: true,
+        archivedAt: new Date()
+      });
+
+      console.log('✅ Request archived successfully');
+      showToast('Request archived', true);
+      
+      // For now, just reload. In future, filter out archived requests
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error archiving request:', error);
+      showToast('Failed to archive request', false);
+    }
+  }
+
+  /**
+   * Handle delete action
+   */
+  async function handleDelete(requestId) {
+    console.log(`🗑️ Deleting request: ${requestId}`);
+    
+    if (!confirm('Are you sure you want to permanently delete this request? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await deleteDoc(requestRef);
+
+      console.log('✅ Request deleted successfully');
+      showToast('Request deleted permanently', true);
+      
+      // Reload data
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error deleting request:', error);
+      showToast('Failed to delete request', false);
+    }
+  }
+
+  /**
+   * Handle "Time's Up" notification
+   */
+  async function handleTimesUp(requestId) {
+    console.log(`⏰ Sending "Time\'s Up" notification for: ${requestId}`);
+    
+    const confirmed = await showConfirmModal(
+      'Send Time\'s Up Notification',
+      'Are you sure you want to send a "Time\'s Up" notification to remind the user about their booking?'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+    
+    // Placeholder: In future, integrate with email/SMS service
+    showToast('Time\'s Up notification feature will be implemented soon', false);
+    
+    // For now, just log the action
+    console.log(`📧 Would send "Time's Up" notification to user for request ${requestId}`);
+  }
+
+  /**
+   * Handle "Collect" notification
+   */
+  async function handleCollect(requestId) {
+    console.log(`📦 Sending "Collect" notification for: ${requestId}`);
+    
+    const confirmed = await showConfirmModal(
+      'Send Collect Notification',
+      'Are you sure you want to send a "Collect" notification to remind the user to collect their items?'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+    
+    // Placeholder: In future, integrate with email/SMS service
+    showToast('Collect notification feature will be implemented soon', false);
+    
+    // For now, just log the action
+    console.log(`📧 Would send "Collect" notification to user for request ${requestId}`);
+  }
+
+  // ========================================
+  // CONFIRMATION MODAL SYSTEM
+  // ========================================
+  /**
+   * CRITICAL COMPONENT: Unified confirmation modal for all admin actions
+   * 
+   * This modal replaced all native confirm() and alert() dialogs for better UX.
+   * Supports two modes: Confirmation mode (Yes/No) and Alert mode (OK only)
+   * 
+   * SPECIAL FEATURE: Inventory Preview
+   * - When approving requests, shows before/after inventory counts
+   * - Example: "Tents: 10 → 8" and "Chairs: 250 → 200"
+   * - Helps admin visualize impact before confirming
+   * 
+   * USAGE EXAMPLES:
+   * 
+   * 1. Simple Confirmation:
+   *    const confirmed = await showConfirmModal(
+   *      'Delete Request',
+   *      'Are you sure? This cannot be undone.'
+   *    );
+   *    if (confirmed) { // user clicked Yes }
+   * 
+   * 2. With Inventory Preview:
+   *    await showConfirmModal(
+   *      'Approve Request',
+   *      'This will update your inventory.',
+   *      { 
+   *        tents: { old: 10, new: 8 },
+   *        chairs: { old: 250, new: 200 }
+   *      }
+   *    );
+   * 
+   * 3. Alert Mode (errors/info):
+   *    await showConfirmModal(
+   *      'Insufficient Inventory',
+   *      'Cannot approve: Not enough tents available.',
+   *      null,
+   *      true // isAlert = shows only OK button
+   *    );
+   * 
+   * PARAMETERS:
+   * @param {string} title - Modal header (e.g., "Approve Request")
+   * @param {string} message - Main message (supports \n for line breaks)
+   * @param {Object|null} inventoryChanges - Optional { tents: {old, new}, chairs: {old, new} }
+   * @param {boolean} isAlert - If true, shows only OK button (no Yes/No)
+   * 
+   * RETURNS:
+   * @returns {Promise<boolean>} - Resolves to true if Yes/OK clicked, false if No clicked
+   * 
+   * DOM DEPENDENCIES:
+   * - #tentsConfirmModal - Modal container (must have .tents-confirm-modal-overlay class)
+   * - #tentsConfirmTitle - H3 element for title
+   * - #tentsConfirmMessage - P element for message
+   * - #tentsConfirmInventory - Div for inventory preview (hidden if null)
+   * - #tentsConfirmYes - Yes/OK button
+   * - #tentsConfirmNo - No button (hidden in alert mode)
+   * 
+   * CSS CLASSES:
+   * - .active - Added to modal overlay to show modal
+   * - .hidden - Added to inventory preview when not needed
+   * 
+   * IMPORTANT NOTES:
+   * - Always await this function (it returns a Promise)
+   * - Event listeners are properly cleaned up to prevent memory leaks
+   * - Modal closes when either button is clicked
+   * - Pressing OK in alert mode resolves to true (consistency)
+   */
+  /**
+   * Show confirmation modal
+   * @param {string} title - Modal title
+   * @param {string} message - Confirmation message
+   * @param {Object} inventoryChanges - Optional inventory changes {tents: {old, new}, chairs: {old, new}}
+   * @param {boolean} isAlert - If true, shows only OK button (for error/info messages)
+   * @returns {Promise<boolean>} - Resolves to true if confirmed, false if cancelled
+   */
+  function showConfirmModal(title, message, inventoryChanges = null, isAlert = false) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('tentsConfirmModal');
+      const titleEl = document.getElementById('tentsConfirmTitle');
+      const messageEl = document.getElementById('tentsConfirmMessage');
+      const inventoryEl = document.getElementById('tentsConfirmInventory');
+      const yesBtn = document.getElementById('tentsConfirmYes');
+      const noBtn = document.getElementById('tentsConfirmNo');
+
+      // Set content
+      titleEl.textContent = title;
+      messageEl.textContent = message;
+      messageEl.style.whiteSpace = 'pre-line'; // Preserve line breaks
+
+      // Handle alert mode (only OK button)
+      if (isAlert) {
+        yesBtn.textContent = 'OK';
+        yesBtn.style.display = 'inline-block';
+        noBtn.style.display = 'none';
+      } else {
+        yesBtn.textContent = 'Yes';
+        yesBtn.style.display = 'inline-block';
+        noBtn.style.display = 'inline-block';
+      }
+
+      // Show inventory changes if provided
+      if (inventoryChanges) {
+        let inventoryHTML = '';
+        
+        if (inventoryChanges.tents) {
+          inventoryHTML += `
+            <div class="tents-inventory-item">
+              <span class="tents-inventory-label">Tents:</span>
+              <div class="tents-inventory-change">
+                <span class="tents-inventory-old">${inventoryChanges.tents.old}</span>
+                <span class="tents-inventory-arrow">→</span>
+                <span class="tents-inventory-new">${inventoryChanges.tents.new}</span>
+              </div>
+            </div>
+          `;
+        }
+        
+        if (inventoryChanges.chairs) {
+          inventoryHTML += `
+            <div class="tents-inventory-item">
+              <span class="tents-inventory-label">Chairs:</span>
+              <div class="tents-inventory-change">
+                <span class="tents-inventory-old">${inventoryChanges.chairs.old}</span>
+                <span class="tents-inventory-arrow">→</span>
+                <span class="tents-inventory-new">${inventoryChanges.chairs.new}</span>
+              </div>
+            </div>
+          `;
+        }
+        
+        inventoryEl.innerHTML = inventoryHTML;
+        inventoryEl.classList.remove('hidden');
+      } else {
+        inventoryEl.innerHTML = '';
+        inventoryEl.classList.add('hidden');
+      }
+
+      // Show modal
+      modal.classList.add('active');
+
+      // Handle button clicks
+      const handleYes = () => {
+        cleanup();
+        resolve(true);
+      };
+
+      const handleNo = () => {
+        cleanup();
+        resolve(false);
+      };
+
+      const cleanup = () => {
+        modal.classList.remove('active');
+        messageEl.style.whiteSpace = 'normal'; // Reset
+        yesBtn.removeEventListener('click', handleYes);
+        noBtn.removeEventListener('click', handleNo);
+      };
+
+      yesBtn.addEventListener('click', handleYes);
+      noBtn.addEventListener('click', handleNo);
+    });
+  }
+
+  // ========================================
+  // TAB & VIEW SWITCHING
+  // ========================================
+
+  /**
+   * Switch between All Requests and History tabs
+   */
+  function switchTab(tabName) {
+    console.log(`🔄 Switching to ${tabName} tab`);
+    currentTab = tabName;
+
+    // Update tab buttons
+    document.querySelectorAll('.tents-tab').forEach(tab => tab.classList.remove('active'));
+    document.getElementById(`${tabName}Tab`)?.classList.add('active');
+
+    // Show/hide view toggle and export based on tab
+    if (tabName === 'all') {
+      document.getElementById('viewToggle').style.display = 'flex';
+      document.getElementById('exportDropdown').style.display = 'none';
+      currentView = 'table'; // Reset to table view
+    } else {
+      document.getElementById('viewToggle').style.display = 'none';
+      document.getElementById('exportDropdown').style.display = 'block';
+      currentView = 'table'; // History is always table view
+    }
+
+    // Update status filter options based on tab
+    updateStatusFilterOptions();
+
+    // Re-render content
+    renderContent();
+  }
+
+  /**
+   * Update status filter options based on current tab
+   */
+  function updateStatusFilterOptions() {
+    const statusFilter = document.getElementById('statusFilter');
+    if (!statusFilter) return;
+
+    if (currentTab === 'all') {
+      // All Requests: All, Pending, Approved, In Progress
+      statusFilter.innerHTML = `
+        <option value="all">All Statuses</option>
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="in-progress">In Progress</option>
+      `;
+    } else {
+      // History: All, Completed, Rejected, Cancelled
+      statusFilter.innerHTML = `
+        <option value="all">All Statuses</option>
+        <option value="completed">Completed</option>
+        <option value="rejected">Rejected</option>
+        <option value="cancelled">Cancelled</option>
+      `;
+    }
+  }
+
+  /**
+   * Switch between table and calendar views
+   */
+  function switchView(viewName) {
+    console.log(`🔄 Switching to ${viewName} view`);
+    currentView = viewName;
+
+    // Update view buttons
+    document.querySelectorAll('.tents-view-btn').forEach(btn => btn.classList.remove('active'));
+    if (viewName === 'table') {
+      document.getElementById('tableViewBtn')?.classList.add('active');
+      document.getElementById('tableFilters').style.display = 'grid';
+      document.getElementById('calendarButtons').style.display = 'none';
+    } else {
+      document.getElementById('calendarViewBtn')?.classList.add('active');
+      document.getElementById('tableFilters').style.display = 'none';
+      document.getElementById('calendarButtons').style.display = 'flex';
+    }
+
+    // Re-render content
+    renderContent();
+  }
+
+  // ========================================
+  // EXPORT FUNCTIONS
+  // ========================================
+
+  /**
+   * Export current filtered data to CSV
+   */
+  function exportToCSV() {
+    console.log('💾 Exporting to CSV...');
+    
+    const requests = getFilteredRequests();
+    if (requests.length === 0) {
+      showToast('No data to export', false);
+      return;
+    }
+
+    // CSV headers
+    let csv = 'Submitted On,First Name,Last Name,Start Date,End Date,Chairs,Tents,Delivery Mode,Address,Contact,Email,Status\n';
+
+    // CSV rows
+    requests.forEach(req => {
+      const submittedDate = req.createdAt ? req.createdAt.toDate().toLocaleDateString() : 'N/A';
+      const firstName = getFirstName(req.fullName);
+      const lastName = getLastName(req.fullName);
+      const startDate = formatDateText(req.startDate);
+      const endDate = formatDateText(req.endDate);
+
+      csv += `"${submittedDate}","${firstName}","${lastName}","${startDate}","${endDate}",${req.quantityChairs || 0},${req.quantityTents || 0},"${req.modeOfReceiving || ''}","${req.completeAddress || ''}","${req.contactNumber || ''}","${req.userEmail || ''}","${req.status}"\n`;
+    });
+
+    // Create download
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tents-chairs-requests-${currentTab}-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    console.log('✅ CSV exported successfully');
+    showToast('CSV exported successfully', true);
+  }
+
+  /**
+   * Toggle export dropdown menu
+   */
+  function toggleExportMenu() {
+    const menu = document.getElementById('exportMenu');
+    menu.classList.toggle('active');
+  }
+
+  /**
+   * Handle export button click
+   */
+  function exportData(format) {
+    if (format === 'csv') {
+      exportToCSV();
+    }
+    // Close dropdown
+    document.getElementById('exportMenu')?.classList.remove('active');
+  }
+
+  // ========================================
+  // MODAL FUNCTIONS
+  // ========================================
+
+  /**
+   * Close modal
+   */
+  function closeTentsModal() {
+    document.getElementById('tentsModalOverlay').style.display = 'none';
+  }
+
+  /**
+   * Close modal when clicking overlay
+   */
+  function closeModalOnOverlay(event) {
+    if (event.target.id === 'tentsModalOverlay') {
+      closeTentsModal();
+    }
+  }
+
+  // ========================================
+  // EVENT LISTENERS
+  // ========================================
+
+  /**
+   * Setup all event listeners
+   */
+  function setupEventListeners() {
+    console.log('🔧 Setting up event listeners...');
+
+    // Tab switching
+    document.getElementById('allRequestsTab')?.addEventListener('click', () => switchTab('all'));
+    document.getElementById('historyTab')?.addEventListener('click', () => switchTab('history'));
+
+    // View switching
+    document.getElementById('tableViewBtn')?.addEventListener('click', () => switchView('table'));
+    document.getElementById('calendarViewBtn')?.addEventListener('click', () => switchView('calendar'));
+
+    // Filters
+    document.getElementById('searchInput')?.addEventListener('input', renderContent);
+    document.getElementById('statusFilter')?.addEventListener('change', renderContent);
+    document.getElementById('dateFilter')?.addEventListener('change', renderContent);
+    document.getElementById('deliveryFilter')?.addEventListener('change', renderContent);
+    document.getElementById('sortByFilter')?.addEventListener('change', renderContent);
+
+    console.log('✅ Event listeners set up');
+  }
+
+  // ========================================
+  // EXPOSE FUNCTIONS TO WINDOW (for onclick handlers)
+  // ========================================
+
+  window.tentsAdmin = {
+    handleApprove,
+    handleDeny,
+    handleComplete,
+    handleArchive,
+    handleDelete,
+    handleTimesUp,
+    handleCollect
+  };
+
+  window.toggleExportMenu = toggleExportMenu;
+  window.exportData = exportData;
+  window.closeTentsModal = closeTentsModal;
+  window.closeModalOnOverlay = closeModalOnOverlay;
+
+  // ========================================
+  // INITIALIZATION
+  // ========================================
+
+  /**
+   * Initialize the page
+   */
+  async function initPage() {
+    console.log('🚀 Initializing Tents & Chairs Admin page...');
+    
+    // Check authentication
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        console.warn('⚠️ No authenticated user, redirecting to login');
+        window.location.href = 'index.html';
+        return;
+      }
+
+      console.log('✅ User authenticated:', user.email);
+
+      // Setup event listeners
+      setupEventListeners();
+
+      // Load data
+      await loadInventoryStats();
+      await loadAllRequests();
+
+      console.log('✅ Page initialized successfully');
+    });
+  }
+
+  // Start initialization
+  initPage();
+}
+

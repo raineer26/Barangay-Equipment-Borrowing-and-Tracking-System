@@ -3747,6 +3747,7 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 0;
   background: #f5f5f5;
   font-family: 'Poppins', sans-serif;
+  overflow-x: hidden;
 }
 
 /* Sidebar Styles */
@@ -3893,6 +3894,13 @@ input[type="number"]::-webkit-outer-spin-button {
   border-left-color: #FFCB05;
 }
 
+.dropdown-link.active {
+  background: white;
+  color: black;
+  border-left-color: #FFCB05;
+  font-weight: 600;
+}
+
 /* Sidebar Footer */
 .sidebar-footer {
   padding: 20px;
@@ -3947,6 +3955,8 @@ input[type="number"]::-webkit-outer-spin-button {
   margin-left: 280px;
   background: #f5f5f5;
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: calc(100vw - 280px);
 }
 
 /* Admin Hero Section */
@@ -4532,3 +4542,1048 @@ input[type="number"]::-webkit-outer-spin-button {
   display: inline-block;
   margin-top: 20px;
 }
+
+/* ==================== TENTS & CHAIRS ADMIN PAGE STYLES ==================== */
+
+/* Page Wrapper */
+.tents-page-wrapper {
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tents-page-wrapper .admin-hero {
+  margin-bottom: 0;
+}
+
+.tents-page-wrapper > .tents-stats-container {
+  padding: 40px 40px 0 40px;
+}
+
+.tents-page-wrapper > .tents-content-card {
+  margin: 24px 40px 40px 40px;
+}
+
+/* Stats Cards */
+.tents-stats-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.tents-stat-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  border-top: 4px solid;
+}
+
+.tents-stat-card.blue {
+  border-top-color: #4f46e5;
+}
+
+.tents-stat-card.orange {
+  border-top-color: #f97316;
+}
+
+.stat-number {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.tents-stat-card.blue .stat-number {
+  color: #4f46e5;
+}
+
+.tents-stat-card.orange .stat-number {
+  color: #f97316;
+}
+
+.stat-label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+/* Content Card */
+.tents-content-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+} box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* Tabs */
+.tents-tabs-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tents-tabs {
+  display: flex;
+  gap: 24px;
+}
+
+.tents-tab {
+  padding-bottom: 8px;
+  border: none;
+  background: none;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.tents-tab.active {
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
+}
+
+.tents-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tents-view-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.tents-view-btn {
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #e5e7eb;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.tents-view-btn.active {
+  background: #4f46e5;
+  color: white;
+}
+
+.tents-view-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+/* Filters */
+.tents-filters-section {
+  padding: 20px 24px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tents-booking-buttons {
+  padding: 20px 24px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.btn-booking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-booking:hover {
+  background: #4338ca;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-booking svg {
+  width: 20px;
+  height: 20px;
+}
+
+.tents-filter-group {
+  min-width: 150px;
+}
+
+.tents-filter-group label {
+  display: block;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #111827;
+}
+
+.tents-filter-group input,
+.tents-filter-group select {
+  width: 100%;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  background: white;
+}
+
+.tents-filter-group input:focus,
+.tents-filter-group select:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.tents-search-wrapper {
+  position: relative;
+}
+
+.tents-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #9ca3af;
+}
+
+.tents-search-wrapper input {
+  padding-left: 36px;
+}
+
+/* Table */
+.tents-table-container {
+  padding: 24px;
+  overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tents-requests-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  min-width: 1200px;
+}
+
+.tents-requests-table thead {
+  background: #FFCB05;
+}
+
+.tents-requests-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #000;
+  white-space: nowrap;
+}
+
+/* Column-specific widths for headers */
+.tents-requests-table th:nth-child(1) { min-width: 120px; max-width: 140px; } /* Submitted On */
+.tents-requests-table th:nth-child(2),
+.tents-requests-table th:nth-child(3) { min-width: 110px; max-width: 140px; } /* First/Last Name */
+.tents-requests-table th:nth-child(4),
+.tents-requests-table th:nth-child(5) { min-width: 110px; max-width: 130px; } /* Start/End Date */
+.tents-requests-table th:nth-child(6),
+.tents-requests-table th:nth-child(7) { min-width: 70px; max-width: 80px; text-align: center; } /* Chairs/Tents */
+.tents-requests-table th:nth-child(8) { min-width: 110px; max-width: 130px; } /* Delivery Mode */
+.tents-requests-table th:nth-child(9) { min-width: 150px; max-width: 200px; } /* Address */
+.tents-requests-table th:nth-child(10) { min-width: 100px; max-width: 120px; } /* Status */
+.tents-requests-table th:nth-child(11) { min-width: 180px; max-width: 200px; } /* Actions */
+.tents-requests-table th:nth-child(12) { min-width: 140px; max-width: 160px; } /* Notify User */
+
+.tents-requests-table td {
+  padding: 12px 16px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  border-top: 1px solid #e5e7eb;
+  vertical-align: middle;
+}
+
+.tents-requests-table tbody tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+.tents-requests-table tbody tr:nth-child(odd) {
+  background: white;
+}
+
+.tents-requests-table tbody tr:hover {
+  background: #f3f4f6;
+}
+
+/* Table Column Specific Styling */
+.tents-requests-table td:nth-child(1) { /* Submitted On */
+  min-width: 120px;
+  max-width: 140px;
+}
+
+.tents-requests-table td:nth-child(2),
+.tents-requests-table td:nth-child(3) { /* First Name, Last Name */
+  min-width: 110px;
+  max-width: 140px;
+}
+
+.tents-requests-table td:nth-child(4),
+.tents-requests-table td:nth-child(5) { /* Start Date, End Date */
+  min-width: 110px;
+  max-width: 130px;
+}
+
+.tents-requests-table td:nth-child(6),
+.tents-requests-table td:nth-child(7) { /* Chairs, Tents */
+  text-align: center;
+  min-width: 70px;
+  max-width: 80px;
+}
+
+.tents-requests-table td:nth-child(8) { /* Delivery Mode */
+  min-width: 110px;
+  max-width: 130px;
+}
+
+.tents-requests-table td:nth-child(9) { /* Address */
+  min-width: 150px;
+  max-width: 200px;
+}
+
+.tents-requests-table td:nth-child(10) { /* Status */
+  min-width: 100px;
+  max-width: 120px;
+}
+
+.tents-requests-table td:nth-child(11) { /* Actions */
+  min-width: 180px;
+  max-width: 200px;
+  white-space: nowrap;
+}
+
+.tents-requests-table td:nth-child(12) { /* Notify User */
+  min-width: 140px;
+  max-width: 160px;
+  white-space: nowrap;
+}
+
+/* Status Badges */
+.tents-status-badge-pending {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fed7aa;
+  color: #92400e;
+  text-transform: capitalize;
+}
+
+.tents-status-badge-approved {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #d1fae5;
+  color: #065f46;
+  text-transform: capitalize;
+}
+
+.tents-status-badge-in-progress {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #dbeafe;
+  color: #1e40af;
+  text-transform: capitalize;
+}
+
+.tents-status-badge-completed {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #d1fae5;
+  color: #065f46;
+  text-transform: capitalize;
+}
+
+.tents-status-badge-rejected {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fee2e2;
+  color: #991b1b;
+  text-transform: capitalize;
+}
+
+.tents-status-badge-cancelled {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #4b5563;
+  text-transform: capitalize;
+}
+
+/* Action Buttons Container */
+.tents-action-buttons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Action Buttons */
+.tents-btn-approve,
+.tents-btn-deny,
+.tents-btn-complete,
+.tents-btn-archive,
+.tents-btn-delete {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.tents-btn-approve {
+  background: #10b981;
+  color: white;
+}
+
+.tents-btn-approve:hover {
+  background: #059669;
+}
+
+.tents-btn-deny {
+  background: #ef4444;
+  color: white;
+}
+
+.tents-btn-deny:hover {
+  background: #dc2626;
+}
+
+.tents-btn-complete {
+  background: #4f46e5;
+  color: white;
+}
+
+.tents-btn-complete:hover {
+  background: #4338ca;
+}
+
+.tents-btn-archive {
+  background: #6b7280;
+  color: white;
+}
+
+.tents-btn-archive:hover {
+  background: #4b5563;
+}
+
+.tents-btn-delete {
+  background: #dc2626;
+  color: white;
+}
+
+.tents-btn-delete:hover {
+  background: #b91c1c;
+}
+
+/* Export Dropdown */
+.tents-export-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.btn-export {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-export:hover {
+  background: #059669;
+}
+
+.btn-export svg {
+  width: 20px;
+  height: 20px;
+}
+
+.tents-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  min-width: 150px;
+  z-index: 100;
+}
+
+.tents-dropdown-menu.active {
+  display: block;
+}
+
+.tents-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  color: #374151;
+  transition: background 0.2s;
+}
+
+.tents-dropdown-item:hover {
+  background: #f3f4f6;
+}
+
+/* Calendar */
+.tents-calendar-container {
+  padding: 24px;
+}
+
+.tents-calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.tents-calendar-header h2 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.tents-calendar-nav {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.tents-calendar-nav-btn {
+  padding: 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.tents-calendar-nav-btn:hover {
+  background: #f3f4f6;
+}
+
+.tents-calendar-nav-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.tents-calendar-grid {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tents-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.tents-calendar-day-header {
+  background: #5b21b6;
+  color: white;
+  padding: 12px;
+  text-align: center;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  border-right: 1px solid #4c1d95;
+}
+
+.tents-calendar-day-header:last-child {
+  border-right: none;
+}
+
+.tents-calendar-date {
+  min-height: 120px;
+  padding: 8px;
+  border: 1px solid #e5e7eb;
+  background: white;
+}
+
+.tents-calendar-date.empty {
+  background: #f9fafb;
+}
+
+.tents-calendar-date.has-bookings {
+  cursor: pointer;
+}
+
+.tents-calendar-date.has-bookings:hover {
+  background: #f9fafb;
+}
+
+.tents-date-number {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.tents-calendar-event {
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  color: white;
+  cursor: pointer;
+}
+
+.tents-calendar-event:hover {
+  opacity: 0.85;
+}
+
+.tents-event-approved {
+  background: #FFCB05;
+}
+
+.tents-event-pending {
+  background: #f97316;
+}
+
+.tents-event-in-progress {
+  background: #3b82f6;
+}
+
+.tents-event-name {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+/* Modal */
+.tents-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.tents-modal-overlay.active {
+  display: flex;
+}
+
+.tents-modal {
+  background: white;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.tents-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tents-modal-header h3 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.tents-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.tents-modal-close:hover {
+  background: #f3f4f6;
+}
+
+.tents-modal-body {
+  padding: 24px;
+}
+
+.tents-booking-item {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  background: #f9fafb;
+}
+
+.tents-booking-item:last-child {
+  margin-bottom: 0;
+}
+
+.tents-booking-item-header {
+  font-family: 'League Spartan', sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.tents-booking-item-details {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.tents-no-bookings {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  font-family: 'Poppins', sans-serif;
+  font-size: 15px;
+}
+
+/* Notification Buttons */
+.tents-btn-times-up,
+.tents-btn-collect {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+  display: inline-block;
+  white-space: nowrap;
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+.tents-btn-times-up {
+  background: #fbbf24;
+  color: #78350f;
+}
+
+.tents-btn-times-up:hover {
+  background: #f59e0b;
+}
+
+.tents-btn-collect {
+  background: #60a5fa;
+  color: #1e3a8a;
+}
+
+.tents-btn-collect:hover {
+  background: #3b82f6;
+}
+
+/* Empty State */
+.tents-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+.tents-empty-state svg {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  opacity: 0.5;
+}
+
+.tents-empty-state h3 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.tents-empty-state p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+/* Calendar Placeholder */
+.tents-calendar-placeholder {
+  text-align: center;
+  padding: 80px 20px;
+  color: #6b7280;
+}
+
+.tents-calendar-placeholder h3 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.tents-calendar-placeholder p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 15px;
+  color: #9ca3af;
+}
+
+/* Text Muted Helper */
+.text-muted {
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* ========================================
+   CONFIRMATION MODAL
+   ======================================== */
+.tents-confirm-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+}
+
+.tents-confirm-modal-overlay.active {
+  display: flex;
+}
+
+.tents-confirm-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tents-confirm-modal-header {
+  padding: 24px 24px 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tents-confirm-modal-header h3 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #4F46E5;
+  margin: 0;
+}
+
+.tents-confirm-modal-body {
+  padding: 24px;
+}
+
+.tents-confirm-modal-body p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 15px;
+  color: #4b5563;
+  margin: 0 0 16px 0;
+  line-height: 1.6;
+}
+
+.tents-inventory-preview {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.tents-inventory-preview.hidden {
+  display: none;
+}
+
+.tents-inventory-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.tents-inventory-item:last-child {
+  margin-bottom: 0;
+}
+
+.tents-inventory-label {
+  font-weight: 600;
+  color: #374151;
+  flex: 0 0 80px;
+}
+
+.tents-inventory-change {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  justify-content: center;
+}
+
+.tents-inventory-old,
+.tents-inventory-new {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.tents-inventory-old {
+  color: #6b7280;
+}
+
+.tents-inventory-new {
+  color: #059669;
+}
+
+.tents-inventory-arrow {
+  color: #9ca3af;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.tents-confirm-modal-footer {
+  padding: 16px 24px 24px 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.tents-confirm-btn-yes,
+.tents-confirm-btn-no {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 80px;
+}
+
+.tents-confirm-btn-yes {
+  background: #4F46E5;
+  color: white;
+}
+
+.tents-confirm-btn-yes:hover {
+  background: #4338CA;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
+}
+
+.tents-confirm-btn-no {
+  background: #ef4444;
+  color: white;
+}
+
+.tents-confirm-btn-no:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
+}
+
