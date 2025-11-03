@@ -3734,3 +3734,2419 @@ input[type="number"]::-webkit-outer-spin-button {
     width: 100%;
   }
 }
+
+/* ================================================
+   ADMIN DASHBOARD STYLES
+   Add this to your style.css file
+================================================ */
+
+/* Admin Body Layout */
+.admin-body {
+  display: flex;
+  min-height: 100vh;
+  margin: 0;
+  background: #f5f5f5;
+  font-family: 'Poppins', sans-serif;
+  overflow-x: hidden;
+}
+
+/* Sidebar Styles */
+.admin-sidebar {
+  width: 280px;
+  background: linear-gradient(180deg, #281ABC 0%, #1a0e7a 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  height: 100vh;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  overflow-y: auto;
+  box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-header {
+  padding: 30px 20px 25px 20px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sidebar-logo {
+  width: 70px;
+  height: 70px;
+  margin-bottom: 12px;
+}
+
+.sidebar-header h3 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 3px 0;
+}
+
+.sidebar-header p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.75rem;
+  margin: 0;
+  opacity: 0.9;
+  letter-spacing: 0.5px;
+}
+
+/* Sidebar Navigation */
+.sidebar-nav {
+  flex: 1;
+  padding: 20px 0;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  padding: 15px 25px;
+  color: white;
+  text-decoration: none;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  border-left: 4px solid transparent;
+  gap: 12px;
+  position: relative;
+}
+
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-left-color: #FFCB05;
+}
+
+.sidebar-link.active {
+  background: white;
+  color: black;
+  border-left-color: #FFCB05;
+  font-weight: 600;
+}
+
+.sidebar-icon {
+  font-size: 1.3rem;
+  width: 30px;
+  text-align: center;
+}
+
+/* Default (white icons) */
+.sidebar-link .nav-icon {
+  filter: brightness(0) invert(1);
+  transition: filter 0.2s ease;
+}
+
+/* Active (black icon) */
+.sidebar-link.active .nav-icon {
+  filter: brightness(0) invert(0);
+}
+
+/* Hover effect */
+.sidebar-link:hover .nav-icon {
+  filter: brightness(0) invert(0.7);
+}
+
+/* Sidebar Dropdown */
+.sidebar-dropdown {
+  position: relative;
+}
+
+.dropdown-toggle {
+  justify-content: space-between;
+}
+
+.dropdown-arrow {
+  font-size: 0.7rem;
+  transition: transform 0.3s ease;
+  margin-left: auto;
+}
+
+.dropdown-toggle.open .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.dropdown-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.dropdown-content.open {
+  max-height: 200px;
+}
+
+.dropdown-link {
+  display: block;
+  padding: 12px 25px 12px 67px;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  border-left: 4px solid transparent;
+}
+
+.dropdown-link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-left-color: #FFCB05;
+}
+
+.dropdown-link.active {
+  background: white;
+  color: black;
+  border-left-color: #FFCB05;
+  font-weight: 600;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.logout-btn {
+  width: 100%;
+  background: white;
+  color: #281ABC;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.logout-btn:hover {
+  background: #f0f0f0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+  display: none;
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1001;
+  background: #281ABC;
+  color: white;
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Main Content */
+.admin-main {
+  flex: 1;
+  margin-left: 280px;
+  background: #f5f5f5;
+  min-height: 100vh;
+  overflow-x: hidden;
+  max-width: calc(100vw - 280px);
+}
+
+/* Dashboard Page Specific - Non-scrollable */
+.admin-main.admin-dashboard-page {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Admin Hero Section */
+.admin-hero {
+  position: relative;
+  height: 180px;
+  background: linear-gradient(135deg, #281ABC 0%, #1a0e7a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
+  padding-left: 60px;
+}
+
+.admin-hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('Assets/Hall.jpg') center / cover;
+  opacity: 1;
+  z-index: 1;
+}
+
+.admin-hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: left;
+  color: white;
+  padding: 20px 40px;
+}
+
+.admin-hero-content h1 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 3.5rem;
+  font-weight: 750;
+  margin: 0 0 10px 0;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: white;
+}
+
+.admin-hero-content .highlight-yellow {
+  color: #FFCB05;
+}
+
+.admin-hero-content p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.1rem;
+  margin: 0;
+  font-weight: 400;
+  color: white;
+}
+
+/* Dashboard Content */
+.admin-dashboard-grid {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 30px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  height: calc(100vh - 180px);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.dashboard-left,
+.dashboard-right {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Quick Access Section */
+.quick-access-section {
+  background: #f1e9f3;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #281ABC;
+  margin: 0 0 8px 0;
+  letter-spacing: 1px;
+}
+
+.section-subtitle {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.9rem;
+  color: #000;
+  margin: 0 0 25px 0;
+}
+
+/* Quick Access Cards */
+.quick-access-card {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 25px;
+  margin-bottom: 20px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.quick-access-card:hover {
+  border-color: #281ABC;
+  box-shadow: 0 4px 12px rgba(40, 26, 188, 0.15);
+  transform: translateY(-2px);
+}
+
+.quick-access-card:last-child {
+  margin-bottom: 0;
+}
+
+.card-icon {
+  margin-bottom: 15px;
+}
+
+.access-icon {
+  width: 70px;
+  height: 70px;
+}
+
+.card-title {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #281ABC;
+  margin: 0 0 18px 0;
+  letter-spacing: 0.5px;
+}
+
+.review-btn {
+  background: #d32f2f;
+  color: white;
+  border: none;
+  padding: 10px 35px;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.review-btn:hover {
+  background: #b71c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(211, 47, 47, 0.3);
+}
+
+/* ==================== PENDING REQUESTS SECTION ==================== */
+.pending-requests-section {
+  background: #e8dff0;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
+}
+
+.pending-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.pending-request-card {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 25px 20px;
+  text-align: center;
+  position: relative;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.pending-request-card:hover {
+  border-color: #281ABC;
+  box-shadow: 0 6px 16px rgba(40, 26, 188, 0.12);
+  transform: translateY(-3px);
+}
+
+.pending-card-icon {
+  margin-bottom: 12px;
+}
+
+.pending-icon {
+  width: 50px;
+  height: 50px;
+}
+
+.pending-badge {
+  background: #ff6b6b;
+  color: white;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 14px;
+  display: inline-block;
+  margin-bottom: 12px;
+  letter-spacing: 0.3px;
+}
+
+.pending-card-title {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #281ABC;
+  margin: 0 0 16px 0;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
+  min-height: 20px;
+}
+
+.review-now-btn {
+  background: #d32f2f;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-block;
+  width: auto;
+}
+
+.review-now-btn:hover {
+  background: #b71c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.35);
+}
+
+/* ==================== INVENTORY STOCKS SECTION ==================== */
+.inventory-stocks-section {
+  background: #e8dff0;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.inventory-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.inventory-card {
+  background: white;
+  border: 3px solid #5271ff;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.inventory-card:hover {
+  border-color: #3d5eff;
+  box-shadow: 0 6px 16px rgba(82, 113, 255, 0.15);
+  transform: translateY(-3px);
+}
+
+.inventory-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.inventory-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  background: #281ABC;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.inventory-item-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.inventory-label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #666;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.inventory-count {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Add Internal Booking Button */
+.add-internal-booking-btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 14px 24px;
+  background: #281ABC;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(40, 26, 188, 0.2);
+}
+
+.add-internal-booking-btn:hover {
+  background: #1a0e7a;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(40, 26, 188, 0.3);
+}
+
+.add-internal-booking-btn:active {
+  transform: translateY(0);
+}
+
+/* Week Calendar Card */
+.week-calendar-card {
+  background: #f1e9f3;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.calendar-title {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #281ABC;
+  margin: 0 0 8px 0;
+  text-align: left;
+  letter-spacing: 1px;
+}
+
+.calendar-subtitle {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.9rem;
+  color: #000;
+  margin: 0 0 20px 0;
+  text-align: left;
+  font-weight: 400;
+}
+
+.week-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.week-day-card {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px 10px;
+  text-align: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.week-day-card:hover {
+  border-color: #281ABC;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(40, 26, 188, 0.15);
+}
+
+.week-day-name {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #666;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.week-day-number {
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #222;
+  margin: 0;
+}
+
+.week-day-card.today {
+  background: #281ABC;
+  border-color: #281ABC;
+}
+
+.week-day-card.today .week-day-name,
+.week-day-card.today .week-day-number {
+  color: white;
+}
+
+.week-day-card.selected {
+  background: #FFCB05;
+  border-color: #FFCB05;
+}
+
+.week-day-card.selected .week-day-name,
+.week-day-card.selected .week-day-number {
+  color: #000;
+}
+
+.week-day-card.today.selected {
+  background: #281ABC;
+  border-color: #281ABC;
+  box-shadow: 0 10px 20px rgba(40,26,188,0.18), 0 0 0 6px rgba(40,26,188,0.06);
+  transform: translateY(-3px);
+  position: relative;
+  z-index: 2;
+}
+
+.week-day-card.today.selected::after {
+  content: '';
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 8px;
+  height: 5px;
+  background: rgba(255,203,5,0.08);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.week-day-card.today.selected .week-day-name,
+.week-day-card.today.selected .week-day-number {
+  color: white;
+}
+
+.week-day-card.has-reservation::after {
+  content: '';
+  display: block;
+  width: 6px;
+  height: 6px;
+  background: #ff5722;
+  border-radius: 50%;
+  margin: 8px auto 0;
+}
+
+.week-day-card.today.has-reservation::after,
+.week-day-card.selected.has-reservation::after {
+  background: white;
+}
+
+.week-day-card.booked {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
+.week-day-card.booked .week-day-name,
+.week-day-card.booked .week-day-number {
+  color: #999;
+}
+
+/* Reservations Card */
+.reservations-card {
+  background: #f1e9f3;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.reservations-title {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #281ABC;
+  margin: 0 0 8px 0;
+  letter-spacing: 1px;
+}
+
+.reservations-subtitle {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem;
+  color: #000;
+  margin: 0 0 20px 0;
+}
+
+.reservations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 5px;
+}
+
+.reservations-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.reservations-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.reservations-list::-webkit-scrollbar-thumb {
+  background: #281ABC;
+  border-radius: 4px;
+}
+
+.reservations-list::-webkit-scrollbar-thumb:hover {
+  background: #1a0e7a;
+}
+
+/* Reservation Item */
+.reservation-item {
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  transition: all 0.2s ease;
+}
+
+.reservation-item:hover {
+  border-color: #281ABC;
+  box-shadow: 0 2px 8px rgba(40, 26, 188, 0.1);
+}
+
+.reservation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.reservation-date {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #222;
+  margin: 0;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-badge.approved {
+  background: #4caf50;
+  color: white;
+}
+
+.status-badge.pending {
+  background: #ffc107;
+  color: #000;
+}
+
+.reservation-details {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ==================== INTERNAL BOOKING MODAL ==================== */
+.internal-booking-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.internal-booking-modal-overlay.active {
+  display: flex;
+}
+
+.internal-booking-modal {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.internal-booking-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 30px;
+  border-bottom: 2px solid #f0f0f0;
+  background: linear-gradient(135deg, #281ABC 0%, #1a0e7a 100%);
+  border-radius: 16px 16px 0 0;
+}
+
+.internal-booking-modal-header h2 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: white;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.internal-booking-close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 2rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.internal-booking-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+.internal-booking-form {
+  padding: 30px;
+}
+
+.internal-booking-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.internal-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.internal-form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.internal-form-group label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.internal-form-group .required {
+  color: #dc2626;
+}
+
+.internal-form-group input,
+.internal-form-group textarea {
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.internal-form-group input:focus,
+.internal-form-group textarea:focus {
+  outline: none;
+  border-color: #281ABC;
+  box-shadow: 0 0 0 3px rgba(40, 26, 188, 0.1);
+}
+
+.internal-form-group input.error,
+.internal-form-group textarea.error {
+  border-color: #dc2626;
+}
+
+.internal-form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-hint {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.75rem;
+  color: #666;
+  font-style: italic;
+  margin-top: -4px;
+}
+
+.internal-error-message {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.8rem;
+  color: #dc2626;
+  min-height: 18px;
+  display: block;
+}
+
+.internal-booking-form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 20px;
+  border-top: 2px solid #f0f0f0;
+}
+
+.internal-booking-cancel-btn,
+.internal-booking-submit-btn {
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.internal-booking-cancel-btn {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.internal-booking-cancel-btn:hover {
+  background: #e0e0e0;
+}
+
+.internal-booking-submit-btn {
+  background: #281ABC;
+  color: white;
+  position: relative;
+  min-width: 150px;
+}
+
+.internal-booking-submit-btn:hover {
+  background: #1a0e7a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(40, 26, 188, 0.3);
+}
+
+.internal-booking-submit-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.internal-booking-submit-btn .btn-spinner {
+  display: none;
+}
+
+.internal-booking-submit-btn.loading .btn-text {
+  display: none;
+}
+
+.internal-booking-submit-btn.loading .btn-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .internal-booking-form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .internal-booking-modal {
+    max-width: 95%;
+  }
+}
+
+/* ==================== PLACEHOLDER CONTENT STYLES ==================== */
+.admin-content {
+  padding: 40px;
+}
+
+.placeholder-content {
+  background: white;
+  border-radius: 12px;
+  padding: 80px 40px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 800px;
+  margin: 60px auto;
+}
+
+.placeholder-icon {
+  font-size: 5rem;
+  margin-bottom: 30px;
+  opacity: 0.6;
+}
+
+.placeholder-content h2 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #281ABC;
+  margin-bottom: 20px;
+}
+
+.placeholder-content p {
+  font-size: 1.1rem;
+  color: #666;
+  line-height: 1.8;
+  margin-bottom: 15px;
+}
+
+.placeholder-note {
+  font-weight: 600;
+  color: #FFCB05;
+  background: #fff9e6;
+  padding: 12px 24px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-top: 20px;
+}
+
+/* ==================== TENTS & CHAIRS ADMIN PAGE STYLES ==================== */
+
+/* Page Wrapper */
+.tents-page-wrapper {
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tents-page-wrapper .admin-hero {
+  margin-bottom: 0;
+}
+
+.tents-page-wrapper > .tents-stats-container {
+  padding: 40px 40px 0 40px;
+}
+
+.tents-page-wrapper > .tents-content-card {
+  margin: 24px 40px 40px 40px;
+}
+
+/* Stats Cards */
+.tents-stats-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.tents-stat-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  border-top: 4px solid;
+}
+
+.tents-stat-card.blue {
+  border-top-color: #4f46e5;
+}
+
+.tents-stat-card.orange {
+  border-top-color: #f97316;
+}
+
+.stat-number {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.tents-stat-card.blue .stat-number {
+  color: #4f46e5;
+}
+
+.tents-stat-card.orange .stat-number {
+  color: #f97316;
+}
+
+.stat-label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+/* Content Card */
+.tents-content-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+} box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* Tabs */
+.tents-tabs-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tents-tabs {
+  display: flex;
+  gap: 24px;
+}
+
+.tents-tab {
+  padding-bottom: 8px;
+  border: none;
+  background: none;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.tents-tab.active {
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
+}
+
+.tents-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tents-view-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.tents-view-btn {
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #e5e7eb;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.tents-view-btn.active {
+  background: #4f46e5;
+  color: white;
+}
+
+.tents-view-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+/* Filters */
+.tents-filters-section {
+  padding: 20px 24px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tents-booking-buttons {
+  padding: 20px 24px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.tents-booking-buttons .add-internal-booking-btn {
+  width: auto;
+  margin-top: 0;
+}
+
+.btn-booking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-booking:hover {
+  background: #4338ca;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-booking svg {
+  width: 20px;
+  height: 20px;
+}
+
+.tents-filter-group {
+  min-width: 150px;
+}
+
+.tents-filter-group label {
+  display: block;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #111827;
+}
+
+.tents-filter-group input,
+.tents-filter-group select {
+  width: 100%;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  background: white;
+}
+
+.tents-filter-group input:focus,
+.tents-filter-group select:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.tents-search-wrapper {
+  position: relative;
+}
+
+.tents-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #9ca3af;
+}
+
+.tents-search-wrapper input {
+  padding-left: 36px;
+}
+
+/* Table */
+.tents-table-container {
+  padding: 24px;
+  overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tents-requests-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  min-width: 1200px;
+}
+
+.tents-requests-table thead {
+  background: #FFCB05;
+}
+
+.tents-requests-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #000;
+  white-space: nowrap;
+}
+
+/* Column-specific widths for headers */
+.tents-requests-table th:nth-child(1) { min-width: 120px; max-width: 140px; } /* Submitted On */
+.tents-requests-table th:nth-child(2),
+.tents-requests-table th:nth-child(3) { min-width: 110px; max-width: 140px; } /* First/Last Name */
+.tents-requests-table th:nth-child(4),
+.tents-requests-table th:nth-child(5) { min-width: 110px; max-width: 130px; } /* Start/End Date */
+.tents-requests-table th:nth-child(6),
+.tents-requests-table th:nth-child(7) { min-width: 70px; max-width: 80px; text-align: center; } /* Chairs/Tents */
+.tents-requests-table th:nth-child(8) { min-width: 110px; max-width: 130px; } /* Delivery Mode */
+.tents-requests-table th:nth-child(9) { min-width: 150px; max-width: 200px; } /* Address */
+.tents-requests-table th:nth-child(10) { min-width: 100px; max-width: 120px; } /* Status */
+.tents-requests-table th:nth-child(11) { min-width: 180px; max-width: 200px; } /* Actions */
+.tents-requests-table th:nth-child(12) { min-width: 140px; max-width: 160px; } /* Notify User */
+
+.tents-requests-table td {
+  padding: 12px 16px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  border-top: 1px solid #e5e7eb;
+  vertical-align: middle;
+}
+
+.tents-requests-table tbody tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+.tents-requests-table tbody tr:nth-child(odd) {
+  background: white;
+}
+
+.tents-requests-table tbody tr:hover {
+  background: #f3f4f6;
+}
+
+/* Table Column Specific Styling */
+.tents-requests-table td:nth-child(1) { /* Submitted On */
+  min-width: 120px;
+  max-width: 140px;
+}
+
+.tents-requests-table td:nth-child(2),
+.tents-requests-table td:nth-child(3) { /* First Name, Last Name */
+  min-width: 110px;
+  max-width: 140px;
+}
+
+.tents-requests-table td:nth-child(4),
+.tents-requests-table td:nth-child(5) { /* Start Date, End Date */
+  min-width: 110px;
+  max-width: 130px;
+}
+
+.tents-requests-table td:nth-child(6),
+.tents-requests-table td:nth-child(7) { /* Chairs, Tents */
+  text-align: center;
+  min-width: 70px;
+  max-width: 80px;
+}
+
+.tents-requests-table td:nth-child(8) { /* Delivery Mode */
+  min-width: 110px;
+  max-width: 130px;
+}
+
+.tents-requests-table td:nth-child(9) { /* Address */
+  min-width: 150px;
+  max-width: 200px;
+}
+
+.tents-requests-table td:nth-child(10) { /* Status */
+  min-width: 100px;
+  max-width: 120px;
+}
+
+.tents-requests-table td:nth-child(11) { /* Actions */
+  min-width: 180px;
+  max-width: 200px;
+  white-space: nowrap;
+}
+
+.tents-requests-table td:nth-child(12) { /* Notify User */
+  min-width: 140px;
+  max-width: 160px;
+  white-space: nowrap;
+}
+
+/* Remarks column (history & archives). Allow long text to wrap and break safely. */
+.tents-requests-table th:nth-child(12),
+.tents-requests-table td:nth-child(12) {
+  /* When Remarks exists it will occupy the 12th column in history/archives */
+  min-width: 160px;
+  max-width: 300px;
+}
+
+.tents-requests-table td:nth-child(12) {
+  white-space: normal; /* allow wrapping */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Completed/Archived timestamp column sits after Remarks in history/archives (13th column) */
+.tents-requests-table th:nth-child(13),
+.tents-requests-table td:nth-child(13) {
+  min-width: 120px;
+  max-width: 160px;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Inline remarks expand/collapse styles */
+.remarks-text {
+  cursor: pointer;
+  color: #111827;
+  display: inline-block;
+}
+.remarks-text.collapsed {
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.remarks-text.expanded {
+  white-space: normal;
+  overflow: visible;
+}
+
+/* Status Badges */
+.tents-status-badge-pending {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fed7aa;
+  color: #92400e;
+  text-transform: capitalize;
+}
+
+.tents-status-badge-approved {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #d1fae5;
+  color: #065f46;
+  text-transform: capitalize;
+}
+
+.tents-status-badge-in-progress {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #dbeafe;
+  color: #1e40af;
+  text-transform: capitalize;
+}
+
+.tents-status-badge-completed {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #d1fae5;
+  color: #065f46;
+  text-transform: capitalize;
+}
+
+.tents-status-badge-rejected {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fee2e2;
+  color: #991b1b;
+  text-transform: capitalize;
+}
+
+.tents-status-badge-cancelled {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #4b5563;
+  text-transform: capitalize;
+}
+
+/* Action Buttons Container */
+.tents-action-buttons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Action Buttons */
+.tents-btn-approve,
+.tents-btn-deny,
+.tents-btn-complete,
+.tents-btn-archive,
+.tents-btn-delete,
+.tents-btn-unarchive {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.tents-btn-approve {
+  background: #10b981;
+  color: white;
+}
+
+.tents-btn-approve:hover {
+  background: #059669;
+}
+
+.tents-btn-deny {
+  background: #ef4444;
+  color: white;
+}
+
+.tents-btn-deny:hover {
+  background: #dc2626;
+}
+
+.tents-btn-complete {
+  background: #4f46e5;
+  color: white;
+}
+
+.tents-btn-complete:hover {
+  background: #4338ca;
+}
+
+.tents-btn-archive {
+  background: #6b7280;
+  color: white;
+}
+
+.tents-btn-archive:hover {
+  background: #4b5563;
+}
+
+.tents-btn-delete {
+  background: #dc2626;
+  color: white;
+}
+
+.tents-btn-delete:hover {
+  background: #b91c1c;
+}
+
+/* Unarchive button: restore archived requests back to history
+   Uses a subtle primary accent to indicate a non-destructive restore action */
+.tents-btn-unarchive {
+  background: #2563eb; /* blue-600 */
+  color: white;
+}
+
+.tents-btn-unarchive:hover {
+  background: #1d4ed8; /* blue-700 */
+}
+
+/* Export Dropdown */
+.tents-export-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.btn-export {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-export:hover {
+  background: #059669;
+}
+
+.btn-export svg {
+  width: 20px;
+  height: 20px;
+}
+
+.tents-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  min-width: 150px;
+  z-index: 100;
+}
+
+.tents-dropdown-menu.active {
+  display: block;
+}
+
+.tents-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  color: #374151;
+  transition: background 0.2s;
+}
+
+.tents-dropdown-item:hover {
+  background: #f3f4f6;
+}
+
+/* Calendar */
+.tents-calendar-container {
+  padding: 24px;
+}
+
+.tents-calendar-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 32px;
+}
+
+.tents-calendar-header h2 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  min-width: 200px;
+  text-align: center;
+}
+
+/* Calendar Legend */
+.tents-calendar-legend {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.tents-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  color: #374151;
+}
+
+.tents-legend-box {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  flex-shrink: 0;
+}
+
+.tents-legend-today {
+  background: #dbeafe;
+  border: 2px solid #3b82f6;
+}
+
+.tents-legend-has-bookings {
+  background: #fef08a;
+  border: 2px solid #eab308;
+}
+
+.tents-legend-empty {
+  background: white;
+  border: 1px solid #e5e7eb;
+}
+
+.tents-legend-event {
+  width: 60px;
+  height: 24px;
+  background: #5b21b6;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.tents-legend-event::after {
+  content: 'Event';
+}
+
+.tents-calendar-nav {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.tents-calendar-nav-btn {
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tents-calendar-nav-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.tents-calendar-nav-btn svg {
+  width: 20px;
+  height: 20px;
+  color: #374151;
+}
+
+.tents-calendar-grid {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: white;
+}
+
+.tents-calendar-day-header {
+  background: #5b21b6;
+  color: white;
+  padding: 12px;
+  text-align: center;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  border-right: 1px solid #4c1d95;
+}
+
+.tents-calendar-day-header:last-child {
+  border-right: none;
+}
+
+.tents-calendar-date {
+  min-height: 100px;
+  padding: 8px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.2s;
+  position: relative;
+}
+
+.tents-calendar-date.empty {
+  background: #f9fafb;
+  cursor: default;
+}
+
+.tents-calendar-date:not(.empty) {
+  cursor: pointer;
+}
+
+.tents-calendar-date:not(.empty):hover {
+  background: #f9fafb;
+  box-shadow: inset 0 0 0 1px #9ca3af;
+}
+
+.tents-calendar-date.has-bookings {
+  background: #fef08a;
+  border: 2px solid #eab308;
+}
+
+.tents-calendar-date.has-bookings:hover {
+  background: #fde047;
+  border-color: #ca8a04;
+}
+
+.tents-calendar-date.today {
+  background: #dbeafe;
+  border: 2px solid #3b82f6;
+}
+
+.tents-calendar-date.today.has-bookings {
+  background: #fef08a;
+  border: 2px solid #3b82f6;
+  box-shadow: 0 0 0 2px #eab308;
+}
+
+.tents-date-number {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #111827;
+}
+
+.tents-booking-indicator {
+  margin-top: auto;
+  padding: 4px 8px;
+  background: #5b21b6;
+  color: white;
+  border-radius: 4px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.tents-calendar-event {
+  padding: 4px 6px;
+  border-radius: 4px;
+  margin-bottom: 3px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  background: #5b21b6;
+  color: white;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tents-calendar-event:hover {
+  opacity: 0.9;
+  z-index: 10;
+}
+
+.tents-event-name {
+  font-weight: 600;
+  margin-bottom: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tents-event-items {
+  font-size: 10px;
+  opacity: 0.95;
+  font-weight: 500;
+}
+
+.tents-more-bookings {
+  font-size: 10px;
+  color: #6b7280;
+  font-weight: 600;
+  margin-top: 2px;
+  padding: 2px 4px;
+  text-align: center;
+  background: #f3f4f6;
+  border-radius: 3px;
+}
+
+/* Modal */
+.tents-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.tents-modal-overlay.active {
+  display: flex;
+}
+
+.tents-modal {
+  background: white;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.tents-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tents-modal-header h3 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.tents-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.tents-modal-close:hover {
+  background: #f3f4f6;
+}
+
+.tents-modal-body {
+  padding: 24px;
+}
+
+.tents-modal-bookings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tents-booking-item {
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: all 0.2s;
+}
+
+.tents-booking-item.with-divider {
+  margin-top: 4px;
+}
+
+.tents-booking-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #d1d5db;
+}
+
+.tents-booking-item:last-child {
+  margin-bottom: 0;
+}
+
+.tents-booking-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tents-booking-name {
+  display: flex;
+  align-items: center;
+  font-family: 'League Spartan', sans-serif;
+  font-weight: 600;
+  font-size: 17px;
+  color: #111827;
+}
+
+.tents-booking-item-details {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  color: #4b5563;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tents-booking-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.tents-booking-detail-row svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.tents-booking-detail-row span {
+  line-height: 1.5;
+}
+
+.tents-no-bookings {
+  text-align: center;
+  padding: 48px 20px;
+  color: #6b7280;
+  font-family: 'Poppins', sans-serif;
+  font-size: 15px;
+}
+
+/* Notification Buttons */
+.tents-btn-times-up,
+.tents-btn-collect {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+  display: inline-block;
+  white-space: nowrap;
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+.tents-btn-times-up {
+  background: #fbbf24;
+  color: #78350f;
+}
+
+.tents-btn-times-up:hover {
+  background: #f59e0b;
+}
+
+.tents-btn-collect {
+  background: #60a5fa;
+  color: #1e3a8a;
+}
+
+.tents-btn-collect:hover {
+  background: #3b82f6;
+}
+
+/* Empty State */
+.tents-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+.tents-empty-state svg {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  opacity: 0.5;
+}
+
+.tents-empty-state h3 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.tents-empty-state p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+/* Calendar Placeholder */
+.tents-calendar-placeholder {
+  text-align: center;
+  padding: 80px 20px;
+  color: #6b7280;
+}
+
+.tents-calendar-placeholder h3 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.tents-calendar-placeholder p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 15px;
+  color: #9ca3af;
+}
+
+/* Text Muted Helper */
+.text-muted {
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* ========================================
+   CONFIRMATION MODAL
+   ======================================== */
+.tents-confirm-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+}
+
+.tents-confirm-modal-overlay.active {
+  display: flex;
+}
+
+.tents-confirm-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tents-confirm-modal-header {
+  padding: 24px 24px 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tents-confirm-modal-header h3 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #4F46E5;
+  margin: 0;
+}
+
+.tents-confirm-modal-body {
+  padding: 24px;
+}
+
+.tents-confirm-modal-body p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 15px;
+  color: #4b5563;
+  margin: 0 0 16px 0;
+  line-height: 1.6;
+}
+
+.tents-inventory-preview {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.tents-inventory-preview.hidden {
+  display: none;
+}
+
+/* Confirmation modal input (rejection reason, etc.) */
+.tents-confirm-input {
+  margin-top: 16px;
+}
+
+.tents-confirm-input label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+}
+
+.tents-confirm-input textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  color: #111827;
+  resize: vertical;
+  min-height: 100px;
+  box-sizing: border-box;
+}
+
+.tents-confirm-input textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: #4F46E5;
+}
+
+.tents-inventory-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.tents-inventory-item:last-child {
+  margin-bottom: 0;
+}
+
+.tents-inventory-label {
+  font-weight: 600;
+  color: #374151;
+  flex: 0 0 80px;
+}
+
+.tents-inventory-change {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  justify-content: center;
+}
+
+.tents-inventory-old,
+.tents-inventory-new {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.tents-inventory-old {
+  color: #6b7280;
+}
+
+.tents-inventory-new {
+  color: #059669;
+}
+
+.tents-inventory-arrow {
+  color: #9ca3af;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.tents-confirm-modal-footer {
+  padding: 16px 24px 24px 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.tents-confirm-btn-yes,
+.tents-confirm-btn-no {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 80px;
+}
+
+.tents-confirm-btn-yes {
+  background: #4F46E5;
+  color: white;
+}
+
+.tents-confirm-btn-yes:hover {
+  background: #4338CA;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
+}
+
+.tents-confirm-btn-no {
+  background: #ef4444;
+  color: white;
+}
+
+.tents-confirm-btn-no:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
+}
+
