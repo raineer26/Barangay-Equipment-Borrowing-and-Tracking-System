@@ -1445,7 +1445,9 @@ footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 20px;
+  position: absolute;
+  bottom: 36px;
+  right: 44px;
 }
 
 .cancel-request-btn {
@@ -2712,13 +2714,15 @@ footer a:hover {
 .modal-content {
   background-color: #fff;
   margin: 6% auto;
-  padding: 36px 44px;
+  padding: 36px 44px 100px 44px; /* Increased bottom padding for button space */
   border: none;
   border-radius: 12px;
   width: 92%;
-  max-width: 820px; /* increased modal width for better visibility */
+  max-width: 820px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   animation: slideDown 0.4s ease;
+  position: relative;
+  min-height: 200px;
 }
 
 @keyframes slideDown {
@@ -5779,19 +5783,19 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .edit-btn {
-  background: #22C55E;
+  background: #ef4444;  /* Red for No button */
 }
 
 .save-btn {
-  background: #0066cc;
+  background: #3b82f6;  /* Blue for Yes button */
 }
 
 .edit-btn:hover {
-  background: #1ca04a;
+  background: #dc2626;  /* Darker red on hover */
 }
 
 .save-btn:hover {
-  background: #0052a3;
+  background: #2563eb;  /* Darker blue on hover */
 }
 
 .save-btn:disabled {

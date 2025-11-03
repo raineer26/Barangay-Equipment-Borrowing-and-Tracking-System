@@ -1370,6 +1370,8 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (!/^[a-zA-Z\s'-]+$/.test(firstName)) {
       setErrorSignup(errorEditFirstname, "First Name can only contain letters, spaces, hyphens, and apostrophes");
       valid = false;
+    } else {
+      setSuccessSignup(errorEditFirstname);
     }
 
     // Last Name validation
@@ -1382,6 +1384,8 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) {
       setErrorSignup(errorEditLastname, "Last Name can only contain letters, spaces, hyphens, and apostrophes");
       valid = false;
+    } else {
+      setSuccessSignup(errorEditLastname);
     }
 
     // Contact validation
@@ -1394,16 +1398,20 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (!/^09\d{9}$/.test(contact)) {
       setErrorSignup(errorEditContact, "Contact number must be 11 digits and start with '09'");
       valid = false;
+    } else {
+      setSuccessSignup(errorEditContact);
     }
 
-    // Address validation
-    const sanitizedAddress = address.replace(/<[^>]*>/g, '');
+    // Address validation with sanitization
+    const sanitizedAddress = address.replace(/<[^>]*>/g, ''); // Basic XSS prevention
     if (!sanitizedAddress) {
       setErrorSignup(errorEditAddress, "Address can't be blank");
       valid = false;
     } else if (sanitizedAddress !== address) {
       setErrorSignup(errorEditAddress, "Address contains invalid characters");
       valid = false;
+    } else {
+      setSuccessSignup(errorEditAddress);
     }
 
     if (!valid) return;
@@ -2701,13 +2709,6 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
 }
 
 /* =====================================================
-   END OF TENTS AND CHAIRS CALENDAR SCRIPT
-===================================================== */
-/* =====================================================
-   END OF CONFERENCE ROOM CALENDAR SCRIPT
-===================================================== */
-
-/* =====================================================
    TENTS & CHAIRS REQUEST FORM SCRIPT
    Add this section to your script.js file
 ===================================================== */
@@ -2804,8 +2805,8 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       setFieldError('lastName', 'Please enter your last name');
       isValid = false;
     } else if (lastName.length < 2) {
-      setFieldError('lastName', 'Last name must be at least 2 characters long');
-      isValid = false;
+      setErrorSignup(errorLastname, "Last Name must be at least 2 characters");
+      valid = false;
     } else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) {
       setFieldError('lastName', 'Last name can only contain letters, spaces, hyphens, and apostrophes');
       isValid = false;
@@ -3406,7 +3407,6 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
     const errorElements = document.querySelectorAll('.error-message');
     errorElements.forEach(el => el.textContent = '');
     
-    
     const errorFields = document.querySelectorAll('.error');
     errorFields.forEach(field => field.classList.remove('error'));
   }
@@ -3742,7 +3742,7 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
 
     reservationsList.innerHTML = '';
 
-    sampleReservations.forEach(reservation => {
+    sampleReservations
       const item = document.createElement('div');
       item.classList.add('reservation-item');
 
@@ -3762,7 +3762,7 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
       `;
 
       reservationsList.appendChild(item);
-    });
+    };
   }
 
   function setupMobileMenu() {
@@ -3889,7 +3889,7 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
     // TODO: Query Firestore for all reservations in current month
     // Mark those dates on the calendar
   }
-}
+
 
 /* =====================================================
    END OF ADMIN DASHBOARD SCRIPT
@@ -6146,7 +6146,6 @@ const saveBtn = document.getElementById("saveInventory");
 const confirmModal = document.getElementById("saveConfirmModal");
 const confirmYes = document.getElementById("confirmSaveYes");
 const confirmNo = document.getElementById("confirmSaveNo");
-const closeModal = document.getElementById("saveConfirmClose");
 
 const fields = {
   tents: {
@@ -6348,39 +6347,63 @@ saveBtn.addEventListener("click", () => {
   confirmYes.style.cursor = '';
   
   confirmMessage.innerHTML = `
-    <h3 style="margin: 0 0 25px 0; color: #1a237e; font-size: 24px; text-align: center; font-weight: 600; text-transform: uppercase;">Review Your Changes</h3>
-    <div class="changes-list" style="display: flex; gap: 30px; justify-content: center; width: 100%; max-width: 600px;">
-      <div class="change-section" style="background: #f5f5f5; padding: 20px; border-radius: 8px; flex: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <h4 style="margin: 0 0 15px 0; color: #303f9f; font-size: 18px; text-align: center;">Tents</h4>
-        <div style="display: grid; gap: 8px;">
-          <div style="display: flex; justify-content: space-between;">
-            <span>Total:</span>
-            <strong>${tentsTotal}</strong>
+    <h3 style="margin: 0 0 30px 0; color: #1a237e; font-size: 28px; text-align: center; font-weight: 600; text-transform: uppercase;">Review Your Changes</h3>
+    <div class="changes-list" style="display: flex; gap: 30px; justify-content: center; width: 100%; max-width: 700px;">
+      <div class="change-section" style="background: #f5f5f5; padding: 24px; border-radius: 8px; flex: 1; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+        <h4 style="margin: 0 0 20px 0; color: #303f9f; font-size: 22px; text-align: center;">Tents</h4>
+        <div style="display: grid; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 18px;">Total:</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 18px;">${originalValues.tents.total}</span>
+              <span style="color: #666; font-size: 20px;">→</span>
+              <strong style="color: ${tentsTotal !== originalValues.tents.total ? (tentsTotal > originalValues.tents.total ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsTotal}</strong>
+            </div>
           </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span>In Use:</span>
-            <strong>${tentsInuse}</strong>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 18px;">In Use:</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 18px;">${originalValues.tents.inuse}</span>
+              <span style="color: #666; font-size: 20px;">→</span>
+              <strong style="color: ${tentsInuse !== originalValues.tents.inuse ? (tentsInuse > originalValues.tents.inuse ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsInuse}</strong>
+            </div>
           </div>
-          <div style="display: flex; justify-content: space-between; border-top: 2px solid #e0e0e0; padding-top: 12px; margin-top: 4px;">
-            <span style="font-weight: 600;">Available:</span>
-            <strong style="color: #1a237e; font-size: 16px;">${tentsTotal - tentsInuse}</strong>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e0e0e0; padding-top: 16px; margin-top: 8px;">
+            <span style="font-weight: 600; font-size: 18px;">Available:</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 18px;">${originalValues.tents.total - originalValues.tents.inuse}</span>
+              <span style="color: #666; font-size: 20px;">→</span>
+              <strong style="color: ${(tentsTotal - tentsInuse) !== (originalValues.tents.total - originalValues.tents.inuse) ? ((tentsTotal - tentsInuse) > (originalValues.tents.total - originalValues.tents.inuse) ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsTotal - tentsInuse}</strong>
+            </div>
           </div>
         </div>
       </div>
       <div class="change-section" style="background: #f5f5f5; padding: 20px; border-radius: 8px; flex: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <h4 style="margin: 0 0 15px 0; color: #303f9f; font-size: 18px; text-align: center;">Chairs</h4>
-        <div style="display: grid; gap: 12px; font-size: 15px;">
-          <div style="display: flex; justify-content: space-between;">
-            <span>Total:</span>
-            <strong>${chairsTotal}</strong>
+        <h4 style="margin: 0 0 20px 0; color: #303f9f; font-size: 22px; text-align: center;">Chairs</h4>
+        <div style="display: grid; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 18px;">Total:</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 18px;">${originalValues.chairs.total}</span>
+              <span style="color: #666; font-size: 20px;">→</span>
+              <strong style="color: ${chairsTotal !== originalValues.chairs.total ? (chairsTotal > originalValues.chairs.total ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${chairsTotal}</strong>
+            </div>
           </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span>In Use:</span>
-            <strong>${chairsInuse}</strong>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 18px;">In Use:</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 18px;">${originalValues.chairs.inuse}</span>
+              <span style="color: #666; font-size: 20px;">→</span>
+              <strong style="color: ${chairsInuse !== originalValues.chairs.inuse ? (chairsInuse > originalValues.chairs.inuse ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${chairsInuse}</strong>
+            </div>
           </div>
-          <div style="display: flex; justify-content: space-between; border-top: 2px solid #e0e0e0; padding-top: 12px; margin-top: 4px;">
-            <span style="font-weight: 600;">Available:</span>
-            <strong style="color: #1a237e; font-size: 16px;">${chairsTotal - chairsInuse}</strong>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e0e0e0; padding-top: 16px; margin-top: 8px;">
+            <span style="font-weight: 600; font-size: 18px;">Available:</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>${originalValues.chairs.total - originalValues.chairs.inuse}</span>
+              <span style="color: #666;">→</span>
+              <strong style="color: ${(chairsTotal - chairsInuse) > (originalValues.chairs.total - originalValues.chairs.inuse) ? '#4caf50' : '#f44336'}">${chairsTotal - chairsInuse}</strong>
+            </div>
           </div>
         </div>
       </div>
@@ -6391,10 +6414,6 @@ saveBtn.addEventListener("click", () => {
 });
 
 confirmNo.addEventListener("click", () => {
-  confirmModal.style.display = "none";
-});
-
-closeModal.addEventListener("click", () => {
   confirmModal.style.display = "none";
 });
 
