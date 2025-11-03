@@ -65,7 +65,7 @@
     </button>
 
     <!-- MAIN CONTENT -->
-    <main class="admin-main">
+    <main class="admin-main admin-dashboard-page">
       <!-- Hero Section -->
       <section class="admin-hero">
         <div class="admin-hero-overlay"></div>
@@ -134,6 +134,11 @@
                 <h3 class="inventory-count" id="availableChairs">600</h3>
               </div>
             </div>
+
+            <!-- Add Internal Booking Button -->
+            <button class="add-internal-booking-btn" id="addInternalBookingBtn">
+              <span>+ Add Tents/Chairs Booking</span>
+            </button>
           </div>
         </div>
 
@@ -160,6 +165,87 @@
         </div>
       </div>
     </main>
+
+    <!-- Internal Booking Modal -->
+    <div class="internal-booking-modal-overlay" id="internalBookingModal">
+      <div class="internal-booking-modal">
+        <div class="internal-booking-modal-header">
+          <h2>Add Tents/Chairs Booking</h2>
+          <button class="internal-booking-close-btn" id="closeInternalBookingModal">&times;</button>
+        </div>
+        <form id="internalBookingForm" class="internal-booking-form">
+          <div class="internal-booking-form-grid">
+            <!-- Event Start Date -->
+            <div class="internal-form-group">
+              <label for="internalStartDate">Event Start Date <span class="required">*</span></label>
+              <input type="date" id="internalStartDate" name="startDate" required />
+              <span class="internal-error-message" id="error-internal-start-date"></span>
+            </div>
+
+            <!-- Event End Date -->
+            <div class="internal-form-group">
+              <label for="internalEndDate">Event End Date <span class="required">*</span></label>
+              <input type="date" id="internalEndDate" name="endDate" required />
+              <span class="internal-error-message" id="error-internal-end-date"></span>
+            </div>
+
+            <!-- Number of Tents -->
+            <div class="internal-form-group">
+              <label for="internalTents">Number of Tents <span class="required">*</span></label>
+              <input type="number" id="internalTents" name="tents" min="0" required />
+              <small class="form-hint">*Set the quantity to 0 if not borrowing tents</small>
+              <span class="internal-error-message" id="error-internal-tents"></span>
+            </div>
+
+            <!-- Number of Chairs -->
+            <div class="internal-form-group">
+              <label for="internalChairs">Number of Chairs <span class="required">*</span></label>
+              <input type="number" id="internalChairs" name="chairs" min="0" required />
+              <small class="form-hint">*Set the quantity to 0 if not borrowing chairs</small>
+              <span class="internal-error-message" id="error-internal-chairs"></span>
+            </div>
+
+            <!-- Purpose -->
+            <div class="internal-form-group full-width">
+              <label for="internalPurpose">Purpose <span class="required">*</span></label>
+              <textarea id="internalPurpose" name="purpose" rows="3" required placeholder="Enter the purpose of borrowing"></textarea>
+              <span class="internal-error-message" id="error-internal-purpose"></span>
+            </div>
+
+            <!-- Location -->
+            <div class="internal-form-group full-width">
+              <label for="internalLocation">Location <span class="required">*</span></label>
+              <input type="text" id="internalLocation" name="location" required placeholder="Enter event location" />
+              <span class="internal-error-message" id="error-internal-location"></span>
+            </div>
+
+            <!-- Contact Person -->
+            <div class="internal-form-group">
+              <label for="internalContactPerson">Contact Person <span class="required">*</span></label>
+              <input type="text" id="internalContactPerson" name="contactPerson" required placeholder="Enter contact person name" />
+              <span class="internal-error-message" id="error-internal-contact-person"></span>
+            </div>
+
+            <!-- Contact Number -->
+            <div class="internal-form-group">
+              <label for="internalContactNumber">Contact Number <span class="required">*</span></label>
+              <input type="tel" id="internalContactNumber" name="contactNumber" required placeholder="09XXXXXXXXX" />
+              <span class="internal-error-message" id="error-internal-contact-number"></span>
+            </div>
+          </div>
+
+          <div class="internal-booking-form-actions">
+            <button type="button" class="internal-booking-cancel-btn" id="cancelInternalBooking">Cancel</button>
+            <button type="submit" class="internal-booking-submit-btn">
+              <span class="btn-text">Add Booking</span>
+              <span class="btn-spinner" style="display: none;">
+                <span class="spinner"></span> Processing...
+              </span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <script src="script.js" type="module"></script>
   </body>

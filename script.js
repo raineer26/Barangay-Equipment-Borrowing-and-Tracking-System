@@ -4101,6 +4101,302 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
     // TODO: Query Firestore for all reservations in current month
     // Mark those dates on the calendar
   }
+
+  // ========================================
+  // INTERNAL BOOKING MODAL FUNCTIONALITY
+  // ========================================
+
+  // Modal elements
+  const internalBookingModal = document.getElementById('internalBookingModal');
+  const addInternalBookingBtn = document.getElementById('addInternalBookingBtn');
+  const closeInternalBookingModal = document.getElementById('closeInternalBookingModal');
+  const cancelInternalBooking = document.getElementById('cancelInternalBooking');
+  const internalBookingForm = document.getElementById('internalBookingForm');
+
+  // Open modal
+  if (addInternalBookingBtn) {
+    addInternalBookingBtn.addEventListener('click', () => {
+      internalBookingModal.classList.add('active');
+      // Set minimum date to today
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('internalStartDate').setAttribute('min', today);
+      document.getElementById('internalEndDate').setAttribute('min', today);
+    });
+  }
+
+  // Close modal function
+  function closeModal() {
+    internalBookingModal.classList.remove('active');
+    internalBookingForm.reset();
+    clearAllInternalErrors();
+  }
+
+  // Close modal on X button
+  if (closeInternalBookingModal) {
+    closeInternalBookingModal.addEventListener('click', closeModal);
+  }
+
+  // Close modal on Cancel button
+  if (cancelInternalBooking) {
+    cancelInternalBooking.addEventListener('click', closeModal);
+  }
+
+  // Close modal when clicking outside
+  internalBookingModal.addEventListener('click', (e) => {
+    if (e.target === internalBookingModal) {
+      closeModal();
+    }
+  });
+
+  // Form validation helpers
+  function setInternalError(elementId, message) {
+    const errorElement = document.getElementById(`error-${elementId}`);
+    const inputElement = document.getElementById(elementId);
+    
+    if (errorElement) {
+      errorElement.textContent = message;
+    }
+    if (inputElement) {
+      inputElement.classList.add('error');
+    }
+  }
+
+  function clearInternalError(elementId) {
+    const errorElement = document.getElementById(`error-${elementId}`);
+    const inputElement = document.getElementById(elementId);
+    
+    if (errorElement) {
+      errorElement.textContent = '';
+    }
+    if (inputElement) {
+      inputElement.classList.remove('error');
+    }
+  }
+
+  function clearAllInternalErrors() {
+    const errorIds = [
+      'internal-start-date',
+      'internal-end-date',
+      'internal-tents',
+      'internal-chairs',
+      'internal-purpose',
+      'internal-location',
+      'internal-contact-person',
+      'internal-contact-number'
+    ];
+    
+    errorIds.forEach(clearInternalError);
+  }
+
+  // Validate Philippine mobile number
+  function validateInternalContact(number) {
+    const phoneRegex = /^09\d{9}$/;
+    return phoneRegex.test(number);
+  }
+
+  // Real-time validation for end date
+  document.getElementById('internalStartDate')?.addEventListener('change', function() {
+    const endDateInput = document.getElementById('internalEndDate');
+    if (endDateInput) {
+      endDateInput.setAttribute('min', this.value);
+      // Clear end date if it's before start date
+      if (endDateInput.value && endDateInput.value < this.value) {
+        endDateInput.value = '';
+      }
+    }
+    clearInternalError('internal-start-date');
+  });
+
+  document.getElementById('internalEndDate')?.addEventListener('change', function() {
+    clearInternalError('internal-end-date');
+  });
+
+  // Real-time validation for inputs
+  ['internalTents', 'internalChairs', 'internalPurpose', 'internalLocation', 'internalContactPerson', 'internalContactNumber'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', function() {
+      const errorId = id.replace(/([A-Z])/g, '-$1').toLowerCase();
+      clearInternalError(errorId);
+    });
+  });
+
+  // Form submission
+  if (internalBookingForm) {
+    internalBookingForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      clearAllInternalErrors();
+      
+      // Get form values
+      const startDate = document.getElementById('internalStartDate').value.trim();
+      const endDate = document.getElementById('internalEndDate').value.trim();
+      const tents = parseInt(document.getElementById('internalTents').value) || 0;
+      const chairs = parseInt(document.getElementById('internalChairs').value) || 0;
+      const purpose = document.getElementById('internalPurpose').value.trim();
+      const location = document.getElementById('internalLocation').value.trim();
+      const contactPerson = document.getElementById('internalContactPerson').value.trim();
+      const contactNumber = document.getElementById('internalContactNumber').value.trim();
+      
+      let hasError = false;
+      
+      // Validate dates
+      if (!startDate) {
+        setInternalError('internal-start-date', 'Event start date is required');
+        hasError = true;
+      }
+      
+      if (!endDate) {
+        setInternalError('internal-end-date', 'Event end date is required');
+        hasError = true;
+      }
+      
+      if (startDate && endDate && endDate < startDate) {
+        setInternalError('internal-end-date', 'End date cannot be before start date');
+        hasError = true;
+      }
+      
+      // Validate quantities
+      if (tents < 0) {
+        setInternalError('internal-tents', 'Quantity cannot be negative');
+        hasError = true;
+      }
+      
+      if (chairs < 0) {
+        setInternalError('internal-chairs', 'Quantity cannot be negative');
+        hasError = true;
+      }
+      
+      // At least one item must be requested
+      if (tents === 0 && chairs === 0) {
+        setInternalError('internal-tents', 'Must request at least 1 tent or chair');
+        setInternalError('internal-chairs', 'Must request at least 1 tent or chair');
+        hasError = true;
+      }
+      
+      // Check inventory availability
+      try {
+        const inventoryDoc = await getDoc(doc(db, 'inventory', 'equipment'));
+        if (inventoryDoc.exists()) {
+          const inventory = inventoryDoc.data();
+          const availableTents = inventory.availableTents || 0;
+          const availableChairs = inventory.availableChairs || 0;
+          
+          if (tents > availableTents) {
+            setInternalError('internal-tents', `Only ${availableTents} tents available`);
+            hasError = true;
+          }
+          
+          if (chairs > availableChairs) {
+            setInternalError('internal-chairs', `Only ${availableChairs} chairs available`);
+            hasError = true;
+          }
+        }
+      } catch (error) {
+        console.error('Error checking inventory:', error);
+      }
+      
+      // Validate purpose
+      if (!purpose) {
+        setInternalError('internal-purpose', 'Purpose is required');
+        hasError = true;
+      } else if (purpose.length < 10) {
+        setInternalError('internal-purpose', 'Purpose must be at least 10 characters');
+        hasError = true;
+      }
+      
+      // Validate location
+      if (!location) {
+        setInternalError('internal-location', 'Location is required');
+        hasError = true;
+      }
+      
+      // Validate contact person
+      if (!contactPerson) {
+        setInternalError('internal-contact-person', 'Contact person is required');
+        hasError = true;
+      }
+      
+      // Validate contact number
+      if (!contactNumber) {
+        setInternalError('internal-contact-number', 'Contact number is required');
+        hasError = true;
+      } else if (!validateInternalContact(contactNumber)) {
+        setInternalError('internal-contact-number', 'Invalid format. Use: 09XXXXXXXXX (11 digits)');
+        hasError = true;
+      }
+      
+      if (hasError) {
+        return;
+      }
+      
+      // Show loading state
+      const submitBtn = this.querySelector('.internal-booking-submit-btn');
+      submitBtn.classList.add('loading');
+      submitBtn.disabled = true;
+      
+      try {
+        // Get current admin user
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('No authenticated user');
+        }
+        
+        // Create booking document
+        const bookingData = {
+          startDate: startDate,
+          endDate: endDate,
+          quantityTents: tents,
+          quantityChairs: chairs,
+          purpose: sanitizeInput(purpose),
+          completeAddress: sanitizeInput(location),
+          fullName: sanitizeInput(contactPerson),
+          contactNumber: contactNumber,
+          modeOfReceiving: 'Internal',
+          status: 'approved', // Auto-approved for internal bookings
+          userId: currentUser.uid,
+          userEmail: currentUser.email,
+          createdAt: new Date(),
+          approvedAt: new Date(),
+          isInternalBooking: true
+        };
+        
+        // Add to Firestore
+        await addDoc(collection(db, 'tentsChairsBookings'), bookingData);
+        
+        // Update inventory
+        const inventoryRef = doc(db, 'inventory', 'equipment');
+        const inventorySnap = await getDoc(inventoryRef);
+        
+        if (inventorySnap.exists()) {
+          const currentInventory = inventorySnap.data();
+          await updateDoc(inventoryRef, {
+            availableTents: (currentInventory.availableTents || 0) - tents,
+            availableChairs: (currentInventory.availableChairs || 0) - chairs,
+            tentsInUse: (currentInventory.tentsInUse || 0) + tents,
+            chairsInUse: (currentInventory.chairsInUse || 0) + chairs,
+            lastUpdated: new Date()
+          });
+        }
+        
+        // Success!
+        showAlert('Internal booking added successfully!', true, () => {
+          closeModal();
+          // Reload data
+          loadInventoryCounts();
+          loadAllReservationsData().then(() => {
+            renderWeekCalendar();
+            loadReservations();
+          });
+        });
+        
+      } catch (error) {
+        console.error('Error creating internal booking:', error);
+        showAlert('Failed to create internal booking. Please try again.', false);
+      } finally {
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+      }
+    });
+  }
 }
 
 /* =====================================================
@@ -4692,35 +4988,33 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
     const lastDay = new Date(currentYear, currentMonth + 1, 0);
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
+    
+    const today = new Date();
+    const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     let calendarHTML = `
       <div class="tents-calendar-container">
         <div class="tents-calendar-header">
+          <button class="tents-calendar-nav-btn" id="prevMonthBtn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
           <h2>${monthNames[currentMonth]} ${currentYear}</h2>
-          <div class="tents-calendar-nav">
-            <button class="tents-calendar-nav-btn" id="prevMonthBtn">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-              </svg>
-            </button>
-            <button class="tents-calendar-nav-btn" id="nextMonthBtn">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-              </svg>
-            </button>
-          </div>
+          <button class="tents-calendar-nav-btn" id="nextMonthBtn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
         </div>
         <div class="tents-calendar-grid">
-          <div class="tents-calendar-days">
-            <div class="tents-calendar-day-header">Sun</div>
-            <div class="tents-calendar-day-header">Mon</div>
-            <div class="tents-calendar-day-header">Tue</div>
-            <div class="tents-calendar-day-header">Wed</div>
-            <div class="tents-calendar-day-header">Thu</div>
-            <div class="tents-calendar-day-header">Fri</div>
-            <div class="tents-calendar-day-header">Sat</div>
-          </div>
-          <div class="tents-calendar-days">
+          <div class="tents-calendar-day-header">Sun</div>
+          <div class="tents-calendar-day-header">Mon</div>
+          <div class="tents-calendar-day-header">Tue</div>
+          <div class="tents-calendar-day-header">Wed</div>
+          <div class="tents-calendar-day-header">Thu</div>
+          <div class="tents-calendar-day-header">Fri</div>
+          <div class="tents-calendar-day-header">Sat</div>
     `;
 
     // Empty cells before first day
@@ -4728,47 +5022,46 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       calendarHTML += '<div class="tents-calendar-date empty"></div>';
     }
 
-    // Days with bookings
+    // Days with bookings - only show APPROVED requests
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const dayBookings = filteredRequests.filter(req => 
-        req.startDate === dateStr || req.endDate === dateStr
-      );
+      
+      // Find all approved bookings that cover this date (startDate <= dateStr <= endDate)
+      const dayBookings = filteredRequests.filter(req => {
+        // Only show approved requests in calendar
+        if (req.status !== 'approved') return false;
+        
+        const reqStartDate = req.startDate;
+        const reqEndDate = req.endDate || req.startDate;
+        
+        // Check if this date falls within the booking range
+        return dateStr >= reqStartDate && dateStr <= reqEndDate;
+      });
 
       const hasBookings = dayBookings.length > 0;
+      const isToday = dateStr === todayDateStr;
       
       calendarHTML += `
-        <div class="tents-calendar-date ${hasBookings ? 'has-bookings' : ''}" data-date="${dateStr}">
+        <div class="tents-calendar-date ${hasBookings ? 'has-bookings' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">
           <div class="tents-date-number">${day}</div>
       `;
 
-      // Show up to 3 bookings
-      dayBookings.slice(0, 3).forEach(booking => {
-        const statusClass = `tents-event-${booking.status}`;
-        calendarHTML += `
-          <div class="tents-calendar-event ${statusClass}">
-            <div class="tents-event-name">${booking.fullName || 'Unknown'}</div>
-            <div>${booking.quantityTents || 0}T / ${booking.quantityChairs || 0}C</div>
-          </div>
-        `;
-      });
-
-      if (dayBookings.length > 3) {
-        calendarHTML += `<div style="font-size: 10px; color: #6b7280; margin-top: 4px;">+${dayBookings.length - 3} more</div>`;
+      if (hasBookings) {
+        // Show indicator for number of bookings
+        calendarHTML += `<div class="tents-booking-indicator">${dayBookings.length} booking${dayBookings.length > 1 ? 's' : ''}</div>`;
       }
 
       calendarHTML += '</div>';
     }
 
     calendarHTML += `
-          </div>
         </div>
       </div>
     `;
 
     container.innerHTML = calendarHTML;
 
-    // Add event listeners
+    // Add event listeners for month navigation
     document.getElementById('prevMonthBtn')?.addEventListener('click', () => {
       currentMonth--;
       if (currentMonth < 0) {
@@ -4787,8 +5080,9 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       renderCalendarView();
     });
 
-    // Click on dates with bookings
-    document.querySelectorAll('.tents-calendar-date.has-bookings').forEach(dateEl => {
+    // Click on ALL dates (not just those with bookings) to show modal
+    document.querySelectorAll('.tents-calendar-date:not(.empty)').forEach(dateEl => {
+      dateEl.style.cursor = 'pointer';
       dateEl.addEventListener('click', () => {
         const date = dateEl.getAttribute('data-date');
         showDateBookingsModal(date);
@@ -4800,44 +5094,115 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
   function showDateBookingsModal(date) {
     console.log(`📅 Showing bookings for ${date}`);
     
-    const dateBookings = filteredRequests.filter(req => 
-      req.startDate === date || req.endDate === date
-    );
+    // Find all approved bookings that cover this date (startDate <= date <= endDate)
+    const dateBookings = filteredRequests.filter(req => {
+      // Only show approved requests
+      if (req.status !== 'approved') return false;
+      
+      const reqStartDate = req.startDate;
+      const reqEndDate = req.endDate || req.startDate;
+      
+      // Check if this date falls within the booking range
+      return date >= reqStartDate && date <= reqEndDate;
+    });
 
-    const modal = document.getElementById('tentsModal');
-    const modalTitle = document.querySelector('.tents-modal-header h3');
-    const modalBody = document.querySelector('.tents-modal-body');
+    const modal = document.getElementById('tentsModalOverlay');
+    const modalTitle = document.getElementById('tentsModalTitle');
+    const modalBody = document.getElementById('tentsModalBody');
 
-    if (!modal || !modalTitle || !modalBody) return;
+    if (!modal || !modalTitle || !modalBody) {
+      console.error('❌ Modal elements not found');
+      return;
+    }
 
-    modalTitle.textContent = `Bookings for ${new Date(date).toLocaleDateString('en-US', { 
+    // Format date nicely
+    const dateObj = new Date(date + 'T00:00:00');
+    const formattedDate = dateObj.toLocaleDateString('en-US', { 
+      weekday: 'long',
       month: 'long', 
       day: 'numeric', 
       year: 'numeric' 
-    })}`;
+    });
+
+    modalTitle.textContent = `Approved Bookings for ${formattedDate}`;
 
     let bodyHTML = '';
     
     if (dateBookings.length === 0) {
-      bodyHTML = '<div class="tents-no-bookings"><p>No bookings on this date.</p></div>';
+      bodyHTML = `
+        <div class="tents-no-bookings">
+          <svg style="width: 64px; height: 64px; margin: 0 auto 16px; color: #9ca3af;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <p style="text-align: center; color: #6b7280; font-size: 15px;">No approved bookings on this date.</p>
+        </div>
+      `;
     } else {
-      dateBookings.forEach(booking => {
+      bodyHTML = '<div class="tents-modal-bookings-list">';
+      
+      dateBookings.forEach((booking, index) => {
+        const firstName = booking.firstName || '';
+        const lastName = booking.lastName || '';
+        const fullName = firstName && lastName ? `${firstName} ${lastName}` : (booking.fullName || 'Unknown');
+        
+        // Format date range
+        const startDate = new Date(booking.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const endDate = booking.endDate ? new Date(booking.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : startDate;
+        const dateRange = booking.startDate === booking.endDate ? startDate : `${startDate} - ${endDate}`;
+        
         bodyHTML += `
-          <div class="tents-booking-item">
-            <div class="tents-booking-item-header">${booking.fullName || 'Unknown'}</div>
+          <div class="tents-booking-item ${index > 0 ? 'with-divider' : ''}">
+            <div class="tents-booking-item-header">
+              <div class="tents-booking-name">
+                <svg style="width: 18px; height: 18px; margin-right: 8px; color: #0b3b8c;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                <strong>${sanitizeInput(fullName)}</strong>
+              </div>
+              <span class="tents-status-badge-approved">Approved</span>
+            </div>
             <div class="tents-booking-item-details">
-              <strong>Period:</strong> ${booking.startDate} to ${booking.endDate}<br>
-              <strong>Tents:</strong> ${booking.quantityTents || 0} | <strong>Chairs:</strong> ${booking.quantityChairs || 0}<br>
-              <strong>Mode:</strong> ${booking.modeOfReceiving || 'N/A'}<br>
-              <strong>Status:</strong> <span class="tents-status-badge tents-status-${booking.status}">${booking.status}</span>
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span><strong>Period:</strong> ${dateRange}</span>
+              </div>
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                </svg>
+                <span><strong>Tents:</strong> ${booking.quantityTents || 0} | <strong>Chairs:</strong> ${booking.quantityChairs || 0}</span>
+              </div>
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                </svg>
+                <span><strong>Mode:</strong> ${booking.modeOfReceiving || 'N/A'}</span>
+              </div>
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span><strong>Address:</strong> ${sanitizeInput(booking.completeAddress || 'N/A')}</span>
+              </div>
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                </svg>
+                <span><strong>Contact:</strong> ${booking.contactNumber || 'N/A'}</span>
+              </div>
             </div>
           </div>
         `;
       });
+      
+      bodyHTML += '</div>';
     }
 
     modalBody.innerHTML = bodyHTML;
-    modal.classList.add('active');
+    modal.style.display = 'flex';
   }
 
   // Update stats cards
@@ -4993,6 +5358,8 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   let allRequests = []; // Store all requests from Firestore
   let currentTab = 'all'; // 'all' or 'history'
   let currentView = 'table'; // 'table' or 'calendar'
+  let currentMonth = new Date().getMonth(); // Current month for calendar
+  let currentYear = new Date().getFullYear(); // Current year for calendar
 
   // ========================================
   // FIRESTORE FUNCTIONS
@@ -5542,19 +5909,285 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   }
 
   /**
-   * Render calendar view (placeholder for future implementation)
+   * Render calendar view with approved bookings
    */
   function renderCalendarView() {
-    const contentArea = document.getElementById('tentsContentArea');
-    contentArea.innerHTML = `
-      <div class="tents-calendar-placeholder">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 100px; height: 100px; margin: 0 auto 20px;">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-        </svg>
-        <h3>Calendar View Coming Soon</h3>
-        <p>The calendar view will be implemented in a future update.</p>
+    console.log('📅 Rendering calendar view...');
+    
+    const container = document.getElementById('tentsContentArea');
+    if (!container) return;
+
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+
+    // Use current month/year from state or default to now
+    const now = new Date();
+    if (typeof currentMonth === 'undefined') window.currentMonth = now.getMonth();
+    if (typeof currentYear === 'undefined') window.currentYear = now.getFullYear();
+
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    const today = new Date();
+    const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    let calendarHTML = `
+      <div class="tents-calendar-container">
+        <div class="tents-calendar-header">
+          <button class="tents-calendar-nav-btn" id="prevMonthBtn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <h2>${monthNames[currentMonth]} ${currentYear}</h2>
+          <button class="tents-calendar-nav-btn" id="nextMonthBtn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Calendar Legend -->
+        <div class="tents-calendar-legend">
+          <div class="tents-legend-item">
+            <div class="tents-legend-box tents-legend-today"></div>
+            <span>Today</span>
+          </div>
+          <div class="tents-legend-item">
+            <div class="tents-legend-box tents-legend-has-bookings"></div>
+            <span>Has Approved Bookings</span>
+          </div>
+          <div class="tents-legend-item">
+            <div class="tents-legend-box tents-legend-empty"></div>
+            <span>No Bookings</span>
+          </div>
+          <div class="tents-legend-item">
+            <div class="tents-legend-event"></div>
+            <span>Booking Event (Click date for details)</span>
+          </div>
+        </div>
+        
+        <div class="tents-calendar-grid">
+          <div class="tents-calendar-day-header">Sun</div>
+          <div class="tents-calendar-day-header">Mon</div>
+          <div class="tents-calendar-day-header">Tue</div>
+          <div class="tents-calendar-day-header">Wed</div>
+          <div class="tents-calendar-day-header">Thu</div>
+          <div class="tents-calendar-day-header">Fri</div>
+          <div class="tents-calendar-day-header">Sat</div>
+    `;
+
+    // Empty cells before first day
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      calendarHTML += '<div class="tents-calendar-date empty"></div>';
+    }
+
+    // Days with bookings - only show APPROVED requests
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
+      // Find all approved bookings that cover this date (startDate <= dateStr <= endDate)
+      const dayBookings = allRequests.filter(req => {
+        // Only show approved requests in calendar
+        if (req.status !== 'approved') return false;
+        
+        const reqStartDate = req.startDate;
+        const reqEndDate = req.endDate || req.startDate;
+        
+        // Check if this date falls within the booking range
+        return dateStr >= reqStartDate && dateStr <= reqEndDate;
+      });
+
+      const hasBookings = dayBookings.length > 0;
+      const isToday = dateStr === todayDateStr;
+      
+      calendarHTML += `
+        <div class="tents-calendar-date ${hasBookings ? 'has-bookings' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">
+          <div class="tents-date-number">${day}</div>
+      `;
+
+      if (hasBookings) {
+        // Show up to 2 booking previews with details
+        dayBookings.slice(0, 2).forEach(booking => {
+          const firstName = booking.firstName || '';
+          const lastName = booking.lastName || '';
+          const fullName = firstName && lastName ? `${firstName} ${lastName}` : (booking.fullName || 'Unknown');
+          
+          // Create booking preview showing name and items
+          const tentsCount = booking.quantityTents || 0;
+          const chairsCount = booking.quantityChairs || 0;
+          const itemsText = `${tentsCount}T / ${chairsCount}C`;
+          
+          calendarHTML += `
+            <div class="tents-calendar-event">
+              <div class="tents-event-name">${sanitizeInput(fullName)}</div>
+              <div class="tents-event-items">${itemsText}</div>
+            </div>
+          `;
+        });
+        
+        // If more than 2 bookings, show count
+        if (dayBookings.length > 2) {
+          calendarHTML += `<div class="tents-more-bookings">+${dayBookings.length - 2} more</div>`;
+        }
+      }
+
+      calendarHTML += '</div>';
+    }
+
+    calendarHTML += `
+        </div>
       </div>
     `;
+
+    container.innerHTML = calendarHTML;
+
+    // Add event listeners for month navigation
+    document.getElementById('prevMonthBtn')?.addEventListener('click', () => {
+      currentMonth--;
+      if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+      }
+      renderCalendarView();
+    });
+
+    document.getElementById('nextMonthBtn')?.addEventListener('click', () => {
+      currentMonth++;
+      if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+      }
+      renderCalendarView();
+    });
+
+    // Click on ALL dates (not just those with bookings) to show modal
+    document.querySelectorAll('.tents-calendar-date:not(.empty)').forEach(dateEl => {
+      dateEl.style.cursor = 'pointer';
+      dateEl.addEventListener('click', () => {
+        const date = dateEl.getAttribute('data-date');
+        showDateBookingsModal(date);
+      });
+    });
+  }
+
+  /**
+   * Show modal with bookings for a specific date
+   */
+  function showDateBookingsModal(date) {
+    console.log(`📅 Showing bookings for ${date}`);
+    
+    // Find all approved bookings that cover this date (startDate <= date <= endDate)
+    const dateBookings = allRequests.filter(req => {
+      // Only show approved requests
+      if (req.status !== 'approved') return false;
+      
+      const reqStartDate = req.startDate;
+      const reqEndDate = req.endDate || req.startDate;
+      
+      // Check if this date falls within the booking range
+      return date >= reqStartDate && date <= reqEndDate;
+    });
+
+    const modal = document.getElementById('tentsModalOverlay');
+    const modalTitle = document.getElementById('tentsModalTitle');
+    const modalBody = document.getElementById('tentsModalBody');
+
+    if (!modal || !modalTitle || !modalBody) {
+      console.error('❌ Modal elements not found');
+      return;
+    }
+
+    // Format date nicely
+    const dateObj = new Date(date + 'T00:00:00');
+    const formattedDate = dateObj.toLocaleDateString('en-US', { 
+      weekday: 'long',
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+
+    modalTitle.textContent = `Approved Bookings for ${formattedDate}`;
+
+    let bodyHTML = '';
+    
+    if (dateBookings.length === 0) {
+      bodyHTML = `
+        <div class="tents-no-bookings">
+          <svg style="width: 64px; height: 64px; margin: 0 auto 16px; color: #9ca3af;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <p style="text-align: center; color: #6b7280; font-size: 15px;">No approved bookings on this date.</p>
+        </div>
+      `;
+    } else {
+      bodyHTML = '<div class="tents-modal-bookings-list">';
+      
+      dateBookings.forEach((booking, index) => {
+        const firstName = booking.firstName || '';
+        const lastName = booking.lastName || '';
+        const fullName = firstName && lastName ? `${firstName} ${lastName}` : (booking.fullName || 'Unknown');
+        
+        // Format date range
+        const startDate = new Date(booking.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const endDate = booking.endDate ? new Date(booking.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : startDate;
+        const dateRange = booking.startDate === booking.endDate ? startDate : `${startDate} - ${endDate}`;
+        
+        bodyHTML += `
+          <div class="tents-booking-item ${index > 0 ? 'with-divider' : ''}">
+            <div class="tents-booking-item-header">
+              <div class="tents-booking-name">
+                <svg style="width: 18px; height: 18px; margin-right: 8px; color: #0b3b8c;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                <strong>${sanitizeInput(fullName)}</strong>
+              </div>
+              <span class="tents-status-badge-approved">Approved</span>
+            </div>
+            <div class="tents-booking-item-details">
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span><strong>Period:</strong> ${dateRange}</span>
+              </div>
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                </svg>
+                <span><strong>Tents:</strong> ${booking.quantityTents || 0} | <strong>Chairs:</strong> ${booking.quantityChairs || 0}</span>
+              </div>
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                </svg>
+                <span><strong>Mode:</strong> ${booking.modeOfReceiving || 'N/A'}</span>
+              </div>
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span><strong>Address:</strong> ${sanitizeInput(booking.completeAddress || 'N/A')}</span>
+              </div>
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                </svg>
+                <span><strong>Contact:</strong> ${booking.contactNumber || 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      bodyHTML += '</div>';
+    }
+
+    modalBody.innerHTML = bodyHTML;
+    modal.style.display = 'flex';
   }
 
   // ========================================
@@ -6297,6 +6930,9 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     document.getElementById('deliveryFilter')?.addEventListener('change', renderContent);
     document.getElementById('sortByFilter')?.addEventListener('change', renderContent);
 
+    // Setup internal booking modal
+    setupInternalBookingModal();
+
     console.log('✅ Event listeners set up');
   }
 
@@ -6319,6 +6955,273 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   window.exportData = exportData;
   window.closeTentsModal = closeTentsModal;
   window.closeModalOnOverlay = closeModalOnOverlay;
+
+  // ========================================
+  // INTERNAL BOOKING MODAL FUNCTIONALITY
+  // ========================================
+
+  /**
+   * Setup internal booking modal for tents admin page
+   */
+  function setupInternalBookingModal() {
+    const modal = document.getElementById('internalBookingModalTents');
+    const openBtn = document.getElementById('addInternalBookingBtnTents');
+    const closeBtn = document.getElementById('closeInternalBookingModalTents');
+    const cancelBtn = document.getElementById('cancelInternalBookingTents');
+    const form = document.getElementById('internalBookingFormTents');
+
+    if (!modal || !openBtn || !form) return;
+
+    // Open modal
+    openBtn.addEventListener('click', () => {
+      modal.classList.add('active');
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('internalStartDateTents').setAttribute('min', today);
+      document.getElementById('internalEndDateTents').setAttribute('min', today);
+    });
+
+    // Close modal function
+    function closeModal() {
+      modal.classList.remove('active');
+      form.reset();
+      clearAllInternalErrorsTents();
+    }
+
+    // Close button
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeModal);
+    }
+
+    // Cancel button
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', closeModal);
+    }
+
+    // Click outside
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Date validation
+    const startDateInput = document.getElementById('internalStartDateTents');
+    const endDateInput = document.getElementById('internalEndDateTents');
+
+    if (startDateInput && endDateInput) {
+      startDateInput.addEventListener('change', function() {
+        endDateInput.setAttribute('min', this.value);
+        if (endDateInput.value && endDateInput.value < this.value) {
+          endDateInput.value = '';
+        }
+        clearInternalErrorTents('internal-start-date-tents');
+      });
+
+      endDateInput.addEventListener('change', function() {
+        clearInternalErrorTents('internal-end-date-tents');
+      });
+    }
+
+    // Real-time validation
+    ['internalTentsTents', 'internalChairsTents', 'internalPurposeTents', 'internalLocationTents', 
+     'internalContactPersonTents', 'internalContactNumberTents'].forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.addEventListener('input', function() {
+          const errorId = id.replace('Tents', '-tents').replace(/([A-Z])/g, '-$1').toLowerCase();
+          clearInternalErrorTents(errorId);
+        });
+      }
+    });
+
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      clearAllInternalErrorsTents();
+      
+      const startDate = document.getElementById('internalStartDateTents').value.trim();
+      const endDate = document.getElementById('internalEndDateTents').value.trim();
+      const tents = parseInt(document.getElementById('internalTentsTents').value) || 0;
+      const chairs = parseInt(document.getElementById('internalChairsTents').value) || 0;
+      const purpose = document.getElementById('internalPurposeTents').value.trim();
+      const location = document.getElementById('internalLocationTents').value.trim();
+      const contactPerson = document.getElementById('internalContactPersonTents').value.trim();
+      const contactNumber = document.getElementById('internalContactNumberTents').value.trim();
+      
+      let hasError = false;
+      
+      // Validate dates
+      if (!startDate) {
+        setInternalErrorTents('internal-start-date-tents', 'Event start date is required');
+        hasError = true;
+      }
+      
+      if (!endDate) {
+        setInternalErrorTents('internal-end-date-tents', 'Event end date is required');
+        hasError = true;
+      }
+      
+      if (startDate && endDate && endDate < startDate) {
+        setInternalErrorTents('internal-end-date-tents', 'End date cannot be before start date');
+        hasError = true;
+      }
+      
+      // Validate quantities
+      if (tents < 0) {
+        setInternalErrorTents('internal-tents-tents', 'Quantity cannot be negative');
+        hasError = true;
+      }
+      
+      if (chairs < 0) {
+        setInternalErrorTents('internal-chairs-tents', 'Quantity cannot be negative');
+        hasError = true;
+      }
+      
+      if (tents === 0 && chairs === 0) {
+        setInternalErrorTents('internal-tents-tents', 'Must request at least 1 tent or chair');
+        setInternalErrorTents('internal-chairs-tents', 'Must request at least 1 tent or chair');
+        hasError = true;
+      }
+      
+      // Check inventory
+      try {
+        const inventoryDoc = await getDoc(doc(db, 'inventory', 'equipment'));
+        if (inventoryDoc.exists()) {
+          const inventory = inventoryDoc.data();
+          const availableTents = inventory.availableTents || 0;
+          const availableChairs = inventory.availableChairs || 0;
+          
+          if (tents > availableTents) {
+            setInternalErrorTents('internal-tents-tents', `Only ${availableTents} tents available`);
+            hasError = true;
+          }
+          
+          if (chairs > availableChairs) {
+            setInternalErrorTents('internal-chairs-tents', `Only ${availableChairs} chairs available`);
+            hasError = true;
+          }
+        }
+      } catch (error) {
+        console.error('Error checking inventory:', error);
+      }
+      
+      // Validate purpose
+      if (!purpose) {
+        setInternalErrorTents('internal-purpose-tents', 'Purpose is required');
+        hasError = true;
+      } else if (purpose.length < 10) {
+        setInternalErrorTents('internal-purpose-tents', 'Purpose must be at least 10 characters');
+        hasError = true;
+      }
+      
+      // Validate location
+      if (!location) {
+        setInternalErrorTents('internal-location-tents', 'Location is required');
+        hasError = true;
+      }
+      
+      // Validate contact person
+      if (!contactPerson) {
+        setInternalErrorTents('internal-contact-person-tents', 'Contact person is required');
+        hasError = true;
+      }
+      
+      // Validate contact number
+      if (!contactNumber) {
+        setInternalErrorTents('internal-contact-number-tents', 'Contact number is required');
+        hasError = true;
+      } else if (!/^09\d{9}$/.test(contactNumber)) {
+        setInternalErrorTents('internal-contact-number-tents', 'Invalid format. Use: 09XXXXXXXXX (11 digits)');
+        hasError = true;
+      }
+      
+      if (hasError) return;
+      
+      // Show loading
+      const submitBtn = this.querySelector('.internal-booking-submit-btn');
+      submitBtn.classList.add('loading');
+      submitBtn.disabled = true;
+      
+      try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('No authenticated user');
+        }
+        
+        // Create booking
+        const bookingData = {
+          startDate: startDate,
+          endDate: endDate,
+          quantityTents: tents,
+          quantityChairs: chairs,
+          purpose: sanitizeInput(purpose),
+          completeAddress: sanitizeInput(location),
+          fullName: sanitizeInput(contactPerson),
+          contactNumber: contactNumber,
+          modeOfReceiving: 'Internal',
+          status: 'approved',
+          userId: currentUser.uid,
+          userEmail: currentUser.email,
+          createdAt: new Date(),
+          approvedAt: new Date(),
+          isInternalBooking: true
+        };
+        
+        await addDoc(collection(db, 'tentsChairsBookings'), bookingData);
+        
+        // Update inventory
+        const inventoryRef = doc(db, 'inventory', 'equipment');
+        const inventorySnap = await getDoc(inventoryRef);
+        
+        if (inventorySnap.exists()) {
+          const currentInventory = inventorySnap.data();
+          await updateDoc(inventoryRef, {
+            availableTents: (currentInventory.availableTents || 0) - tents,
+            availableChairs: (currentInventory.availableChairs || 0) - chairs,
+            tentsInUse: (currentInventory.tentsInUse || 0) + tents,
+            chairsInUse: (currentInventory.chairsInUse || 0) + chairs,
+            lastUpdated: new Date()
+          });
+        }
+        
+        showAlert('Internal booking added successfully!', true, () => {
+          closeModal();
+          loadInventoryStats();
+          loadAllRequests();
+        });
+        
+      } catch (error) {
+        console.error('Error creating internal booking:', error);
+        showAlert('Failed to create internal booking. Please try again.', false);
+      } finally {
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+      }
+    });
+  }
+
+  function setInternalErrorTents(elementId, message) {
+    const errorElement = document.getElementById(`error-${elementId}`);
+    const inputId = elementId.replace('error-', '').replace(/-/g, '');
+    const inputElement = document.getElementById(inputId.charAt(0).toLowerCase() + inputId.slice(1));
+    
+    if (errorElement) errorElement.textContent = message;
+    if (inputElement) inputElement.classList.add('error');
+  }
+
+  function clearInternalErrorTents(elementId) {
+    const errorElement = document.getElementById(`error-${elementId}`);
+    const inputId = elementId.replace('error-', '').replace(/-/g, '');
+    const inputElement = document.getElementById(inputId.charAt(0).toLowerCase() + inputId.slice(1));
+    
+    if (errorElement) errorElement.textContent = '';
+    if (inputElement) inputElement.classList.remove('error');
+  }
+
+  function clearAllInternalErrorsTents() {
+    ['internal-start-date-tents', 'internal-end-date-tents', 'internal-tents-tents', 
+     'internal-chairs-tents', 'internal-purpose-tents', 'internal-location-tents',
+     'internal-contact-person-tents', 'internal-contact-number-tents'].forEach(clearInternalErrorTents);
+  }
 
   // ========================================
   // INITIALIZATION

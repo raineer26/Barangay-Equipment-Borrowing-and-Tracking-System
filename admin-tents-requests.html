@@ -170,15 +170,10 @@
           </div>
         </div>
 
-        <!-- Booking Buttons (Calendar View) -->
+        <!-- Booking Button (Calendar View) -->
         <div class="tents-booking-buttons" id="calendarButtons" style="display: none;">
-          <button class="btn-booking" onclick="openManualBookingModal('tents')">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-            Add Tent Booking
-          </button>
-          <button class="btn-booking" onclick="openManualBookingModal('chairs')">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-            Add Chair Booking
+          <button class="add-internal-booking-btn" id="addInternalBookingBtnTents">
+            <span>+ Add Tents/Chairs Booking</span>
           </button>
         </div>
 
@@ -217,6 +212,87 @@
             <button class="tents-confirm-btn-yes" id="tentsConfirmYes">Yes</button>
             <button class="tents-confirm-btn-no" id="tentsConfirmNo">No</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Internal Booking Modal -->
+      <div class="internal-booking-modal-overlay" id="internalBookingModalTents">
+        <div class="internal-booking-modal">
+          <div class="internal-booking-modal-header">
+            <h2>Add Tents/Chairs Booking</h2>
+            <button class="internal-booking-close-btn" id="closeInternalBookingModalTents">&times;</button>
+          </div>
+          <form id="internalBookingFormTents" class="internal-booking-form">
+            <div class="internal-booking-form-grid">
+              <!-- Event Start Date -->
+              <div class="internal-form-group">
+                <label for="internalStartDateTents">Event Start Date <span class="required">*</span></label>
+                <input type="date" id="internalStartDateTents" name="startDate" required />
+                <span class="internal-error-message" id="error-internal-start-date-tents"></span>
+              </div>
+
+              <!-- Event End Date -->
+              <div class="internal-form-group">
+                <label for="internalEndDateTents">Event End Date <span class="required">*</span></label>
+                <input type="date" id="internalEndDateTents" name="endDate" required />
+                <span class="internal-error-message" id="error-internal-end-date-tents"></span>
+              </div>
+
+              <!-- Number of Tents -->
+              <div class="internal-form-group">
+                <label for="internalTentsTents">Number of Tents <span class="required">*</span></label>
+                <input type="number" id="internalTentsTents" name="tents" min="0" required />
+                <small class="form-hint">*Set the quantity to 0 if not borrowing tents</small>
+                <span class="internal-error-message" id="error-internal-tents-tents"></span>
+              </div>
+
+              <!-- Number of Chairs -->
+              <div class="internal-form-group">
+                <label for="internalChairsTents">Number of Chairs <span class="required">*</span></label>
+                <input type="number" id="internalChairsTents" name="chairs" min="0" required />
+                <small class="form-hint">*Set the quantity to 0 if not borrowing chairs</small>
+                <span class="internal-error-message" id="error-internal-chairs-tents"></span>
+              </div>
+
+              <!-- Purpose -->
+              <div class="internal-form-group full-width">
+                <label for="internalPurposeTents">Purpose <span class="required">*</span></label>
+                <textarea id="internalPurposeTents" name="purpose" rows="3" required placeholder="Enter the purpose of borrowing"></textarea>
+                <span class="internal-error-message" id="error-internal-purpose-tents"></span>
+              </div>
+
+              <!-- Location -->
+              <div class="internal-form-group full-width">
+                <label for="internalLocationTents">Location <span class="required">*</span></label>
+                <input type="text" id="internalLocationTents" name="location" required placeholder="Enter event location" />
+                <span class="internal-error-message" id="error-internal-location-tents"></span>
+              </div>
+
+              <!-- Contact Person -->
+              <div class="internal-form-group">
+                <label for="internalContactPersonTents">Contact Person <span class="required">*</span></label>
+                <input type="text" id="internalContactPersonTents" name="contactPerson" required placeholder="Enter contact person name" />
+                <span class="internal-error-message" id="error-internal-contact-person-tents"></span>
+              </div>
+
+              <!-- Contact Number -->
+              <div class="internal-form-group">
+                <label for="internalContactNumberTents">Contact Number <span class="required">*</span></label>
+                <input type="tel" id="internalContactNumberTents" name="contactNumber" required placeholder="09XXXXXXXXX" />
+                <span class="internal-error-message" id="error-internal-contact-number-tents"></span>
+              </div>
+            </div>
+
+            <div class="internal-booking-form-actions">
+              <button type="button" class="internal-booking-cancel-btn" id="cancelInternalBookingTents">Cancel</button>
+              <button type="submit" class="internal-booking-submit-btn">
+                <span class="btn-text">Add Booking</span>
+                <span class="btn-spinner" style="display: none;">
+                  <span class="spinner"></span> Processing...
+                </span>
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </main>

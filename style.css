@@ -3959,6 +3959,12 @@ input[type="number"]::-webkit-outer-spin-button {
   max-width: calc(100vw - 280px);
 }
 
+/* Dashboard Page Specific - Non-scrollable */
+.admin-main.admin-dashboard-page {
+  height: 100vh;
+  overflow: hidden;
+}
+
 /* Admin Hero Section */
 .admin-hero {
   position: relative;
@@ -4020,6 +4026,9 @@ input[type="number"]::-webkit-outer-spin-button {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 30px;
+  height: calc(100vh - 180px);
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .dashboard-left,
@@ -4027,6 +4036,8 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* Quick Access Section */
@@ -4274,6 +4285,34 @@ input[type="number"]::-webkit-outer-spin-button {
   flex-shrink: 0;
 }
 
+/* Add Internal Booking Button */
+.add-internal-booking-btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 14px 24px;
+  background: #281ABC;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(40, 26, 188, 0.2);
+}
+
+.add-internal-booking-btn:hover {
+  background: #1a0e7a;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(40, 26, 188, 0.3);
+}
+
+.add-internal-booking-btn:active {
+  transform: translateY(0);
+}
+
 /* Week Calendar Card */
 .week-calendar-card {
   background: #f1e9f3;
@@ -4418,6 +4457,10 @@ input[type="number"]::-webkit-outer-spin-button {
   padding: 25px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .reservations-title {
@@ -4440,6 +4483,28 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 5px;
+}
+
+.reservations-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.reservations-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.reservations-list::-webkit-scrollbar-thumb {
+  background: #281ABC;
+  border-radius: 4px;
+}
+
+.reservations-list::-webkit-scrollbar-thumb:hover {
+  background: #1a0e7a;
 }
 
 /* Reservation Item */
@@ -4495,6 +4560,250 @@ input[type="number"]::-webkit-outer-spin-button {
   color: #666;
   margin: 0;
   line-height: 1.6;
+}
+
+/* ==================== INTERNAL BOOKING MODAL ==================== */
+.internal-booking-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.internal-booking-modal-overlay.active {
+  display: flex;
+}
+
+.internal-booking-modal {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.internal-booking-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 30px;
+  border-bottom: 2px solid #f0f0f0;
+  background: linear-gradient(135deg, #281ABC 0%, #1a0e7a 100%);
+  border-radius: 16px 16px 0 0;
+}
+
+.internal-booking-modal-header h2 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: white;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.internal-booking-close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 2rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.internal-booking-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+.internal-booking-form {
+  padding: 30px;
+}
+
+.internal-booking-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.internal-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.internal-form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.internal-form-group label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.internal-form-group .required {
+  color: #dc2626;
+}
+
+.internal-form-group input,
+.internal-form-group textarea {
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.internal-form-group input:focus,
+.internal-form-group textarea:focus {
+  outline: none;
+  border-color: #281ABC;
+  box-shadow: 0 0 0 3px rgba(40, 26, 188, 0.1);
+}
+
+.internal-form-group input.error,
+.internal-form-group textarea.error {
+  border-color: #dc2626;
+}
+
+.internal-form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-hint {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.75rem;
+  color: #666;
+  font-style: italic;
+  margin-top: -4px;
+}
+
+.internal-error-message {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.8rem;
+  color: #dc2626;
+  min-height: 18px;
+  display: block;
+}
+
+.internal-booking-form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 20px;
+  border-top: 2px solid #f0f0f0;
+}
+
+.internal-booking-cancel-btn,
+.internal-booking-submit-btn {
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.internal-booking-cancel-btn {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.internal-booking-cancel-btn:hover {
+  background: #e0e0e0;
+}
+
+.internal-booking-submit-btn {
+  background: #281ABC;
+  color: white;
+  position: relative;
+  min-width: 150px;
+}
+
+.internal-booking-submit-btn:hover {
+  background: #1a0e7a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(40, 26, 188, 0.3);
+}
+
+.internal-booking-submit-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.internal-booking-submit-btn .btn-spinner {
+  display: none;
+}
+
+.internal-booking-submit-btn.loading .btn-text {
+  display: none;
+}
+
+.internal-booking-submit-btn.loading .btn-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .internal-booking-form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .internal-booking-modal {
+    max-width: 95%;
+  }
 }
 
 /* ==================== PLACEHOLDER CONTENT STYLES ==================== */
@@ -4704,6 +5013,11 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   gap: 16px;
   justify-content: center;
+}
+
+.tents-booking-buttons .add-internal-booking-btn {
+  width: auto;
+  margin-top: 0;
 }
 
 .btn-booking {
@@ -5164,15 +5478,82 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .tents-calendar-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+  gap: 32px;
 }
 
 .tents-calendar-header h2 {
   font-family: 'League Spartan', sans-serif;
   font-size: 24px;
   font-weight: 700;
+  color: #111827;
+  min-width: 200px;
+  text-align: center;
+}
+
+/* Calendar Legend */
+.tents-calendar-legend {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.tents-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  color: #374151;
+}
+
+.tents-legend-box {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  flex-shrink: 0;
+}
+
+.tents-legend-today {
+  background: #dbeafe;
+  border: 2px solid #3b82f6;
+}
+
+.tents-legend-has-bookings {
+  background: #fef08a;
+  border: 2px solid #eab308;
+}
+
+.tents-legend-empty {
+  background: white;
+  border: 1px solid #e5e7eb;
+}
+
+.tents-legend-event {
+  width: 60px;
+  height: 24px;
+  background: #5b21b6;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.tents-legend-event::after {
+  content: 'Event';
 }
 
 .tents-calendar-nav {
@@ -5183,31 +5564,34 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .tents-calendar-nav-btn {
   padding: 8px;
-  border: none;
-  background: none;
+  border: 1px solid #d1d5db;
+  background: white;
   cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.2s;
+  border-radius: 6px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tents-calendar-nav-btn:hover {
   background: #f3f4f6;
+  border-color: #9ca3af;
 }
 
 .tents-calendar-nav-btn svg {
   width: 20px;
   height: 20px;
+  color: #374151;
 }
 
 .tents-calendar-grid {
   border: 1px solid #d1d5db;
   border-radius: 8px;
   overflow: hidden;
-}
-
-.tents-calendar-days {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  background: white;
 }
 
 .tents-calendar-day-header {
@@ -5226,60 +5610,113 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .tents-calendar-date {
-  min-height: 120px;
+  min-height: 100px;
   padding: 8px;
   border: 1px solid #e5e7eb;
   background: white;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.2s;
+  position: relative;
 }
 
 .tents-calendar-date.empty {
   background: #f9fafb;
+  cursor: default;
 }
 
-.tents-calendar-date.has-bookings {
+.tents-calendar-date:not(.empty) {
   cursor: pointer;
 }
 
-.tents-calendar-date.has-bookings:hover {
+.tents-calendar-date:not(.empty):hover {
   background: #f9fafb;
+  box-shadow: inset 0 0 0 1px #9ca3af;
+}
+
+.tents-calendar-date.has-bookings {
+  background: #fef08a;
+  border: 2px solid #eab308;
+}
+
+.tents-calendar-date.has-bookings:hover {
+  background: #fde047;
+  border-color: #ca8a04;
+}
+
+.tents-calendar-date.today {
+  background: #dbeafe;
+  border: 2px solid #3b82f6;
+}
+
+.tents-calendar-date.today.has-bookings {
+  background: #fef08a;
+  border: 2px solid #3b82f6;
+  box-shadow: 0 0 0 2px #eab308;
 }
 
 .tents-date-number {
   font-family: 'Poppins', sans-serif;
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  color: #111827;
+}
+
+.tents-booking-indicator {
+  margin-top: auto;
+  padding: 4px 8px;
+  background: #5b21b6;
+  color: white;
+  border-radius: 4px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
 }
 
 .tents-calendar-event {
-  padding: 6px 8px;
+  padding: 4px 6px;
   border-radius: 4px;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   font-family: 'Poppins', sans-serif;
   font-size: 11px;
+  background: #5b21b6;
   color: white;
-  cursor: pointer;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tents-calendar-event:hover {
-  opacity: 0.85;
-}
-
-.tents-event-approved {
-  background: #FFCB05;
-}
-
-.tents-event-pending {
-  background: #f97316;
-}
-
-.tents-event-in-progress {
-  background: #3b82f6;
+  opacity: 0.9;
+  z-index: 10;
 }
 
 .tents-event-name {
   font-weight: 600;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tents-event-items {
+  font-size: 10px;
+  opacity: 0.95;
+  font-weight: 500;
+}
+
+.tents-more-bookings {
+  font-size: 10px;
+  color: #6b7280;
+  font-weight: 600;
+  margin-top: 2px;
+  padding: 2px 4px;
+  text-align: center;
+  background: #f3f4f6;
+  border-radius: 3px;
 }
 
 /* Modal */
@@ -5348,12 +5785,27 @@ input[type="number"]::-webkit-outer-spin-button {
   padding: 24px;
 }
 
+.tents-modal-bookings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .tents-booking-item {
-  padding: 16px;
+  padding: 18px;
   border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  margin-bottom: 12px;
-  background: #f9fafb;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: all 0.2s;
+}
+
+.tents-booking-item.with-divider {
+  margin-top: 4px;
+}
+
+.tents-booking-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #d1d5db;
 }
 
 .tents-booking-item:last-child {
@@ -5361,23 +5813,50 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .tents-booking-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tents-booking-name {
+  display: flex;
+  align-items: center;
   font-family: 'League Spartan', sans-serif;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 17px;
   color: #111827;
-  margin-bottom: 8px;
 }
 
 .tents-booking-item-details {
   font-family: 'Poppins', sans-serif;
   font-size: 14px;
-  color: #6b7280;
-  line-height: 1.6;
+  color: #4b5563;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tents-booking-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.tents-booking-detail-row svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.tents-booking-detail-row span {
+  line-height: 1.5;
 }
 
 .tents-no-bookings {
   text-align: center;
-  padding: 40px 20px;
+  padding: 48px 20px;
   color: #6b7280;
   font-family: 'Poppins', sans-serif;
   font-size: 15px;
