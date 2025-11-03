@@ -12,7 +12,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import { signInWithEmailAndPassword, getAuth, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 
-import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, orderBy, updateDoc ,onSnapshot, } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 // ====== Your Firebase config
 const firebaseConfig = {
@@ -29,6 +29,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const inventoryRef = collection(db, "inventory");
 
 // =============================
 // 2. Unique Custom Alert Function (no naming conflicts FOR BACKEND)
@@ -6137,217 +6138,365 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   initPage();
 }
 
-// ===== Admin Inventory with Firestore Real-Time Sync + Edit/Save Modal =====
 
-// Initialize Firestore references (you already have config + firestore instance)
-const inventoryRef = collection(db, "inventory"); // change "inventory" to your collection name
+// ===== Inventory Manager with Real-Time Firestore Sync =====
+// --- DOM Elements ---
+const editBtn = document.getElementById("editInventory");
+const saveBtn = document.getElementById("saveInventory");
+const confirmModal = document.getElementById("saveConfirmModal");
+const confirmYes = document.getElementById("confirmSaveYes");
+const confirmNo = document.getElementById("confirmSaveNo");
+const closeModal = document.getElementById("saveConfirmClose");
 
-function initInventory() {
-  const editBtn = document.getElementById('editInventory');
-  const saveBtn = document.getElementById('saveInventory');
-  const inventoryCard = document.querySelector('.inventory-card');
-  const modal = document.getElementById('saveConfirmModal');
-  const modalList = document.getElementById('saveChangesList');
-  const confirmYes = document.getElementById('confirmSaveYes');
-  const confirmNo = document.getElementById('confirmSaveNo');
-  const modalClose = document.getElementById('saveConfirmClose');
-
-  if (!saveBtn || !inventoryCard) return;
-
-  let inputs = Array.from(inventoryCard.querySelectorAll('.item-fields input[type="number"]'));
-  let originalValues = {};
-  let pendingComputed = {};
-
-  // --- Helper: Enable/disable editing mode ---
-  function setEditMode(on) {
-    inputs.forEach(input => {
-      if (on) {
-        input.removeAttribute('readonly');
-        input.classList.add('editing');
-      } else {
-        input.setAttribute('readonly', '');
-        input.classList.remove('editing');
-      }
-    });
-    saveBtn.disabled = !on;
-    editBtn?.setAttribute('aria-pressed', on ? 'true' : 'false');
+const fields = {
+  tents: {
+    total: document.getElementById("tents-total"),
+    available: document.getElementById("tents-available"),
+    inuse: document.getElementById("tents-inuse")
+  },
+  chairs: {
+    total: document.getElementById("chairs-total"),
+    available: document.getElementById("chairs-available"),
+    inuse: document.getElementById("chairs-inuse")
   }
-  setEditMode(false);
+};
 
-  // --- Helper: snapshot inputs to detect changes later ---
-  function captureOriginals() {
-    originalValues = {};
-    inputs.forEach(input => {
-      if (input.id) originalValues[input.id] = String(input.value);
-    });
-  }
+// Track original values for change detection
+let originalValues = {
+  tents: { total: 0, inuse: 0 },
+  chairs: { total: 0, inuse: 0 }
+};
 
-  // --- Optional enhancement: live auto-update Available field ---
-  function autoComputeAvailable() {
-    const itemEls = inventoryCard.querySelectorAll('.inventory-item');
-    itemEls.forEach(item => {
-      const totalInput = item.querySelector('input[id$="-total"]');
-      const inuseInput = item.querySelector('input[id$="-inuse"]');
-      const availableInput = item.querySelector('input[id$="-available"]');
-      if (!totalInput || !inuseInput || !availableInput) return;
-      const total = parseInt(totalInput.value) || 0;
-      const inuse = parseInt(inuseInput.value) || 0;
-      availableInput.value = Math.max(0, total - inuse);
-    });
-  }
+// --- Load Real-time Data ---
+function loadInventoryRealtime() {
+  onSnapshot(doc(db, "inventory", "equipment"), (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      
+      // Update tents fields and store original values
+      const tentsTotal = (data.availableTents || 0) + (data.tentsInUse || 0);
+      const chairsTotal = (data.availableChairs || 0) + (data.chairsInUse || 0);
+      
+      // Store original values for change detection
+      originalValues = {
+        tents: { 
+          total: tentsTotal,
+          inuse: data.tentsInUse || 0
+        },
+        chairs: {
+          total: chairsTotal,
+          inuse: data.chairsInUse || 0
+        }
+      };
 
-  inventoryCard.addEventListener('input', e => {
-    if (e.target.matches('input[id$="-total"], input[id$="-inuse"]')) {
-      autoComputeAvailable();
+      fields.tents.available.value = data.availableTents || 0;
+      fields.tents.inuse.value = data.tentsInUse || 0;
+      fields.tents.total.value = (data.availableTents || 0) + (data.tentsInUse || 0);
+      
+      // Update chairs fields
+      fields.chairs.available.value = data.availableChairs || 0;
+      fields.chairs.inuse.value = data.chairsInUse || 0;
+      fields.chairs.total.value = (data.availableChairs || 0) + (data.chairsInUse || 0);
+      
+      console.log("Inventory synced in real-time:", data);
+    } else {
+      console.log("No inventory document found, initializing default values.");
+      initializeInventory();
     }
-  });
-
-  // --- Edit mode ---
-  editBtn?.addEventListener('click', e => {
-    e.preventDefault();
-    setEditMode(true);
-    captureOriginals();
-    inputs.find(i => !i.hasAttribute('readonly'))?.focus();
-  });
-
-  // --- Modal show/hide helpers ---
-  function showModal() {
-    modal.style.display = 'block';
-    modal.setAttribute('aria-hidden', 'false');
-  }
-  function hideModal() {
-    modal.style.display = 'none';
-    modal.setAttribute('aria-hidden', 'true');
-  }
-
-  // --- Save clicked: show modal summary ---
-  saveBtn?.addEventListener('click', e => {
-    e.preventDefault();
-
-    inputs.forEach(inp => {
-      const val = Number(inp.value);
-      if (!Number.isFinite(val) || val < 0) inp.value = 0;
-    });
-
-    const itemEls = Array.from(inventoryCard.querySelectorAll('.inventory-item'));
-    const changes = [];
-    pendingComputed = {};
-
-    itemEls.forEach(itemEl => {
-      const name = itemEl.querySelector('h3')?.textContent?.trim() || 'Item';
-      const totalInput = itemEl.querySelector('input[id$="-total"]');
-      const inuseInput = itemEl.querySelector('input[id$="-inuse"]');
-      const availableInput = itemEl.querySelector('input[id$="-available"]');
-
-      const idTotal = totalInput?.id, idInuse = inuseInput?.id, idAvailable = availableInput?.id;
-      const currTotal = String(totalInput?.value || '0');
-      const currInuse = String(inuseInput?.value || '0');
-      const totalNum = Number(currTotal) || 0, inuseNum = Number(currInuse) || 0;
-      const expectedAvailable = String(Math.max(0, totalNum - inuseNum));
-
-      if (idAvailable) pendingComputed[idAvailable] = expectedAvailable;
-
-      const origTotal = originalValues[idTotal] ?? currTotal;
-      const origInuse = originalValues[idInuse] ?? currInuse;
-      const origAvail = originalValues[idAvailable] ?? expectedAvailable;
-
-      const totalChanged = origTotal !== currTotal;
-      const inuseChanged = origInuse !== currInuse;
-      const availChanged = origAvail !== expectedAvailable;
-
-      if (totalChanged || inuseChanged || availChanged) {
-        changes.push(`${name}: Total ${origTotal} → ${currTotal}, InUse ${origInuse} → ${currInuse}, Available ${origAvail} → ${expectedAvailable}`);
-      }
-    });
-
-    if (changes.length === 0) {
-      showAlert?.('No changes to save.');
-      return;
-    }
-
-    modalList.innerHTML = '';
-    changes.forEach(change => {
-      const li = document.createElement('div');
-      li.className = 'change-line';
-      li.textContent = change;
-      modalList.appendChild(li);
-    });
-    showModal();
-  });
-
-  // --- Confirm save: persist to Firestore ---
-  confirmYes?.addEventListener('click', async e => {
-    e.preventDefault();
-
-    Object.keys(pendingComputed).forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = pendingComputed[id];
-    });
-
-    const itemEls = Array.from(inventoryCard.querySelectorAll('.inventory-item'));
-    try {
-      for (const itemEl of itemEls) {
-        const docId = itemEl.dataset.id; // each item should have data-id
-        if (!docId) continue;
-        const total = Number(itemEl.querySelector('input[id$="-total"]')?.value || 0);
-        const inUse = Number(itemEl.querySelector('input[id$="-inuse"]')?.value || 0);
-        const available = Number(itemEl.querySelector('input[id$="-available"]')?.value || 0);
-
-        await updateDoc(doc(inventoryRef, docId), {
-          total,
-          inUse,
-          available,
-          updatedAt: serverTimestamp()
-        });
-      }
-
-      hideModal();
-      setEditMode(false);
-      captureOriginals();
-      showAlert?.('Inventory updated successfully!', true);
-    } catch (err) {
-      console.error('Firestore update failed:', err);
-      showAlert?.('Error saving inventory. Check console for details.');
-    }
-  });
-
-  // --- Cancel modal ---
-  [confirmNo, modalClose].forEach(btn => btn?.addEventListener('click', e => {
-    e.preventDefault();
-    hideModal();
-  }));
-
-  modal?.addEventListener('click', e => {
-    if (e.target === modal) hideModal();
-  });
-
-  // --- Firestore real-time updates using onSnapshot() ---
-  onSnapshot(inventoryRef, snapshot => {
-    snapshot.docChanges().forEach(change => {
-      const docData = change.doc.data();
-      const id = change.doc.id;
-      const itemEl = inventoryCard.querySelector(`.inventory-item[data-id="${id}"]`);
-      if (!itemEl) return;
-
-      // Only update UI if not editing to avoid overwriting unsaved user edits
-      if (!saveBtn.disabled) return;
-
-      const totalInput = itemEl.querySelector('input[id$="-total"]');
-      const inuseInput = itemEl.querySelector('input[id$="-inuse"]');
-      const availableInput = itemEl.querySelector('input[id$="-available"]');
-
-      if (totalInput) totalInput.value = docData.total ?? 0;
-      if (inuseInput) inuseInput.value = docData.inUse ?? 0;
-      if (availableInput) availableInput.value = docData.available ?? 0;
-    });
-
-    captureOriginals();
   });
 }
 
-// --- Initialize ---
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initInventory);
-} else {
-  initInventory();
+// --- Initialize Default Data ---
+async function initializeInventory() {
+  const inventoryRef = doc(db, "inventory", "equipment");
+  await setDoc(inventoryRef, {
+    availableTents: 24,
+    tentsInUse: 0,
+    availableChairs: 600,
+    chairsInUse: 0,
+    lastUpdated: new Date()
+  });
 }
+
+// --- Enable Editing ---
+editBtn.addEventListener("click", () => {
+  Object.values(fields).forEach(item => {
+    item.total.disabled = false;
+    item.inuse.disabled = false;
+  });
+  saveBtn.disabled = false;
+  editBtn.disabled = true;
+});
+
+// --- Auto Update Available Values ---
+function updateAvailable(itemType) {
+  const total = Number(fields[itemType].total.value) || 0;
+  let inUse = Number(fields[itemType].inuse.value) || 0;
+
+  // Get error message element (create if doesn't exist)
+  let errorElement = document.getElementById(`${itemType}-error`);
+  if (!errorElement) {
+    errorElement = document.createElement('div');
+    errorElement.id = `${itemType}-error`;
+    errorElement.style.color = 'red';
+    errorElement.style.fontSize = '12px';
+    errorElement.style.marginTop = '4px';
+    fields[itemType].inuse.parentNode.appendChild(errorElement);
+  }
+
+  // Prevent negative values in "In Use" field
+  if (inUse < 0) {
+    inUse = 0;
+    fields[itemType].inuse.value = '0';
+    errorElement.textContent = 'Error: In Use cannot be negative';
+    fields[itemType].inuse.style.borderColor = 'red';
+    saveBtn.disabled = true;
+    return;
+  }
+
+  const available = total - inUse;
+
+  if (available < 0) {
+    // Show error and disable save button
+    fields[itemType].available.style.color = 'red';
+    fields[itemType].inuse.style.borderColor = 'red';
+    errorElement.textContent = `Error: In Use (${inUse}) cannot exceed Total (${total})`;
+    saveBtn.disabled = true;
+    
+    // Prevent the negative value
+    fields[itemType].available.value = '0';
+  } else {
+    // Clear error state
+    fields[itemType].available.style.color = '';
+    fields[itemType].inuse.style.borderColor = '';
+    errorElement.textContent = '';
+    fields[itemType].available.value = available;
+    
+    // Only enable save button if both items are valid
+    const otherType = itemType === 'tents' ? 'chairs' : 'tents';
+    const otherTotal = Number(fields[otherType].total.value) || 0;
+    const otherInUse = Number(fields[otherType].inuse.value) || 0;
+    
+    if (otherTotal - otherInUse >= 0 && otherInUse >= 0) {
+      saveBtn.disabled = false;
+    }
+  }
+}
+
+// Add input listeners for tents and chairs in-use fields
+fields.tents.inuse.addEventListener("input", () => updateAvailable("tents"));
+fields.chairs.inuse.addEventListener("input", () => updateAvailable("chairs"));
+
+// Add input listeners for total fields as well to keep available updated
+fields.tents.total.addEventListener("input", () => updateAvailable("tents"));
+fields.chairs.total.addEventListener("input", () => updateAvailable("chairs"));
+
+// --- Save Changes (Modal Confirmation) ---
+saveBtn.addEventListener("click", () => {
+  // Get current and new values
+  const tentsTotal = Number(fields.tents.total.value);
+  const tentsInuse = Number(fields.tents.inuse.value);
+  const chairsTotal = Number(fields.chairs.total.value);
+  const chairsInuse = Number(fields.chairs.inuse.value);
+
+  // Check if any values have changed
+  const hasChanges = 
+    tentsTotal !== originalValues.tents.total ||
+    tentsInuse !== originalValues.tents.inuse ||
+    chairsTotal !== originalValues.chairs.total ||
+    chairsInuse !== originalValues.chairs.inuse;
+
+  // Get or create confirmation message element
+  let confirmMessage = document.querySelector('.confirm-message');
+  if (!confirmMessage) {
+    confirmMessage = document.createElement('div');
+    confirmMessage.className = 'confirm-message';
+    // Find the modal content container
+    const modalContent = confirmModal.querySelector('.modal-content') || confirmModal;
+    modalContent.appendChild(confirmMessage);
+  }
+  
+  // Style the confirmation message
+  confirmMessage.style.padding = '30px 20px';
+  confirmMessage.style.maxHeight = '80vh';
+  confirmMessage.style.overflowY = 'auto';
+  confirmMessage.style.display = 'flex';
+  confirmMessage.style.flexDirection = 'column';
+  confirmMessage.style.alignItems = 'center';
+  confirmMessage.style.justifyContent = 'center';
+  confirmMessage.style.minHeight = '300px';
+  
+  if (!hasChanges) {
+    // Show no changes message
+    confirmMessage.innerHTML = `
+      <div style="text-align: center; padding: 40px;">
+        <h3 style="margin: 0 0 20px 0; color: #1a237e; font-size: 24px; font-weight: 600;">No Changes Detected</h3>
+        <p style="color: #666; font-size: 16px; margin: 0;">No modifications have been made to the inventory values.</p>
+        <p style="color: #666; font-size: 16px; margin: 10px 0 0 0;">Edit the values first before saving.</p>
+      </div>
+    `;
+    // Disable the Yes button
+    confirmYes.disabled = true;
+    confirmYes.style.opacity = '0.5';
+    confirmYes.style.cursor = 'not-allowed';
+    return;
+  }
+
+  // Reset Yes button state if there are changes
+  confirmYes.disabled = false;
+  confirmYes.style.opacity = '';
+  confirmYes.style.cursor = '';
+  
+  confirmMessage.innerHTML = `
+    <h3 style="margin: 0 0 25px 0; color: #1a237e; font-size: 24px; text-align: center; font-weight: 600; text-transform: uppercase;">Review Your Changes</h3>
+    <div class="changes-list" style="display: flex; gap: 30px; justify-content: center; width: 100%; max-width: 600px;">
+      <div class="change-section" style="background: #f5f5f5; padding: 20px; border-radius: 8px; flex: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h4 style="margin: 0 0 15px 0; color: #303f9f; font-size: 18px; text-align: center;">Tents</h4>
+        <div style="display: grid; gap: 8px;">
+          <div style="display: flex; justify-content: space-between;">
+            <span>Total:</span>
+            <strong>${tentsTotal}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span>In Use:</span>
+            <strong>${tentsInuse}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; border-top: 2px solid #e0e0e0; padding-top: 12px; margin-top: 4px;">
+            <span style="font-weight: 600;">Available:</span>
+            <strong style="color: #1a237e; font-size: 16px;">${tentsTotal - tentsInuse}</strong>
+          </div>
+        </div>
+      </div>
+      <div class="change-section" style="background: #f5f5f5; padding: 20px; border-radius: 8px; flex: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h4 style="margin: 0 0 15px 0; color: #303f9f; font-size: 18px; text-align: center;">Chairs</h4>
+        <div style="display: grid; gap: 12px; font-size: 15px;">
+          <div style="display: flex; justify-content: space-between;">
+            <span>Total:</span>
+            <strong>${chairsTotal}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span>In Use:</span>
+            <strong>${chairsInuse}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; border-top: 2px solid #e0e0e0; padding-top: 12px; margin-top: 4px;">
+            <span style="font-weight: 600;">Available:</span>
+            <strong style="color: #1a237e; font-size: 16px;">${chairsTotal - chairsInuse}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  confirmModal.style.display = "flex";
+});
+
+confirmNo.addEventListener("click", () => {
+  confirmModal.style.display = "none";
+});
+
+closeModal.addEventListener("click", () => {
+  confirmModal.style.display = "none";
+});
+
+// --- Confirm and Save ---
+confirmYes.addEventListener("click", async () => {
+  const inventoryRef = doc(db, "inventory", "equipment");
+
+  const tentsTotal = Number(fields.tents.total.value);
+  const tentsInuse = Number(fields.tents.inuse.value);
+  const chairsTotal = Number(fields.chairs.total.value);
+  const chairsInuse = Number(fields.chairs.inuse.value);
+
+  const updatedData = {
+    availableTents: tentsTotal - tentsInuse,
+    tentsInUse: tentsInuse,
+    availableChairs: chairsTotal - chairsInuse,
+    chairsInUse: chairsInuse,
+    lastUpdated: new Date()
+  };
+
+  try {
+    await setDoc(inventoryRef, updatedData, { merge: true });
+    confirmModal.style.display = "none";
+    saveBtn.disabled = true;
+    editBtn.disabled = false;
+
+    Object.values(fields).forEach(item => {
+      item.total.disabled = true;
+      item.inuse.disabled = true;
+    });
+
+    // Show success message
+    const successToast = document.createElement('div');
+    successToast.className = 'success-toast';
+    successToast.innerHTML = `
+      <div class="success-icon"></div>
+      <div class="success-message">
+        <h4>Changes Saved Successfully!</h4>
+        <p>Inventory has been updated.</p>
+      </div>
+    `;
+    document.body.appendChild(successToast);
+
+    // Add styles for the success toast
+    successToast.style.position = 'fixed';
+    successToast.style.top = '20px';
+    successToast.style.right = '20px';
+    successToast.style.background = '#4CAF50';
+    successToast.style.color = 'white';
+    successToast.style.padding = '15px 25px';
+    successToast.style.borderRadius = '4px';
+    successToast.style.display = 'flex';
+    successToast.style.alignItems = 'center';
+    successToast.style.gap = '10px';
+    successToast.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    successToast.style.zIndex = '1000';
+    
+    // Remove the toast after 3 seconds
+    setTimeout(() => {
+      successToast.style.opacity = '0';
+      successToast.style.transition = 'opacity 0.5s ease';
+      setTimeout(() => document.body.removeChild(successToast), 500);
+    }, 3000);
+
+    console.log("Inventory updated successfully:", updatedData);
+  } catch (error) {
+    // Show error message if save fails
+    const errorToast = document.createElement('div');
+    errorToast.className = 'error-toast';
+    errorToast.innerHTML = `
+      <div class="error-icon">✕</div>
+      <div class="error-message">
+        <h4>Error Saving Changes</h4>
+        <p>${error.message}</p>
+      </div>
+    `;
+    document.body.appendChild(errorToast);
+    
+    // Style the error toast similarly but in red
+    errorToast.style.position = 'fixed';
+    errorToast.style.top = '20px';
+    errorToast.style.right = '20px';
+    errorToast.style.background = '#f44336';
+    errorToast.style.color = 'white';
+    errorToast.style.padding = '15px 25px';
+    errorToast.style.borderRadius = '4px';
+    errorToast.style.display = 'flex';
+    errorToast.style.alignItems = 'center';
+    errorToast.style.gap = '10px';
+    errorToast.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    errorToast.style.zIndex = '1000';
+    
+    // Remove the error toast after 5 seconds
+    setTimeout(() => {
+      errorToast.style.opacity = '0';
+      errorToast.style.transition = 'opacity 0.5s ease';
+      setTimeout(() => document.body.removeChild(errorToast), 500);
+    }, 5000);
+
+    console.error("Error updating inventory:", error);
+  }
+});
+
+// --- Start ---
+loadInventoryRealtime();

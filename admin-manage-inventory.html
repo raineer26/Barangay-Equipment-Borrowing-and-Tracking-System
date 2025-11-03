@@ -5,62 +5,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Admin Dashboard - Barangay Mapulang Lupa</title>
     <link rel="stylesheet" href="style.css">
-     <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@100..900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@100..900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
   </head>
   <body class="admin-body">
     <!-- SIDEBAR -->
-<aside class="admin-sidebar">
-  <div class="sidebar-header">
-    <img src="Assets/BrgyLogo.png" alt="Barangay Logo" class="sidebar-logo">
-    <h3>BARANGAY MAPULANG LUPA</h3>
-    <p>OFFICIAL SITE</p>
-  </div>
-
-  <nav class="sidebar-nav">
-    <a href="adminDashboard.html" class="sidebar-link">
-      <img src="Assets/dashboard.png" alt="Dashboard Icon" class="nav-icon">
-      <span>Dashboard</span>
-    </a>
-
-    <div class="sidebar-dropdown">
-      <a href="#" class="sidebar-link dropdown-toggle" id="reviewRequestsToggle">
-        <img src="Assets/review.png" alt="Review Icon" class="nav-icon">
-        <span>Review Requests</span>
-        <span class="dropdown-arrow">▼</span>
-      </a>
-      <div class="dropdown-content" id="reviewRequestsDropdown">
-        <a href="admin-conference-requests.html" class="dropdown-link">Conference Room</a>
-        <a href="admin-tents-requests.html" class="dropdown-link">Tents & Chairs</a>
+    <aside class="admin-sidebar">
+      <div class="sidebar-header">
+        <img src="Assets/BrgyLogo.png" alt="Barangay Logo" class="sidebar-logo">
+        <h3>BARANGAY MAPULANG LUPA</h3>
+        <p>OFFICIAL SITE</p>
       </div>
-    </div>
 
-    <div class="sidebar-dropdown">
-      <a href="#" class="sidebar-link dropdown-toggle" id="manageCalendarToggle">
-        <img src="Assets/calendar-dashboard.png" alt="Calendar Icon" class="nav-icon">
-        <span>Manage Calendar</span>
-        <span class="dropdown-arrow">▼</span>
-      </a>
-      <div class="dropdown-content" id="manageCalendarDropdown">
-        <a href="admin-calendar-conference.html" class="dropdown-link">Conference Room</a>
-        <a href="admin-calendar-tents.html" class="dropdown-link">Tents & Chairs</a>
+      <nav class="sidebar-nav">
+        <a href="adminDashboard.html" class="sidebar-link">
+          <img src="Assets/dashboard.png" alt="Dashboard Icon" class="nav-icon">
+          <span>Dashboard</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="#" class="sidebar-link dropdown-toggle" id="reviewRequestsToggle">
+            <img src="Assets/review.png" alt="Review Icon" class="nav-icon">
+            <span>Review Requests</span>
+            <span class="dropdown-arrow">▼</span>
+          </a>
+          <div class="dropdown-content" id="reviewRequestsDropdown">
+            <a href="admin-conference-requests.html" class="dropdown-link">Conference Room</a>
+            <a href="admin-tents-requests.html" class="dropdown-link">Tents & Chairs</a>
+          </div>
+        </div>
+
+        <div class="sidebar-dropdown">
+          <a href="#" class="sidebar-link dropdown-toggle" id="manageCalendarToggle">
+            <img src="Assets/calendar-dashboard.png" alt="Calendar Icon" class="nav-icon">
+            <span>Manage Calendar</span>
+            <span class="dropdown-arrow">▼</span>
+          </a>
+          <div class="dropdown-content" id="manageCalendarDropdown">
+            <a href="admin-calendar-conference.html" class="dropdown-link">Conference Room</a>
+            <a href="admin-calendar-tents.html" class="dropdown-link">Tents & Chairs</a>
+          </div>
+        </div>
+
+        <a href="admin-manage-inventory.html" class="sidebar-link active">
+          <img src="Assets/inventory.png" alt="Inventory Icon" class="nav-icon">
+          <span>Manage Inventory</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button onclick="window.logout()" class="logout-btn">
+          <span>Log Out</span>
+        </button>
       </div>
-    </div>
-
-    <a href="admin-manage-inventory.html" class="sidebar-link active">
-      <img src="Assets/inventory.png" alt="Inventory Icon" class="nav-icon">
-      <span>Manage Inventory</span>
-    </a>
-  </nav>
-
-  <div class="sidebar-footer">
-    <button onclick="window.logout()" class="logout-btn">
-      <span>Log Out</span>
-    </button>
-  </div>
-</aside>
-
-
+    </aside>
 
     <!-- MOBILE MENU TOGGLE -->
     <button class="mobile-menu-toggle" id="mobileMenuToggle">
@@ -69,7 +66,6 @@
 
     <!-- MAIN CONTENT -->
     <main class="admin-main">
-      <!-- Hero Section -->
       <section class="admin-hero">
         <div class="admin-hero-overlay"></div>
         <div class="admin-hero-content">
@@ -77,67 +73,61 @@
           <p>Manage requests, inventory and barangay schedules from here.</p>
         </div>
       </section>
-       <div class="admin-content">
-                <h2 class="content-title">EQUIPMENTS LIST</h2>
-                
-                <div class="inventory-card">
-                    <div class="inventory-grid">
-                        <!-- Tents -->
-                        <div class="inventory-item">
-                            <div class="item-image">
-                                <img src="Assets/tents.jpg" alt="Tents" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;background:#eee;display:flex;align-items:center;justify-content:center;color:#999;font-size:14px;\'>Tent Image</div>'">
-                            </div>
-                            <h3>TENTS</h3>
-                            <div class="item-fields">
-                                <label>Total Stock: <input type="number" id="tents-total" value="10"></label>
-                                <label>Available: <input type="number" id="tents-available" value="8" readonly></label>
-                                <label>In Use: <input type="number" id="tents-inuse" value="2"></label>
-                            </div>
-                        </div>
 
-                        <!-- Chairs -->
-                        <div class="inventory-item">
-                            <div class="item-image">
-                                <img src="Assets/tents.jpg" alt="Chairs" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;background:#eee;display:flex;align-items:center;justify-content:center;color:#999;font-size:14px;\'>Chair Image</div>'">
-                            </div>
-                            <h3>CHAIRS</h3>
-                            <div class="item-fields">
-                                <label>Total Stock: <input type="number" id="chairs-total" value="200"></label>
-                                <label>Available: <input type="number" id="chairs-available" value="150" readonly></label>
-                                <label>In Use: <input type="number" id="chairs-inuse" value="50"></label>
-                            </div>
-                        </div>
-                    </div>
+      <div class="admin-content">
+        <h2 class="content-title">EQUIPMENTS LIST</h2>
+        <div class="inventory-card">
+          <div class="inventory-grid">
+
+            <!-- Tents -->
+            <div class="inventory-item" data-item="tents">
+              <div class="item-image">
+                <img src="Assets/tents.jpg" alt="Tents">
+              </div>
+              <h3>TENTS</h3>
+              <div class="item-fields">
+                <label>Total Stock: <input type="number" id="tents-total" disabled></label>
+                <label>Available: <input type="number" id="tents-available" disabled></label>
+                <label>In Use: <input type="number" id="tents-inuse" disabled></label>
+              </div>
+            </div>
+
+            <!-- Chairs -->
+            <div class="inventory-item" data-item="chairs">
+              <div class="item-image">
+                <img src="Assets/tents.jpg" alt="Chairs">
+              </div>
+              <h3>CHAIRS</h3>
+              <div class="item-fields">
+                <label>Total Stock: <input type="number" id="chairs-total" disabled></label>
+                <label>Available: <input type="number" id="chairs-available" disabled></label>
+                <label>In Use: <input type="number" id="chairs-inuse" disabled></label>
+              </div>
+            </div>
+
+          </div>
 
           <div class="inventory-actions">
             <button class="edit-btn" id="editInventory">Edit Inventory</button>
             <button class="save-btn" id="saveInventory" disabled>Save</button>
           </div>
-                </div>
-            </div>
+        </div>
+      </div>
     </main>
 
-
-    
-            
-           
-        
-
     <!-- Save confirmation modal -->
-    <div class="modal" id="saveConfirmModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" id="saveConfirmModal">
       <div class="modal-content">
-        <button class="close-modal" id="saveConfirmClose" aria-label="Close">&times;</button>
-        <h2>Are you sure you want to perform this action?</h2>
-        <div id="saveChangesList" style="white-space:normal;color:#222;margin-bottom:18px;">
-          <!-- JS will inject change summary here as structured elements -->
-        </div>
-        <div class="modal-actions" style="display:flex;gap:12px;justify-content:flex-end;">
+        <button class="close-modal" id="saveConfirmClose">&times;</button>
+        <h2>Confirm Save Changes?</h2>
+        <div id="saveChangesList"></div>
+        <div class="modal-actions">
           <button class="edit-btn" id="confirmSaveNo">No</button>
           <button class="save-btn" id="confirmSaveYes">Yes</button>
         </div>
       </div>
     </div>
-    
-    <script src="script.js" type="module"></script>
+
+    <script type="module" src="script.js"></script>
   </body>
 </html>

@@ -5671,3 +5671,131 @@ input[type="number"]::-webkit-outer-spin-button {
   box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
 }
 
+/* Inventory Card */
+.inventory-card {
+  background: #F5F3FF;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center; /* ✅ Ensures everything aligns nicely */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 200px;
+  margin-bottom: 32px;
+}
+
+.inventory-item {
+  text-align: center;
+}
+
+.item-image {
+  width: 100%;
+  height: 160px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.inventory-item h3 {
+  color: #2319B2;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.item-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.item-fields label {
+  display: grid;
+  grid-template-columns: 120px 80px;
+  align-items: center;
+  gap: 20px;
+  font-size: 14px;
+  color: #333;
+  padding: 0 20px;
+}
+
+.item-fields input {
+  width: 80px;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  text-align: right;
+  font-size: 14px;
+  justify-self: end;
+}
+
+/* Style for the static text display (when not editing) */
+.item-fields .static-value {
+  text-align: right;
+  width: 80px;
+  justify-self: end;
+}
+
+.item-fields input[readonly] {
+  background: #f5f5f5;
+}
+
+.inventory-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 5px;
+}
+
+.edit-btn, .save-btn {
+  padding: 12px 32px;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+.edit-btn {
+  background: #22C55E;
+}
+
+.save-btn {
+  background: #0066cc;
+}
+
+.edit-btn:hover {
+  background: #1ca04a;
+}
+
+.save-btn:hover {
+  background: #0052a3;
+}
+
+.save-btn:disabled {
+  background: #99ccff;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
