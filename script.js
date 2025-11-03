@@ -4669,10 +4669,14 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
   function applyFilters() {
     console.log('🔍 Applying filters...');
     
-    const searchTerm = document.getElementById('tentsSearchInput')?.value.toLowerCase() || '';
-    const statusFilter = document.getElementById('tentsStatusFilter')?.value || 'all';
-    const dateFilter = document.getElementById('tentsDateFilter')?.value || '';
-    const modeFilter = document.getElementById('tentsModeFilter')?.value || 'all';
+    // Support both the old 'tents*' IDs and the page's actual IDs (fallbacks) so filters work reliably
+    const searchTerm = (
+      document.getElementById('tentsSearchInput')?.value || document.getElementById('searchInput')?.value || ''
+    ).toLowerCase();
+    const statusFilter = document.getElementById('tentsStatusFilter')?.value || document.getElementById('statusFilter')?.value || 'all';
+    const dateFilter = document.getElementById('tentsDateFilter')?.value || document.getElementById('dateFilter')?.value || '';
+    // Final decision: use "Pick-up" as canonical pickup value. Read from either tentsModeFilter or deliveryFilter.
+    const modeFilter = document.getElementById('tentsModeFilter')?.value || document.getElementById('deliveryFilter')?.value || 'all';
 
     filteredRequests = allRequests.filter(req => {
       // Tab filter (all vs history)
@@ -4708,9 +4712,11 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
         }
       }
 
-      // Mode filter
-      if (modeFilter !== 'all' && req.modeOfReceiving !== modeFilter) {
-        return false;
+      // Mode filter (use normalized comparison so 'Self-Pickup', 'Pick up', 'Pick-up' are treated consistently)
+      if (modeFilter !== 'all') {
+        if (normalizeMode(req.modeOfReceiving) !== normalizeMode(modeFilter)) {
+          return false;
+        }
       }
 
       return true;
@@ -5307,10 +5313,18 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
   });
 
   // Event listeners for filters
+  // Attach listeners to both the legacy 'tents*' IDs and the actual page IDs to ensure filters always work
   document.getElementById('tentsSearchInput')?.addEventListener('input', applyFilters);
+  document.getElementById('searchInput')?.addEventListener('input', applyFilters);
+
   document.getElementById('tentsStatusFilter')?.addEventListener('change', applyFilters);
+  document.getElementById('statusFilter')?.addEventListener('change', applyFilters);
+
   document.getElementById('tentsDateFilter')?.addEventListener('change', applyFilters);
+  document.getElementById('dateFilter')?.addEventListener('change', applyFilters);
+
   document.getElementById('tentsModeFilter')?.addEventListener('change', applyFilters);
+  document.getElementById('deliveryFilter')?.addEventListener('change', applyFilters);
 
   // Export dropdown toggle
   document.getElementById('exportBtn')?.addEventListener('click', (e) => {
@@ -5360,6 +5374,16 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   let currentView = 'table'; // 'table' or 'calendar'
   let currentMonth = new Date().getMonth(); // Current month for calendar
   let currentYear = new Date().getFullYear(); // Current year for calendar
+
+  // Normalize delivery/mode strings to canonical values for comparison
+  function normalizeMode(str) {
+    if (!str) return '';
+    const s = String(str).toLowerCase();
+    if (s.includes('pick')) return 'pick-up';
+    if (s.includes('deliver')) return 'delivery';
+    if (s.includes('internal')) return 'internal';
+    return s.replace(/[^a-z]/g, '');
+  }
 
   // ========================================
   // FIRESTORE FUNCTIONS
@@ -5546,10 +5570,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       );
     }
 
-    // Filter by delivery mode
+    // Filter by delivery mode (use normalization to match variations like "Self-Pickup"/"Pick-up")
     const deliveryFilter = document.getElementById('deliveryFilter')?.value;
     if (deliveryFilter && deliveryFilter !== 'all') {
-      filtered = filtered.filter(req => req.modeOfReceiving === deliveryFilter);
+      filtered = filtered.filter(req => normalizeMode(req.modeOfReceiving) === normalizeMode(deliveryFilter));
     }
 
     // Sort
