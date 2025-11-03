@@ -531,6 +531,35 @@ nav a {
   font-family: 'Poppins', sans-serif;
 }
 
+/* ================================
+   BEGIN: Tents & Chairs - Additional fields & validation visuals
+   (Appended for: purposeOfUse field and quantity 0 behavior)
+=================================== */
+
+
+.form-group .field-note {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px; /* smaller and tighter under the field */
+  order: 3; /* ensures it stays below input even if label or error messages exist */
+}
+
+
+/* Make the entire form-group show a red error state when validation fails */
+
+
+.form-group.error label {
+  color: #d32f2f;
+}
+
+/* Small visual tweak for number inputs that allow 0 (clearer affordance) */
+input[type="number"][min="0"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+/* END: Tents & Chairs - Additional fields & validation visuals */
+
 .signup-login-link p {
   font-size: 0.95rem;
   color: #555;
@@ -3109,7 +3138,7 @@ footer a:hover {
 /* Three Column Layout for First Row (First Name, Last Name, Contact Number) */
 .form-row-3col {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.5fr;
+  grid-template-columns: 1fr 1fr;
   gap: 25px;
   margin-bottom: 25px;
 }

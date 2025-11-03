@@ -5,10 +5,6 @@
    LOGIN PAGE SCRIPT
    (from index.html)
 ====================== */
-/* --- LOGIN PAGE SCRIPT --- */
-// =============================
-// 1. Firebase setup & Firestore import (ES6 Module)
-// =============================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import { signInWithEmailAndPassword, getAuth, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 
@@ -58,6 +54,13 @@ function showBookingFormAlert(message, type = "success") {
     setTimeout(() => (alertBox.style.display = "none"), 300);
   }, 3000);
 }
+
+/* ================================
+  BEGIN: Tents & Chairs - Appended JS block
+  - Purpose field handling and quantity-zero validation
+  (This section's logic was added/updated in the tents & chairs request handler above.)
+  END: Tents & Chairs - Appended JS block
+=================================== */
 
 // =============================
 // 3. Tents & Chairs Form Handler FOR BACKEND (LEGACY - COMMENTED OUT)
@@ -2775,8 +2778,11 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     const lastName = document.getElementById('lastName').value.trim();
     const contactNumber = document.getElementById('contactNumber').value.trim();
     const completeAddress = document.getElementById('completeAddress').value.trim();
-    const quantityChairs = document.getElementById('quantityChairs').value.trim();
-    const quantityTents = document.getElementById('quantityTents').value.trim();
+    const purposeOfUse = document.getElementById('purposeOfUse')?.value.trim() || '';
+    const quantityChairsRaw = document.getElementById('quantityChairs').value;
+    const quantityTentsRaw = document.getElementById('quantityTents').value;
+    const quantityChairs = quantityChairsRaw === '' ? 0 : parseInt(quantityChairsRaw, 10);
+    const quantityTents = quantityTentsRaw === '' ? 0 : parseInt(quantityTentsRaw, 10);
     const modeOfReceiving = document.getElementById('modeOfReceiving').value;
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
@@ -2793,7 +2799,7 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     } else if (firstName.length < 2) {
       setFieldError('firstName', 'First name must be at least 2 characters long');
       isValid = false;
-    } else if (!/^[a-zA-Z\s'-]+$/.test(firstName)) {
+    } else if (!/^[a-zA-Z\s'\-]+$/.test(firstName)) {
       setFieldError('firstName', 'First name can only contain letters, spaces, hyphens, and apostrophes');
       isValid = false;
     }
@@ -2805,7 +2811,7 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     } else if (lastName.length < 2) {
       setFieldError('lastName', 'Last name must be at least 2 characters long');
       isValid = false;
-    } else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) {
+    } else if (!/^[a-zA-Z\s'\-]+$/.test(lastName)) {
       setFieldError('lastName', 'Last name can only contain letters, spaces, hyphens, and apostrophes');
       isValid = false;
     }
@@ -2828,27 +2834,60 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       isValid = false;
     }
 
-    // Validate Quantity of Chairs
-    if (!quantityChairs) {
-      setFieldError('quantityChairs', 'Quantity of chairs is required');
+    // Validate Purpose of Use
+    if (!purposeOfUse) {
+      setFieldError('purposeOfUse', 'Please enter the purpose of use');
       isValid = false;
-    } else if (parseInt(quantityChairs) < 20) {
-      setFieldError('quantityChairs', 'Quantity must be at least 20');
-      isValid = false;
-    } else if (parseInt(quantityChairs) > 600) {
-      setFieldError('quantityChairs', 'Quantity cannot exceed 600');
+    } else if (purposeOfUse.length < 3) {
+      setFieldError('purposeOfUse', 'Purpose must be at least 3 characters');
       isValid = false;
     }
 
-    // Validate Quantity of Tents
-    if (!quantityTents) {
-      setFieldError('quantityTents', 'Quantity of tents is required');
-      isValid = false;
-    } else if (parseInt(quantityTents) < 1) {
-      setFieldError('quantityTents', 'Quantity must be at least 1');
-      isValid = false;
-    } else if (parseInt(quantityTents) > 24) {
-      setFieldError('quantityTents', 'Quantity cannot exceed 24');
+
+    // Validate Quantity of Chairs (only when > 0)
+    if (quantityChairs > 0) {
+      if (quantityChairs < 20) {
+        setFieldError('quantityChairs', 'Quantity must be at least 20');
+        isValid = false;
+      } else if (quantityChairs > 600) {
+        setFieldError('quantityChairs', 'Quantity cannot exceed 600');
+        isValid = false;
+      }
+    }
+
+    // Validate Quantity of Tents (only when > 0)
+    if (quantityTents > 0) {
+      if (quantityTents < 1) {
+        setFieldError('quantityTents', 'Quantity must be at least 1');
+        isValid = false;
+      } else if (quantityTents > 24) {
+        setFieldError('quantityTents', 'Quantity cannot exceed 24');
+        isValid = false;
+      }
+    }
+
+    // Ensure user borrows at least one item (either chairs or tents)
+    if ((quantityChairs === 0 || isNaN(quantityChairs)) && (quantityTents === 0 || isNaN(quantityTents))) {
+      const qtyMessage = 'Please borrow at least one item: set tents or chairs to more than 0';
+
+      // Visual error on the fields (red box via class)
+      const chairsField = document.getElementById('quantityChairs');
+      const tentsField = document.getElementById('quantityTents');
+      if (chairsField) {
+        chairsField.classList.add('error');
+        const fg = chairsField.closest('.form-group'); if (fg) fg.classList.add('error');
+      }
+      if (tentsField) {
+        tentsField.classList.add('error');
+        const fg2 = tentsField.closest('.form-group'); if (fg2) fg2.classList.add('error');
+      }
+
+      // Show explicit message under BOTH quantity inputs (bypass setFieldError which suppresses quantity messages)
+      const errCh = document.getElementById('errorQuantityChairs');
+      const errTe = document.getElementById('errorQuantityTents');
+      if (errCh) errCh.textContent = qtyMessage;
+      if (errTe) errTe.textContent = qtyMessage;
+
       isValid = false;
     }
 
@@ -2883,10 +2922,10 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     }
 
     if (!isValid) {
-      // Scroll to first error
-      const firstError = document.querySelector('.error-message:not(:empty)');
-      if (firstError) {
-        firstError.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Scroll to first field with a visual error (covers cases where quantity messages are suppressed)
+      const firstVisual = document.querySelector('.form-group.error, .error');
+      if (firstVisual) {
+        firstVisual.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
       return;
     }
@@ -2897,8 +2936,9 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       lastName: sanitizeInput(lastName),
       contactNumber: contactNumber, // Phone numbers don't need sanitization
       completeAddress: sanitizeInput(completeAddress),
-      quantityChairs: parseInt(quantityChairs),
-      quantityTents: parseInt(quantityTents),
+      purposeOfUse: sanitizeInput(purposeOfUse),
+      quantityChairs: quantityChairs,
+      quantityTents: quantityTents,
       modeOfReceiving: modeOfReceiving,
       startDate: startDate,
       endDate: endDate,
@@ -3009,13 +3049,29 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
   function setFieldError(fieldId, message) {
     const field = document.getElementById(fieldId);
     const errorElement = document.getElementById(`error${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`);
-    
-    field.classList.add('error');
-    errorElement.textContent = message;
+
+    // Add visual error state to the field and its parent .form-group (if present)
+    if (field) {
+      field.classList.add('error');
+      const formGroup = field.closest('.form-group');
+      if (formGroup) formGroup.classList.add('error');
+    }
+
+    // For quantity fields we only want the red visual box — do not show the popup/text message.
+    if (errorElement) {
+      if (fieldId === 'quantityChairs' || fieldId === 'quantityTents') {
+        errorElement.textContent = '';
+      } else {
+        errorElement.textContent = message;
+      }
+    }
   }
 
   function clearFieldError(field) {
+    if (!field) return;
     field.classList.remove('error');
+    const formGroup = field.closest('.form-group');
+    if (formGroup) formGroup.classList.remove('error');
     const fieldId = field.id;
     const errorElementId = `error${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`;
     const errorElement = document.getElementById(errorElementId);
@@ -3028,8 +3084,9 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     const errorElements = document.querySelectorAll('.error-message');
     errorElements.forEach(el => el.textContent = '');
     
+    // Remove error class from any elements (inputs/selects and .form-group wrappers)
     const errorFields = document.querySelectorAll('.error');
-    errorFields.forEach(field => field.classList.remove('error'));
+    errorFields.forEach(el => el.classList.remove('error'));
   }
 }
 
