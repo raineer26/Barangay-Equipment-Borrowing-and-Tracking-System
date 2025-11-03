@@ -1681,3 +1681,58 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') || window.loc
 
 /* END: Admin Tents & Chairs Requests Script */
 /* ===================================================== */
+
+/* =====================================================
+   STOCK COUNTER FUNCTIONALITY
+   Add this inside the tents-calendar.html check block
+===================================================== */
+
+// STOCK COUNTER START
+// Function to update stock counters
+function updateStockCounters() {
+  // TODO: In production, fetch actual stock data from Firebase
+  // Example:
+  /*
+  const stockRef = doc(db, "inventory", "tents-chairs");
+  const stockSnap = await getDoc(stockRef);
+  if (stockSnap.exists()) {
+    const data = stockSnap.data();
+    document.getElementById('availableTents').textContent = data.availableTents || 0;
+    document.getElementById('availableChairs').textContent = data.availableChairs || 0;
+    document.getElementById('tentsInUse').textContent = data.tentsInUse || 0;
+    document.getElementById('chairsInUse').textContent = data.chairsInUse || 0;
+  }
+  */
+  
+  // For now, using static values (these will be replaced with Firebase data)
+  const stockData = {
+    availableTents: 24,
+    availableChairs: 600,
+    tentsInUse: 0,
+    chairsInUse: 0
+  };
+  
+  // Update the display
+  if (document.getElementById('availableTents')) {
+    document.getElementById('availableTents').textContent = stockData.availableTents;
+  }
+  if (document.getElementById('availableChairs')) {
+    document.getElementById('availableChairs').textContent = stockData.availableChairs;
+  }
+  if (document.getElementById('tentsInUse')) {
+    document.getElementById('tentsInUse').textContent = stockData.tentsInUse;
+  }
+  if (document.getElementById('chairsInUse')) {
+    document.getElementById('chairsInUse').textContent = stockData.chairsInUse;
+  }
+}
+
+// Call the function when calendar loads
+if (window.location.pathname.endsWith('admin-tents-requests.html') || window.location.pathname.endsWith('/admin-tents-requests')) {
+  document.addEventListener('DOMContentLoaded', function() {
+    updateStockCounters();
+    // Optional: Update every 30 seconds if needed
+    // setInterval(updateStockCounters, 30000);
+  });
+}
+// STOCK COUNTER END
