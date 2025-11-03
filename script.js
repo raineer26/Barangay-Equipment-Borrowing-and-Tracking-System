@@ -4334,7 +4334,11 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
 
   // Approve request
   window.approveRequest = async function(requestId) {
-    if (!confirm('Are you sure you want to approve this request?')) return;
+    const confirmed = await showConfirmModal(
+      'Approve Request',
+      'Are you sure you want to approve this request?'
+    );
+    if (!confirmed) return;
 
     try {
       console.log(`✅ Approving request ${requestId}...`);
@@ -4355,14 +4359,26 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
 
   // Deny request
   window.denyRequest = async function(requestId) {
-    if (!confirm('Are you sure you want to deny this request?')) return;
+    // Use unified modal to collect optional rejection reason
+    const reasonInput = await showConfirmModal(
+      'Deny Request',
+      'Please provide a reason for denying this request (optional):',
+      null,
+      false,
+      { placeholder: 'Enter reason (optional)...', defaultValue: '', multiline: true }
+    );
+    if (reasonInput === false) return;
+
+    const reason = typeof reasonInput === 'string' ? reasonInput : '';
 
     try {
       console.log(`❌ Denying request ${requestId}...`);
       
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await updateDoc(requestRef, {
-        status: 'rejected'
+        status: 'rejected',
+        rejectedAt: new Date(),
+        rejectionReason: reason || 'No reason provided'
       });
 
       console.log('✅ Request denied');
@@ -4370,20 +4386,25 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       
     } catch (error) {
       console.error('❌ Error denying request:', error);
-      alert('Failed to deny request. Please try again.');
+      await showConfirmModal('Error', 'Failed to deny request. Please try again.', null, true);
     }
   };
 
   // Complete request
   window.completeRequest = async function(requestId) {
-    if (!confirm('Mark this request as completed?')) return;
+    const confirmed = await showConfirmModal(
+      'Mark as Completed',
+      'Mark this request as completed?'
+    );
+    if (!confirmed) return;
 
     try {
       console.log(`✓ Completing request ${requestId}...`);
       
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await updateDoc(requestRef, {
-        status: 'completed'
+        status: 'completed',
+        completedAt: new Date()
       });
 
       console.log('✅ Request marked as completed');
@@ -4391,13 +4412,17 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       
     } catch (error) {
       console.error('❌ Error completing request:', error);
-      alert('Failed to complete request. Please try again.');
+      await showConfirmModal('Error', 'Failed to complete request. Please try again.', null, true);
     }
   };
 
   // Archive request (soft delete)
   window.archiveRequest = async function(requestId) {
-    if (!confirm('Archive this request? It will be hidden from history.')) return;
+    const confirmed = await showConfirmModal(
+      'Archive Request',
+      'Archive this request? It will be hidden from history.'
+    );
+    if (!confirmed) return;
 
     try {
       console.log(`📦 Archiving request ${requestId}...`);
@@ -4413,13 +4438,17 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       
     } catch (error) {
       console.error('❌ Error archiving request:', error);
-      alert('Failed to archive request. Please try again.');
+      await showConfirmModal('Error', 'Failed to archive request. Please try again.', null, true);
     }
   };
 
   // Delete request (permanent)
   window.deleteRequest = async function(requestId) {
-    if (!confirm('⚠️ PERMANENTLY DELETE this request? This cannot be undone!')) return;
+    const confirmed = await showConfirmModal(
+      'Delete Request',
+      '⚠️ PERMANENTLY DELETE this request? This cannot be undone!'
+    );
+    if (!confirmed) return;
 
     try {
       console.log(`🗑️ Deleting request ${requestId}...`);
@@ -4432,7 +4461,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       
     } catch (error) {
       console.error('❌ Error deleting request:', error);
-      alert('Failed to delete request. Please try again.');
+      await showConfirmModal('Error', 'Failed to delete request. Please try again.', null, true);
     }
   };
 
@@ -4678,8 +4707,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tents-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      
-      currentTab = tab.textContent.toLowerCase().includes('history') ? 'history' : 'all';
+      const label = tab.textContent.toLowerCase();
+      if (label.includes('archives')) currentTab = 'archives';
+      else if (label.includes('history')) currentTab = 'history';
+      else currentTab = 'all';
       console.log(`🔄 Switched to ${currentTab} tab`);
       applyFilters();
     });
@@ -4904,10 +4935,13 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         ['pending', 'approved', 'in-progress'].includes(req.status)
       );
     } else if (currentTab === 'history') {
-      // History: completed, rejected, cancelled only
+      // History: completed, rejected, cancelled only (not archived)
       filtered = filtered.filter(req => 
-        ['completed', 'rejected', 'cancelled'].includes(req.status)
+        ['completed', 'rejected', 'cancelled'].includes(req.status) && !req.archived
       );
+    } else if (currentTab === 'archives') {
+      // Archives: archived requests (from history)
+      filtered = filtered.filter(req => req.archived === true && ['completed', 'rejected', 'cancelled'].includes(req.status));
     }
 
     // Filter by status (from dropdown)
@@ -5064,7 +5098,8 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
               <th>Address</th>
               <th>Status</th>
               <th>Actions</th>
-              <th>Notify User</th>
+              ${currentTab === 'history' || currentTab === 'archives' ? '<th>Remarks</th>' : ''}
+              ${currentTab === 'history' ? '<th>Completed on</th>' : (currentTab === 'archives' ? '<th>Archived on</th>' : '<th>Notify User</th>')}
             </tr>
           </thead>
           <tbody>
@@ -5102,7 +5137,8 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           <td>${sanitizeInput(req.completeAddress || 'N/A')}</td>
           <td>${renderStatusBadge(req.status)}</td>
           <td>${renderActionButtons(req)}</td>
-          <td>${renderNotifyButtons(req)}</td>
+          ${currentTab === 'history' || currentTab === 'archives' ? `<td>${renderRemarks(req)}</td>` : ''}
+          <td>${currentTab === 'history' ? renderCompletedOn(req) : (currentTab === 'archives' ? renderArchivedOn(req) : renderNotifyButtons(req))}</td>
         </tr>
       `;
     });
@@ -5114,6 +5150,116 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     `;
 
     contentArea.innerHTML = tableHTML;
+  }
+
+  /**
+   * Render completion/cancellation/rejection timestamp for history rows
+   */
+  function renderCompletedOn(req) {
+    // Prefer fields depending on status
+    let ts = null;
+    if (req.status === 'completed' && req.completedAt) ts = req.completedAt;
+    else if (req.status === 'rejected' && req.rejectedAt) ts = req.rejectedAt;
+    else if (req.status === 'cancelled' && req.cancelledAt) ts = req.cancelledAt;
+
+    if (!ts) return '<span class="text-muted">—</span>';
+
+    const d = formatTimestamp(ts);
+    return `${d.date}<br><em style="font-size:11px;color:#6b7280;">${d.time}</em>`;
+  }
+
+  /**
+   * Render archived timestamp for archived rows
+   */
+  function renderArchivedOn(req) {
+    if (!req.archivedAt) return '<span class="text-muted">—</span>';
+    const d = formatTimestamp(req.archivedAt);
+    return `${d.date}<br><em style="font-size:11px;color:#6b7280;">${d.time}</em>`;
+  }
+
+  /**
+   * Render remarks column (rejection reason or other admin notes)
+   */
+  function renderRemarks(req) {
+    const reason = req.rejectionReason || req.remarks || '';
+    if (!reason) return '<span class="text-muted">—</span>';
+    // Prepare display and encoded payloads for safe attributes
+    const displayRaw = (reason || '').replace(/\n/g, ' ');
+    const displayShort = displayRaw.length > 140 ? displayRaw.slice(0, 140) + '…' : displayRaw;
+    const encFull = encodeURIComponent(reason);
+    const encTrunc = encodeURIComponent(displayShort);
+    // Use data attributes and an inline click handler that calls toggleRemark(this)
+    return `<span class="remarks-text collapsed" data-full="${encFull}" data-trunc="${encTrunc}" onclick="toggleRemark(this)">${sanitizeInput(displayShort)}</span>`;
+  }
+
+  // Toggle inline remark expand/collapse (attached to window for onclick usage)
+  function toggleRemark(el) {
+    if (!el) return;
+    try {
+      const isExpanded = el.classList.toggle('expanded');
+      el.classList.toggle('collapsed', !isExpanded);
+      if (isExpanded) {
+        const full = decodeURIComponent(el.getAttribute('data-full') || '');
+        el.textContent = full;
+      } else {
+        const trunc = decodeURIComponent(el.getAttribute('data-trunc') || '');
+        el.textContent = trunc;
+      }
+    } catch (err) {
+      console.error('toggleRemark error', err);
+    }
+  }
+  window.toggleRemark = toggleRemark;
+
+  // Show full remark in modal (reuses existing tents modal)
+  function showFullRemark(text) {
+    try {
+      const overlay = document.getElementById('tentsModalOverlay');
+      const titleEl = document.getElementById('tentsModalTitle');
+      const bodyEl = document.getElementById('tentsModalBody');
+      if (!overlay || !titleEl || !bodyEl) {
+        // fallback: alert
+        alert(text);
+        return;
+      }
+      titleEl.textContent = 'Remark';
+      bodyEl.innerHTML = `<div style="white-space:pre-wrap; font-family: 'Poppins', sans-serif;">${sanitizeInput(text)}</div>`;
+      overlay.style.display = 'block';
+      overlay.classList.add('active');
+    } catch (err) {
+      console.error('showFullRemark error', err);
+      alert(text);
+    }
+  }
+  // expose globally
+  window.showFullRemark = showFullRemark;
+
+  /**
+   * Robust timestamp formatter. Accepts Firestore Timestamp, Date, or ISO string.
+   * Returns {date: 'Nov 3, 2025', time: '2:34 PM'}
+   */
+  function formatTimestamp(ts) {
+    try {
+      let dateObj = null;
+      if (!ts) return { date: 'N/A', time: '' };
+      if (typeof ts.toDate === 'function') {
+        dateObj = ts.toDate();
+      } else if (typeof ts === 'string') {
+        dateObj = new Date(ts);
+      } else if (ts instanceof Date) {
+        dateObj = ts;
+      } else {
+        // Fallback: attempt to construct
+        dateObj = new Date(ts);
+      }
+
+      const dateStr = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      return { date: dateStr, time: timeStr };
+    } catch (err) {
+      console.error('Error formatting timestamp', err);
+      return { date: 'N/A', time: '' };
+    }
   }
 
   /**
@@ -5146,13 +5292,19 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         `;
       }
     } else if (currentTab === 'history') {
-      // History tab
-      if (req.status === 'completed') {
+      // History tab: allow archiving for completed, rejected, cancelled
+      if (['completed', 'rejected', 'cancelled'].includes(req.status)) {
         return `
           <button class="tents-btn-archive" onclick="window.tentsAdmin.handleArchive('${req.id}')">Archive</button>
-          <button class="tents-btn-delete" onclick="window.tentsAdmin.handleDelete('${req.id}')">Delete</button>
         `;
       }
+      // Other history rows have no actions
+    }
+    else if (currentTab === 'archives') {
+      // Archives tab: allow unarchive (restore to history)
+      return `
+        <button class="tents-btn-unarchive" onclick="window.tentsAdmin.handleUnarchive('${req.id}')">Unarchive</button>
+      `;
     }
     return '<span class="text-muted">—</span>';
   }
@@ -5330,18 +5482,19 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    */
   async function handleDeny(requestId) {
     console.log(`❌ Denying request: ${requestId}`);
-    
-    const confirmed = await showConfirmModal(
+    // Use unified modal to both confirm and collect optional rejection reason
+    const reasonInput = await showConfirmModal(
       'Reject Request',
-      'Are you sure you want to reject this request? This action cannot be undone.'
+      'Please provide a reason for rejection (optional):',
+      null,
+      false,
+      { placeholder: 'Enter rejection reason (optional)...', defaultValue: '', multiline: true }
     );
 
-    if (!confirmed) {
-      return;
-    }
+    // If user cancelled (clicked No), reasonInput === false
+    if (reasonInput === false) return;
 
-    const reason = prompt('Please provide a reason for rejection (optional):');
-    if (reason === null) return; // User cancelled
+    const reason = typeof reasonInput === 'string' ? reasonInput : '';
 
     try {
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
@@ -5401,10 +5554,12 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    */
   async function handleArchive(requestId) {
     console.log(`📦 Archiving request: ${requestId}`);
-    
-    if (!confirm('Archive this request? (This will hide it from the history view)')) {
-      return;
-    }
+    const confirmed = await showConfirmModal(
+      'Archive Request',
+      'Archive this request? This will hide it from the history view.'
+    );
+
+    if (!confirmed) return;
 
     try {
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
@@ -5425,14 +5580,42 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   }
 
   /**
+   * Handle unarchive (restore from archives back to history)
+   */
+  async function handleUnarchive(requestId) {
+    console.log(`↩️ Unarchiving request: ${requestId}`);
+    const confirmed = await showConfirmModal(
+      'Restore Request',
+      'Restore this request from Archives back to History?'
+    );
+    if (!confirmed) return;
+
+    try {
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        archived: false,
+        archivedAt: null
+      });
+
+      console.log('✅ Request unarchived successfully');
+      showToast('Request restored to History', true);
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error unarchiving request:', error);
+      showToast('Failed to restore request', false);
+    }
+  }
+
+  /**
    * Handle delete action
    */
   async function handleDelete(requestId) {
     console.log(`🗑️ Deleting request: ${requestId}`);
-    
-    if (!confirm('Are you sure you want to permanently delete this request? This action cannot be undone.')) {
-      return;
-    }
+    const confirmed = await showConfirmModal(
+      'Delete Request',
+      'Are you sure you want to permanently delete this request? This action cannot be undone.'
+    );
+    if (!confirmed) return;
 
     try {
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
@@ -5569,12 +5752,23 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * @param {boolean} isAlert - If true, shows only OK button (for error/info messages)
    * @returns {Promise<boolean>} - Resolves to true if confirmed, false if cancelled
    */
-  function showConfirmModal(title, message, inventoryChanges = null, isAlert = false) {
+  // Extended confirmation modal. Supports:
+  // - Alert mode (OK only)
+  // - Inventory preview (shows inventoryEl)
+  // - Optional input textarea (inputOptions) which when provided will
+  //   return the entered string on Yes, or false on No.
+  //
+  // Signature:
+  // showConfirmModal(title, message, inventoryChanges = null, isAlert = false, inputOptions = null)
+  // - inputOptions: { placeholder?: string, defaultValue?: string, multiline?: boolean }
+  function showConfirmModal(title, message, inventoryChanges = null, isAlert = false, inputOptions = null) {
     return new Promise((resolve) => {
       const modal = document.getElementById('tentsConfirmModal');
       const titleEl = document.getElementById('tentsConfirmTitle');
       const messageEl = document.getElementById('tentsConfirmMessage');
       const inventoryEl = document.getElementById('tentsConfirmInventory');
+      const inputContainer = document.getElementById('tentsConfirmInput');
+      const inputTextarea = document.getElementById('tentsConfirmInputTextarea');
       const yesBtn = document.getElementById('tentsConfirmYes');
       const noBtn = document.getElementById('tentsConfirmNo');
 
@@ -5592,6 +5786,19 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         yesBtn.textContent = 'Yes';
         yesBtn.style.display = 'inline-block';
         noBtn.style.display = 'inline-block';
+      }
+
+      // Setup input area if requested
+      const useInput = inputOptions && typeof inputOptions === 'object';
+      if (useInput && inputContainer && inputTextarea) {
+        inputContainer.style.display = 'block';
+        inputTextarea.value = inputOptions.defaultValue || '';
+        inputTextarea.placeholder = inputOptions.placeholder || '';
+        // autofocus after slight delay to allow modal to become active
+        setTimeout(() => inputTextarea.focus(), 50);
+      } else if (inputContainer && inputTextarea) {
+        inputContainer.style.display = 'none';
+        inputTextarea.value = '';
       }
 
       // Show inventory changes if provided
@@ -5636,8 +5843,13 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
 
       // Handle button clicks
       const handleYes = () => {
+        // If input was requested, return the string; otherwise true
+        let result = true;
+        if (useInput && inputTextarea) {
+          result = inputTextarea.value;
+        }
         cleanup();
-        resolve(true);
+        resolve(result);
       };
 
       const handleNo = () => {
@@ -5648,6 +5860,11 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       const cleanup = () => {
         modal.classList.remove('active');
         messageEl.style.whiteSpace = 'normal'; // Reset
+        // Reset input area
+        if (inputContainer && inputTextarea) {
+          inputContainer.style.display = 'none';
+          inputTextarea.value = '';
+        }
         yesBtn.removeEventListener('click', handleYes);
         noBtn.removeEventListener('click', handleNo);
       };
@@ -5668,26 +5885,32 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     console.log(`🔄 Switching to ${tabName} tab`);
     currentTab = tabName;
 
-    // Update tab buttons
-    document.querySelectorAll('.tents-tab').forEach(tab => tab.classList.remove('active'));
-    document.getElementById(`${tabName}Tab`)?.classList.add('active');
+  // Update tab buttons
+  document.querySelectorAll('.tents-tab').forEach(tab => tab.classList.remove('active'));
+  // NOTE: HTML uses id="allRequestsTab" for the All Requests button but we use
+  // the logical tab name 'all' in the code (to drive filters/export). Map the
+  // logical name to the actual element id before adding the active class.
+  const tabElementId = tabName === 'all' ? 'allRequestsTab' : `${tabName}Tab`;
+  document.getElementById(tabElementId)?.classList.add('active');
 
-    // Show/hide view toggle and export based on tab
+    // Show/hide view toggle and export based on tab. History does NOT support
+    // calendar view, so always force the table view when switching tabs. We
+    // call switchView('table') to ensure the view button active state and the
+    // table/calendar DOM sections are kept in sync.
     if (tabName === 'all') {
       document.getElementById('viewToggle').style.display = 'flex';
       document.getElementById('exportDropdown').style.display = 'none';
-      currentView = 'table'; // Reset to table view
     } else {
       document.getElementById('viewToggle').style.display = 'none';
       document.getElementById('exportDropdown').style.display = 'block';
-      currentView = 'table'; // History is always table view
     }
 
     // Update status filter options based on tab
     updateStatusFilterOptions();
 
-    // Re-render content
-    renderContent();
+    // Ensure we are showing the table view (history has no calendar). Use
+    // switchView to update button active classes and the filters/calendar UI.
+    switchView('table');
   }
 
   /**
@@ -5696,7 +5919,6 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   function updateStatusFilterOptions() {
     const statusFilter = document.getElementById('statusFilter');
     if (!statusFilter) return;
-
     if (currentTab === 'all') {
       // All Requests: All, Pending, Approved, In Progress
       statusFilter.innerHTML = `
@@ -5705,8 +5927,8 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         <option value="approved">Approved</option>
         <option value="in-progress">In Progress</option>
       `;
-    } else {
-      // History: All, Completed, Rejected, Cancelled
+    } else if (currentTab === 'history' || currentTab === 'archives') {
+      // History & Archives: All, Completed, Rejected, Cancelled
       statusFilter.innerHTML = `
         <option value="all">All Statuses</option>
         <option value="completed">Completed</option>
@@ -5755,8 +5977,11 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       return;
     }
 
-    // CSV headers
-    let csv = 'Submitted On,First Name,Last Name,Start Date,End Date,Chairs,Tents,Delivery Mode,Address,Contact,Email,Status\n';
+  // CSV headers
+  let csv = 'Submitted On,First Name,Last Name,Start Date,End Date,Chairs,Tents,Delivery Mode,Address,Contact,Email,Status';
+  // Include Remarks column for history/archives
+  if (currentTab === 'history' || currentTab === 'archives') csv += ',Remarks';
+  csv += '\n';
 
     // CSV rows
     requests.forEach(req => {
@@ -5766,7 +5991,12 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       const startDate = formatDateText(req.startDate);
       const endDate = formatDateText(req.endDate);
 
-      csv += `"${submittedDate}","${firstName}","${lastName}","${startDate}","${endDate}",${req.quantityChairs || 0},${req.quantityTents || 0},"${req.modeOfReceiving || ''}","${req.completeAddress || ''}","${req.contactNumber || ''}","${req.userEmail || ''}","${req.status}"\n`;
+  // Escape double quotes in remarks for CSV
+  const remarkRaw = (req.rejectionReason || req.remarks || '');
+  const remarkEsc = remarkRaw.replace(/"/g, '""');
+  csv += `"${submittedDate}","${firstName}","${lastName}","${startDate}","${endDate}",${req.quantityChairs || 0},${req.quantityTents || 0},"${req.modeOfReceiving || ''}","${req.completeAddress || ''}","${req.contactNumber || ''}","${req.userEmail || ''}","${req.status}"`;
+  if (currentTab === 'history' || currentTab === 'archives') csv += `,"${remarkEsc}"`;
+  csv += '\n';
     });
 
     // Create download
@@ -5836,6 +6066,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     // Tab switching
     document.getElementById('allRequestsTab')?.addEventListener('click', () => switchTab('all'));
     document.getElementById('historyTab')?.addEventListener('click', () => switchTab('history'));
+    document.getElementById('archivesTab')?.addEventListener('click', () => switchTab('archives'));
 
     // View switching
     document.getElementById('tableViewBtn')?.addEventListener('click', () => switchView('table'));
@@ -5861,6 +6092,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     handleComplete,
     handleArchive,
     handleDelete,
+    handleUnarchive,
     handleTimesUp,
     handleCollect
   };

@@ -172,6 +172,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
               <th>Address</th>
               <th>Status</th>
               <th>Actions</th>
+              ${currentTab === 'history' || currentTab === 'archives' ? '<th>Remarks</th>' : ''}
             </tr>
           </thead>
           <tbody>
@@ -200,6 +201,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
           <td>${address}</td>
           <td><span class="tents-status-badge tents-status-${status}">${status.charAt(0).toUpperCase() + status.slice(1)}</span></td>
           <td>${getActionButtons(req)}</td>
+          ${currentTab === 'history' || currentTab === 'archives' ? `<td>${renderRemarks(req)}</td>` : ''}
         </tr>
       `;
     });
@@ -211,6 +213,17 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
     `;
 
     container.innerHTML = tableHTML;
+  }
+
+  // Render remarks helper
+  function renderRemarks(req) {
+    const reason = req.rejectionReason || req.remarks || '';
+    if (!reason) return '<span class="text-muted">—</span>';
+    const displayRaw = (reason || '').replace(/\n/g, ' ');
+    const displayShort = displayRaw.length > 140 ? displayRaw.slice(0, 140) + '…' : displayRaw;
+    const encFull = encodeURIComponent(reason);
+    const encTrunc = encodeURIComponent(displayShort);
+    return `<span class="remarks-text collapsed" data-full="${encFull}" data-trunc="${encTrunc}" onclick="toggleRemark(this)">${sanitizeInput(displayShort)}</span>`;
   }
 
   // Get action buttons based on request status
@@ -255,7 +268,11 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
 
   // Approve request
   window.approveRequest = async function(requestId) {
-    if (!confirm('Are you sure you want to approve this request?')) return;
+    const confirmed = await showConfirmModal(
+      'Approve Request',
+      'Are you sure you want to approve this request?'
+    );
+    if (!confirmed) return;
 
     try {
       console.log(`✅ Approving request ${requestId}...`);
@@ -270,20 +287,31 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       
     } catch (error) {
       console.error('❌ Error approving request:', error);
-      alert('Failed to approve request. Please try again.');
+      await showConfirmModal('Error', 'Failed to approve request. Please try again.', null, true);
     }
   };
 
   // Deny request
   window.denyRequest = async function(requestId) {
-    if (!confirm('Are you sure you want to deny this request?')) return;
+    const reasonInput = await showConfirmModal(
+      'Deny Request',
+      'Please provide a reason for denying this request (optional):',
+      null,
+      false,
+      { placeholder: 'Enter reason (optional)...', defaultValue: '', multiline: true }
+    );
+    if (reasonInput === false) return;
+
+    const reason = typeof reasonInput === 'string' ? reasonInput : '';
 
     try {
       console.log(`❌ Denying request ${requestId}...`);
       
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await updateDoc(requestRef, {
-        status: 'rejected'
+        status: 'rejected',
+        rejectedAt: new Date(),
+        rejectionReason: reason || 'No reason provided'
       });
 
       console.log('✅ Request denied');
@@ -291,20 +319,25 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       
     } catch (error) {
       console.error('❌ Error denying request:', error);
-      alert('Failed to deny request. Please try again.');
+      await showConfirmModal('Error', 'Failed to deny request. Please try again.', null, true);
     }
   };
 
   // Complete request
   window.completeRequest = async function(requestId) {
-    if (!confirm('Mark this request as completed?')) return;
+    const confirmed = await showConfirmModal(
+      'Mark as Completed',
+      'Mark this request as completed?'
+    );
+    if (!confirmed) return;
 
     try {
       console.log(`✓ Completing request ${requestId}...`);
       
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await updateDoc(requestRef, {
-        status: 'completed'
+        status: 'completed',
+        completedAt: new Date()
       });
 
       console.log('✅ Request marked as completed');
@@ -312,13 +345,17 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       
     } catch (error) {
       console.error('❌ Error completing request:', error);
-      alert('Failed to complete request. Please try again.');
+      await showConfirmModal('Error', 'Failed to complete request. Please try again.', null, true);
     }
   };
 
   // Archive request (soft delete)
   window.archiveRequest = async function(requestId) {
-    if (!confirm('Archive this request? It will be hidden from history.')) return;
+    const confirmed = await showConfirmModal(
+      'Archive Request',
+      'Archive this request? It will be hidden from history.'
+    );
+    if (!confirmed) return;
 
     try {
       console.log(`📦 Archiving request ${requestId}...`);
@@ -334,13 +371,17 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       
     } catch (error) {
       console.error('❌ Error archiving request:', error);
-      alert('Failed to archive request. Please try again.');
+      await showConfirmModal('Error', 'Failed to archive request. Please try again.', null, true);
     }
   };
 
   // Delete request (permanent)
   window.deleteRequest = async function(requestId) {
-    if (!confirm('⚠️ PERMANENTLY DELETE this request? This cannot be undone!')) return;
+    const confirmed = await showConfirmModal(
+      'Delete Request',
+      '⚠️ PERMANENTLY DELETE this request? This cannot be undone!'
+    );
+    if (!confirmed) return;
 
     try {
       console.log(`🗑️ Deleting request ${requestId}...`);
@@ -353,7 +394,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       
     } catch (error) {
       console.error('❌ Error deleting request:', error);
-      alert('Failed to delete request. Please try again.');
+      await showConfirmModal('Error', 'Failed to delete request. Please try again.', null, true);
     }
   };
 
@@ -556,12 +597,12 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
     console.log('📥 Exporting to CSV...');
 
     if (filteredRequests.length === 0) {
-      alert('No requests to export.');
+      showConfirmModal('No data', 'No requests to export.', null, true);
       return;
     }
 
-    // CSV headers
-    let csvContent = 'Submitted On,Name,Start Date,End Date,Chairs,Tents,Delivery,Address,Status\n';
+  // CSV headers
+  let csvContent = 'Submitted On,Name,Start Date,End Date,Chairs,Tents,Delivery,Address,Status,Remarks\n';
 
     // CSV rows
     filteredRequests.forEach(req => {
@@ -575,7 +616,9 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       const address = (req.completeAddress || 'N/A').replace(/,/g, ';'); // Escape commas
       const status = req.status || 'pending';
 
-      csvContent += `${submittedDate},${name},${startDate},${endDate},${chairs},${tents},${mode},${address},${status}\n`;
+      // include remarks (escape commas)
+      const remark = (req.rejectionReason || req.remarks || '').replace(/,/g, ';').replace(/"/g, '""');
+      csvContent += `${submittedDate},${name},${startDate},${endDate},${chairs},${tents},${mode},${address},${status},"${remark}"\n`;
     });
 
     // Create download link

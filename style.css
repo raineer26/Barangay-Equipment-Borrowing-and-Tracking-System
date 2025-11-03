@@ -4900,6 +4900,46 @@ input[type="number"]::-webkit-outer-spin-button {
   white-space: nowrap;
 }
 
+/* Remarks column (history & archives). Allow long text to wrap and break safely. */
+.tents-requests-table th:nth-child(12),
+.tents-requests-table td:nth-child(12) {
+  /* When Remarks exists it will occupy the 12th column in history/archives */
+  min-width: 160px;
+  max-width: 300px;
+}
+
+.tents-requests-table td:nth-child(12) {
+  white-space: normal; /* allow wrapping */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Completed/Archived timestamp column sits after Remarks in history/archives (13th column) */
+.tents-requests-table th:nth-child(13),
+.tents-requests-table td:nth-child(13) {
+  min-width: 120px;
+  max-width: 160px;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Inline remarks expand/collapse styles */
+.remarks-text {
+  cursor: pointer;
+  color: #111827;
+  display: inline-block;
+}
+.remarks-text.collapsed {
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.remarks-text.expanded {
+  white-space: normal;
+  overflow: visible;
+}
+
 /* Status Badges */
 .tents-status-badge-pending {
   display: inline-block;
@@ -4980,7 +5020,8 @@ input[type="number"]::-webkit-outer-spin-button {
 .tents-btn-deny,
 .tents-btn-complete,
 .tents-btn-archive,
-.tents-btn-delete {
+.tents-btn-delete,
+.tents-btn-unarchive {
   padding: 6px 12px;
   border: none;
   border-radius: 4px;
@@ -5036,6 +5077,17 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .tents-btn-delete:hover {
   background: #b91c1c;
+}
+
+/* Unarchive button: restore archived requests back to history
+   Uses a subtle primary accent to indicate a non-destructive restore action */
+.tents-btn-unarchive {
+  background: #2563eb; /* blue-600 */
+  color: white;
+}
+
+.tents-btn-unarchive:hover {
+  background: #1d4ed8; /* blue-700 */
 }
 
 /* Export Dropdown */
@@ -5497,6 +5549,38 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .tents-inventory-preview.hidden {
   display: none;
+}
+
+/* Confirmation modal input (rejection reason, etc.) */
+.tents-confirm-input {
+  margin-top: 16px;
+}
+
+.tents-confirm-input label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+}
+
+.tents-confirm-input textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  color: #111827;
+  resize: vertical;
+  min-height: 100px;
+  box-sizing: border-box;
+}
+
+.tents-confirm-input textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: #4F46E5;
 }
 
 .tents-inventory-item {

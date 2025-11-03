@@ -101,7 +101,8 @@
         <div class="tents-tabs-section">
           <div class="tents-tabs">
             <button class="tents-tab active" id="allRequestsTab">All Requests</button>
-            <button class="tents-tab" id="historyTab">History</button>
+              <button class="tents-tab" id="historyTab">History</button>
+              <button class="tents-tab" id="archivesTab">Archives</button>
           </div>
           <div class="tents-header-actions">
             <!-- Export Dropdown (History Tab Only) -->
@@ -205,6 +206,11 @@
           </div>
           <div class="tents-confirm-modal-body">
             <p id="tentsConfirmMessage">Are you sure you want to perform this action?</p>
+            <!-- Optional input area (hidden by default). Used for actions that require text input such as rejection reason -->
+            <div id="tentsConfirmInput" class="tents-confirm-input" style="display:none;">
+              <label for="tentsConfirmInputTextarea" style="display:block; margin-bottom:8px; font-weight:600; color:#374151;">Details</label>
+              <textarea id="tentsConfirmInputTextarea" rows="4" placeholder="Enter details..." style="width:100%; padding:8px 10px; border:1px solid #e5e7eb; border-radius:6px; font-family: 'Poppins', sans-serif; font-size:14px; color:#111827;"></textarea>
+            </div>
             <div id="tentsConfirmInventory" class="tents-inventory-preview"></div>
           </div>
           <div class="tents-confirm-modal-footer">
