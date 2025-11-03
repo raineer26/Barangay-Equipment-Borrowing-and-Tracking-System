@@ -3497,30 +3497,24 @@ if (window.location.pathname.endsWith('admin.html')) {
 // Check if we're on the admin dashboard page
 if (window.location.pathname.endsWith('admin.html') || window.location.pathname.endsWith('/admin')) {
   
-  // Sample reservations data (replace with Firestore data in production)
-  const sampleReservations = [
-    {
-      date: 'September 25, 2025',
-      purpose: 'Community Meeting',
-      type: 'Conference Room',
-      address: 'bone A, Mapulang Lupa',
-      status: 'approved'
-    },
-    {
-      date: 'September 25, 2025',
-      purpose: 'Birthday Party',
-      type: 'Tents & Chairs',
-      address: 'bone B, Mapulang Lupa',
-      status: 'pending'
-    }
-  ];
+  // Store all reservations data loaded from Firestore
+  let allReservationsData = [];
+  
+  // Store dates that have reservations (for calendar marking)
+  let datesWithReservations = new Set();
+  
+  // Map of ISO date -> count of reservations for that date
+  let dateCounts = {};
 
-  document.addEventListener('DOMContentLoaded', function() {
-    // Initialize week calendar
+  document.addEventListener('DOMContentLoaded', async function() {
+    // Load all reservations data first
+    await loadAllReservationsData();
+    
+    // Initialize week calendar (will use loaded data)
     renderWeekCalendar();
     
-    // Load reservations
-    loadReservations();
+    // Load reservations for selected date (default: today)
+    await loadReservations();
     
     // Load pending request counts
     loadPendingCounts();
@@ -3562,6 +3556,135 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
   // Store selected date globally
   let selectedDate = new Date();
 
+  /**
+   * Load all reservations data from Firestore
+   * Fetches both conference room and tents/chairs bookings
+   * Stores data for calendar marking and reservation display
+   */
+  async function loadAllReservationsData() {
+    console.log('🔄 Loading all reservations data from Firestore...');
+    
+    try {
+  allReservationsData = [];
+  datesWithReservations.clear();
+  dateCounts = {};
+
+      // Load conference room bookings
+      const conferenceQuery = query(
+        collection(db, 'conferenceRoomBookings'),
+        where('status', 'in', ['pending', 'approved', 'in-progress'])
+      );
+      const conferenceSnapshot = await getDocs(conferenceQuery);
+      
+      conferenceSnapshot.forEach(doc => {
+        const data = doc.data();
+        const eventDate = data.eventDate; // Format: "YYYY-MM-DD"
+        
+        if (eventDate) {
+          // Add to reservations array
+          allReservationsData.push({
+            id: doc.id,
+            date: formatDateToLongString(eventDate), // "November 3, 2025"
+            dateRaw: eventDate, // Keep raw format for filtering
+            purpose: data.purpose || 'Conference Room Reservation',
+            type: 'Conference Room',
+            address: data.address || 'N/A',
+            status: data.status || 'pending',
+            time: data.startTime && data.endTime ? `${data.startTime} - ${data.endTime}` : null
+          });
+          
+          // Mark date (ISO string) as having reservation and count
+          datesWithReservations.add(eventDate);
+          dateCounts[eventDate] = (dateCounts[eventDate] || 0) + 1;
+        }
+      });
+
+      // Load tents & chairs bookings
+      const tentsQuery = query(
+        collection(db, 'tentsChairsBookings'),
+        where('status', 'in', ['pending', 'approved', 'in-progress'])
+      );
+      const tentsSnapshot = await getDocs(tentsQuery);
+      
+      tentsSnapshot.forEach(doc => {
+        const data = doc.data();
+        const startDate = data.startDate; // Format: "YYYY-MM-DD"
+        const endDate = data.endDate;
+        
+        if (startDate) {
+          // Add to reservations array
+          // For multi-day bookings, compute covered dates
+          const coveredDates = [];
+          const start = new Date(startDate + 'T00:00:00');
+          const end = endDate ? new Date(endDate + 'T00:00:00') : start;
+          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const iso = d.toISOString().split('T')[0];
+            coveredDates.push(iso);
+            datesWithReservations.add(iso);
+            dateCounts[iso] = (dateCounts[iso] || 0) + 1;
+          }
+
+          allReservationsData.push({
+            id: doc.id,
+            date: formatDateToLongString(startDate),
+            dateRaw: startDate,
+            dateRange: endDate && endDate !== startDate ? `${formatDateToLongString(startDate)} - ${formatDateToLongString(endDate)}` : null,
+            purpose: `Tents: ${data.quantityTents || 0}, Chairs: ${data.quantityChairs || 0}`,
+            type: 'Tents & Chairs',
+            address: data.completeAddress || 'N/A',
+            status: data.status || 'pending',
+            time: null,
+            datesCovered: coveredDates
+          });
+        }
+      });
+
+  console.log(`✅ Loaded ${allReservationsData.length} reservations`);
+  console.log(`✅ Dates with reservations:`, Array.from(datesWithReservations).sort());
+      
+    } catch (error) {
+      console.error('❌ Error loading reservations data:', error);
+      allReservationsData = [];
+      datesWithReservations.clear();
+    }
+  }
+
+  /**
+   * Format date string from "YYYY-MM-DD" to "Month Day, Year"
+   * Example: "2025-11-03" -> "November 3, 2025"
+   */
+  function formatDateToLongString(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString + 'T00:00:00');
+      const options = { year: 'numeric', month: 'long', day: 'numeric' };
+      return date.toLocaleDateString('en-US', options);
+    } catch (error) {
+      return dateString;
+    }
+  }
+
+  // Ensure a single tooltip element exists for calendar date counts
+  function ensureCalendarTooltip() {
+    let tooltip = document.getElementById('calendarDateTooltip');
+    if (!tooltip) {
+      tooltip = document.createElement('div');
+      tooltip.id = 'calendarDateTooltip';
+      tooltip.style.position = 'absolute';
+      tooltip.style.pointerEvents = 'none';
+      tooltip.style.padding = '6px 10px';
+      tooltip.style.background = 'rgba(11,59,140,0.95)';
+      tooltip.style.color = '#fff';
+      tooltip.style.borderRadius = '6px';
+      tooltip.style.fontSize = '13px';
+      tooltip.style.zIndex = '10030';
+      tooltip.style.display = 'none';
+      tooltip.style.boxShadow = '0 6px 18px rgba(0,0,0,0.12)';
+      document.body.appendChild(tooltip);
+    }
+    return tooltip;
+  }
+
   function renderWeekCalendar() {
     const today = new Date();
     const currentMonth = today.getMonth();
@@ -3588,9 +3711,6 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
     
     weekCalendarGrid.innerHTML = '';
 
-    // Sample dates with reservations (replace with real Firestore data)
-    const datesWithReservations = [7, 8, 14, 15, 16, 20, 21, 22, 25, 30, 31];
-
     // Day names
     const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     const fullDayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -3600,10 +3720,13 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
       const date = new Date(startOfWeek);
       date.setDate(startOfWeek.getDate() + i);
       
-      const dayCell = document.createElement('div');
-      dayCell.classList.add('week-day-card');
+  const dayCell = document.createElement('div');
+  dayCell.classList.add('week-day-card');
+  // Make focusable for keyboard accessibility
+  dayCell.setAttribute('tabindex', '0');
       
-      const dayNumber = date.getDate();
+  const dayNumber = date.getDate();
+  const dateKey = date.toISOString().split('T')[0];
       const isToday = (
         date.getDate() === currentDay &&
         date.getMonth() === currentMonth &&
@@ -3626,8 +3749,8 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
         dayCell.classList.add('selected');
       }
 
-      // Mark dates with reservations
-      if (datesWithReservations.includes(dayNumber)) {
+      // Mark dates with reservations (compare ISO date strings)
+      if (datesWithReservations.has(dateKey)) {
         dayCell.classList.add('has-reservation');
       }
 
@@ -3643,6 +3766,41 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
         renderWeekCalendar(); // Re-render to show selected state
         loadReservations(); // Load reservations for selected date
       });
+
+      // Add hover tooltip to show number of reservations for that ISO date
+      (function(dayEl, key) {
+        const tooltip = ensureCalendarTooltip();
+        const show = () => {
+          const count = dateCounts[key] || 0;
+          if (!count) return;
+          tooltip.textContent = count === 1 ? '1 reservation' : `${count} reservations`;
+          const rect = dayEl.getBoundingClientRect();
+          // Position above the day cell, centered
+          const top = rect.top - 8 - tooltip.offsetHeight;
+          const left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+          tooltip.style.left = Math.max(8, left) + 'px';
+          tooltip.style.top = (top < 8 ? rect.bottom + 8 : top) + 'px';
+          tooltip.style.display = 'block';
+        };
+        const hide = () => {
+          const tooltip = document.getElementById('calendarDateTooltip');
+          if (tooltip) tooltip.style.display = 'none';
+        };
+
+        dayEl.addEventListener('mouseenter', show);
+        dayEl.addEventListener('focus', show);
+        dayEl.addEventListener('mouseleave', hide);
+        dayEl.addEventListener('blur', hide);
+        // For touch devices, show tooltip briefly on long press / touchstart
+        let touchTimer = null;
+        dayEl.addEventListener('touchstart', (e) => {
+          touchTimer = setTimeout(() => show(), 400);
+        }, { passive: true });
+        dayEl.addEventListener('touchend', () => {
+          if (touchTimer) clearTimeout(touchTimer);
+          hide();
+        });
+      })(dayCell, dateKey);
 
       weekCalendarGrid.appendChild(dayCell);
     }
@@ -3701,8 +3859,7 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
     
     calendarDays.innerHTML = '';
 
-    // Sample dates with reservations (replace with real data from Firestore)
-    const datesWithReservations = [7, 8, 14, 15, 16, 20, 21, 22, 25, 30, 31];
+  // Use loaded reservation dates (datesWithReservations is a Set of ISO strings)
 
     // Add empty cells for days before first day of month
     for (let i = 0; i < firstDay; i++) {
@@ -3722,41 +3879,87 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
         dayCell.classList.add('today');
       }
 
-      // Mark dates with reservations
-      if (datesWithReservations.includes(day)) {
+      // Mark dates with reservations (compare ISO date strings)
+      const thisDate = new Date(currentYear, currentMonth, day);
+      const thisKey = thisDate.toISOString().split('T')[0];
+      if (datesWithReservations.has(thisKey)) {
         dayCell.classList.add('has-reservation');
       }
+
+      // Tooltip handlers for mini calendar
+      (function(el, key) {
+        const tooltip = ensureCalendarTooltip();
+        const showMini = () => {
+          const count = dateCounts[key] || 0;
+          if (!count) return;
+          tooltip.textContent = count === 1 ? '1 reservation' : `${count} reservations`;
+          const rect = el.getBoundingClientRect();
+          const top = rect.top - 8 - tooltip.offsetHeight;
+          const left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+          tooltip.style.left = Math.max(8, left) + 'px';
+          tooltip.style.top = (top < 8 ? rect.bottom + 8 : top) + 'px';
+          tooltip.style.display = 'block';
+        };
+        const hideMini = () => { tooltip.style.display = 'none'; };
+        el.addEventListener('mouseenter', showMini);
+        el.addEventListener('mouseleave', hideMini);
+        el.addEventListener('focus', showMini);
+        el.addEventListener('blur', hideMini);
+      })(dayCell, thisKey);
 
       calendarDays.appendChild(dayCell);
     }
   }
 
-  function loadReservations() {
-    const reservationsList = document.getElementById('reservationsList');
+  /**
+   * Load and display reservations for the selected date
+   * Filters allReservationsData by selected date
+   */
+  async function loadReservations() {
+    console.log('🔄 Loading reservations for selected date:', selectedDate.toDateString());
     
-    if (sampleReservations.length === 0) {
-      reservationsList.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No reservations for today.</p>';
+    const reservationsList = document.getElementById('reservationsList');
+    if (!reservationsList) return;
+    
+    // Format selected date to "YYYY-MM-DD" for comparison
+    const selectedDateString = selectedDate.toISOString().split('T')[0];
+    
+    // Filter reservations for selected date
+    const todaysReservations = allReservationsData.filter(reservation => {
+      return reservation.dateRaw === selectedDateString;
+    });
+    
+    console.log(`✅ Found ${todaysReservations.length} reservations for ${selectedDateString}`);
+    
+    if (todaysReservations.length === 0) {
+      reservationsList.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No reservations for this day.</p>';
       return;
     }
 
     reservationsList.innerHTML = '';
 
-    sampleReservations.forEach(reservation => {
+    todaysReservations.forEach(reservation => {
       const item = document.createElement('div');
       item.classList.add('reservation-item');
 
-      const statusClass = reservation.status === 'approved' ? 'approved' : 'pending';
-      const statusText = reservation.status === 'approved' ? 'Approved' : 'Pending';
+      const statusClass = reservation.status === 'approved' ? 'approved' : 
+                         reservation.status === 'in-progress' ? 'in-progress' : 'pending';
+      const statusText = reservation.status === 'approved' ? 'Approved' : 
+                        reservation.status === 'in-progress' ? 'In Progress' :
+                        reservation.status.charAt(0).toUpperCase() + reservation.status.slice(1);
+
+      const dateDisplay = reservation.dateRange || reservation.date;
+      const timeDisplay = reservation.time ? `<br><strong>Time:</strong> ${reservation.time}` : '';
 
       item.innerHTML = `
         <div class="reservation-header">
-          <h4 class="reservation-date">${reservation.date}</h4>
+          <h4 class="reservation-date">${dateDisplay}</h4>
           <span class="status-badge ${statusClass}">${statusText}</span>
         </div>
         <p class="reservation-details">
-          <strong>Purpose:</strong> ${reservation.purpose}<br>
-          <strong>Type:</strong> ${reservation.type}<br>
-          <strong>Address:</strong> ${reservation.address}
+          <strong>Purpose:</strong> ${sanitizeInput(reservation.purpose)}<br>
+          <strong>Type:</strong> ${reservation.type}${timeDisplay}<br>
+          <strong>Address:</strong> ${sanitizeInput(reservation.address)}
         </p>
       `;
 
@@ -3786,6 +3989,15 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
 
   // Load pending request counts from Firestore
   async function loadPendingCounts() {
+    console.log('🔄 Loading pending counts from Firestore...');
+    
+    const conferenceRoomBadge = document.getElementById('conferenceRoomBadge');
+    const tentsChairsBadge = document.getElementById('tentsChairsBadge');
+    
+    // Show loading state
+    if (conferenceRoomBadge) conferenceRoomBadge.textContent = 'Loading...';
+    if (tentsChairsBadge) tentsChairsBadge.textContent = 'Loading...';
+    
     try {
       // Count pending conference room requests
       const conferenceQuery = query(
@@ -3803,24 +4015,25 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
       const tentsSnapshot = await getDocs(tentsQuery);
       const tentsCount = tentsSnapshot.size;
 
-      // Update badges
-      const conferenceRoomBadge = document.getElementById('conferenceRoomBadge');
-      const tentsChairsBadge = document.getElementById('tentsChairsBadge');
-
+      // Update badges with actual counts
       if (conferenceRoomBadge) {
         conferenceRoomBadge.textContent = conferenceCount === 1 ? '1 Pending' : `${conferenceCount} Pending`;
+        conferenceRoomBadge.style.backgroundColor = conferenceCount > 0 ? '#ef4444' : '#9ca3af';
       }
 
       if (tentsChairsBadge) {
         tentsChairsBadge.textContent = tentsCount === 1 ? '1 Pending' : `${tentsCount} Pending`;
+        tentsChairsBadge.style.backgroundColor = tentsCount > 0 ? '#ef4444' : '#9ca3af';
       }
 
-      console.log(`Pending Conference Room Requests: ${conferenceCount}`);
-      console.log(`Pending Tents & Chairs Requests: ${tentsCount}`);
+      console.log(`✅ Pending Conference Room Requests: ${conferenceCount}`);
+      console.log(`✅ Pending Tents & Chairs Requests: ${tentsCount}`);
 
     } catch (error) {
-      console.error('Error loading pending counts:', error);
-      // Keep default values on error
+      console.error('❌ Error loading pending counts:', error);
+      // Show error state but with graceful fallback
+      if (conferenceRoomBadge) conferenceRoomBadge.textContent = '-- Pending';
+      if (tentsChairsBadge) tentsChairsBadge.textContent = '-- Pending';
     }
   }
 
@@ -5119,8 +5332,13 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         submittedDateTime = `${dateStr}<br><em style="font-size: 11px; color: #6b7280;">${timeStr}</em>`;
       }
 
-      const firstName = getFirstName(req.fullName);
-      const lastName = getLastName(req.fullName);
+      // Use stored firstName/lastName when available; otherwise fall back to fullName
+      const firstName = (req.firstName && req.firstName.trim())
+        ? req.firstName.trim()
+        : (req.fullName ? getFirstName(req.fullName) : (req.userEmail ? req.userEmail.split('@')[0] : ''));
+      const lastName = (req.lastName && req.lastName.trim())
+        ? req.lastName.trim()
+        : (req.fullName ? getLastName(req.fullName) : '');
       const startDate = formatDateText(req.startDate);
       const endDate = formatDateText(req.endDate);
 

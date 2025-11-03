@@ -187,12 +187,14 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       const mode = req.modeOfReceiving || 'N/A';
       const address = req.completeAddress || 'N/A';
       const status = req.status || 'pending';
-      const fullName = req.fullName || 'Unknown';
+      const fullName = (req.firstName || req.lastName)
+        ? `${(req.firstName || '').trim()} ${(req.lastName || '').trim()}`.trim()
+        : (req.fullName || req.userEmail || 'Unknown');
 
       tableHTML += `
         <tr>
           <td>${submittedDate}</td>
-          <td>${fullName}</td>
+          <td>${sanitizeInput(fullName)}</td>
           <td>${startDate}</td>
           <td>${endDate}</td>
           <td>${chairs}</td>
