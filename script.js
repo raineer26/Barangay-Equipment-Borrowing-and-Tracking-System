@@ -6137,3 +6137,217 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   initPage();
 }
 
+// ===== Admin Inventory with Firestore Real-Time Sync + Edit/Save Modal =====
+
+// Initialize Firestore references (you already have config + firestore instance)
+const inventoryRef = collection(db, "inventory"); // change "inventory" to your collection name
+
+function initInventory() {
+  const editBtn = document.getElementById('editInventory');
+  const saveBtn = document.getElementById('saveInventory');
+  const inventoryCard = document.querySelector('.inventory-card');
+  const modal = document.getElementById('saveConfirmModal');
+  const modalList = document.getElementById('saveChangesList');
+  const confirmYes = document.getElementById('confirmSaveYes');
+  const confirmNo = document.getElementById('confirmSaveNo');
+  const modalClose = document.getElementById('saveConfirmClose');
+
+  if (!saveBtn || !inventoryCard) return;
+
+  let inputs = Array.from(inventoryCard.querySelectorAll('.item-fields input[type="number"]'));
+  let originalValues = {};
+  let pendingComputed = {};
+
+  // --- Helper: Enable/disable editing mode ---
+  function setEditMode(on) {
+    inputs.forEach(input => {
+      if (on) {
+        input.removeAttribute('readonly');
+        input.classList.add('editing');
+      } else {
+        input.setAttribute('readonly', '');
+        input.classList.remove('editing');
+      }
+    });
+    saveBtn.disabled = !on;
+    editBtn?.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+  setEditMode(false);
+
+  // --- Helper: snapshot inputs to detect changes later ---
+  function captureOriginals() {
+    originalValues = {};
+    inputs.forEach(input => {
+      if (input.id) originalValues[input.id] = String(input.value);
+    });
+  }
+
+  // --- Optional enhancement: live auto-update Available field ---
+  function autoComputeAvailable() {
+    const itemEls = inventoryCard.querySelectorAll('.inventory-item');
+    itemEls.forEach(item => {
+      const totalInput = item.querySelector('input[id$="-total"]');
+      const inuseInput = item.querySelector('input[id$="-inuse"]');
+      const availableInput = item.querySelector('input[id$="-available"]');
+      if (!totalInput || !inuseInput || !availableInput) return;
+      const total = parseInt(totalInput.value) || 0;
+      const inuse = parseInt(inuseInput.value) || 0;
+      availableInput.value = Math.max(0, total - inuse);
+    });
+  }
+
+  inventoryCard.addEventListener('input', e => {
+    if (e.target.matches('input[id$="-total"], input[id$="-inuse"]')) {
+      autoComputeAvailable();
+    }
+  });
+
+  // --- Edit mode ---
+  editBtn?.addEventListener('click', e => {
+    e.preventDefault();
+    setEditMode(true);
+    captureOriginals();
+    inputs.find(i => !i.hasAttribute('readonly'))?.focus();
+  });
+
+  // --- Modal show/hide helpers ---
+  function showModal() {
+    modal.style.display = 'block';
+    modal.setAttribute('aria-hidden', 'false');
+  }
+  function hideModal() {
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  // --- Save clicked: show modal summary ---
+  saveBtn?.addEventListener('click', e => {
+    e.preventDefault();
+
+    inputs.forEach(inp => {
+      const val = Number(inp.value);
+      if (!Number.isFinite(val) || val < 0) inp.value = 0;
+    });
+
+    const itemEls = Array.from(inventoryCard.querySelectorAll('.inventory-item'));
+    const changes = [];
+    pendingComputed = {};
+
+    itemEls.forEach(itemEl => {
+      const name = itemEl.querySelector('h3')?.textContent?.trim() || 'Item';
+      const totalInput = itemEl.querySelector('input[id$="-total"]');
+      const inuseInput = itemEl.querySelector('input[id$="-inuse"]');
+      const availableInput = itemEl.querySelector('input[id$="-available"]');
+
+      const idTotal = totalInput?.id, idInuse = inuseInput?.id, idAvailable = availableInput?.id;
+      const currTotal = String(totalInput?.value || '0');
+      const currInuse = String(inuseInput?.value || '0');
+      const totalNum = Number(currTotal) || 0, inuseNum = Number(currInuse) || 0;
+      const expectedAvailable = String(Math.max(0, totalNum - inuseNum));
+
+      if (idAvailable) pendingComputed[idAvailable] = expectedAvailable;
+
+      const origTotal = originalValues[idTotal] ?? currTotal;
+      const origInuse = originalValues[idInuse] ?? currInuse;
+      const origAvail = originalValues[idAvailable] ?? expectedAvailable;
+
+      const totalChanged = origTotal !== currTotal;
+      const inuseChanged = origInuse !== currInuse;
+      const availChanged = origAvail !== expectedAvailable;
+
+      if (totalChanged || inuseChanged || availChanged) {
+        changes.push(`${name}: Total ${origTotal} → ${currTotal}, InUse ${origInuse} → ${currInuse}, Available ${origAvail} → ${expectedAvailable}`);
+      }
+    });
+
+    if (changes.length === 0) {
+      showAlert?.('No changes to save.');
+      return;
+    }
+
+    modalList.innerHTML = '';
+    changes.forEach(change => {
+      const li = document.createElement('div');
+      li.className = 'change-line';
+      li.textContent = change;
+      modalList.appendChild(li);
+    });
+    showModal();
+  });
+
+  // --- Confirm save: persist to Firestore ---
+  confirmYes?.addEventListener('click', async e => {
+    e.preventDefault();
+
+    Object.keys(pendingComputed).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = pendingComputed[id];
+    });
+
+    const itemEls = Array.from(inventoryCard.querySelectorAll('.inventory-item'));
+    try {
+      for (const itemEl of itemEls) {
+        const docId = itemEl.dataset.id; // each item should have data-id
+        if (!docId) continue;
+        const total = Number(itemEl.querySelector('input[id$="-total"]')?.value || 0);
+        const inUse = Number(itemEl.querySelector('input[id$="-inuse"]')?.value || 0);
+        const available = Number(itemEl.querySelector('input[id$="-available"]')?.value || 0);
+
+        await updateDoc(doc(inventoryRef, docId), {
+          total,
+          inUse,
+          available,
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      hideModal();
+      setEditMode(false);
+      captureOriginals();
+      showAlert?.('Inventory updated successfully!', true);
+    } catch (err) {
+      console.error('Firestore update failed:', err);
+      showAlert?.('Error saving inventory. Check console for details.');
+    }
+  });
+
+  // --- Cancel modal ---
+  [confirmNo, modalClose].forEach(btn => btn?.addEventListener('click', e => {
+    e.preventDefault();
+    hideModal();
+  }));
+
+  modal?.addEventListener('click', e => {
+    if (e.target === modal) hideModal();
+  });
+
+  // --- Firestore real-time updates using onSnapshot() ---
+  onSnapshot(inventoryRef, snapshot => {
+    snapshot.docChanges().forEach(change => {
+      const docData = change.doc.data();
+      const id = change.doc.id;
+      const itemEl = inventoryCard.querySelector(`.inventory-item[data-id="${id}"]`);
+      if (!itemEl) return;
+
+      // Only update UI if not editing to avoid overwriting unsaved user edits
+      if (!saveBtn.disabled) return;
+
+      const totalInput = itemEl.querySelector('input[id$="-total"]');
+      const inuseInput = itemEl.querySelector('input[id$="-inuse"]');
+      const availableInput = itemEl.querySelector('input[id$="-available"]');
+
+      if (totalInput) totalInput.value = docData.total ?? 0;
+      if (inuseInput) inuseInput.value = docData.inUse ?? 0;
+      if (availableInput) availableInput.value = docData.available ?? 0;
+    });
+
+    captureOriginals();
+  });
+}
+
+// --- Initialize ---
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initInventory);
+} else {
+  initInventory();
+}
