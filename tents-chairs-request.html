@@ -58,7 +58,7 @@
         <p class="form-subtitle">Hosting an event soon? Just fill in the form below with your details and the items you need, and we'll take care of the rest!</p>
 
         <form id="tentsChairsForm" class="request-form">
-          <!-- Row 1: First Name, Last Name, Contact Number (3 columns) -->
+          <!-- Row 1 -->
           <div class="form-row-3col">
             <div class="form-group">
               <label for="firstName">FIRST NAME:</label>
@@ -70,19 +70,24 @@
               <input type="text" id="lastName" name="lastName">
               <div class="error-message" id="errorLastName"></div>
             </div>
+          </div>
+
+          <!-- Row 2: Complete Address (left) and Purpose of Use (right) -->
+          <div class="form-row-2col">
             <div class="form-group">
               <label for="contactNumber">CONTACT NUMBER:</label>
               <input type="tel" id="contactNumber" name="contactNumber">
               <div class="error-message" id="errorContactNumber"></div>
             </div>
-          </div>
-
-          <!-- Row 2: Complete Address and Mode of Receiving -->
-          <div class="form-row-2col">
             <div class="form-group">
               <label for="completeAddress">COMPLETE ADDRESS:</label>
               <input type="text" id="completeAddress" name="completeAddress">
               <div class="error-message" id="errorCompleteAddress"></div>
+            </div>
+            <div class="form-group">
+              <label for="purposeOfUse">PURPOSE OF USE:</label>
+              <input type="text" id="purposeOfUse" name="purposeOfUse">
+              <div class="error-message" id="errorPurposeOfUse"></div>
             </div>
             <div class="form-group">
               <label for="modeOfReceiving">MODE OF RECEIVING:</label>
@@ -95,17 +100,19 @@
             </div>
           </div>
 
-          <!-- Row 3: Quantity of Chairs and Quantity of Tents -->
+          <!-- Row 3-->
           <div class="form-row-2col">
             <div class="form-group">
-              <label for="quantityChairs">QUANTITY OF CHAIR/S:</label>
-              <input type="number" id="quantityChairs" name="quantityChairs" min="1">
-              <div class="error-message" id="errorQuantityChairs"></div>
+              <label for="quantityTents">QUANTITY OF TENT/S:</label>
+              <input type="number" id="quantityTents" name="quantityTents" min="0" value="0">
+              <div class="error-message" id="errorQuantityTents"></div>
+              <small class="field-note">*Set the quantity to 0 if not borrowing tents</small>
             </div>
             <div class="form-group">
-              <label for="quantityTents">QUANTITY OF TENT/S:</label>
-              <input type="number" id="quantityTents" name="quantityTents" min="1">
-              <div class="error-message" id="errorQuantityTents"></div>
+              <label for="quantityChairs">QUANTITY OF CHAIR/S:</label>
+              <input type="number" id="quantityChairs" name="quantityChairs" min="0" value="0">
+              <div class="error-message" id="errorQuantityChairs"></div>
+              <small class="field-note">*Set the quantity to 0 if not borrowing chairs</small>
             </div>
           </div>
 
@@ -175,6 +182,33 @@
       </div>
     </footer>
     <div id="formAlertBox" class="form-alert" style="display:none;"></div>
+
+<!-- ===============================
+     MODAL CONFIRMATION (START)
+================================ -->
+<div id="confirmationModal" class="modal-overlay">
+  <div class="modal-content">
+    <h2>Request Summary</h2>
+    <p>Please review the following information before confirming your request.</p>
+
+    <div class="modal-summary">
+      <p><strong>Purpose of Use:</strong> <span id="summaryPurpose"></span></p>
+      <p><strong>Quantity of Tent/s:</strong> <span id="summaryTents"></span></p>
+      <p><strong>Quantity of Chair/s:</strong> <span id="summaryChairs"></span></p>
+      <p><strong>Start Date:</strong> <span id="summaryStart"></span></p>
+      <p><strong>End Date:</strong> <span id="summaryEnd"></span></p>
+      <p><strong>Mode of Receiving:</strong> <span id="summaryMode"></span></p>
+    </div>
+
+    <div class="modal-buttons">
+      <button type="button" class="cancel-btn" id="cancelModal">Cancel</button>
+      <button type="button" class="confirm-btn" id="confirmModal">Confirm</button>
+    </div>
+  </div>
+</div>
+<!-- ===============================
+     MODAL CONFIRMATION (END)
+================================ -->
     <script src="script.js" type="module"></script>
   </body>
 </html>

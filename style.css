@@ -531,6 +531,35 @@ nav a {
   font-family: 'Poppins', sans-serif;
 }
 
+/* ================================
+   BEGIN: Tents & Chairs - Additional fields & validation visuals
+   (Appended for: purposeOfUse field and quantity 0 behavior)
+=================================== */
+
+
+.form-group .field-note {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px; /* smaller and tighter under the field */
+  order: 3; /* ensures it stays below input even if label or error messages exist */
+}
+
+
+/* Make the entire form-group show a red error state when validation fails */
+
+
+.form-group.error label {
+  color: #d32f2f;
+}
+
+/* Small visual tweak for number inputs that allow 0 (clearer affordance) */
+input[type="number"][min="0"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+/* END: Tents & Chairs - Additional fields & validation visuals */
+
 .signup-login-link p {
   font-size: 0.95rem;
   color: #555;
@@ -3109,7 +3138,7 @@ footer a:hover {
 /* Three Column Layout for First Row (First Name, Last Name, Contact Number) */
 .form-row-3col {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.5fr;
+  grid-template-columns: 1fr 1fr;
   gap: 25px;
   margin-bottom: 25px;
 }
@@ -3246,6 +3275,98 @@ footer a:hover {
 .submit-request-btn:active {
   transform: translateY(0);
 }
+
+/* ===============================
+   MODAL CONFIRMATION STYLES
+=============================== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.6);
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 10px;
+  padding: 30px;
+  width: 400px;
+  max-width: 90%;
+  text-align: left;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.modal-content h2 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1.4rem;
+  color: #281ABC;
+  margin-bottom: 10px;
+}
+
+.modal-content p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.modal-summary {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 15px 0;
+}
+
+.modal-summary p {
+  margin: 5px 0;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.cancel-btn,
+.confirm-btn {
+  font-family: 'Poppins', sans-serif;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-btn {
+  background: #ddd;
+  color: #333;
+}
+
+.cancel-btn:hover {
+  background: #ccc;
+}
+
+.confirm-btn {
+  background: #281ABC;
+  color: #fff;
+}
+
+.confirm-btn:hover {
+  background: #1b1090;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 
 /* Date Input Styling */
 input[type="date"] {

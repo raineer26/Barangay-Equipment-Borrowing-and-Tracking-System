@@ -58,7 +58,7 @@
         <p class="form-subtitle">Hosting an event soon? Just fill in the form below with your details and the items you need, and we'll take care of the rest!</p>
 
         <form id="conferenceRoomForm" class="request-form">
-          <!-- Row 1: First Name, Last Name, Contact Number (3 columns) -->
+          <!-- Row 1 -->
           <div class="form-row-3col">
             <div class="form-group">
               <label for="firstName">FIRST NAME:</label>
@@ -70,19 +70,14 @@
               <input type="text" id="lastName" name="lastName">
               <div class="error-message" id="errorLastName"></div>
             </div>
+          </div>
+
+          <!-- Row 2-->
+          <div class="form-row-2col">
             <div class="form-group">
               <label for="contactNumber">CONTACT NUMBER:</label>
               <input type="tel" id="contactNumber" name="contactNumber">
               <div class="error-message" id="errorContactNumber"></div>
-            </div>
-          </div>
-
-          <!-- Row 2: Address and Purpose of Use -->
-          <div class="form-row-2col">
-            <div class="form-group">
-              <label for="address">ADDRESS:</label>
-              <input type="text" id="address" name="address">
-              <div class="error-message" id="errorAddress"></div>
             </div>
             <div class="form-group">
               <label for="purpose">PURPOSE OF USE:</label>
@@ -176,6 +171,34 @@
       <button onclick="closeAlert()" class="alert-button">OK</button>
     </div>
     <div id="overlay" class="overlay"></div>
+
+  <!-- ===============================
+      MODAL CONFIRMATION (START)
+      Conference Room Request Summary Modal
+  ================================ -->
+  <div id="conferenceConfirmationModal" class="modal-overlay">
+    <div class="modal-content">
+      <h2>Request Summary</h2>
+      <p>Please review the following information before confirming your conference room reservation.</p>
+
+      <div class="modal-summary">
+        <p><strong>Purpose of Use:</strong> <span id="confSummaryPurpose"></span></p>
+        <p><strong>Date:</strong> <span id="confSummaryDate"></span></p>
+        <p><strong>Start Time:</strong> <span id="confSummaryStart"></span></p>
+        <p><strong>End Time:</strong> <span id="confSummaryEnd"></span></p>
+        <p><strong>Contact Number:</strong> <span id="confSummaryContact"></span></p>
+      </div>
+
+      <div class="modal-buttons">
+        <button type="button" class="cancel-btn" id="confCancelModal">Cancel</button>
+        <button type="button" class="confirm-btn" id="confConfirmModal">Confirm</button>
+      </div>
+    </div>
+  </div>
+  <!-- ===============================
+      MODAL CONFIRMATION (END)
+  ================================ -->
+
 
     <script src="script.js" type="module"></script>
   </body>
