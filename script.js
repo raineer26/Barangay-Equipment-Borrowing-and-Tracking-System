@@ -67,7 +67,7 @@ function showBookingFormAlert(message, type = "success") {
 // NOTE: This handler is not currently used. The active handler is in the 
 // tents-chairs-request.html section (around line 1774). Keeping this for reference.
 // =============================
-/*
+
 document.addEventListener("DOMContentLoaded", () => {
   const tentsChairsForm = document.getElementById("tentsChairsForm");
 
@@ -170,7 +170,7 @@ if (hasError) {
     tentsChairsForm.addEventListener("submit", handleTentsChairsSubmit);
   }
 });
-*/
+
 
 // =============================
 
@@ -3154,6 +3154,9 @@ async function autofillUserData(fieldMappings) {
 ===================================================== */
 
 
+/* =====================================================
+   START OF CONFERENCE ROOM REQUEST FORM SCRIPT
+===================================================== */
 
 // Check if we're on the conference room request form page
 if (window.location.pathname.endsWith('conference-request.html') || window.location.pathname.endsWith('/conference-request')) {
@@ -3547,4 +3550,97 @@ if (window.location.pathname.endsWith('admin.html')) {
     }
   });
 }
+
+// ===============================
+// MODAL CONFIRMATION HANDLER
+// ===============================
+if (window.location.pathname.endsWith('tents-chairs-request.html') || window.location.pathname.endsWith('/tents-chairs-request')) {
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById("tentsChairsForm");
+    const modal = document.getElementById("confirmationModal");
+    const cancelModal = document.getElementById("cancelModal");
+    const confirmModal = document.getElementById("confirmModal");
+
+    if (!form || !modal || !cancelModal || !confirmModal) {
+      console.warn('[Modal] Required elements not found');
+      return;
+    }
+
+    // Flag to track if user has confirmed via modal
+    let isConfirmedSubmission = false;
+
+    // Intercept the form submit event that's added in the main handler
+    form.addEventListener("submit", function(e) {
+      // If already confirmed, let it proceed to handleTentsChairsSubmit
+      if (isConfirmedSubmission) {
+        isConfirmedSubmission = false; // Reset for next time
+        console.log('[Modal] Confirmed submission, proceeding to validation');
+        return; // Let handleTentsChairsSubmit handle it
+      }
+
+      // Otherwise, prevent default and show confirmation modal first
+      e.preventDefault();
+      e.stopImmediatePropagation(); // Stop other listeners from firing
+      
+      console.log('[Modal] Showing confirmation modal');
+
+      // Get form field values for summary
+      const purpose = document.getElementById("purposeOfUse")?.value || "—";
+      const tents = document.getElementById("quantityTents")?.value || "0";
+      const chairs = document.getElementById("quantityChairs")?.value || "0";
+      const start = document.getElementById("startDate")?.value || "—";
+      const end = document.getElementById("endDate")?.value || "—";
+      const mode = document.getElementById("modeOfReceiving")?.value || "—";
+
+      // Fill modal summary
+      const summaryPurpose = document.getElementById("summaryPurpose");
+      const summaryTents = document.getElementById("summaryTents");
+      const summaryChairs = document.getElementById("summaryChairs");
+      const summaryStart = document.getElementById("summaryStart");
+      const summaryEnd = document.getElementById("summaryEnd");
+      const summaryMode = document.getElementById("summaryMode");
+
+      if (summaryPurpose) summaryPurpose.textContent = purpose;
+      if (summaryTents) summaryTents.textContent = tents;
+      if (summaryChairs) summaryChairs.textContent = chairs;
+      if (summaryStart) summaryStart.textContent = start;
+      if (summaryEnd) summaryEnd.textContent = end;
+      if (summaryMode) summaryMode.textContent = mode;
+
+      // Show modal
+      modal.style.display = "flex";
+    }, true); // Use capture phase to intercept before handleTentsChairsSubmit
+
+    // Cancel button - close modal without submitting
+    cancelModal.addEventListener("click", () => {
+      console.log('[Modal] Cancelled');
+      modal.style.display = "none";
+    });
+
+    // Confirm button - proceed with actual submission
+    confirmModal.addEventListener("click", () => {
+      console.log('[Modal] Confirmed, triggering form submission');
+      modal.style.display = "none";
+      
+      // Set flag so next submit proceeds
+      isConfirmedSubmission = true;
+      
+      // Manually trigger the submit event which will now proceed to handleTentsChairsSubmit
+      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+      form.dispatchEvent(submitEvent);
+    });
+
+    // Close modal when clicking outside
+    window.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        console.log('[Modal] Clicked outside, closing');
+        modal.style.display = "none";
+      }
+    });
+  });
+}
+
+/* =====================================================
+   END OF MODAL CONFIRMATION HANDLER
+===================================================== */
 

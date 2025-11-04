@@ -182,6 +182,33 @@
       </div>
     </footer>
     <div id="formAlertBox" class="form-alert" style="display:none;"></div>
+
+<!-- ===============================
+     MODAL CONFIRMATION (START)
+================================ -->
+<div id="confirmationModal" class="modal-overlay">
+  <div class="modal-content">
+    <h2>Request Summary</h2>
+    <p>Please review the following information before confirming your request.</p>
+
+    <div class="modal-summary">
+      <p><strong>Purpose of Use:</strong> <span id="summaryPurpose"></span></p>
+      <p><strong>Quantity of Tent/s:</strong> <span id="summaryTents"></span></p>
+      <p><strong>Quantity of Chair/s:</strong> <span id="summaryChairs"></span></p>
+      <p><strong>Start Date:</strong> <span id="summaryStart"></span></p>
+      <p><strong>End Date:</strong> <span id="summaryEnd"></span></p>
+      <p><strong>Mode of Receiving:</strong> <span id="summaryMode"></span></p>
+    </div>
+
+    <div class="modal-buttons">
+      <button type="button" class="cancel-btn" id="cancelModal">Cancel</button>
+      <button type="button" class="confirm-btn" id="confirmModal">Confirm</button>
+    </div>
+  </div>
+</div>
+<!-- ===============================
+     MODAL CONFIRMATION (END)
+================================ -->
     <script src="script.js" type="module"></script>
   </body>
 </html>
