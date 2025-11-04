@@ -1,4 +1,4 @@
-// script.js
+﻿// script.js
 // All JS scripts from HTML files are combined here.
 
 /* =====================
@@ -104,13 +104,13 @@ if (!completeAddress) {
   hasError = true;
 }
 
-// Validate chairs quantity (must be number between 20–600)
+// Validate chairs quantity (must be number between 20â€“600)
 if (!quantityChairs || quantityChairs < 20 || quantityChairs > 600) {
   document.getElementById("quantityChairs").classList.add("error");
   hasError = true;
 }
 
-// Validate tents quantity (must be number between 1–24)
+// Validate tents quantity (must be number between 1â€“24)
 if (!quantityTents || quantityTents < 1 || quantityTents > 24) {
   document.getElementById("quantityTents").classList.add("error");
   hasError = true;
@@ -298,15 +298,15 @@ loginForm?.addEventListener("submit", async (e) => {
           window.location.href = "user.html";
         } else {
           console.error("Unknown role:", userData.role);
-          alert("⚠️ Unknown role. Contact support.");
+          alert("âš ï¸ Unknown role. Contact support.");
         }
       } else {
         console.error("No user document found for uid:", user.uid);
-        alert("⚠️ No user profile found. Contact admin.");
+        alert("âš ï¸ No user profile found. Contact admin.");
       }
     } catch (firestoreError) {
       console.error("Firestore error:", firestoreError);
-      alert("⚠️ Error loading user profile. Please try again.");
+      alert("âš ï¸ Error loading user profile. Please try again.");
     }
   } catch (error) {
     clearError(errorLoginEmail);
@@ -933,7 +933,7 @@ function showConfirm(message, onConfirm, onCancel = null) {
 }
 
   /* --------------------------------------------------
-     Toast notifications (top-right) — lightweight
+     Toast notifications (top-right) â€” lightweight
      Usage: showToast(message, isSuccess = true, duration = 3000)
   -------------------------------------------------- */
   const TOAST_DURATION = 1600;
@@ -1723,22 +1723,22 @@ async function loadUserRequests(filterStatus = 'all') {
       const emptyStateHTML = filterStatus === 'all' 
         ? `
           <div class="empty-state">
-            <div class="empty-state-icon">📋</div>
+            <div class="empty-state-icon">ðŸ“‹</div>
             <h3 class="empty-state-title">No Requests Yet</h3>
             <p class="empty-state-text">You haven't made any equipment requests or room reservations yet.</p>
             <div class="empty-state-actions">
-              <a href="tents-calendar.html" class="empty-state-btn"><span>🪑</span> Browse Tents & Chairs</a>
-              <a href="conference-room.html" class="empty-state-btn"><span>🏢</span> Book Conference Room</a>
+              <a href="tents-calendar.html" class="empty-state-btn"><span>ðŸª‘</span> Browse Tents & Chairs</a>
+              <a href="conference-room.html" class="empty-state-btn"><span>ðŸ¢</span> Book Conference Room</a>
             </div>
           </div>
         `
         : `
           <div class="empty-state">
-            <div class="empty-state-icon">🔍</div>
+            <div class="empty-state-icon">ðŸ”</div>
             <h3 class="empty-state-title">No ${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Requests</h3>
             <p class="empty-state-text">You don't have any ${filterStatus} requests at the moment.</p>
             <div class="empty-state-actions">
-              <button class="empty-state-btn" onclick="document.getElementById('statusFilter').value='all'; document.getElementById('statusFilter').dispatchEvent(new Event('change'));"><span>👁️</span> View All Requests</button>
+              <button class="empty-state-btn" onclick="document.getElementById('statusFilter').value='all'; document.getElementById('statusFilter').dispatchEvent(new Event('change'));"><span>ðŸ‘ï¸</span> View All Requests</button>
             </div>
           </div>
         `;
@@ -1864,8 +1864,8 @@ function createRequestCard(request) {
   if (request.type === 'Conference Room') {
     cardTitle = 'Conference Room Reservation';
     const timeStr = request.startTime && request.endTime 
-      ? ` • ${formatTime12Hour(request.startTime)} - ${formatTime12Hour(request.endTime)}` 
-      : (request.eventTime ? ` • ${request.eventTime}` : '');
+      ? ` â€¢ ${formatTime12Hour(request.startTime)} - ${formatTime12Hour(request.endTime)}` 
+      : (request.eventTime ? ` â€¢ ${request.eventTime}` : '');
     cardSubtitle = `Date: ${dateStr}${timeStr}`;
     if (request.purpose) {
       cardSubtitle += `\nPurpose: ${request.purpose}`;
@@ -1876,8 +1876,8 @@ function createRequestCard(request) {
     // Handle conference-room type (from Firestore)
     cardTitle = 'Conference Room Reservation';
     const timeStr = request.startTime && request.endTime 
-      ? ` • ${formatTime12Hour(request.startTime)} - ${formatTime12Hour(request.endTime)}` 
-      : (request.eventTime ? ` • ${request.eventTime}` : '');
+      ? ` â€¢ ${formatTime12Hour(request.startTime)} - ${formatTime12Hour(request.endTime)}` 
+      : (request.eventTime ? ` â€¢ ${request.eventTime}` : '');
     cardSubtitle = `Date: ${dateStr}${timeStr}`;
     if (request.purpose) {
       cardSubtitle += `\nPurpose: ${request.purpose}`;
@@ -3562,7 +3562,7 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
    * Stores data for calendar marking and reservation display
    */
   async function loadAllReservationsData() {
-    console.log('🔄 Loading all reservations data from Firestore...');
+    console.log('ðŸ”„ Loading all reservations data from Firestore...');
     
     try {
   allReservationsData = [];
@@ -3639,11 +3639,11 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
         }
       });
 
-  console.log(`✅ Loaded ${allReservationsData.length} reservations`);
-  console.log(`✅ Dates with reservations:`, Array.from(datesWithReservations).sort());
+  console.log(`âœ… Loaded ${allReservationsData.length} reservations`);
+  console.log(`âœ… Dates with reservations:`, Array.from(datesWithReservations).sort());
       
     } catch (error) {
-      console.error('❌ Error loading reservations data:', error);
+      console.error('âŒ Error loading reservations data:', error);
       allReservationsData = [];
       datesWithReservations.clear();
     }
@@ -3916,7 +3916,7 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
    * Filters allReservationsData by selected date
    */
   async function loadReservations() {
-    console.log('🔄 Loading reservations for selected date:', selectedDate.toDateString());
+    console.log('ðŸ”„ Loading reservations for selected date:', selectedDate.toDateString());
     
     const reservationsList = document.getElementById('reservationsList');
     if (!reservationsList) return;
@@ -3929,7 +3929,7 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
       return reservation.dateRaw === selectedDateString;
     });
     
-    console.log(`✅ Found ${todaysReservations.length} reservations for ${selectedDateString}`);
+    console.log(`âœ… Found ${todaysReservations.length} reservations for ${selectedDateString}`);
     
     if (todaysReservations.length === 0) {
       reservationsList.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No reservations for this day.</p>';
@@ -3989,7 +3989,7 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
 
   // Load pending request counts from Firestore
   async function loadPendingCounts() {
-    console.log('🔄 Loading pending counts from Firestore...');
+    console.log('ðŸ”„ Loading pending counts from Firestore...');
     
     const conferenceRoomBadge = document.getElementById('conferenceRoomBadge');
     const tentsChairsBadge = document.getElementById('tentsChairsBadge');
@@ -4026,11 +4026,11 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
         tentsChairsBadge.style.backgroundColor = tentsCount > 0 ? '#ef4444' : '#9ca3af';
       }
 
-      console.log(`✅ Pending Conference Room Requests: ${conferenceCount}`);
-      console.log(`✅ Pending Tents & Chairs Requests: ${tentsCount}`);
+      console.log(`âœ… Pending Conference Room Requests: ${conferenceCount}`);
+      console.log(`âœ… Pending Tents & Chairs Requests: ${tentsCount}`);
 
     } catch (error) {
-      console.error('❌ Error loading pending counts:', error);
+      console.error('âŒ Error loading pending counts:', error);
       // Show error state but with graceful fallback
       if (conferenceRoomBadge) conferenceRoomBadge.textContent = '-- Pending';
       if (tentsChairsBadge) tentsChairsBadge.textContent = '-- Pending';
@@ -4413,7 +4413,7 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
 ===================================================== */
 
 // ========================================================================================================
-// 🎪 TENTS & CHAIRS ADMIN MANAGEMENT SYSTEM
+// ðŸŽª TENTS & CHAIRS ADMIN MANAGEMENT SYSTEM
 // ========================================================================================================
 /**
  * FILE: admin-tents-requests.html
@@ -4513,9 +4513,9 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
  *    - Trigger updateInventoryInUse() to recalculate inventory
  * 
  * STATUS WORKFLOW:
- * pending → approved → in-progress → completed
- *         ↘ rejected
- *         ↘ cancelled (user action only)
+ * pending â†’ approved â†’ in-progress â†’ completed
+ *         â†˜ rejected
+ *         â†˜ cancelled (user action only)
  * 
  * FUTURE IMPLEMENTATIONS:
  * 
@@ -4547,14 +4547,14 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
  * CONFERENCE ROOM ADMIN (For next developer):
  * To create admin-conference-requests.html:
  * 1. Clone this entire section (lines 3900-5600)
- * 2. Replace collection: tentsChairsBookings → conferenceRoomBookings
+ * 2. Replace collection: tentsChairsBookings â†’ conferenceRoomBookings
  * 3. Update table columns:
  *    - Remove: Chairs, Tents, Delivery Mode, Start Date, End Date
  *    - Add: Purpose, Event Date, Start Time, End Time
  * 4. Remove inventory validation (no inventory tracking for conference room)
  * 5. Keep same patterns: tabs, filters, modals, status management
- * 6. Update CSS class prefixes: .tents-* → .conference-*
- * 7. Update DOM IDs: tents* → conference*
+ * 6. Update CSS class prefixes: .tents-* â†’ .conference-*
+ * 7. Update DOM IDs: tents* â†’ conference*
  * 
  * COMMON PITFALLS TO AVOID:
  * - DON'T rename DOM IDs without updating all references
@@ -4565,8 +4565,8 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
  * - DON'T forget to remove event listeners in modal cleanup
  * 
  * DEBUGGING TIPS:
- * - Check browser console for 🎪 emoji logs (tents admin specific)
- * - All functions log their actions: ✅ success, ❌ error, ⚠️ warning
+ * - Check browser console for ðŸŽª emoji logs (tents admin specific)
+ * - All functions log their actions: âœ… success, âŒ error, âš ï¸ warning
  * - Use Chrome DevTools Network tab to monitor Firestore queries
  * - Check Firestore console if data not loading
  * - Verify inventory/equipment document exists in Firestore
@@ -4581,7 +4581,7 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
 // This code should be added at the end of script.js after line 3895
 
 if (window.location.pathname.endsWith('admin-tents-requests.html')) {
-  console.log('🎪 Admin Tents & Chairs Request Management page loaded');
+  console.log('ðŸŽª Admin Tents & Chairs Request Management page loaded');
 
   // ========================================
   // GLOBAL STATE
@@ -4617,7 +4617,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       const inventorySnap = await getDoc(inventoryDocRef);
 
       if (!inventorySnap.exists()) {
-        console.log('📦 Creating initial inventory document...');
+        console.log('ðŸ“¦ Creating initial inventory document...');
         await setDoc(inventoryDocRef, {
           availableTents: 24,
           availableChairs: 600,
@@ -4625,19 +4625,19 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
           chairsInUse: 0,
           lastUpdated: new Date().toISOString()
         });
-        console.log('✅ Inventory document created');
+        console.log('âœ… Inventory document created');
       } else {
-        console.log('📦 Inventory document already exists');
+        console.log('ðŸ“¦ Inventory document already exists');
       }
     } catch (error) {
-      console.error('❌ Error initializing inventory:', error);
+      console.error('âŒ Error initializing inventory:', error);
     }
   }
 
   // Load all tents & chairs requests from Firestore
   async function loadTentsRequests() {
     try {
-      console.log('🔄 Loading tents & chairs requests from Firestore...');
+      console.log('ðŸ”„ Loading tents & chairs requests from Firestore...');
       
       const requestsRef = collection(db, 'tentsChairsBookings');
       const q = query(requestsRef, orderBy('createdAt', 'desc'));
@@ -4655,19 +4655,19 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
         }
       });
 
-      console.log(`✅ Loaded ${allRequests.length} requests`);
+      console.log(`âœ… Loaded ${allRequests.length} requests`);
       
       // Apply filters and render
       applyFilters();
       
     } catch (error) {
-      console.error('❌ Error loading requests:', error);
+      console.error('âŒ Error loading requests:', error);
     }
   }
 
   // Apply filters based on tab, search, status, date, mode
   function applyFilters() {
-    console.log('🔍 Applying filters...');
+    console.log('ðŸ” Applying filters...');
     
     // Support both the old 'tents*' IDs and the page's actual IDs (fallbacks) so filters work reliably
     const searchTerm = (
@@ -4722,7 +4722,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       return true;
     });
 
-    console.log(`✅ Filtered to ${filteredRequests.length} requests`);
+    console.log(`âœ… Filtered to ${filteredRequests.length} requests`);
     
     // Render based on current view
     if (currentView === 'table') {
@@ -4737,7 +4737,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
 
   // Render table view
   function renderTableView() {
-    console.log('📊 Rendering table view...');
+    console.log('ðŸ“Š Rendering table view...');
     
     const container = document.getElementById('tentsContentArea');
     if (!container) return;
@@ -4856,18 +4856,18 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
     if (!confirmed) return;
 
     try {
-      console.log(`✅ Approving request ${requestId}...`);
+      console.log(`âœ… Approving request ${requestId}...`);
       
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await updateDoc(requestRef, {
         status: 'approved'
       });
 
-      console.log('✅ Request approved');
+      console.log('âœ… Request approved');
       await loadTentsRequests(); // Reload
       
     } catch (error) {
-      console.error('❌ Error approving request:', error);
+      console.error('âŒ Error approving request:', error);
       alert('Failed to approve request. Please try again.');
     }
   };
@@ -4887,7 +4887,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
     const reason = typeof reasonInput === 'string' ? reasonInput : '';
 
     try {
-      console.log(`❌ Denying request ${requestId}...`);
+      console.log(`âŒ Denying request ${requestId}...`);
       
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await updateDoc(requestRef, {
@@ -4896,11 +4896,11 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
         rejectionReason: reason || 'No reason provided'
       });
 
-      console.log('✅ Request denied');
+      console.log('âœ… Request denied');
       await loadTentsRequests(); // Reload
       
     } catch (error) {
-      console.error('❌ Error denying request:', error);
+      console.error('âŒ Error denying request:', error);
       await showConfirmModal('Error', 'Failed to deny request. Please try again.', null, true);
     }
   };
@@ -4914,7 +4914,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
     if (!confirmed) return;
 
     try {
-      console.log(`✓ Completing request ${requestId}...`);
+      console.log(`âœ“ Completing request ${requestId}...`);
       
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await updateDoc(requestRef, {
@@ -4922,11 +4922,11 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
         completedAt: new Date()
       });
 
-      console.log('✅ Request marked as completed');
+      console.log('âœ… Request marked as completed');
       await loadTentsRequests(); // Reload
       
     } catch (error) {
-      console.error('❌ Error completing request:', error);
+      console.error('âŒ Error completing request:', error);
       await showConfirmModal('Error', 'Failed to complete request. Please try again.', null, true);
     }
   };
@@ -4940,7 +4940,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
     if (!confirmed) return;
 
     try {
-      console.log(`📦 Archiving request ${requestId}...`);
+      console.log(`ðŸ“¦ Archiving request ${requestId}...`);
       
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await updateDoc(requestRef, {
@@ -4948,11 +4948,11 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
         archivedAt: new Date().toISOString()
       });
 
-      console.log('✅ Request archived');
+      console.log('âœ… Request archived');
       await loadTentsRequests(); // Reload
       
     } catch (error) {
-      console.error('❌ Error archiving request:', error);
+      console.error('âŒ Error archiving request:', error);
       await showConfirmModal('Error', 'Failed to archive request. Please try again.', null, true);
     }
   };
@@ -4961,28 +4961,28 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
   window.deleteRequest = async function(requestId) {
     const confirmed = await showConfirmModal(
       'Delete Request',
-      '⚠️ PERMANENTLY DELETE this request? This cannot be undone!'
+      'âš ï¸ PERMANENTLY DELETE this request? This cannot be undone!'
     );
     if (!confirmed) return;
 
     try {
-      console.log(`🗑️ Deleting request ${requestId}...`);
+      console.log(`ðŸ—‘ï¸ Deleting request ${requestId}...`);
       
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await deleteDoc(requestRef);
 
-      console.log('✅ Request deleted');
+      console.log('âœ… Request deleted');
       await loadTentsRequests(); // Reload
       
     } catch (error) {
-      console.error('❌ Error deleting request:', error);
+      console.error('âŒ Error deleting request:', error);
       await showConfirmModal('Error', 'Failed to delete request. Please try again.', null, true);
     }
   };
 
   // Render calendar view
   function renderCalendarView() {
-    console.log('📅 Rendering calendar view...');
+    console.log('ðŸ“… Rendering calendar view...');
     
     const container = document.getElementById('tentsContentArea');
     if (!container) return;
@@ -5098,7 +5098,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
 
   // Show modal with bookings for a specific date
   function showDateBookingsModal(date) {
-    console.log(`📅 Showing bookings for ${date}`);
+    console.log(`ðŸ“… Showing bookings for ${date}`);
     
     // Find all approved bookings that cover this date (startDate <= date <= endDate)
     const dateBookings = filteredRequests.filter(req => {
@@ -5117,7 +5117,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
     const modalBody = document.getElementById('tentsModalBody');
 
     if (!modal || !modalTitle || !modalBody) {
-      console.error('❌ Modal elements not found');
+      console.error('âŒ Modal elements not found');
       return;
     }
 
@@ -5236,16 +5236,16 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       document.getElementById('tentsInUseCount').textContent = tentsInUse;
       document.getElementById('chairsInUseCount').textContent = chairsInUse;
 
-      console.log(`📊 Stats updated - Tents: ${availableTents} avail, ${tentsInUse} in use | Chairs: ${availableChairs} avail, ${chairsInUse} in use`);
+      console.log(`ðŸ“Š Stats updated - Tents: ${availableTents} avail, ${tentsInUse} in use | Chairs: ${availableChairs} avail, ${chairsInUse} in use`);
       
     } catch (error) {
-      console.error('❌ Error updating stats:', error);
+      console.error('âŒ Error updating stats:', error);
     }
   }
 
   // Export to CSV
   window.exportToCSV = function() {
-    console.log('📥 Exporting to CSV...');
+    console.log('ðŸ“¥ Exporting to CSV...');
 
     if (filteredRequests.length === 0) {
       alert('No requests to export.');
@@ -5283,7 +5283,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
     link.click();
     document.body.removeChild(link);
 
-    console.log('✅ CSV export complete');
+    console.log('âœ… CSV export complete');
   };
 
   // Event listeners for tabs
@@ -5295,7 +5295,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       if (label.includes('archives')) currentTab = 'archives';
       else if (label.includes('history')) currentTab = 'history';
       else currentTab = 'all';
-      console.log(`🔄 Switched to ${currentTab} tab`);
+      console.log(`ðŸ”„ Switched to ${currentTab} tab`);
       applyFilters();
     });
   });
@@ -5307,7 +5307,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
       btn.classList.add('active');
       
       currentView = btn.id === 'tableViewBtn' ? 'table' : 'calendar';
-      console.log(`🔄 Switched to ${currentView} view`);
+      console.log(`ðŸ”„ Switched to ${currentView} view`);
       applyFilters();
     });
   });
@@ -5364,7 +5364,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
 if (window.location.pathname.endsWith('admin-tents-requests.html') || 
     window.location.pathname.endsWith('/admin-tents-requests')) {
   
-  console.log('🎪 Tents & Chairs Admin Page loaded');
+  console.log('ðŸŽª Tents & Chairs Admin Page loaded');
 
   // ========================================
   // STATE VARIABLES
@@ -5393,14 +5393,14 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Load inventory stats from Firestore
    */
   async function loadInventoryStats() {
-    console.log('📊 Loading inventory stats...');
+    console.log('ðŸ“Š Loading inventory stats...');
     try {
       const inventoryRef = doc(db, 'inventory', 'equipment');
       const inventorySnap = await getDoc(inventoryRef);
 
       if (inventorySnap.exists()) {
         const data = inventorySnap.data();
-        console.log('✅ Inventory data loaded:', data);
+        console.log('âœ… Inventory data loaded:', data);
 
         // Update stat cards
         document.getElementById('availableTentsCount').textContent = data.availableTents || 0;
@@ -5408,11 +5408,11 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         document.getElementById('tentsInUseCount').textContent = data.tentsInUse || 0;
         document.getElementById('chairsInUseCount').textContent = data.chairsInUse || 0;
       } else {
-        console.warn('⚠️ No inventory document found. Creating default...');
+        console.warn('âš ï¸ No inventory document found. Creating default...');
         await createDefaultInventory();
       }
     } catch (error) {
-      console.error('❌ Error loading inventory:', error);
+      console.error('âŒ Error loading inventory:', error);
       showToast('Failed to load inventory stats', false);
     }
   }
@@ -5421,7 +5421,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Create default inventory document
    */
   async function createDefaultInventory() {
-    console.log('🔧 Creating default inventory document...');
+    console.log('ðŸ”§ Creating default inventory document...');
     try {
       const inventoryRef = doc(db, 'inventory', 'equipment');
       const defaultData = {
@@ -5435,7 +5435,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       };
 
       await setDoc(inventoryRef, defaultData);
-      console.log('✅ Default inventory created');
+      console.log('âœ… Default inventory created');
       
       // Update UI
       document.getElementById('availableTentsCount').textContent = defaultData.availableTents;
@@ -5443,7 +5443,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       document.getElementById('tentsInUseCount').textContent = defaultData.tentsInUse;
       document.getElementById('chairsInUseCount').textContent = defaultData.chairsInUse;
     } catch (error) {
-      console.error('❌ Error creating default inventory:', error);
+      console.error('âŒ Error creating default inventory:', error);
     }
   }
 
@@ -5451,7 +5451,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Load all tents & chairs requests from Firestore
    */
   async function loadAllRequests() {
-    console.log('📦 Loading all tents & chairs requests...');
+    console.log('ðŸ“¦ Loading all tents & chairs requests...');
     try {
       const bookingsRef = collection(db, 'tentsChairsBookings');
       const q = query(bookingsRef, orderBy('createdAt', 'desc'));
@@ -5465,10 +5465,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         });
       });
 
-      console.log(`✅ Loaded ${allRequests.length} requests`);
+      console.log(`âœ… Loaded ${allRequests.length} requests`);
       renderContent();
     } catch (error) {
-      console.error('❌ Error loading requests:', error);
+      console.error('âŒ Error loading requests:', error);
       showToast('Failed to load requests', false);
     }
   }
@@ -5477,7 +5477,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Update inventory "In Use" counts based on approved requests
    */
   async function updateInventoryInUse() {
-    console.log('🔄 Updating inventory "In Use" counts...');
+    console.log('ðŸ”„ Updating inventory "In Use" counts...');
     try {
       // Get all approved requests
       const approvedRequests = allRequests.filter(req => req.status === 'approved');
@@ -5491,7 +5491,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         chairsInUse += parseInt(req.quantityChairs || 0);
       });
 
-      console.log(`📊 In Use - Tents: ${tentsInUse}, Chairs: ${chairsInUse}`);
+      console.log(`ðŸ“Š In Use - Tents: ${tentsInUse}, Chairs: ${chairsInUse}`);
 
       // Update Firestore
       const inventoryRef = doc(db, 'inventory', 'equipment');
@@ -5510,13 +5510,13 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           lastUpdated: new Date()
         });
 
-        console.log('✅ Inventory updated successfully');
+        console.log('âœ… Inventory updated successfully');
         
         // Reload stats to update UI
         await loadInventoryStats();
       }
     } catch (error) {
-      console.error('❌ Error updating inventory:', error);
+      console.error('âŒ Error updating inventory:', error);
     }
   }
 
@@ -5528,7 +5528,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Get filtered and sorted requests based on current tab and filters
    */
   function getFilteredRequests() {
-    console.log('🔍 Filtering requests...');
+    console.log('ðŸ” Filtering requests...');
     
     let filtered = [...allRequests];
 
@@ -5607,7 +5607,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       }
     });
 
-    console.log(`✅ Filtered to ${filtered.length} requests`);
+    console.log(`âœ… Filtered to ${filtered.length} requests`);
     return filtered;
   }
 
@@ -5657,7 +5657,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Main content rendering function
    */
   function renderContent() {
-    console.log(`🎨 Rendering ${currentView} view for ${currentTab} tab`);
+    console.log(`ðŸŽ¨ Rendering ${currentView} view for ${currentTab} tab`);
     
     if (currentView === 'table') {
       renderTableView();
@@ -5771,7 +5771,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     else if (req.status === 'rejected' && req.rejectedAt) ts = req.rejectedAt;
     else if (req.status === 'cancelled' && req.cancelledAt) ts = req.cancelledAt;
 
-    if (!ts) return '<span class="text-muted">—</span>';
+    if (!ts) return '<span class="text-muted">â€”</span>';
 
     const d = formatTimestamp(ts);
     return `${d.date}<br><em style="font-size:11px;color:#6b7280;">${d.time}</em>`;
@@ -5781,7 +5781,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Render archived timestamp for archived rows
    */
   function renderArchivedOn(req) {
-    if (!req.archivedAt) return '<span class="text-muted">—</span>';
+    if (!req.archivedAt) return '<span class="text-muted">â€”</span>';
     const d = formatTimestamp(req.archivedAt);
     return `${d.date}<br><em style="font-size:11px;color:#6b7280;">${d.time}</em>`;
   }
@@ -5791,10 +5791,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    */
   function renderRemarks(req) {
     const reason = req.rejectionReason || req.remarks || '';
-    if (!reason) return '<span class="text-muted">—</span>';
+    if (!reason) return '<span class="text-muted">â€”</span>';
     // Prepare display and encoded payloads for safe attributes
     const displayRaw = (reason || '').replace(/\n/g, ' ');
-    const displayShort = displayRaw.length > 140 ? displayRaw.slice(0, 140) + '…' : displayRaw;
+    const displayShort = displayRaw.length > 140 ? displayRaw.slice(0, 140) + 'â€¦' : displayRaw;
     const encFull = encodeURIComponent(reason);
     const encTrunc = encodeURIComponent(displayShort);
     // Use data attributes and an inline click handler that calls toggleRemark(this)
@@ -5915,7 +5915,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         <button class="tents-btn-unarchive" onclick="window.tentsAdmin.handleUnarchive('${req.id}')">Unarchive</button>
       `;
     }
-    return '<span class="text-muted">—</span>';
+    return '<span class="text-muted">â€”</span>';
   }
 
   /**
@@ -5929,14 +5929,14 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         <button class="tents-btn-collect" onclick="window.tentsAdmin.handleCollect('${req.id}')">Collect</button>
       `;
     }
-    return '<span class="text-muted">—</span>';
+    return '<span class="text-muted">â€”</span>';
   }
 
   /**
    * Render calendar view with approved bookings
    */
   function renderCalendarView() {
-    console.log('📅 Rendering calendar view...');
+    console.log('ðŸ“… Rendering calendar view...');
     
     const container = document.getElementById('tentsContentArea');
     if (!container) return;
@@ -6101,7 +6101,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Show modal with bookings for a specific date
    */
   function showDateBookingsModal(date) {
-    console.log(`📅 Showing bookings for ${date}`);
+    console.log(`ðŸ“… Showing bookings for ${date}`);
     
     // Find all approved bookings that cover this date (startDate <= date <= endDate)
     const dateBookings = allRequests.filter(req => {
@@ -6120,7 +6120,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     const modalBody = document.getElementById('tentsModalBody');
 
     if (!modal || !modalTitle || !modalBody) {
-      console.error('❌ Modal elements not found');
+      console.error('âŒ Modal elements not found');
       return;
     }
 
@@ -6257,12 +6257,12 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * 3. Re-enable before committing
    * 
    * If you need to adjust default inventory:
-   * 1. Go to Firestore Console → inventory → equipment document
+   * 1. Go to Firestore Console â†’ inventory â†’ equipment document
    * 2. Manually update availableTents and availableChairs
    * 3. In future: Create admin-manage-inventory.html for this
    */
   async function handleApprove(requestId) {
-    console.log(`✅ Approving request: ${requestId}`);
+    console.log(`âœ… Approving request: ${requestId}`);
     
     try {
       // Step 1: Get the request data to show inventory changes
@@ -6310,7 +6310,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           true // isAlert mode - only shows OK button
         );
         
-        console.warn('⚠️ Approval blocked: Insufficient inventory', {
+        console.warn('âš ï¸ Approval blocked: Insufficient inventory', {
           requestedTents,
           currentTents,
           requestedChairs,
@@ -6340,14 +6340,14 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         approvedAt: new Date()
       });
 
-      console.log('✅ Request approved successfully');
+      console.log('âœ… Request approved successfully');
       showToast('Request approved successfully', true);
       
       // Reload data
       await loadAllRequests();
       await updateInventoryInUse();
     } catch (error) {
-      console.error('❌ Error approving request:', error);
+      console.error('âŒ Error approving request:', error);
       showToast('Failed to approve request', false);
     }
   }
@@ -6356,7 +6356,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Handle deny/reject action
    */
   async function handleDeny(requestId) {
-    console.log(`❌ Denying request: ${requestId}`);
+    console.log(`âŒ Denying request: ${requestId}`);
     // Use unified modal to both confirm and collect optional rejection reason
     const reasonInput = await showConfirmModal(
       'Reject Request',
@@ -6379,13 +6379,13 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         rejectionReason: reason || 'No reason provided'
       });
 
-      console.log('✅ Request rejected successfully');
+      console.log('âœ… Request rejected successfully');
       showToast('Request rejected', true);
       
       // Reload data
       await loadAllRequests();
     } catch (error) {
-      console.error('❌ Error rejecting request:', error);
+      console.error('âŒ Error rejecting request:', error);
       showToast('Failed to reject request', false);
     }
   }
@@ -6394,7 +6394,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Handle complete action
    */
   async function handleComplete(requestId) {
-    console.log(`✔️ Completing request: ${requestId}`);
+    console.log(`âœ”ï¸ Completing request: ${requestId}`);
     
     const confirmed = await showConfirmModal(
       'Mark as Completed',
@@ -6412,14 +6412,14 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         completedAt: new Date()
       });
 
-      console.log('✅ Request completed successfully');
+      console.log('âœ… Request completed successfully');
       showToast('Request marked as completed', true);
       
       // Reload data
       await loadAllRequests();
       await updateInventoryInUse();
     } catch (error) {
-      console.error('❌ Error completing request:', error);
+      console.error('âŒ Error completing request:', error);
       showToast('Failed to complete request', false);
     }
   }
@@ -6428,7 +6428,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Handle archive action
    */
   async function handleArchive(requestId) {
-    console.log(`📦 Archiving request: ${requestId}`);
+    console.log(`ðŸ“¦ Archiving request: ${requestId}`);
     const confirmed = await showConfirmModal(
       'Archive Request',
       'Archive this request? This will hide it from the history view.'
@@ -6443,13 +6443,13 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         archivedAt: new Date()
       });
 
-      console.log('✅ Request archived successfully');
+      console.log('âœ… Request archived successfully');
       showToast('Request archived', true);
       
       // For now, just reload. In future, filter out archived requests
       await loadAllRequests();
     } catch (error) {
-      console.error('❌ Error archiving request:', error);
+      console.error('âŒ Error archiving request:', error);
       showToast('Failed to archive request', false);
     }
   }
@@ -6458,7 +6458,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Handle unarchive (restore from archives back to history)
    */
   async function handleUnarchive(requestId) {
-    console.log(`↩️ Unarchiving request: ${requestId}`);
+    console.log(`â†©ï¸ Unarchiving request: ${requestId}`);
     const confirmed = await showConfirmModal(
       'Restore Request',
       'Restore this request from Archives back to History?'
@@ -6472,11 +6472,11 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         archivedAt: null
       });
 
-      console.log('✅ Request unarchived successfully');
+      console.log('âœ… Request unarchived successfully');
       showToast('Request restored to History', true);
       await loadAllRequests();
     } catch (error) {
-      console.error('❌ Error unarchiving request:', error);
+      console.error('âŒ Error unarchiving request:', error);
       showToast('Failed to restore request', false);
     }
   }
@@ -6485,7 +6485,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Handle delete action
    */
   async function handleDelete(requestId) {
-    console.log(`🗑️ Deleting request: ${requestId}`);
+    console.log(`ðŸ—‘ï¸ Deleting request: ${requestId}`);
     const confirmed = await showConfirmModal(
       'Delete Request',
       'Are you sure you want to permanently delete this request? This action cannot be undone.'
@@ -6496,13 +6496,13 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await deleteDoc(requestRef);
 
-      console.log('✅ Request deleted successfully');
+      console.log('âœ… Request deleted successfully');
       showToast('Request deleted permanently', true);
       
       // Reload data
       await loadAllRequests();
     } catch (error) {
-      console.error('❌ Error deleting request:', error);
+      console.error('âŒ Error deleting request:', error);
       showToast('Failed to delete request', false);
     }
   }
@@ -6511,7 +6511,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Handle "Time's Up" notification
    */
   async function handleTimesUp(requestId) {
-    console.log(`⏰ Sending "Time\'s Up" notification for: ${requestId}`);
+    console.log(`â° Sending "Time\'s Up" notification for: ${requestId}`);
     
     const confirmed = await showConfirmModal(
       'Send Time\'s Up Notification',
@@ -6526,14 +6526,14 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     showToast('Time\'s Up notification feature will be implemented soon', false);
     
     // For now, just log the action
-    console.log(`📧 Would send "Time's Up" notification to user for request ${requestId}`);
+    console.log(`ðŸ“§ Would send "Time's Up" notification to user for request ${requestId}`);
   }
 
   /**
    * Handle "Collect" notification
    */
   async function handleCollect(requestId) {
-    console.log(`📦 Sending "Collect" notification for: ${requestId}`);
+    console.log(`ðŸ“¦ Sending "Collect" notification for: ${requestId}`);
     
     const confirmed = await showConfirmModal(
       'Send Collect Notification',
@@ -6548,7 +6548,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     showToast('Collect notification feature will be implemented soon', false);
     
     // For now, just log the action
-    console.log(`📧 Would send "Collect" notification to user for request ${requestId}`);
+    console.log(`ðŸ“§ Would send "Collect" notification to user for request ${requestId}`);
   }
 
   // ========================================
@@ -6562,7 +6562,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * 
    * SPECIAL FEATURE: Inventory Preview
    * - When approving requests, shows before/after inventory counts
-   * - Example: "Tents: 10 → 8" and "Chairs: 250 → 200"
+   * - Example: "Tents: 10 â†’ 8" and "Chairs: 250 â†’ 200"
    * - Helps admin visualize impact before confirming
    * 
    * USAGE EXAMPLES:
@@ -6686,7 +6686,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
               <span class="tents-inventory-label">Tents:</span>
               <div class="tents-inventory-change">
                 <span class="tents-inventory-old">${inventoryChanges.tents.old}</span>
-                <span class="tents-inventory-arrow">→</span>
+                <span class="tents-inventory-arrow">â†’</span>
                 <span class="tents-inventory-new">${inventoryChanges.tents.new}</span>
               </div>
             </div>
@@ -6699,7 +6699,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
               <span class="tents-inventory-label">Chairs:</span>
               <div class="tents-inventory-change">
                 <span class="tents-inventory-old">${inventoryChanges.chairs.old}</span>
-                <span class="tents-inventory-arrow">→</span>
+                <span class="tents-inventory-arrow">â†’</span>
                 <span class="tents-inventory-new">${inventoryChanges.chairs.new}</span>
               </div>
             </div>
@@ -6757,7 +6757,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Switch between All Requests and History tabs
    */
   function switchTab(tabName) {
-    console.log(`🔄 Switching to ${tabName} tab`);
+    console.log(`ðŸ”„ Switching to ${tabName} tab`);
     currentTab = tabName;
 
   // Update tab buttons
@@ -6817,7 +6817,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Switch between table and calendar views
    */
   function switchView(viewName) {
-    console.log(`🔄 Switching to ${viewName} view`);
+    console.log(`ðŸ”„ Switching to ${viewName} view`);
     currentView = viewName;
 
     // Update view buttons
@@ -6844,7 +6844,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Export current filtered data to CSV
    */
   function exportToCSV() {
-    console.log('💾 Exporting to CSV...');
+    console.log('ðŸ’¾ Exporting to CSV...');
     
     const requests = getFilteredRequests();
     if (requests.length === 0) {
@@ -6885,7 +6885,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
 
-    console.log('✅ CSV exported successfully');
+    console.log('âœ… CSV exported successfully');
     showToast('CSV exported successfully', true);
   }
 
@@ -6936,7 +6936,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Setup all event listeners
    */
   function setupEventListeners() {
-    console.log('🔧 Setting up event listeners...');
+    console.log('ðŸ”§ Setting up event listeners...');
 
     // Tab switching
     document.getElementById('allRequestsTab')?.addEventListener('click', () => switchTab('all'));
@@ -6957,7 +6957,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     // Setup internal booking modal
     setupInternalBookingModal();
 
-    console.log('✅ Event listeners set up');
+    console.log('âœ… Event listeners set up');
   }
 
   // ========================================
@@ -7255,17 +7255,17 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Initialize the page
    */
   async function initPage() {
-    console.log('🚀 Initializing Tents & Chairs Admin page...');
+    console.log('ðŸš€ Initializing Tents & Chairs Admin page...');
     
     // Check authentication
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        console.warn('⚠️ No authenticated user, redirecting to login');
+        console.warn('âš ï¸ No authenticated user, redirecting to login');
         window.location.href = 'index.html';
         return;
       }
 
-      console.log('✅ User authenticated:', user.email);
+      console.log('âœ… User authenticated:', user.email);
 
       // Setup event listeners
       setupEventListeners();
@@ -7274,7 +7274,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       await loadInventoryStats();
       await loadAllRequests();
 
-      console.log('✅ Page initialized successfully');
+      console.log('âœ… Page initialized successfully');
     });
   }
 
@@ -7282,3 +7282,323 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   initPage();
 }
 
+
+// ========================================
+// ADMIN MANAGE INVENTORY PAGE
+// ========================================
+if (window.location.pathname.endsWith('admin-manage-inventory.html')) {
+  console.log('âœ… Initializing Manage Inventory page...');
+
+  // DOM Elements
+  const editBtn = document.getElementById('editInventory');
+  const saveBtn = document.getElementById('saveInventory');
+  const confirmModal = document.getElementById('saveConfirmModal');
+  const confirmYes = document.getElementById('confirmSaveYes');
+  const confirmNo = document.getElementById('confirmSaveNo');
+
+  const fields = {
+    tents: {
+      total: document.getElementById('tents-total'),
+      available: document.getElementById('tents-available'),
+      inuse: document.getElementById('tents-inuse')
+    },
+    chairs: {
+      total: document.getElementById('chairs-total'),
+      available: document.getElementById('chairs-available'),
+      inuse: document.getElementById('chairs-inuse')
+    }
+  };
+
+  // Track original values for change detection
+  let originalValues = {
+    tents: { total: 0, inuse: 0 },
+    chairs: { total: 0, inuse: 0 }
+  };
+
+  // Load Real-time Data
+  function loadInventoryRealtime() {
+    onSnapshot(doc(db, 'inventory', 'equipment'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        
+        const tentsTotal = (data.availableTents || 0) + (data.tentsInUse || 0);
+        const chairsTotal = (data.availableChairs || 0) + (data.chairsInUse || 0);
+        
+        originalValues = {
+          tents: { 
+            total: tentsTotal,
+            inuse: data.tentsInUse || 0
+          },
+          chairs: {
+            total: chairsTotal,
+            inuse: data.chairsInUse || 0
+          }
+        };
+
+        fields.tents.available.value = data.availableTents || 0;
+        fields.tents.inuse.value = data.tentsInUse || 0;
+        fields.tents.total.value = tentsTotal;
+        
+        fields.chairs.available.value = data.availableChairs || 0;
+        fields.chairs.inuse.value = data.chairsInUse || 0;
+        fields.chairs.total.value = chairsTotal;
+        
+        console.log('ðŸ“¦ Inventory synced in real-time:', data);
+      } else {
+        console.log('âš ï¸ No inventory document found, initializing default values.');
+        initializeInventory();
+      }
+    });
+  }
+
+  // Initialize Default Data
+  async function initializeInventory() {
+    const inventoryRef = doc(db, 'inventory', 'equipment');
+    await setDoc(inventoryRef, {
+      availableTents: 24,
+      tentsInUse: 0,
+      availableChairs: 600,
+      chairsInUse: 0,
+      lastUpdated: new Date()
+    });
+  }
+
+  // Enable Editing
+  if (editBtn) {
+    editBtn.addEventListener('click', () => {
+      Object.values(fields).forEach(item => {
+        item.total.disabled = false;
+        item.inuse.disabled = false;
+      });
+      saveBtn.disabled = false;
+      editBtn.disabled = true;
+    });
+  }
+
+  // Auto Update Available Values
+  function updateAvailable(itemType) {
+    const total = Number(fields[itemType].total.value) || 0;
+    let inUse = Number(fields[itemType].inuse.value) || 0;
+
+    let errorElement = document.getElementById(`${itemType}-error`);
+    if (!errorElement) {
+      errorElement = document.createElement('div');
+      errorElement.id = `${itemType}-error`;
+      errorElement.style.color = 'red';
+      errorElement.style.fontSize = '12px';
+      errorElement.style.marginTop = '4px';
+      fields[itemType].inuse.parentNode.appendChild(errorElement);
+    }
+
+    if (inUse < 0) {
+      inUse = 0;
+      fields[itemType].inuse.value = '0';
+      errorElement.textContent = 'Error: In Use cannot be negative';
+      fields[itemType].inuse.style.borderColor = 'red';
+      saveBtn.disabled = true;
+      return;
+    }
+
+    const available = total - inUse;
+
+    if (available < 0) {
+      fields[itemType].available.style.color = 'red';
+      fields[itemType].inuse.style.borderColor = 'red';
+      errorElement.textContent = `Error: In Use (${inUse}) cannot exceed Total (${total})`;
+      saveBtn.disabled = true;
+      fields[itemType].available.value = '0';
+    } else {
+      fields[itemType].available.style.color = '';
+      fields[itemType].inuse.style.borderColor = '';
+      errorElement.textContent = '';
+      fields[itemType].available.value = available;
+      
+      const otherType = itemType === 'tents' ? 'chairs' : 'tents';
+      const otherTotal = Number(fields[otherType].total.value) || 0;
+      const otherInUse = Number(fields[otherType].inuse.value) || 0;
+      
+      if (otherTotal - otherInUse >= 0 && otherInUse >= 0) {
+        saveBtn.disabled = false;
+      }
+    }
+  }
+
+  // Add input listeners
+  if (fields.tents && fields.tents.inuse) {
+    fields.tents.inuse.addEventListener('input', () => updateAvailable('tents'));
+    fields.tents.total.addEventListener('input', () => updateAvailable('tents'));
+  }
+  
+  if (fields.chairs && fields.chairs.inuse) {
+    fields.chairs.inuse.addEventListener('input', () => updateAvailable('chairs'));
+    fields.chairs.total.addEventListener('input', () => updateAvailable('chairs'));
+  }
+
+  // Save button click handler
+  if (saveBtn) {
+    saveBtn.addEventListener('click', () => {
+      const tentsTotal = Number(fields.tents.total.value);
+      const tentsInuse = Number(fields.tents.inuse.value);
+      const chairsTotal = Number(fields.chairs.total.value);
+      const chairsInuse = Number(fields.chairs.inuse.value);
+
+      const hasChanges = 
+        tentsTotal !== originalValues.tents.total ||
+        tentsInuse !== originalValues.tents.inuse ||
+        chairsTotal !== originalValues.chairs.total ||
+        chairsInuse !== originalValues.chairs.inuse;
+
+      let confirmMessage = document.querySelector('.confirm-message');
+      if (!confirmMessage) {
+        confirmMessage = document.createElement('div');
+        confirmMessage.className = 'confirm-message';
+        const modalContent = confirmModal.querySelector('.modal-content') || confirmModal;
+        modalContent.appendChild(confirmMessage);
+      }
+      
+      confirmMessage.style.padding = '30px 20px';
+      confirmMessage.style.maxHeight = '80vh';
+      confirmMessage.style.overflowY = 'auto';
+      confirmMessage.style.display = 'flex';
+      confirmMessage.style.flexDirection = 'column';
+      confirmMessage.style.alignItems = 'center';
+      confirmMessage.style.justifyContent = 'center';
+      confirmMessage.style.minHeight = '300px';
+      
+      if (!hasChanges) {
+        confirmMessage.innerHTML = `
+          <div style="text-align: center; padding: 40px;">
+            <h3 style="margin: 0 0 20px 0; color: #1a237e; font-size: 24px; font-weight: 600;">No Changes Detected</h3>
+            <p style="color: #666; font-size: 16px; margin: 0;">No modifications have been made to the inventory values.</p>
+            <p style="color: #666; font-size: 16px; margin: 10px 0 0 0;">Edit the values first before saving.</p>
+          </div>
+        `;
+        confirmYes.disabled = true;
+        confirmYes.style.opacity = '0.5';
+        confirmYes.style.cursor = 'not-allowed';
+        confirmModal.style.display = 'flex';
+        return;
+      }
+
+      confirmYes.disabled = false;
+      confirmYes.style.opacity = '';
+      confirmYes.style.cursor = '';
+      
+      confirmMessage.innerHTML = `
+        <h3 style="margin: 0 0 30px 0; color: #1a237e; font-size: 28px; text-align: center; font-weight: 600; text-transform: uppercase;">Review Your Changes</h3>
+        <div class="changes-list" style="display: flex; gap: 30px; justify-content: center; width: 100%; max-width: 700px;">
+          <div class="change-section" style="background: #f5f5f5; padding: 24px; border-radius: 8px; flex: 1; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+            <h4 style="margin: 0 0 20px 0; color: #303f9f; font-size: 22px; text-align: center;">Tents</h4>
+            <div style="display: grid; gap: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 18px;">Total:</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-size: 18px;">${originalValues.tents.total}</span>
+                  <span style="color: #666; font-size: 20px;">â†’</span>
+                  <strong style="color: ${tentsTotal !== originalValues.tents.total ? (tentsTotal > originalValues.tents.total ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsTotal}</strong>
+                </div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 18px;">In Use:</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-size: 18px;">${originalValues.tents.inuse}</span>
+                  <span style="color: #666; font-size: 20px;">â†’</span>
+                  <strong style="color: ${tentsInuse !== originalValues.tents.inuse ? (tentsInuse > originalValues.tents.inuse ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsInuse}</strong>
+                </div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e0e0e0; padding-top: 16px; margin-top: 8px;">
+                <span style="font-weight: 600; font-size: 18px;">Available:</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-size: 18px;">${originalValues.tents.total - originalValues.tents.inuse}</span>
+                  <span style="color: #666; font-size: 20px;">â†’</span>
+                  <strong style="color: ${(tentsTotal - tentsInuse) !== (originalValues.tents.total - originalValues.tents.inuse) ? ((tentsTotal - tentsInuse) > (originalValues.tents.total - originalValues.tents.inuse) ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsTotal - tentsInuse}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="change-section" style="background: #f5f5f5; padding: 24px; border-radius: 8px; flex: 1; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+            <h4 style="margin: 0 0 20px 0; color: #303f9f; font-size: 22px; text-align: center;">Chairs</h4>
+            <div style="display: grid; gap: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 18px;">Total:</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-size: 18px;">${originalValues.chairs.total}</span>
+                  <span style="color: #666; font-size: 20px;">â†’</span>
+                  <strong style="color: ${chairsTotal !== originalValues.chairs.total ? (chairsTotal > originalValues.chairs.total ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${chairsTotal}</strong>
+                </div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 18px;">In Use:</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-size: 18px;">${originalValues.chairs.inuse}</span>
+                  <span style="color: #666; font-size: 20px;">â†’</span>
+                  <strong style="color: ${chairsInuse !== originalValues.chairs.inuse ? (chairsInuse > originalValues.chairs.inuse ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${chairsInuse}</strong>
+                </div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e0e0e0; padding-top: 16px; margin-top: 8px;">
+                <span style="font-weight: 600; font-size: 18px;">Available:</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-size: 18px;">${originalValues.chairs.total - originalValues.chairs.inuse}</span>
+                  <span style="color: #666; font-size: 20px;">â†’</span>
+                  <strong style="color: ${(chairsTotal - chairsInuse) !== (originalValues.chairs.total - originalValues.chairs.inuse) ? ((chairsTotal - chairsInuse) > (originalValues.chairs.total - originalValues.chairs.inuse) ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${chairsTotal - chairsInuse}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      confirmModal.style.display = 'flex';
+    });
+  }
+
+  // No button click handler
+  if (confirmNo) {
+    confirmNo.addEventListener('click', () => {
+      confirmModal.style.display = 'none';
+    });
+  }
+
+  // Yes button click handler
+  if (confirmYes) {
+    confirmYes.addEventListener('click', async () => {
+      const inventoryRef = doc(db, 'inventory', 'equipment');
+
+      const tentsTotal = Number(fields.tents.total.value);
+      const tentsInuse = Number(fields.tents.inuse.value);
+      const chairsTotal = Number(fields.chairs.total.value);
+      const chairsInuse = Number(fields.chairs.inuse.value);
+
+      const updatedData = {
+        availableTents: tentsTotal - tentsInuse,
+        tentsInUse: tentsInuse,
+        availableChairs: chairsTotal - chairsInuse,
+        chairsInUse: chairsInuse,
+        lastUpdated: new Date()
+      };
+
+      try {
+        await setDoc(inventoryRef, updatedData, { merge: true });
+        confirmModal.style.display = 'none';
+        saveBtn.disabled = true;
+        editBtn.disabled = false;
+
+        Object.values(fields).forEach(item => {
+          item.total.disabled = true;
+          item.inuse.disabled = true;
+        });
+
+        showToast('âœ… Inventory updated successfully!', true);
+        console.log('âœ… Inventory updated successfully:', updatedData);
+      } catch (error) {
+        showToast('âŒ Error saving changes: ' + error.message, false);
+        console.error('âŒ Error updating inventory:', error);
+      }
+    });
+  }
+
+  // Start loading inventory
+  loadInventoryRealtime();
+  
+  console.log('âœ… Inventory page initialized');
+}
