@@ -67,7 +67,7 @@ function showBookingFormAlert(message, type = "success") {
 // NOTE: This handler is not currently used. The active handler is in the 
 // tents-chairs-request.html section (around line 1774). Keeping this for reference.
 // =============================
-
+/*
 document.addEventListener("DOMContentLoaded", () => {
   const tentsChairsForm = document.getElementById("tentsChairsForm");
 
@@ -170,7 +170,7 @@ if (hasError) {
     tentsChairsForm.addEventListener("submit", handleTentsChairsSubmit);
   }
 });
-
+*/
 
 // =============================
 
@@ -2710,45 +2710,39 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
 ===================================================== */
 
 /* =====================================================
-   TENTS & CHAIRS REQUEST FORM SCRIPT
-   Add this section to your script.js file
+   FINAL FIXED: TENTS & CHAIRS REQUEST FORM SCRIPT
+   Flow: Validation → Summary Modal → Firebase Submit
 ===================================================== */
 
-// Check if we're on the tents & chairs request form page
 if (window.location.pathname.endsWith('tents-chairs-request.html') || window.location.pathname.endsWith('/tents-chairs-request')) {
-  
+
   document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('tentsChairsForm');
-    
-    // Get URL parameters (if redirected from calendar with a date)
+    const summaryModal = document.getElementById('confirmationModal');
+    const confirmBtn = document.getElementById('confirmModal');
+    const cancelBtn = document.getElementById('cancelModal');
+    if (!form) return;
+
+    // Preselect date (from calendar)
     const urlParams = new URLSearchParams(window.location.search);
     const preselectedDate = urlParams.get('date');
-    
-    if (preselectedDate) {
-      document.getElementById('startDate').value = preselectedDate;
-    }
+    if (preselectedDate) document.getElementById('startDate').value = preselectedDate;
 
-    // Set minimum date to today
+    // Setup date limits
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('startDate').min = today;
     document.getElementById('endDate').min = today;
 
-    // Update end date minimum when start date changes
     document.getElementById('startDate').addEventListener('change', function() {
-      const startDate = this.value;
-      document.getElementById('endDate').min = startDate;
-      
-      // Clear end date if it's before the new start date
-      const endDate = document.getElementById('endDate').value;
-      if (endDate && endDate < startDate) {
+      const start = this.value;
+      document.getElementById('endDate').min = start;
+      if (document.getElementById('endDate').value < start)
         document.getElementById('endDate').value = '';
-      }
     });
 
-    // Autofill user data when auth state is ready
+    // Autofill user data when logged in
     onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Autofill name, contact, and complete address fields
         autofillUserData({
           'firstName': 'firstName',
           'lastName': 'lastName',
@@ -2758,341 +2752,151 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       }
     });
 
-    // Clear error on input
-    const inputs = form.querySelectorAll('input, select');
-    inputs.forEach(input => {
-      input.addEventListener('input', function() {
-        clearFieldError(this);
-      });
-    });
+    // Remove errors on input
+    form.querySelectorAll('input, select').forEach(input =>
+      input.addEventListener('input', () => clearFieldError(input))
+    );
 
-    // Form submission
-    form.addEventListener('submit', handleTentsChairsSubmit);
+    // Submit form
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      clearAllErrors();
+      const data = getFormValues();
+      if (!validateForm(data)) return;
+
+      // Populate modal data and show confirmation
+      populateSummaryModal(data);
+      summaryModal.style.display = 'flex';
+
+      cancelBtn.onclick = () => (summaryModal.style.display = 'none');
+      confirmBtn.onclick = async () => {
+        summaryModal.style.display = 'none';
+        await submitTentsChairsRequest(data);
+      };
+    });
   });
 
-  async function handleTentsChairsSubmit(e) {
-    e.preventDefault();
+  // ========== HELPERS ==========
 
-    // Get form values
-    const firstName = document.getElementById('firstName').value.trim();
-    const lastName = document.getElementById('lastName').value.trim();
-    const contactNumber = document.getElementById('contactNumber').value.trim();
-    const completeAddress = document.getElementById('completeAddress').value.trim();
-    const purposeOfUse = document.getElementById('purposeOfUse')?.value.trim() || '';
-    const quantityChairsRaw = document.getElementById('quantityChairs').value;
-    const quantityTentsRaw = document.getElementById('quantityTents').value;
-    const quantityChairs = quantityChairsRaw === '' ? 0 : parseInt(quantityChairsRaw, 10);
-    const quantityTents = quantityTentsRaw === '' ? 0 : parseInt(quantityTentsRaw, 10);
-    const modeOfReceiving = document.getElementById('modeOfReceiving').value;
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-
-    // Reset all errors
-    clearAllErrors();
-
-    let isValid = true;
-
-    // Validate First Name
-    if (!firstName) {
-      setFieldError('firstName', 'Please enter your first name');
-      isValid = false;
-    } else if (firstName.length < 2) {
-      setFieldError('firstName', 'First name must be at least 2 characters long');
-      isValid = false;
-    } else if (!/^[a-zA-Z\s'\-]+$/.test(firstName)) {
-      setFieldError('firstName', 'First name can only contain letters, spaces, hyphens, and apostrophes');
-      isValid = false;
-    }
-
-    // Validate Last Name
-    if (!lastName) {
-      setFieldError('lastName', 'Please enter your last name');
-      isValid = false;
-    } else if (lastName.length < 2) {
-      setFieldError('lastName', 'Last name must be at least 2 characters long');
-      isValid = false;
-    } else if (!/^[a-zA-Z\s'\-]+$/.test(lastName)) {
-      setFieldError('lastName', 'Last name can only contain letters, spaces, hyphens, and apostrophes');
-      isValid = false;
-    }
-
-    // Validate Contact Number
-    if (!contactNumber) {
-      setFieldError('contactNumber', 'Contact number is required');
-      isValid = false;
-    } else if (!/^09\d{9}$/.test(contactNumber)) {
-      setFieldError('contactNumber', 'Contact must be 11 digits starting with 09');
-      isValid = false;
-    }
-
-    // Validate Complete Address
-    if (!completeAddress) {
-      setFieldError('completeAddress', 'Complete address is required');
-      isValid = false;
-    } else if (completeAddress.length < 10) {
-      setFieldError('completeAddress', 'Please provide a complete address');
-      isValid = false;
-    }
-
-    // Validate Purpose of Use
-    if (!purposeOfUse) {
-      setFieldError('purposeOfUse', 'Please enter the purpose of use');
-      isValid = false;
-    } else if (purposeOfUse.length < 3) {
-      setFieldError('purposeOfUse', 'Purpose must be at least 3 characters');
-      isValid = false;
-    }
-
-
-    // Validate Quantity of Chairs (only when > 0)
-    if (quantityChairs > 0) {
-      if (quantityChairs < 20) {
-        setFieldError('quantityChairs', 'Quantity must be at least 20');
-        isValid = false;
-      } else if (quantityChairs > 600) {
-        setFieldError('quantityChairs', 'Quantity cannot exceed 600');
-        isValid = false;
-      }
-    }
-
-    // Validate Quantity of Tents (only when > 0)
-    if (quantityTents > 0) {
-      if (quantityTents < 1) {
-        setFieldError('quantityTents', 'Quantity must be at least 1');
-        isValid = false;
-      } else if (quantityTents > 24) {
-        setFieldError('quantityTents', 'Quantity cannot exceed 24');
-        isValid = false;
-      }
-    }
-
-    // Ensure user borrows at least one item (either chairs or tents)
-    if ((quantityChairs === 0 || isNaN(quantityChairs)) && (quantityTents === 0 || isNaN(quantityTents))) {
-      const qtyMessage = 'Please borrow at least one item: set tents or chairs to more than 0';
-
-      // Visual error on the fields (red box via class)
-      const chairsField = document.getElementById('quantityChairs');
-      const tentsField = document.getElementById('quantityTents');
-      if (chairsField) {
-        chairsField.classList.add('error');
-        const fg = chairsField.closest('.form-group'); if (fg) fg.classList.add('error');
-      }
-      if (tentsField) {
-        tentsField.classList.add('error');
-        const fg2 = tentsField.closest('.form-group'); if (fg2) fg2.classList.add('error');
-      }
-
-      // Show explicit message under BOTH quantity inputs (bypass setFieldError which suppresses quantity messages)
-      const errCh = document.getElementById('errorQuantityChairs');
-      const errTe = document.getElementById('errorQuantityTents');
-      if (errCh) errCh.textContent = qtyMessage;
-      if (errTe) errTe.textContent = qtyMessage;
-
-      isValid = false;
-    }
-
-    // Validate Mode of Receiving
-    if (!modeOfReceiving) {
-      setFieldError('modeOfReceiving', 'Please select a mode of receiving');
-      isValid = false;
-    }
-
-    // Validate Start Date
-    if (!startDate) {
-      setFieldError('startDate', 'Start date is required');
-      isValid = false;
-    } else {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const selectedStart = new Date(startDate + 'T00:00:00');
-      
-      if (selectedStart < today) {
-        setFieldError('startDate', 'Start date cannot be in the past');
-        isValid = false;
-      }
-    }
-
-    // Validate End Date
-    if (!endDate) {
-      setFieldError('endDate', 'End date is required');
-      isValid = false;
-    } else if (startDate && endDate < startDate) {
-      setFieldError('endDate', 'End date must be after start date');
-      isValid = false;
-    }
-
-    if (!isValid) {
-      // Scroll to first field with a visual error (covers cases where quantity messages are suppressed)
-      const firstVisual = document.querySelector('.form-group.error, .error');
-      if (firstVisual) {
-        firstVisual.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      return;
-    }
-
-    // Prepare form data
-    const formData = {
-      firstName: sanitizeInput(firstName),
-      lastName: sanitizeInput(lastName),
-      contactNumber: contactNumber, // Phone numbers don't need sanitization
-      completeAddress: sanitizeInput(completeAddress),
-      purposeOfUse: sanitizeInput(purposeOfUse),
-      quantityChairs: quantityChairs,
-      quantityTents: quantityTents,
-      modeOfReceiving: modeOfReceiving,
-      startDate: startDate,
-      endDate: endDate,
-      status: 'pending',
-      requestDate: new Date().toISOString(),
-      type: 'tents-chairs'
+  function getFormValues() {
+    return {
+      firstName: document.getElementById('firstName').value.trim(),
+      lastName: document.getElementById('lastName').value.trim(),
+      contactNumber: document.getElementById('contactNumber').value.trim(),
+      completeAddress: document.getElementById('completeAddress').value.trim(),
+      purposeOfUse: document.getElementById('purposeOfUse').value.trim(),
+      quantityChairs: parseInt(document.getElementById('quantityChairs').value || 0),
+      quantityTents: parseInt(document.getElementById('quantityTents').value || 0),
+      modeOfReceiving: document.getElementById('modeOfReceiving').value,
+      startDate: document.getElementById('startDate').value,
+      endDate: document.getElementById('endDate').value
     };
+  }
 
-    // Show loading spinner on submit button
-    const submitBtn = document.querySelector('#tentsChairsForm button[type="submit"]');
-    const originalBtnText = submitBtn?.textContent;
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner"></span> Checking...';
+  function validateForm(d) {
+    let valid = true;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const start = new Date(d.startDate + 'T00:00:00');
+    const end = new Date(d.endDate + 'T00:00:00');
+
+    if (!d.firstName) setFieldError('firstName', 'Enter your first name'), valid = false;
+    if (!d.lastName) setFieldError('lastName', 'Enter your last name'), valid = false;
+    if (!/^09\d{9}$/.test(d.contactNumber)) setFieldError('contactNumber', 'Must start with 09 and be 11 digits'), valid = false;
+    if (!d.completeAddress) setFieldError('completeAddress', 'Complete address required'), valid = false;
+    if (!d.purposeOfUse) setFieldError('purposeOfUse', 'Purpose required'), valid = false;
+
+    if ((d.quantityChairs === 0 || isNaN(d.quantityChairs)) && (d.quantityTents === 0 || isNaN(d.quantityTents))) {
+      const msg = 'Please borrow at least one item (set tents or chairs above 0)';
+      document.getElementById('errorQuantityChairs').textContent = msg;
+      document.getElementById('errorQuantityTents').textContent = msg;
+      valid = false;
     }
+
+    if (d.quantityChairs > 0 && (d.quantityChairs < 20 || d.quantityChairs > 600)) {
+      setFieldError('quantityChairs', 'Chairs must be between 20–600'), valid = false;
+    }
+
+    if (d.quantityTents > 0 && (d.quantityTents < 1 || d.quantityTents > 24)) {
+      setFieldError('quantityTents', 'Tents must be between 1–24'), valid = false;
+    }
+
+    if (!d.modeOfReceiving) setFieldError('modeOfReceiving', 'Select a mode of receiving'), valid = false;
+    if (!d.startDate) setFieldError('startDate', 'Start date required'), valid = false;
+    else if (start < today) setFieldError('startDate', 'Cannot be in the past'), valid = false;
+    if (!d.endDate) setFieldError('endDate', 'End date required'), valid = false;
+    else if (end < start) setFieldError('endDate', 'End date must be after start'), valid = false;
+
+    return valid;
+  }
+
+  function populateSummaryModal(data) {
+    document.getElementById('summaryPurpose').textContent = data.purposeOfUse;
+    document.getElementById('summaryTents').textContent = data.quantityTents;
+    document.getElementById('summaryChairs').textContent = data.quantityChairs;
+    document.getElementById('summaryStart').textContent = data.startDate;
+    document.getElementById('summaryEnd').textContent = data.endDate;
+    document.getElementById('summaryMode').textContent = data.modeOfReceiving;
+  }
+
+  async function submitTentsChairsRequest(data) {
+    const submitBtn = document.querySelector('#tentsChairsForm button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
 
     try {
-      // Check if user is logged in
       const user = auth.currentUser;
       if (!user) {
-        showAlert('Please login to submit a request.', false, () => {
-          window.location.href = `index.html?redirect=${encodeURIComponent(window.location.pathname)}`;
-        });
+        showAlert('Please login first.', false, () => window.location.href = 'index.html');
         return;
       }
 
-      // Verify userId matches authenticated user (security check)
-      if (!user.uid) {
-        showAlert('Authentication error. Please log out and log in again.', false);
-        return;
-      }
-
-      // Check for identical duplicate requests (same dates AND quantities)
-      console.log('[Tents Duplicate Check] Checking for identical requests...');
-      console.log('[Tents Duplicate Check] userId:', user.uid);
-      console.log('[Tents Duplicate Check] Requested dates:', startDate, 'to', endDate);
-      console.log('[Tents Duplicate Check] Quantities - Chairs:', quantityChairs, 'Tents:', quantityTents);
-      
-      const duplicateQuery = query(
-        collection(db, "tentsChairsBookings"),
-        where("userId", "==", user.uid),
-        where("startDate", "==", startDate),
-        where("endDate", "==", endDate)
-      );
-      
-      const duplicateSnapshot = await getDocs(duplicateQuery);
-      console.log('[Tents Duplicate Check] Found', duplicateSnapshot.size, 'requests with same dates');
-      
-      // Filter for identical quantities with pending/approved status (exclude cancelled)
-      const identicalRequests = duplicateSnapshot.docs.filter(doc => {
-        const data = doc.data();
-        const isPendingOrApproved = data.status === 'pending' || data.status === 'approved';
-        
-        // Exclude cancelled requests
-        if (!isPendingOrApproved || data.status === 'cancelled') return false;
-        
-        // Check if quantities are identical
-        const sameChairs = parseInt(data.quantityChairs) === parseInt(quantityChairs);
-        const sameTents = parseInt(data.quantityTents) === parseInt(quantityTents);
-        
-        return sameChairs && sameTents;
-      });
-      
-      if (identicalRequests.length > 0) {
-        const existingRequest = identicalRequests[0].data();
-        console.log('[Tents Duplicate Check] Identical request found:', existingRequest);
-        showAlert(
-          `You already have a ${existingRequest.status} request for the same dates (${existingRequest.startDate} to ${existingRequest.endDate}) with the same quantities (${existingRequest.quantityChairs} chairs, ${existingRequest.quantityTents} tents). Please wait for approval, modify your existing request, or cancel it before submitting a new one.`,
-          false
-        );
-        return;
-      }
-      
-      console.log('[Tents Duplicate Check] No identical requests found, proceeding with submission...');
-
-      // Update button to show submitting state
-      if (submitBtn) {
-        submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
-      }
-
-      // Save to Firestore with user information
-      await addDoc(collection(db, "tentsChairsBookings"), {
-        ...formData,
+      // ✅ Save to Firebase (correct collection)
+      await addDoc(collection(db, 'tentsChairsBookings'), {
+        ...data,
         userId: user.uid,
         userEmail: user.email,
+        status: 'pending',
         createdAt: serverTimestamp()
       });
 
-      console.log('Tents & Chairs Request:', formData);
-
-      // Show success message
-      showAlert('Your tents & chairs request has been submitted successfully! You can check the status in your profile.', true, () => {
+      showAlert('Your tents & chairs request has been submitted successfully!', true, () => {
         window.location.href = 'UserProfile.html';
       });
 
-    } catch (error) {
-      console.error('Error submitting request:', error);
+    } catch (err) {
+      console.error('Error submitting tents & chairs request:', err);
       showAlert('Failed to submit request. Please try again.');
     } finally {
-      // Restore button state
-      if (submitBtn && originalBtnText) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalBtnText;
-      }
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
     }
   }
 
-  function setFieldError(fieldId, message) {
-    const field = document.getElementById(fieldId);
-    const errorElement = document.getElementById(`error${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`);
-
-    // Add visual error state to the field and its parent .form-group (if present)
-    if (field) {
-      field.classList.add('error');
-      const formGroup = field.closest('.form-group');
-      if (formGroup) formGroup.classList.add('error');
-    }
-
-    // For quantity fields we only want the red visual box — do not show the popup/text message.
-    if (errorElement) {
-      if (fieldId === 'quantityChairs' || fieldId === 'quantityTents') {
-        errorElement.textContent = '';
-      } else {
-        errorElement.textContent = message;
-      }
-    }
+  function setFieldError(id, msg) {
+    const field = document.getElementById(id);
+    const err = document.getElementById(`error${id.charAt(0).toUpperCase() + id.slice(1)}`);
+    if (field) field.classList.add('error');
+    if (err) err.textContent = msg;
   }
 
-  function clearFieldError(field) {
-    if (!field) return;
-    field.classList.remove('error');
-    const formGroup = field.closest('.form-group');
-    if (formGroup) formGroup.classList.remove('error');
-    const fieldId = field.id;
-    const errorElementId = `error${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`;
-    const errorElement = document.getElementById(errorElementId);
-    if (errorElement) {
-      errorElement.textContent = '';
-    }
+  function clearFieldError(f) {
+    const err = document.getElementById(`error${f.id.charAt(0).toUpperCase() + f.id.slice(1)}`);
+    if (err) err.textContent = '';
+    f.classList.remove('error');
   }
 
   function clearAllErrors() {
-    const errorElements = document.querySelectorAll('.error-message');
-    errorElements.forEach(el => el.textContent = '');
-    
-    // Remove error class from any elements (inputs/selects and .form-group wrappers)
-    const errorFields = document.querySelectorAll('.error');
-    errorFields.forEach(el => el.classList.remove('error'));
+    document.querySelectorAll('.error-message').forEach(e => e.textContent = '');
+    document.querySelectorAll('.error').forEach(f => f.classList.remove('error'));
   }
 }
 
 /* =====================================================
-   END OF TENTS & CHAIRS REQUEST FORM SCRIPT
+   END OF FINAL TENTS & CHAIRS REQUEST FORM SCRIPT
 ===================================================== */
+
+
 
 /* =====================================================
    AUTOFILL USER DATA HELPER FUNCTION
@@ -3155,22 +2959,19 @@ async function autofillUserData(fieldMappings) {
 
 
 /* =====================================================
-   START OF CONFERENCE ROOM REQUEST FORM SCRIPT
+   FIXED CONFERENCE ROOM REQUEST FORM SCRIPT
 ===================================================== */
 
-// Check if we're on the conference room request form page
 if (window.location.pathname.endsWith('conference-request.html') || window.location.pathname.endsWith('/conference-request')) {
-  
-  document.addEventListener('DOMContentLoaded', function() {
+
+  document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('conferenceRoomForm');
-    
-    // Get URL parameters (if redirected from calendar with a date)
+    if (!form) return;
+
+    // Prefill date if redirected from calendar
     const urlParams = new URLSearchParams(window.location.search);
     const preselectedDate = urlParams.get('date');
-    
-    if (preselectedDate) {
-      document.getElementById('eventDate').value = preselectedDate;
-    }
+    if (preselectedDate) document.getElementById('eventDate').value = preselectedDate;
 
     // Set minimum date to today
     const today = new Date().toISOString().split('T')[0];
@@ -3179,10 +2980,9 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
     // Populate time dropdowns
     populateTimeDropdowns();
 
-    // Autofill user data when auth state is ready
+    // Auto-fill user data
     onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Autofill name, contact, and address fields
         autofillUserData({
           'firstName': 'firstName',
           'lastName': 'lastName',
@@ -3192,288 +2992,168 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
       }
     });
 
-    // Clear error on input
+    // Remove error messages while typing
     const inputs = form.querySelectorAll('input, select');
     inputs.forEach(input => {
-      input.addEventListener('input', function() {
-        clearFieldError(this);
-      });
+      input.addEventListener('input', () => clearFieldError(input));
     });
 
-    // Form submission
+    // Handle form submission
     form.addEventListener('submit', handleConferenceRoomSubmit);
   });
 
   function populateTimeDropdowns() {
     const startTimeSelect = document.getElementById('startTime');
     const endTimeSelect = document.getElementById('endTime');
+    if (!startTimeSelect || !endTimeSelect) return;
 
-    // Clear existing options
     startTimeSelect.innerHTML = '<option value="">Start Time</option>';
     endTimeSelect.innerHTML = '<option value="">End Time</option>';
 
-    // Generate time options from 8:00 AM to 5:00 PM
     for (let hour = 8; hour <= 17; hour++) {
-      const timeString = hour.toString().padStart(2, '0') + ':00';
-      const displayTime = hour < 12 ? timeString + ' AM' : 
-                         (hour === 12 ? timeString + ' PM' : 
-                         (hour - 12).toString().padStart(2, '0') + ':00 PM');
-      
-      startTimeSelect.add(new Option(displayTime, timeString));
-      endTimeSelect.add(new Option(displayTime, timeString));
+      const value = `${hour.toString().padStart(2, '0')}:00`;
+      const display = hour < 12 ? `${hour}:00 AM` : hour === 12 ? `12:00 PM` : `${hour - 12}:00 PM`;
+      startTimeSelect.add(new Option(display, value));
+      endTimeSelect.add(new Option(display, value));
     }
   }
 
   async function handleConferenceRoomSubmit(e) {
     e.preventDefault();
 
-    // Get form values
-    const firstName = document.getElementById('firstName').value.trim();
-    const lastName = document.getElementById('lastName').value.trim();
-    const purpose = document.getElementById('purpose').value.trim();
-    const contactNumber = document.getElementById('contactNumber').value.trim();
-    const eventDate = document.getElementById('eventDate').value;
-    const address = document.getElementById('address').value.trim();
-    const startTime = document.getElementById('startTime').value;
-    const endTime = document.getElementById('endTime').value;
-
-    // Reset all errors
+    const form = e.target;
     clearAllErrors();
+
+    // Gather inputs
+    const firstName = form.firstName.value.trim();
+    const lastName = form.lastName.value.trim();
+    const contactNumber = form.contactNumber.value.trim();
+    const purpose = form.purpose.value.trim();
+    const address = form.address?.value?.trim() || ''; // Optional, depending on form
+    const eventDate = form.eventDate.value;
+    const startTime = form.startTime.value;
+    const endTime = form.endTime.value;
 
     let isValid = true;
 
-    // Validate First Name
-    if (!firstName) {
-      setFieldError('firstName', 'Please enter your first name');
-      isValid = false;
-    } else if (firstName.length < 2) {
-      setFieldError('firstName', 'First name must be at least 2 characters long');
-      isValid = false;
-    } else if (!/^[a-zA-Z\s'-]+$/.test(firstName)) {
-      setFieldError('firstName', 'First name can only contain letters, spaces, hyphens, and apostrophes');
-      isValid = false;
-    }
+    // ========== VALIDATIONS ==========
+    if (!firstName) setFieldError('firstName', 'Please enter your first name'), isValid = false;
+    else if (firstName.length < 2) setFieldError('firstName', 'First name must be at least 2 characters long'), isValid = false;
+    else if (!/^[a-zA-Z\s'-]+$/.test(firstName)) setFieldError('firstName', 'First name can only contain letters'), isValid = false;
 
-    // Validate Last Name
-    if (!lastName) {
-      setFieldError('lastName', 'Please enter your last name');
-      isValid = false;
-    } else if (lastName.length < 2) {
-      setFieldError('lastName', 'Last name must be at least 2 characters long');
-      isValid = false;
-    } else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) {
-      setFieldError('lastName', 'Last name can only contain letters, spaces, hyphens, and apostrophes');
-      isValid = false;
-    }
+    if (!lastName) setFieldError('lastName', 'Please enter your last name'), isValid = false;
+    else if (lastName.length < 2) setFieldError('lastName', 'Last name must be at least 2 characters long'), isValid = false;
+    else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) setFieldError('lastName', 'Last name can only contain letters'), isValid = false;
 
-    // Validate Purpose
-    if (!purpose) {
-      setFieldError('purpose', 'Purpose of use is required');
-      isValid = false;
-    } else if (purpose.length < 5) {
-      setFieldError('purpose', 'Please provide a more detailed purpose');
-      isValid = false;
-    }
+    if (!contactNumber) setFieldError('contactNumber', 'Contact number is required'), isValid = false;
+    else if (!/^09\d{9}$/.test(contactNumber)) setFieldError('contactNumber', 'Contact number must start with 09 and have 11 digits'), isValid = false;
 
-    // Validate Contact Number
-    if (!contactNumber) {
-      setFieldError('contactNumber', 'Contact number is required');
-      isValid = false;
-    } else if (!/^09\d{9}$/.test(contactNumber)) {
-      setFieldError('contactNumber', 'Contact must be 11 digits starting with 09');
-      isValid = false;
-    }
+    if (!purpose) setFieldError('purpose', 'Purpose of use is required'), isValid = false;
+    else if (purpose.length < 5) setFieldError('purpose', 'Please provide a more detailed purpose'), isValid = false;
 
-    // Validate Event Date
-    if (!eventDate) {
-      setFieldError('eventDate', 'Event date is required');
-      isValid = false;
-    } else {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    if (!eventDate) setFieldError('eventDate', 'Please select a date'), isValid = false;
+    else {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
       const selectedDate = new Date(eventDate + 'T00:00:00');
-      
-      if (selectedDate < today) {
-        setFieldError('eventDate', 'Event date cannot be in the past');
-        isValid = false;
-      }
+      if (selectedDate < today) setFieldError('eventDate', 'Event date cannot be in the past'), isValid = false;
     }
 
-    // Validate Address
-    if (!address) {
-      setFieldError('address', 'Address is required');
-      isValid = false;
-    } else if (address.length < 10) {
-      setFieldError('address', 'Please provide a complete address');
-      isValid = false;
-    }
-
-    // Validate Time
-    if (!startTime) {
-      setFieldError('startTime', 'Start time is required');
-      isValid = false;
-    }
-    
-    if (!endTime) {
-      setFieldError('endTime', 'End time is required');
-      isValid = false;
-    } else if (startTime && endTime <= startTime) {
-      setFieldError('endTime', 'End time must be after start time');
-      isValid = false;
-    }
+    if (!startTime) setFieldError('startTime', 'Start time is required'), isValid = false;
+    if (!endTime) setFieldError('endTime', 'End time is required'), isValid = false;
+    else if (startTime && endTime <= startTime) setFieldError('endTime', 'End time must be after start time'), isValid = false;
 
     if (!isValid) {
-      // Scroll to first error
       const firstError = document.querySelector('.error-message:not(:empty)');
-      if (firstError) {
-        firstError.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      if (firstError) firstError.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
-    // Prepare form data
-    const formData = {
-      firstName: sanitizeInput(firstName),
-      lastName: sanitizeInput(lastName),
-      purpose: sanitizeInput(purpose),
-      contactNumber: contactNumber, // Phone numbers don't need sanitization
-      eventDate: eventDate,
-      address: sanitizeInput(address),
-      startTime: startTime,
-      endTime: endTime,
-      status: 'pending',
-      requestDate: new Date().toISOString(),
-      type: 'conference-room'
-    };
+    // ✅ FORM VALIDATION PASSED
+    console.log('[Conference Room] Validation passed, preparing modal...');
 
-    // Show loading spinner on submit button
-    const submitBtn = document.querySelector('#conferenceRoomForm button[type="submit"]');
-    const originalBtnText = submitBtn?.textContent;
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner"></span> Checking...';
+    // === REQUEST SUMMARY MODAL ===
+    const modal = document.getElementById('conferenceConfirmationModal');
+    if (modal) {
+      document.getElementById('confSummaryPurpose').textContent = purpose;
+      document.getElementById('confSummaryDate').textContent = eventDate;
+      document.getElementById('confSummaryStart').textContent = startTime;
+      document.getElementById('confSummaryEnd').textContent = endTime;
+      document.getElementById('confSummaryContact').textContent = contactNumber;
+      modal.style.display = 'flex';
+
+      // Cancel modal
+      document.getElementById('confCancelModal').onclick = () => (modal.style.display = 'none');
+
+      // Confirm modal → proceed to Firebase
+      document.getElementById('confConfirmModal').onclick = async () => {
+        modal.style.display = 'none';
+        await submitToFirestore({ firstName, lastName, contactNumber, purpose, address, eventDate, startTime, endTime });
+      };
+    } else {
+      // If modal missing, directly submit
+      await submitToFirestore({ firstName, lastName, contactNumber, purpose, address, eventDate, startTime, endTime });
     }
+  }
+
+  async function submitToFirestore(formData) {
+    const submitBtn = document.querySelector('#conferenceRoomForm button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
 
     try {
-      // Check if user is logged in
       const user = auth.currentUser;
       if (!user) {
-        showAlert('Please login to submit a request.', false, () => {
-          window.location.href = `index.html?redirect=${encodeURIComponent(window.location.pathname)}`;
-        });
+        showAlert('Please login to submit a request.', false, () => (window.location.href = 'index.html'));
         return;
       }
 
-      // Verify userId matches authenticated user (security check)
-      if (!user.uid) {
-        showAlert('Authentication error. Please log out and log in again.', false);
-        return;
-      }
-
-      // Check for overlapping time requests on the same date
-      console.log('[Duplicate Check] Checking for overlapping time requests...');
-      console.log('[Duplicate Check] userId:', user.uid);
-      console.log('[Duplicate Check] eventDate:', eventDate);
-      console.log('[Duplicate Check] time range:', startTime, '-', endTime);
-      
-      const duplicateQuery = query(
-        collection(db, "conferenceRoomBookings"),
-        where("userId", "==", user.uid),
-        where("eventDate", "==", eventDate)
-      );
-      
-      const duplicateSnapshot = await getDocs(duplicateQuery);
-      console.log('[Duplicate Check] Found', duplicateSnapshot.size, 'requests on same date');
-      
-      // Filter for overlapping times with pending/approved status (exclude cancelled)
-      const overlappingRequests = duplicateSnapshot.docs.filter(doc => {
-        const data = doc.data();
-        const isPendingOrApproved = data.status === 'pending' || data.status === 'approved';
-        
-        // Exclude cancelled requests
-        if (!isPendingOrApproved || data.status === 'cancelled') return false;
-        
-        // Check if time ranges overlap
-        const hasOverlap = timeRangesOverlap(startTime, endTime, data.startTime, data.endTime);
-        
-        return hasOverlap;
-      });
-      
-      if (overlappingRequests.length > 0) {
-        const existingRequest = overlappingRequests[0].data();
-        console.log('[Duplicate Check] Overlapping request found:', existingRequest);
-        showAlert(
-          `You already have a ${existingRequest.status} reservation for ${eventDate} from ${formatTime12Hour(existingRequest.startTime)} to ${formatTime12Hour(existingRequest.endTime)} which overlaps with your requested time. Please choose a different time slot or cancel your existing request.`,
-          false
-        );
-        return;
-      }
-      
-      console.log('[Duplicate Check] No overlapping requests found, proceeding with submission...');
-
-      // Update button to show submitting state
-      if (submitBtn) {
-        submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
-      }
-
-      // Save to Firestore with user information
-      await addDoc(collection(db, "conferenceRoomBookings"), {
+      await addDoc(collection(db, 'conferenceRoomBookings'), {
         ...formData,
         userId: user.uid,
         userEmail: user.email,
-        createdAt: serverTimestamp()
+        status: 'pending',
+        createdAt: serverTimestamp(),
       });
 
-      console.log('Conference Room Request:', formData);
-
-      // Show success message
-      showAlert('Your conference room reservation request has been submitted successfully! You can check the status in your profile.', true, () => {
+      showAlert('Your conference room reservation has been submitted successfully!', true, () => {
         window.location.href = 'UserProfile.html';
       });
-
     } catch (error) {
       console.error('Error submitting request:', error);
-      showAlert('Failed to submit request. Please try again.');
+      showAlert('Something went wrong while submitting your request.');
     } finally {
-      // Restore button state
-      if (submitBtn && originalBtnText) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalBtnText;
-      }
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
     }
   }
 
   function setFieldError(fieldId, message) {
     const field = document.getElementById(fieldId);
     const errorElement = document.getElementById(`error${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`);
-    
-    field.classList.add('error');
-    errorElement.textContent = message;
-  }
-
-  function clearFieldError(field) {
-    field.classList.remove('error');
-    const fieldId = field.id;
-    const errorElementId = `error${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`;
-    const errorElement = document.getElementById(errorElementId);
-    if (errorElement) {
-      errorElement.textContent = '';
+    if (field && errorElement) {
+      field.classList.add('error');
+      errorElement.textContent = message;
     }
   }
 
+  function clearFieldError(field) {
+    const errorId = `error${field.id.charAt(0).toUpperCase() + field.id.slice(1)}`;
+    const errorElement = document.getElementById(errorId);
+    if (errorElement) errorElement.textContent = '';
+    field.classList.remove('error');
+  }
+
   function clearAllErrors() {
-    const errorElements = document.querySelectorAll('.error-message');
-    errorElements.forEach(el => el.textContent = '');
-    
-    
-    const errorFields = document.querySelectorAll('.error');
-    errorFields.forEach(field => field.classList.remove('error'));
+    document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+    document.querySelectorAll('.error').forEach(f => f.classList.remove('error'));
   }
 }
 
 /* =====================================================
-   END OF CONFERENCE ROOM REQUEST FORM SCRIPT
+   END OF FIXED CONFERENCE ROOM REQUEST FORM SCRIPT
 ===================================================== */
+
 
 // === CONFERENCE REQUEST PAGE AUTH NAVIGATION ===
 if (window.location.pathname.endsWith('conference-request.html')) {
@@ -3551,96 +3231,184 @@ if (window.location.pathname.endsWith('admin.html')) {
   });
 }
 
-// ===============================
-// MODAL CONFIRMATION HANDLER
-// ===============================
-if (window.location.pathname.endsWith('tents-chairs-request.html') || window.location.pathname.endsWith('/tents-chairs-request')) {
-  document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById("tentsChairsForm");
-    const modal = document.getElementById("confirmationModal");
-    const cancelModal = document.getElementById("cancelModal");
-    const confirmModal = document.getElementById("confirmModal");
+/* =====================================================
+   GLOBAL MODAL CONFIRMATION HANDLER
+   (Works for both Tents & Chairs + Conference Room Forms)
+===================================================== */
 
-    if (!form || !modal || !cancelModal || !confirmModal) {
-      console.warn('[Modal] Required elements not found');
-      return;
+document.addEventListener("DOMContentLoaded", function () {
+  const currentPath = window.location.pathname;
+
+  // Identify which form page we’re on
+  const isTentsChairs = currentPath.includes("tents-chairs-request");
+  const isConference = currentPath.includes("conference-room-request");
+
+  // Common redirect after successful submission
+  const redirectAfterSubmit = () => {
+    window.location.href = "UserProfile.html";
+  };
+
+  // Utility: show modal
+  const showModal = (modalId) => {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = "flex";
+  };
+
+  // Utility: close modal
+  const closeModal = (modalId) => {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = "none";
+  };
+
+  // Utility: fill modal content dynamically
+  const fillSummary = (fields) => {
+    for (const key in fields) {
+      const el = document.getElementById(key);
+      if (el) el.textContent = fields[key] || "—";
     }
+  };
 
-    // Flag to track if user has confirmed via modal
-    let isConfirmedSubmission = false;
+  /* =====================================================
+     🟡 TENTS & CHAIRS REQUEST FORM
+  ====================================================== */
+  if (isTentsChairs) {
+    const form = document.getElementById("tentsChairsForm");
+    const modalId = "confirmationModal";
+    const cancelBtn = document.getElementById("cancelModal");
+    const confirmBtn = document.getElementById("confirmModal");
 
-    // Intercept the form submit event that's added in the main handler
-    form.addEventListener("submit", function(e) {
-      // If already confirmed, let it proceed to handleTentsChairsSubmit
-      if (isConfirmedSubmission) {
-        isConfirmedSubmission = false; // Reset for next time
-        console.log('[Modal] Confirmed submission, proceeding to validation');
-        return; // Let handleTentsChairsSubmit handle it
-      }
+    let isConfirmed = false;
 
-      // Otherwise, prevent default and show confirmation modal first
-      e.preventDefault();
-      e.stopImmediatePropagation(); // Stop other listeners from firing
-      
-      console.log('[Modal] Showing confirmation modal');
+    if (form) {
+      form.addEventListener("submit", async (e) => {
+        // Skip if already confirmed
+        if (isConfirmed) {
+          isConfirmed = false;
+          return;
+        }
 
-      // Get form field values for summary
-      const purpose = document.getElementById("purposeOfUse")?.value || "—";
-      const tents = document.getElementById("quantityTents")?.value || "0";
-      const chairs = document.getElementById("quantityChairs")?.value || "0";
-      const start = document.getElementById("startDate")?.value || "—";
-      const end = document.getElementById("endDate")?.value || "—";
-      const mode = document.getElementById("modeOfReceiving")?.value || "—";
+        e.preventDefault();
 
-      // Fill modal summary
-      const summaryPurpose = document.getElementById("summaryPurpose");
-      const summaryTents = document.getElementById("summaryTents");
-      const summaryChairs = document.getElementById("summaryChairs");
-      const summaryStart = document.getElementById("summaryStart");
-      const summaryEnd = document.getElementById("summaryEnd");
-      const summaryMode = document.getElementById("summaryMode");
+        // ✅ Step 1: Run validations (reuse your existing logic)
+        const quantityTents = parseInt(document.getElementById("quantityTents")?.value || 0);
+        const quantityChairs = parseInt(document.getElementById("quantityChairs")?.value || 0);
 
-      if (summaryPurpose) summaryPurpose.textContent = purpose;
-      if (summaryTents) summaryTents.textContent = tents;
-      if (summaryChairs) summaryChairs.textContent = chairs;
-      if (summaryStart) summaryStart.textContent = start;
-      if (summaryEnd) summaryEnd.textContent = end;
-      if (summaryMode) summaryMode.textContent = mode;
+        if (quantityTents === 0 && quantityChairs === 0) {
+          setFieldError("quantityTents", "Please borrow at least one item (set tents or chairs to more than 0)");
+          setFieldError("quantityChairs", "Please borrow at least one item (set tents or chairs to more than 0)");
+          return;
+        }
 
-      // Show modal
-      modal.style.display = "flex";
-    }, true); // Use capture phase to intercept before handleTentsChairsSubmit
+        // If all validations passed, prepare summary
+        const summaryData = {
+          summaryPurpose: document.getElementById("purposeOfUse")?.value,
+          summaryTents: document.getElementById("quantityTents")?.value,
+          summaryChairs: document.getElementById("quantityChairs")?.value,
+          summaryStart: document.getElementById("startDate")?.value,
+          summaryEnd: document.getElementById("endDate")?.value,
+          summaryMode: document.getElementById("modeOfReceiving")?.value,
+        };
 
-    // Cancel button - close modal without submitting
-    cancelModal.addEventListener("click", () => {
-      console.log('[Modal] Cancelled');
-      modal.style.display = "none";
-    });
+        fillSummary(summaryData);
+        showModal(modalId);
 
-    // Confirm button - proceed with actual submission
-    confirmModal.addEventListener("click", () => {
-      console.log('[Modal] Confirmed, triggering form submission');
-      modal.style.display = "none";
-      
-      // Set flag so next submit proceeds
-      isConfirmedSubmission = true;
-      
-      // Manually trigger the submit event which will now proceed to handleTentsChairsSubmit
-      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-      form.dispatchEvent(submitEvent);
-    });
+        // Confirm action
+        confirmBtn.onclick = async function () {
+          closeModal(modalId);
+          isConfirmed = true;
 
-    // Close modal when clicking outside
-    window.addEventListener("click", (e) => {
-      if (e.target === modal) {
-        console.log('[Modal] Clicked outside, closing');
-        modal.style.display = "none";
-      }
+          console.log("[Tents & Chairs] Submitting to Firebase...");
+
+          // 🧠 Firebase submission (pseudo-code)
+          // await addDoc(collection(db, "tentsChairsRequests"), { ...formData, status: "Pending" });
+
+          redirectAfterSubmit();
+        };
+
+        // Cancel action
+        cancelBtn.onclick = function () {
+          closeModal(modalId);
+        };
+      });
+    }
+  }
+
+  /* =====================================================
+     🔵 CONFERENCE ROOM REQUEST FORM
+  ====================================================== */
+  if (isConference) {
+    const form = document.getElementById("conferenceRoomForm");
+    const modalId = "conferenceConfirmationModal";
+    const cancelBtn = document.getElementById("confCancelModal");
+    const confirmBtn = document.getElementById("confConfirmModal");
+
+    let isConfirmed = false;
+
+    if (form) {
+      form.addEventListener("submit", async (e) => {
+        if (isConfirmed) {
+          isConfirmed = false;
+          return;
+        }
+
+        e.preventDefault();
+
+        // ✅ Step 1: Run field validations (reuse your existing logic)
+        const purpose = document.getElementById("purpose")?.value.trim();
+        const date = document.getElementById("eventDate")?.value;
+        const start = document.getElementById("startTime")?.value;
+        const end = document.getElementById("endTime")?.value;
+
+        if (!purpose || !date || !start || !end) {
+          setFieldError("purpose", "All fields are required before submitting your request.");
+          return;
+        }
+
+        // ✅ Step 2: Prepare summary
+        const summaryData = {
+          confSummaryPurpose: purpose,
+          confSummaryDate: date,
+          confSummaryStart: start,
+          confSummaryEnd: end,
+          confSummaryContact: document.getElementById("contactNumber")?.value,
+        };
+
+        fillSummary(summaryData);
+        showModal(modalId);
+
+        // Confirm action
+        confirmBtn.onclick = async function () {
+          closeModal(modalId);
+          isConfirmed = true;
+
+          console.log("[Conference Room] Submitting to Firebase...");
+
+          // 🧠 Firebase submission (pseudo-code)
+          // await addDoc(collection(db, "conferenceRequests"), { ...formData, status: "Pending" });
+
+          redirectAfterSubmit();
+        };
+
+        // Cancel action
+        cancelBtn.onclick = function () {
+          closeModal(modalId);
+        };
+      });
+    }
+  }
+
+  /* =====================================================
+     🧩 Global click-outside close
+  ====================================================== */
+  window.addEventListener("click", (e) => {
+    const modals = document.querySelectorAll(".modal-overlay");
+    modals.forEach((modal) => {
+      if (e.target === modal) modal.style.display = "none";
     });
   });
-}
+});
 
 /* =====================================================
-   END OF MODAL CONFIRMATION HANDLER
+   END OF GLOBAL MODAL CONFIRMATION HANDLER
 ===================================================== */
 
