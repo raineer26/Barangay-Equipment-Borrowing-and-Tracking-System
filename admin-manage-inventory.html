@@ -3,27 +3,28 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Manage Inventory - Admin Dashboard</title>
-    <link rel="stylesheet" href="style.css" />
+    <title>Admin Dashboard - Barangay Mapulang Lupa</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@100..900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
   </head>
   <body class="admin-body">
     <!-- SIDEBAR -->
     <aside class="admin-sidebar">
       <div class="sidebar-header">
-        <img src="Assets/BrgyLogo.png" alt="Barangay Logo" class="sidebar-logo" />
+        <img src="Assets/BrgyLogo.png" alt="Barangay Logo" class="sidebar-logo">
         <h3>BARANGAY MAPULANG LUPA</h3>
         <p>OFFICIAL SITE</p>
       </div>
 
       <nav class="sidebar-nav">
         <a href="admin.html" class="sidebar-link">
-          <img src="Assets/dashboard.png" alt="Dashboard Icon" class="nav-icon" />
+          <img src="Assets/dashboard.png" alt="Dashboard Icon" class="nav-icon">
           <span>Dashboard</span>
         </a>
 
         <div class="sidebar-dropdown">
           <a href="#" class="sidebar-link dropdown-toggle" id="reviewRequestsToggle">
-            <img src="Assets/review.png" alt="Review Icon" class="nav-icon" />
+            <img src="Assets/review.png" alt="Review Icon" class="nav-icon">
             <span>Review Requests</span>
             <span class="dropdown-arrow">▼</span>
           </a>
@@ -35,7 +36,7 @@
 
         <div class="sidebar-dropdown">
           <a href="#" class="sidebar-link dropdown-toggle" id="manageCalendarToggle">
-            <img src="Assets/calendar-dashboard.png" alt="Calendar Icon" class="nav-icon" />
+            <img src="Assets/calendar-dashboard.png" alt="Calendar Icon" class="nav-icon">
             <span>Manage Calendar</span>
             <span class="dropdown-arrow">▼</span>
           </a>
@@ -46,35 +47,85 @@
         </div>
 
         <a href="admin-manage-inventory.html" class="sidebar-link active">
-          <img src="Assets/inventory.png" alt="Inventory Icon" class="nav-icon" />
+          <img src="Assets/inventory.png" alt="Inventory Icon" class="nav-icon">
           <span>Manage Inventory</span>
         </a>
-
-        <a href="#" class="sidebar-link" onclick="window.logout(); return false;">
-          <img src="Assets/logout.png" alt="Logout Icon" class="nav-icon" />
-          <span>Log Out</span>
-        </a>
       </nav>
+
+      <div class="sidebar-footer">
+        <button onclick="window.logout()" class="logout-btn">
+          <span>Log Out</span>
+        </button>
+      </div>
     </aside>
+
+    <!-- MOBILE MENU TOGGLE -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+      <span>☰</span>
+    </button>
 
     <!-- MAIN CONTENT -->
     <main class="admin-main">
-      <header class="admin-header">
-        <div class="header-left">
-          <button class="mobile-menu-toggle" aria-label="Toggle Menu">☰</button>
-          <h1>Manage Inventory</h1>
+      <section class="admin-hero">
+        <div class="admin-hero-overlay"></div>
+        <div class="admin-hero-content">
+          <h1>MANAGE <span class="highlight-yellow">INVENTORY</span></h1>
+          <p>Manage tents and chairs stock and view recent deliveries</p>
         </div>
-      </header>
+      </section>
 
       <div class="admin-content">
-        <div class="placeholder-content">
-          <div class="placeholder-icon">📦</div>
-          <h2>Equipment Inventory Management</h2>
-          <p>This page will allow you to manage the quantity and availability of tents, chairs, and other equipment.</p>
-          <p class="placeholder-note">Coming Soon - Backend Integration Required</p>
+        <h2 class="content-title">EQUIPMENTS LIST</h2>
+        <div class="inventory-card">
+          <div class="inventory-grid">
+
+            <!-- Tents -->
+            <div class="inventory-item" data-item="tents">
+              <div class="item-image">
+                <img src="Assets/tents.jpg" alt="Tents">
+              </div>
+              <h3>TENTS</h3>
+              <div class="item-fields">
+                <label>Total Stock: <input type="number" id="tents-total" disabled></label>
+                <label>Available: <input type="number" id="tents-available" disabled></label>
+                <label>In Use: <input type="number" id="tents-inuse" disabled></label>
+              </div>
+            </div>
+
+            <!-- Chairs -->
+            <div class="inventory-item" data-item="chairs">
+              <div class="item-image">
+                <img src="Assets/tents.jpg" alt="Chairs">
+              </div>
+              <h3>CHAIRS</h3>
+              <div class="item-fields">
+                <label>Total Stock: <input type="number" id="chairs-total" disabled></label>
+                <label>Available: <input type="number" id="chairs-available" disabled></label>
+                <label>In Use: <input type="number" id="chairs-inuse" disabled></label>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="inventory-actions">
+            <button class="edit-btn" id="editInventory">Edit Inventory</button>
+            <button class="save-btn" id="saveInventory" disabled>Save</button>
+          </div>
         </div>
       </div>
     </main>
+
+    <!-- Save confirmation modal -->
+    <div class="modal" id="saveConfirmModal">
+      <div class="modal-content">
+        <h2>Confirm Save Changes?</h2>
+        <div id="saveChangesList"></div>
+        <div class="modal-actions">
+          <button class="edit-btn" id="confirmSaveNo">No</button>
+          <button class="save-btn" id="confirmSaveYes">Yes</button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="script.js"></script>
   </body>

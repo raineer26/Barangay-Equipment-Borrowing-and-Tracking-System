@@ -8,7 +8,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import { signInWithEmailAndPassword, getAuth, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 
-import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, orderBy, updateDoc ,onSnapshot, } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 // ====== Your Firebase config
 const firebaseConfig = {
@@ -25,6 +25,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const inventoryRef = collection(db, "inventory");
 
 // =============================
 // 2. Unique Custom Alert Function (no naming conflicts FOR BACKEND)
@@ -1372,6 +1373,8 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (!/^[a-zA-Z\s'-]+$/.test(firstName)) {
       setErrorSignup(errorEditFirstname, "First Name can only contain letters, spaces, hyphens, and apostrophes");
       valid = false;
+    } else {
+      setSuccessSignup(errorEditFirstname);
     }
 
     // Last Name validation
@@ -1384,6 +1387,8 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) {
       setErrorSignup(errorEditLastname, "Last Name can only contain letters, spaces, hyphens, and apostrophes");
       valid = false;
+    } else {
+      setSuccessSignup(errorEditLastname);
     }
 
     // Contact validation
@@ -1396,16 +1401,20 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (!/^09\d{9}$/.test(contact)) {
       setErrorSignup(errorEditContact, "Contact number must be 11 digits and start with '09'");
       valid = false;
+    } else {
+      setSuccessSignup(errorEditContact);
     }
 
-    // Address validation
-    const sanitizedAddress = address.replace(/<[^>]*>/g, '');
+    // Address validation with sanitization
+    const sanitizedAddress = address.replace(/<[^>]*>/g, ''); // Basic XSS prevention
     if (!sanitizedAddress) {
       setErrorSignup(errorEditAddress, "Address can't be blank");
       valid = false;
     } else if (sanitizedAddress !== address) {
       setErrorSignup(errorEditAddress, "Address contains invalid characters");
       valid = false;
+    } else {
+      setSuccessSignup(errorEditAddress);
     }
 
     if (!valid) return;
@@ -7028,4 +7037,383 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    Each form now has its own dedicated handler that properly validates
    and saves to Firebase before redirecting.
 ===================================================== */
+// ===== Inventory Manager with Real-Time Firestore Sync =====
+// --- DOM Elements ---
+const editBtn = document.getElementById("editInventory");
+const saveBtn = document.getElementById("saveInventory");
+const confirmModal = document.getElementById("saveConfirmModal");
+const confirmYes = document.getElementById("confirmSaveYes");
+const confirmNo = document.getElementById("confirmSaveNo");
 
+const fields = {
+  tents: {
+    total: document.getElementById("tents-total"),
+    available: document.getElementById("tents-available"),
+    inuse: document.getElementById("tents-inuse")
+  },
+  chairs: {
+    total: document.getElementById("chairs-total"),
+    available: document.getElementById("chairs-available"),
+    inuse: document.getElementById("chairs-inuse")
+  }
+};
+
+// Track original values for change detection
+let originalValues = {
+  tents: { total: 0, inuse: 0 },
+  chairs: { total: 0, inuse: 0 }
+};
+
+// --- Load Real-time Data ---
+function loadInventoryRealtime() {
+  onSnapshot(doc(db, "inventory", "equipment"), (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      
+      // Update tents fields and store original values
+      const tentsTotal = (data.availableTents || 0) + (data.tentsInUse || 0);
+      const chairsTotal = (data.availableChairs || 0) + (data.chairsInUse || 0);
+      
+      // Store original values for change detection
+      originalValues = {
+        tents: { 
+          total: tentsTotal,
+          inuse: data.tentsInUse || 0
+        },
+        chairs: {
+          total: chairsTotal,
+          inuse: data.chairsInUse || 0
+        }
+      };
+
+      fields.tents.available.value = data.availableTents || 0;
+      fields.tents.inuse.value = data.tentsInUse || 0;
+      fields.tents.total.value = (data.availableTents || 0) + (data.tentsInUse || 0);
+      
+      // Update chairs fields
+      fields.chairs.available.value = data.availableChairs || 0;
+      fields.chairs.inuse.value = data.chairsInUse || 0;
+      fields.chairs.total.value = (data.availableChairs || 0) + (data.chairsInUse || 0);
+      
+      console.log("Inventory synced in real-time:", data);
+    } else {
+      console.log("No inventory document found, initializing default values.");
+      initializeInventory();
+    }
+  });
+}
+
+// --- Initialize Default Data ---
+async function initializeInventory() {
+  const inventoryRef = doc(db, "inventory", "equipment");
+  await setDoc(inventoryRef, {
+    availableTents: 24,
+    tentsInUse: 0,
+    availableChairs: 600,
+    chairsInUse: 0,
+    lastUpdated: new Date()
+  });
+}
+
+// --- Enable Editing ---
+editBtn.addEventListener("click", () => {
+  Object.values(fields).forEach(item => {
+    item.total.disabled = false;
+    item.inuse.disabled = false;
+  });
+  saveBtn.disabled = false;
+  editBtn.disabled = true;
+});
+
+// --- Auto Update Available Values ---
+function updateAvailable(itemType) {
+  const total = Number(fields[itemType].total.value) || 0;
+  let inUse = Number(fields[itemType].inuse.value) || 0;
+
+  // Get error message element (create if doesn't exist)
+  let errorElement = document.getElementById(`${itemType}-error`);
+  if (!errorElement) {
+    errorElement = document.createElement('div');
+    errorElement.id = `${itemType}-error`;
+    errorElement.style.color = 'red';
+    errorElement.style.fontSize = '12px';
+    errorElement.style.marginTop = '4px';
+    fields[itemType].inuse.parentNode.appendChild(errorElement);
+  }
+
+  // Prevent negative values in "In Use" field
+  if (inUse < 0) {
+    inUse = 0;
+    fields[itemType].inuse.value = '0';
+    errorElement.textContent = 'Error: In Use cannot be negative';
+    fields[itemType].inuse.style.borderColor = 'red';
+    saveBtn.disabled = true;
+    return;
+  }
+
+  const available = total - inUse;
+
+  if (available < 0) {
+    // Show error and disable save button
+    fields[itemType].available.style.color = 'red';
+    fields[itemType].inuse.style.borderColor = 'red';
+    errorElement.textContent = `Error: In Use (${inUse}) cannot exceed Total (${total})`;
+    saveBtn.disabled = true;
+    
+    // Prevent the negative value
+    fields[itemType].available.value = '0';
+  } else {
+    // Clear error state
+    fields[itemType].available.style.color = '';
+    fields[itemType].inuse.style.borderColor = '';
+    errorElement.textContent = '';
+    fields[itemType].available.value = available;
+    
+    // Only enable save button if both items are valid
+    const otherType = itemType === 'tents' ? 'chairs' : 'tents';
+    const otherTotal = Number(fields[otherType].total.value) || 0;
+    const otherInUse = Number(fields[otherType].inuse.value) || 0;
+    
+    if (otherTotal - otherInUse >= 0 && otherInUse >= 0) {
+      saveBtn.disabled = false;
+    }
+  }
+}
+
+// Add input listeners for tents and chairs in-use fields
+fields.tents.inuse.addEventListener("input", () => updateAvailable("tents"));
+fields.chairs.inuse.addEventListener("input", () => updateAvailable("chairs"));
+
+// Add input listeners for total fields as well to keep available updated
+fields.tents.total.addEventListener("input", () => updateAvailable("tents"));
+fields.chairs.total.addEventListener("input", () => updateAvailable("chairs"));
+
+// --- Save Changes (Modal Confirmation) ---
+saveBtn.addEventListener("click", () => {
+  // Get current and new values
+  const tentsTotal = Number(fields.tents.total.value);
+  const tentsInuse = Number(fields.tents.inuse.value);
+  const chairsTotal = Number(fields.chairs.total.value);
+  const chairsInuse = Number(fields.chairs.inuse.value);
+
+  // Check if any values have changed
+  const hasChanges = 
+    tentsTotal !== originalValues.tents.total ||
+    tentsInuse !== originalValues.tents.inuse ||
+    chairsTotal !== originalValues.chairs.total ||
+    chairsInuse !== originalValues.chairs.inuse;
+
+  // Get or create confirmation message element
+  let confirmMessage = document.querySelector('.confirm-message');
+  if (!confirmMessage) {
+    confirmMessage = document.createElement('div');
+    confirmMessage.className = 'confirm-message';
+    // Find the modal content container
+    const modalContent = confirmModal.querySelector('.modal-content') || confirmModal;
+    modalContent.appendChild(confirmMessage);
+  }
+  
+  // Style the confirmation message
+  confirmMessage.style.padding = '30px 20px';
+  confirmMessage.style.maxHeight = '80vh';
+  confirmMessage.style.overflowY = 'auto';
+  confirmMessage.style.display = 'flex';
+  confirmMessage.style.flexDirection = 'column';
+  confirmMessage.style.alignItems = 'center';
+  confirmMessage.style.justifyContent = 'center';
+  confirmMessage.style.minHeight = '300px';
+  
+  if (!hasChanges) {
+    // Show no changes message
+    confirmMessage.innerHTML = `
+      <div style="text-align: center; padding: 40px;">
+        <h3 style="margin: 0 0 20px 0; color: #1a237e; font-size: 24px; font-weight: 600;">No Changes Detected</h3>
+        <p style="color: #666; font-size: 16px; margin: 0;">No modifications have been made to the inventory values.</p>
+        <p style="color: #666; font-size: 16px; margin: 10px 0 0 0;">Edit the values first before saving.</p>
+      </div>
+    `;
+    // Disable the Yes button
+    confirmYes.disabled = true;
+    confirmYes.style.opacity = '0.5';
+    confirmYes.style.cursor = 'not-allowed';
+    return;
+  }
+
+  // Reset Yes button state if there are changes
+  confirmYes.disabled = false;
+  confirmYes.style.opacity = '';
+  confirmYes.style.cursor = '';
+  
+  confirmMessage.innerHTML = `
+    <h3 style="margin: 0 0 30px 0; color: #1a237e; font-size: 28px; text-align: center; font-weight: 600; text-transform: uppercase;">Review Your Changes</h3>
+    <div class="changes-list" style="display: flex; gap: 30px; justify-content: center; width: 100%; max-width: 700px;">
+      <div class="change-section" style="background: #f5f5f5; padding: 24px; border-radius: 8px; flex: 1; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+        <h4 style="margin: 0 0 20px 0; color: #303f9f; font-size: 22px; text-align: center;">Tents</h4>
+        <div style="display: grid; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 18px;">Total:</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 18px;">${originalValues.tents.total}</span>
+              <span style="color: #666; font-size: 20px;">→</span>
+              <strong style="color: ${tentsTotal !== originalValues.tents.total ? (tentsTotal > originalValues.tents.total ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsTotal}</strong>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 18px;">In Use:</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 18px;">${originalValues.tents.inuse}</span>
+              <span style="color: #666; font-size: 20px;">→</span>
+              <strong style="color: ${tentsInuse !== originalValues.tents.inuse ? (tentsInuse > originalValues.tents.inuse ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsInuse}</strong>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e0e0e0; padding-top: 16px; margin-top: 8px;">
+            <span style="font-weight: 600; font-size: 18px;">Available:</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 18px;">${originalValues.tents.total - originalValues.tents.inuse}</span>
+              <span style="color: #666; font-size: 20px;">→</span>
+              <strong style="color: ${(tentsTotal - tentsInuse) !== (originalValues.tents.total - originalValues.tents.inuse) ? ((tentsTotal - tentsInuse) > (originalValues.tents.total - originalValues.tents.inuse) ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsTotal - tentsInuse}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="change-section" style="background: #f5f5f5; padding: 20px; border-radius: 8px; flex: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h4 style="margin: 0 0 20px 0; color: #303f9f; font-size: 22px; text-align: center;">Chairs</h4>
+        <div style="display: grid; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 18px;">Total:</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 18px;">${originalValues.chairs.total}</span>
+              <span style="color: #666; font-size: 20px;">→</span>
+              <strong style="color: ${chairsTotal !== originalValues.chairs.total ? (chairsTotal > originalValues.chairs.total ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${chairsTotal}</strong>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 18px;">In Use:</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 18px;">${originalValues.chairs.inuse}</span>
+              <span style="color: #666; font-size: 20px;">→</span>
+              <strong style="color: ${chairsInuse !== originalValues.chairs.inuse ? (chairsInuse > originalValues.chairs.inuse ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${chairsInuse}</strong>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e0e0e0; padding-top: 16px; margin-top: 8px;">
+            <span style="font-weight: 600; font-size: 18px;">Available:</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>${originalValues.chairs.total - originalValues.chairs.inuse}</span>
+              <span style="color: #666;">→</span>
+              <strong style="color: ${(chairsTotal - chairsInuse) > (originalValues.chairs.total - originalValues.chairs.inuse) ? '#4caf50' : '#f44336'}">${chairsTotal - chairsInuse}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  confirmModal.style.display = "flex";
+});
+
+confirmNo.addEventListener("click", () => {
+  confirmModal.style.display = "none";
+});
+
+// --- Confirm and Save ---
+confirmYes.addEventListener("click", async () => {
+  const inventoryRef = doc(db, "inventory", "equipment");
+
+  const tentsTotal = Number(fields.tents.total.value);
+  const tentsInuse = Number(fields.tents.inuse.value);
+  const chairsTotal = Number(fields.chairs.total.value);
+  const chairsInuse = Number(fields.chairs.inuse.value);
+
+  const updatedData = {
+    availableTents: tentsTotal - tentsInuse,
+    tentsInUse: tentsInuse,
+    availableChairs: chairsTotal - chairsInuse,
+    chairsInUse: chairsInuse,
+    lastUpdated: new Date()
+  };
+
+  try {
+    await setDoc(inventoryRef, updatedData, { merge: true });
+    confirmModal.style.display = "none";
+    saveBtn.disabled = true;
+    editBtn.disabled = false;
+
+    Object.values(fields).forEach(item => {
+      item.total.disabled = true;
+      item.inuse.disabled = true;
+    });
+
+    // Show success message
+    const successToast = document.createElement('div');
+    successToast.className = 'success-toast';
+    successToast.innerHTML = `
+      <div class="success-icon"></div>
+      <div class="success-message">
+        <h4>Changes Saved Successfully!</h4>
+        <p>Inventory has been updated.</p>
+      </div>
+    `;
+    document.body.appendChild(successToast);
+
+    // Add styles for the success toast
+    successToast.style.position = 'fixed';
+    successToast.style.top = '20px';
+    successToast.style.right = '20px';
+    successToast.style.background = '#4CAF50';
+    successToast.style.color = 'white';
+    successToast.style.padding = '15px 25px';
+    successToast.style.borderRadius = '4px';
+    successToast.style.display = 'flex';
+    successToast.style.alignItems = 'center';
+    successToast.style.gap = '10px';
+    successToast.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    successToast.style.zIndex = '1000';
+    
+    // Remove the toast after 3 seconds
+    setTimeout(() => {
+      successToast.style.opacity = '0';
+      successToast.style.transition = 'opacity 0.5s ease';
+      setTimeout(() => document.body.removeChild(successToast), 500);
+    }, 3000);
+
+    console.log("Inventory updated successfully:", updatedData);
+  } catch (error) {
+    // Show error message if save fails
+    const errorToast = document.createElement('div');
+    errorToast.className = 'error-toast';
+    errorToast.innerHTML = `
+      <div class="error-icon">✕</div>
+      <div class="error-message">
+        <h4>Error Saving Changes</h4>
+        <p>${error.message}</p>
+      </div>
+    `;
+    document.body.appendChild(errorToast);
+    
+    // Style the error toast similarly but in red
+    errorToast.style.position = 'fixed';
+    errorToast.style.top = '20px';
+    errorToast.style.right = '20px';
+    errorToast.style.background = '#f44336';
+    errorToast.style.color = 'white';
+    errorToast.style.padding = '15px 25px';
+    errorToast.style.borderRadius = '4px';
+    errorToast.style.display = 'flex';
+    errorToast.style.alignItems = 'center';
+    errorToast.style.gap = '10px';
+    errorToast.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    errorToast.style.zIndex = '1000';
+    
+    // Remove the error toast after 5 seconds
+    setTimeout(() => {
+      errorToast.style.opacity = '0';
+      errorToast.style.transition = 'opacity 0.5s ease';
+      setTimeout(() => document.body.removeChild(errorToast), 500);
+    }, 5000);
+
+    console.error("Error updating inventory:", error);
+  }
+});
+
+// --- Start ---
+loadInventoryRealtime();
