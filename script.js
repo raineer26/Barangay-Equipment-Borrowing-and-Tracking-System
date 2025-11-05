@@ -7426,73 +7426,13 @@ if (confirmYes) {
       item.inuse.disabled = true;
     });
 
-    // Show success message
-    const successToast = document.createElement('div');
-    successToast.className = 'success-toast';
-    successToast.innerHTML = `
-      <div class="success-icon"></div>
-      <div class="success-message">
-        <h4>Changes Saved Successfully!</h4>
-        <p>Inventory has been updated.</p>
-      </div>
-    `;
-    document.body.appendChild(successToast);
-
-    // Add styles for the success toast
-    successToast.style.position = 'fixed';
-    successToast.style.top = '20px';
-    successToast.style.right = '20px';
-    successToast.style.background = '#4CAF50';
-    successToast.style.color = 'white';
-    successToast.style.padding = '15px 25px';
-    successToast.style.borderRadius = '4px';
-    successToast.style.display = 'flex';
-    successToast.style.alignItems = 'center';
-    successToast.style.gap = '10px';
-    successToast.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-    successToast.style.zIndex = '1000';
-    
-    // Remove the toast after 3 seconds
-    setTimeout(() => {
-      successToast.style.opacity = '0';
-      successToast.style.transition = 'opacity 0.5s ease';
-      setTimeout(() => document.body.removeChild(successToast), 500);
-    }, 3000);
+    // Show success message using the global showToast function
+    showToast('Changes Saved Successfully!', true);
 
     console.log("Inventory updated successfully:", updatedData);
   } catch (error) {
-    // Show error message if save fails
-    const errorToast = document.createElement('div');
-    errorToast.className = 'error-toast';
-    errorToast.innerHTML = `
-      <div class="error-icon">✕</div>
-      <div class="error-message">
-        <h4>Error Saving Changes</h4>
-        <p>${error.message}</p>
-      </div>
-    `;
-    document.body.appendChild(errorToast);
-    
-    // Style the error toast similarly but in red
-    errorToast.style.position = 'fixed';
-    errorToast.style.top = '20px';
-    errorToast.style.right = '20px';
-    errorToast.style.background = '#f44336';
-    errorToast.style.color = 'white';
-    errorToast.style.padding = '15px 25px';
-    errorToast.style.borderRadius = '4px';
-    errorToast.style.display = 'flex';
-    errorToast.style.alignItems = 'center';
-    errorToast.style.gap = '10px';
-    errorToast.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-    errorToast.style.zIndex = '1000';
-    
-    // Remove the error toast after 5 seconds
-    setTimeout(() => {
-      errorToast.style.opacity = '0';
-      errorToast.style.transition = 'opacity 0.5s ease';
-      setTimeout(() => document.body.removeChild(errorToast), 500);
-    }, 5000);
+    // Show error message using the global showToast function
+    showToast(`Error saving changes: ${error.message}`, false);
 
     console.error("Error updating inventory:", error);
   }
