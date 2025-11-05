@@ -4441,11 +4441,21 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
         }
       }
 
-      // Search filter
+      // Search filter - Enhanced multi-field search
       if (searchTerm) {
+        const firstName = (req.firstName || '').toLowerCase();
+        const lastName = (req.lastName || '').toLowerCase();
         const fullName = (req.fullName || '').toLowerCase();
+        const purposeOfUse = (req.purposeOfUse || '').toLowerCase();
         const address = (req.completeAddress || '').toLowerCase();
-        if (!fullName.includes(searchTerm) && !address.includes(searchTerm)) {
+        
+        const isMatch = firstName.includes(searchTerm) ||
+                       lastName.includes(searchTerm) ||
+                       fullName.includes(searchTerm) ||
+                       purposeOfUse.includes(searchTerm) ||
+                       address.includes(searchTerm);
+        
+        if (!isMatch) {
           return false;
         }
       }
@@ -5305,12 +5315,29 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       filtered = filtered.filter(req => req.status === statusFilter);
     }
 
-    // Filter by search (name)
+    // Filter by search - Enhanced multi-field search
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase();
     if (searchTerm) {
-      filtered = filtered.filter(req => 
-        (req.fullName || '').toLowerCase().includes(searchTerm)
-      );
+      console.log(`🔍 Tents & Chairs - Searching for: "${searchTerm}"`);
+      const beforeCount = filtered.length;
+      
+      filtered = filtered.filter(req => {
+        const firstName = (req.firstName || '').toLowerCase();
+        const lastName = (req.lastName || '').toLowerCase();
+        const fullName = (req.fullName || '').toLowerCase();
+        const purposeOfUse = (req.purposeOfUse || '').toLowerCase();
+        const address = (req.completeAddress || '').toLowerCase();
+        
+        const isMatch = firstName.includes(searchTerm) ||
+                       lastName.includes(searchTerm) ||
+                       fullName.includes(searchTerm) ||
+                       purposeOfUse.includes(searchTerm) ||
+                       address.includes(searchTerm);
+        
+        return isMatch;
+      });
+      
+      console.log(`✅ Found ${filtered.length} matches (from ${beforeCount} requests)`);
     }
 
     // Filter by date
@@ -7573,11 +7600,30 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       filtered = filtered.filter(r => r.archived === true);
     }
 
-    // Search filter - search in full name
+    // Enhanced multi-field search - searches firstName, lastName, fullName, purpose, and address
     if (searchTerm) {
-      filtered = filtered.filter(r => 
-        (r.fullName || '').toLowerCase().includes(searchTerm)
-      );
+      console.log(`🔍 Conference Room - Searching for: "${searchTerm}"`);
+      const beforeCount = filtered.length;
+      
+      filtered = filtered.filter(r => {
+        // Get all searchable text fields (handle both naming conventions)
+        const firstName = (r.firstName || '').toLowerCase();
+        const lastName = (r.lastName || '').toLowerCase();
+        const fullName = (r.fullName || '').toLowerCase();
+        const purpose = (r.purpose || '').toLowerCase();
+        const address = (r.address || '').toLowerCase();
+        
+        // Return true if search term is found in ANY of these fields
+        const isMatch = firstName.includes(searchTerm) ||
+                       lastName.includes(searchTerm) ||
+                       fullName.includes(searchTerm) ||
+                       purpose.includes(searchTerm) ||
+                       address.includes(searchTerm);
+        
+        return isMatch;
+      });
+      
+      console.log(`✅ Found ${filtered.length} matches (from ${beforeCount} requests)`);
     }
 
     // Status filter
