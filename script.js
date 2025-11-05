@@ -5370,6 +5370,62 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         case 'event-desc':
           // Event Date (Newest First)
           return new Date(b.startDate) - new Date(a.startDate);
+        case 'completed-asc':
+          // Date Completed (Oldest First) - requests without completedAt go to end
+          const aHasCompleted = a.completedAt ? true : false;
+          const bHasCompleted = b.completedAt ? true : false;
+          
+          if (!aHasCompleted && !bHasCompleted) return 0; // Both without date, keep order
+          if (!aHasCompleted) return 1;  // a without date goes after b
+          if (!bHasCompleted) return -1; // b without date goes after a
+          
+          // Both have completedAt, compare dates (oldest first)
+          const aCompletedDate = a.completedAt.toDate ? a.completedAt.toDate() : new Date(a.completedAt);
+          const bCompletedDate = b.completedAt.toDate ? b.completedAt.toDate() : new Date(b.completedAt);
+          return aCompletedDate - bCompletedDate;
+          
+        case 'completed-desc':
+          // Date Completed (Newest First) - requests without completedAt go to end
+          const aHasCompleted2 = a.completedAt ? true : false;
+          const bHasCompleted2 = b.completedAt ? true : false;
+          
+          if (!aHasCompleted2 && !bHasCompleted2) return 0; // Both without date, keep order
+          if (!aHasCompleted2) return 1;  // a without date goes after b
+          if (!bHasCompleted2) return -1; // b without date goes after a
+          
+          // Both have completedAt, compare dates (newest first)
+          const aCompletedDate2 = a.completedAt.toDate ? a.completedAt.toDate() : new Date(a.completedAt);
+          const bCompletedDate2 = b.completedAt.toDate ? b.completedAt.toDate() : new Date(b.completedAt);
+          return bCompletedDate2 - aCompletedDate2;
+          
+        case 'archived-asc':
+          // Date Archived (Oldest First) - requests without archivedAt go to end
+          const aHasArchived = a.archivedAt ? true : false;
+          const bHasArchived = b.archivedAt ? true : false;
+          
+          if (!aHasArchived && !bHasArchived) return 0; // Both without date, keep order
+          if (!aHasArchived) return 1;  // a without date goes after b
+          if (!bHasArchived) return -1; // b without date goes after a
+          
+          // Both have archivedAt, compare dates (oldest first)
+          const aArchivedDate = a.archivedAt.toDate ? a.archivedAt.toDate() : new Date(a.archivedAt);
+          const bArchivedDate = b.archivedAt.toDate ? b.archivedAt.toDate() : new Date(b.archivedAt);
+          return aArchivedDate - bArchivedDate;
+          
+        case 'archived-desc':
+          // Date Archived (Newest First) - requests without archivedAt go to end
+          const aHasArchived2 = a.archivedAt ? true : false;
+          const bHasArchived2 = b.archivedAt ? true : false;
+          
+          if (!aHasArchived2 && !bHasArchived2) return 0; // Both without date, keep order
+          if (!aHasArchived2) return 1;  // a without date goes after b
+          if (!bHasArchived2) return -1; // b without date goes after a
+          
+          // Both have archivedAt, compare dates (newest first)
+          const aArchivedDate2 = a.archivedAt.toDate ? a.archivedAt.toDate() : new Date(a.archivedAt);
+          const bArchivedDate2 = b.archivedAt.toDate ? b.archivedAt.toDate() : new Date(b.archivedAt);
+          return bArchivedDate2 - aArchivedDate2;
+          
         case 'name-asc':
           // Last Name (A-Z)
           const lastNameA = getLastName(a.fullName);
@@ -6567,6 +6623,9 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     // Update status filter options based on tab
     updateStatusFilterOptions();
 
+    // Update sort by options based on tab
+    updateSortByOptions();
+
     // Ensure we are showing the table view (history has no calendar). Use
     // switchView to update button active classes and the filters/calendar UI.
     switchView('table');
@@ -6594,6 +6653,62 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         <option value="rejected">Rejected</option>
         <option value="cancelled">Cancelled</option>
       `;
+    }
+  }
+
+  /**
+   * Update sort by options based on current tab
+   */
+  function updateSortByOptions() {
+    const sortByFilter = document.getElementById('sortByFilter');
+    if (!sortByFilter) return;
+
+    // Store current selection to preserve it if possible
+    const currentValue = sortByFilter.value;
+
+    if (currentTab === 'all') {
+      // All Requests Tab: Show base sort options (no completed/archived dates)
+      sortByFilter.innerHTML = `
+        <option value="submitted-desc">Date Submitted (Newest First)</option>
+        <option value="submitted-asc">Date Submitted (Oldest First)</option>
+        <option value="event-desc">Event Date (Newest First)</option>
+        <option value="event-asc">Event Date (Oldest First)</option>
+        <option value="name-asc">Last Name (A-Z)</option>
+        <option value="name-desc">Last Name (Z-A)</option>
+      `;
+    } else if (currentTab === 'history') {
+      // History Tab: Add "Date Completed" options
+      sortByFilter.innerHTML = `
+        <option value="submitted-desc">Date Submitted (Newest First)</option>
+        <option value="submitted-asc">Date Submitted (Oldest First)</option>
+        <option value="event-desc">Event Date (Newest First)</option>
+        <option value="event-asc">Event Date (Oldest First)</option>
+        <option value="completed-desc">Date Completed (Newest First)</option>
+        <option value="completed-asc">Date Completed (Oldest First)</option>
+        <option value="name-asc">Last Name (A-Z)</option>
+        <option value="name-desc">Last Name (Z-A)</option>
+      `;
+    } else if (currentTab === 'archives') {
+      // Archives Tab: Add "Date Archived" options
+      sortByFilter.innerHTML = `
+        <option value="submitted-desc">Date Submitted (Newest First)</option>
+        <option value="submitted-asc">Date Submitted (Oldest First)</option>
+        <option value="event-desc">Event Date (Newest First)</option>
+        <option value="event-asc">Event Date (Oldest First)</option>
+        <option value="archived-desc">Date Archived (Newest First)</option>
+        <option value="archived-asc">Date Archived (Oldest First)</option>
+        <option value="name-asc">Last Name (A-Z)</option>
+        <option value="name-desc">Last Name (Z-A)</option>
+      `;
+    }
+
+    // Try to restore previous selection if it still exists in new options
+    const options = Array.from(sortByFilter.options).map(opt => opt.value);
+    if (options.includes(currentValue)) {
+      sortByFilter.value = currentValue;
+    } else {
+      // If previous selection not available, default to submitted-desc
+      sortByFilter.value = 'submitted-desc';
     }
   }
 
@@ -7053,6 +7168,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
 
       // Setup event listeners
       setupEventListeners();
+
+      // Initialize filter options based on current tab
+      updateStatusFilterOptions();
+      updateSortByOptions();
 
       // Load data
       await loadInventoryStats();
