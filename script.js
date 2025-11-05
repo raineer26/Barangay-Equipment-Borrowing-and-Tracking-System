@@ -7269,6 +7269,27 @@ if (saveBtn) {
     chairsTotal !== originalValues.chairs.total ||
     chairsInuse !== originalValues.chairs.inuse;
 
+  // If no changes, show message below buttons instead of modal
+  if (!hasChanges) {
+    const noChangesMsg = document.getElementById('noChangesMessage');
+    if (noChangesMsg) {
+      noChangesMsg.textContent = 'No changes made with the inventory.';
+      noChangesMsg.style.display = 'block';
+      
+      // Hide message after 3 seconds
+      setTimeout(() => {
+        noChangesMsg.style.display = 'none';
+      }, 3000);
+    }
+    return;
+  }
+
+  // Clear any previous "no changes" message
+  const noChangesMsg = document.getElementById('noChangesMessage');
+  if (noChangesMsg) {
+    noChangesMsg.style.display = 'none';
+  }
+
   // Get or create confirmation message element
   let confirmMessage = document.querySelector('.confirm-message');
   if (!confirmMessage) {
@@ -7288,27 +7309,6 @@ if (saveBtn) {
   confirmMessage.style.alignItems = 'center';
   confirmMessage.style.justifyContent = 'flex-start';
   confirmMessage.style.paddingBottom = '20px';
-  
-  if (!hasChanges) {
-    // Show no changes message
-    confirmMessage.innerHTML = `
-      <div style="text-align: center; padding: 40px;">
-        <h3 style="margin: 0 0 20px 0; color: #1a237e; font-size: 24px; font-weight: 600;">No Changes Detected</h3>
-        <p style="color: #666; font-size: 16px; margin: 0;">No modifications have been made to the inventory values.</p>
-        <p style="color: #666; font-size: 16px; margin: 10px 0 0 0;">Edit the values first before saving.</p>
-      </div>
-    `;
-    // Disable the Yes button
-    confirmYes.disabled = true;
-    confirmYes.style.opacity = '0.5';
-    confirmYes.style.cursor = 'not-allowed';
-    return;
-  }
-
-  // Reset Yes button state if there are changes
-  confirmYes.disabled = false;
-  confirmYes.style.opacity = '';
-  confirmYes.style.cursor = '';
   
   // Fancy two-column design
   confirmMessage.innerHTML = `
