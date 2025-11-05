@@ -5234,7 +5234,7 @@ input[type="number"]::-webkit-outer-spin-button {
   width: 100%;
   border-collapse: collapse;
   table-layout: auto;
-  min-width: 1200px;
+  min-width: 1600px;
 }
 
 .tents-requests-table thead {
@@ -5257,15 +5257,17 @@ input[type="number"]::-webkit-outer-spin-button {
 .tents-requests-table th:nth-child(1) { min-width: 120px; max-width: 140px; } /* Submitted On */
 .tents-requests-table th:nth-child(2),
 .tents-requests-table th:nth-child(3) { min-width: 110px; max-width: 140px; } /* First/Last Name */
-.tents-requests-table th:nth-child(4),
-.tents-requests-table th:nth-child(5) { min-width: 110px; max-width: 130px; } /* Start/End Date */
+.tents-requests-table th:nth-child(4) { min-width: 110px; max-width: 130px; } /* Contact Number */
+.tents-requests-table th:nth-child(5) { min-width: 150px; max-width: 250px; } /* Purpose */
 .tents-requests-table th:nth-child(6),
-.tents-requests-table th:nth-child(7) { min-width: 70px; max-width: 80px; text-align: center; } /* Chairs/Tents */
-.tents-requests-table th:nth-child(8) { min-width: 110px; max-width: 130px; } /* Delivery Mode */
-.tents-requests-table th:nth-child(9) { min-width: 150px; max-width: 200px; } /* Address */
-.tents-requests-table th:nth-child(10) { min-width: 100px; max-width: 120px; } /* Status */
-.tents-requests-table th:nth-child(11) { min-width: 180px; max-width: 200px; } /* Actions */
-.tents-requests-table th:nth-child(12) { min-width: 140px; max-width: 160px; } /* Notify User */
+.tents-requests-table th:nth-child(7) { min-width: 110px; max-width: 130px; } /* Start/End Date */
+.tents-requests-table th:nth-child(8),
+.tents-requests-table th:nth-child(9) { min-width: 70px; max-width: 80px; text-align: center; } /* Chairs/Tents */
+.tents-requests-table th:nth-child(10) { min-width: 110px; max-width: 130px; } /* Delivery Mode */
+.tents-requests-table th:nth-child(11) { min-width: 150px; max-width: 200px; } /* Address */
+.tents-requests-table th:nth-child(12) { min-width: 100px; max-width: 120px; } /* Status */
+.tents-requests-table th:nth-child(13) { min-width: 180px; max-width: 200px; } /* Actions */
+.tents-requests-table th:nth-child(14) { min-width: 140px; max-width: 160px; } /* Notify User or Remarks */
 
 .tents-requests-table td {
   padding: 12px 16px;
@@ -5299,63 +5301,76 @@ input[type="number"]::-webkit-outer-spin-button {
   max-width: 140px;
 }
 
-.tents-requests-table td:nth-child(4),
-.tents-requests-table td:nth-child(5) { /* Start Date, End Date */
+.tents-requests-table td:nth-child(4) { /* Contact Number */
   min-width: 110px;
   max-width: 130px;
 }
 
+.tents-requests-table td:nth-child(5) { /* Purpose */
+  min-width: 150px;
+  max-width: 250px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .tents-requests-table td:nth-child(6),
-.tents-requests-table td:nth-child(7) { /* Chairs, Tents */
+.tents-requests-table td:nth-child(7) { /* Start Date, End Date */
+  min-width: 110px;
+  max-width: 130px;
+}
+
+.tents-requests-table td:nth-child(8),
+.tents-requests-table td:nth-child(9) { /* Chairs, Tents */
   text-align: center;
   min-width: 70px;
   max-width: 80px;
 }
 
-.tents-requests-table td:nth-child(8) { /* Delivery Mode */
+.tents-requests-table td:nth-child(10) { /* Delivery Mode */
   min-width: 110px;
   max-width: 130px;
 }
 
-.tents-requests-table td:nth-child(9) { /* Address */
+.tents-requests-table td:nth-child(11) { /* Address */
   min-width: 150px;
   max-width: 200px;
 }
 
-.tents-requests-table td:nth-child(10) { /* Status */
+.tents-requests-table td:nth-child(12) { /* Status */
   min-width: 100px;
   max-width: 120px;
 }
 
-.tents-requests-table td:nth-child(11) { /* Actions */
+.tents-requests-table td:nth-child(13) { /* Actions */
   min-width: 180px;
   max-width: 200px;
   white-space: nowrap;
 }
 
-.tents-requests-table td:nth-child(12) { /* Notify User */
+.tents-requests-table td:nth-child(14) { /* Notify User or Remarks */
   min-width: 140px;
   max-width: 160px;
   white-space: nowrap;
 }
 
 /* Remarks column (history & archives). Allow long text to wrap and break safely. */
-.tents-requests-table th:nth-child(12),
-.tents-requests-table td:nth-child(12) {
-  /* When Remarks exists it will occupy the 12th column in history/archives */
+.tents-requests-table th:nth-child(14),
+.tents-requests-table td:nth-child(14) {
+  /* When Remarks exists it will occupy the 14th column in history/archives */
   min-width: 160px;
   max-width: 300px;
 }
 
-.tents-requests-table td:nth-child(12) {
+.tents-requests-table td:nth-child(14) {
   white-space: normal; /* allow wrapping */
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-/* Completed/Archived timestamp column sits after Remarks in history/archives (13th column) */
-.tents-requests-table th:nth-child(13),
-.tents-requests-table td:nth-child(13) {
+/* Completed/Archived timestamp column sits after Remarks in history/archives (15th column) */
+.tents-requests-table th:nth-child(15),
+.tents-requests-table td:nth-child(15) {
   min-width: 120px;
   max-width: 160px;
   white-space: nowrap;

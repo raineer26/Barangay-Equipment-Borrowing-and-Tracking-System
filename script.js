@@ -3244,7 +3244,7 @@ if (window.location.pathname.endsWith('admin.html')) {
 //===================================================== ADMIN DASHBOARD SCRIPT Add this section to your script.js file*/
 
 // Check if we're on the admin dashboard page
-if (window.location.pathname.endsWith('admin.html') || window.location.pathname.endsWith('/admin')) {
+if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.location.pathname.endsWith('/admin-manage-inventory') || window.location.pathname.endsWith('admin.html') || window.location.pathname.endsWith('/admin')) {
   
   // Store all reservations data loaded from Firestore
   let allReservationsData = [];
@@ -3891,11 +3891,13 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
   }
 
   // Close modal when clicking outside
-  internalBookingModal.addEventListener('click', (e) => {
-    if (e.target === internalBookingModal) {
-      closeModal();
-    }
-  });
+  if (internalBookingModal) {
+    internalBookingModal.addEventListener('click', (e) => {
+      if (e.target === internalBookingModal) {
+        closeModal();
+      }
+    });
+  }
 
   // Form validation helpers
   function setInternalError(elementId, message) {
@@ -5443,6 +5445,8 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
               <th>Submitted On</th>
               <th>First Name</th>
               <th>Last Name</th>
+              <th>Contact Number</th>
+              <th>Purpose</th>
               <th>Start Date</th>
               <th>End Date</th>
               <th>Chairs</th>
@@ -5481,12 +5485,16 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         : (req.fullName ? getLastName(req.fullName) : '');
       const startDate = formatDateText(req.startDate);
       const endDate = formatDateText(req.endDate);
+      const contactNumber = sanitizeInput(req.contactNumber || 'N/A');
+      const purpose = sanitizeInput(req.purposeOfUse || req.purpose || 'N/A');
 
       tableHTML += `
         <tr>
           <td>${submittedDateTime}</td>
           <td>${sanitizeInput(firstName)}</td>
           <td>${sanitizeInput(lastName)}</td>
+          <td>${contactNumber}</td>
+          <td>${purpose}</td>
           <td>${startDate}</td>
           <td>${endDate}</td>
           <td>${req.quantityChairs || 0}</td>
@@ -7037,13 +7045,22 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    Each form now has its own dedicated handler that properly validates
    and saves to Firebase before redirecting.
 ===================================================== */
-// ===== Inventory Manager with Real-Time Firestore Sync =====
-// --- DOM Elements ---
-const editBtn = document.getElementById("editInventory");
-const saveBtn = document.getElementById("saveInventory");
-const confirmModal = document.getElementById("saveConfirmModal");
-const confirmYes = document.getElementById("confirmSaveYes");
-const confirmNo = document.getElementById("confirmSaveNo");
+
+/* =====================================================
+   INVENTORY MANAGER - ADMIN-MANAGE-INVENTORY.HTML ONLY
+   This code only runs on admin-manage-inventory.html to prevent errors on other pages
+===================================================== */
+if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.location.pathname.endsWith('/admin-manage-inventory')) {
+  console.log('📦 Inventory Manager loaded');
+  
+  // ===== Inventory Manager with Real-Time Firestore Sync =====
+  // --- DOM Elements ---
+  const editBtn = document.getElementById("editInventory");
+  const saveBtn = document.getElementById("saveInventory");
+  const cancelBtn = document.getElementById("cancelInventory");
+  const confirmModal = document.getElementById("saveConfirmModal");
+  const confirmYes = document.getElementById("confirmSaveYes");
+  const confirmNo = document.getElementById("confirmSaveNo");
 
 const fields = {
   tents: {
@@ -7116,14 +7133,54 @@ async function initializeInventory() {
 }
 
 // --- Enable Editing ---
-editBtn.addEventListener("click", () => {
-  Object.values(fields).forEach(item => {
-    item.total.disabled = false;
-    item.inuse.disabled = false;
+if (editBtn) {
+  editBtn.addEventListener("click", () => {
+    Object.values(fields).forEach(item => {
+      if (item && item.total) item.total.disabled = false;
+      if (item && item.inuse) item.inuse.disabled = false;
+    });
+    if (saveBtn) saveBtn.disabled = false;
+    if (cancelBtn) cancelBtn.style.display = 'inline-block'; // Show cancel button
+    editBtn.disabled = true;
   });
-  saveBtn.disabled = false;
-  editBtn.disabled = true;
-});
+}
+
+// --- Cancel Editing ---
+if (cancelBtn) {
+  cancelBtn.addEventListener("click", () => {
+    // Restore original values
+    fields.tents.total.value = originalValues.tents.total;
+    fields.tents.inuse.value = originalValues.tents.inuse;
+    fields.tents.available.value = originalValues.tents.total - originalValues.tents.inuse;
+    
+    fields.chairs.total.value = originalValues.chairs.total;
+    fields.chairs.inuse.value = originalValues.chairs.inuse;
+    fields.chairs.available.value = originalValues.chairs.total - originalValues.chairs.inuse;
+    
+    // Disable all fields
+    Object.values(fields).forEach(item => {
+      if (item && item.total) item.total.disabled = true;
+      if (item && item.inuse) item.inuse.disabled = true;
+    });
+    
+    // Clear any error messages
+    ['tents', 'chairs'].forEach(itemType => {
+      const errorElement = document.getElementById(`${itemType}-error`);
+      if (errorElement) {
+        errorElement.textContent = '';
+      }
+      if (fields[itemType]) {
+        if (fields[itemType].available) fields[itemType].available.style.color = '';
+        if (fields[itemType].inuse) fields[itemType].inuse.style.borderColor = '';
+      }
+    });
+    
+    // Reset buttons
+    if (saveBtn) saveBtn.disabled = true;
+    if (editBtn) editBtn.disabled = false;
+    if (cancelBtn) cancelBtn.style.display = 'none'; // Hide cancel button
+  });
+}
 
 // --- Auto Update Available Values ---
 function updateAvailable(itemType) {
@@ -7180,16 +7237,25 @@ function updateAvailable(itemType) {
   }
 }
 
-// Add input listeners for tents and chairs in-use fields
-fields.tents.inuse.addEventListener("input", () => updateAvailable("tents"));
-fields.chairs.inuse.addEventListener("input", () => updateAvailable("chairs"));
+// Add input listeners for tents and chairs in-use fields (guarded)
+if (fields.tents && fields.tents.inuse) {
+  fields.tents.inuse.addEventListener("input", () => updateAvailable("tents"));
+}
+if (fields.chairs && fields.chairs.inuse) {
+  fields.chairs.inuse.addEventListener("input", () => updateAvailable("chairs"));
+}
 
-// Add input listeners for total fields as well to keep available updated
-fields.tents.total.addEventListener("input", () => updateAvailable("tents"));
-fields.chairs.total.addEventListener("input", () => updateAvailable("chairs"));
+// Add input listeners for total fields as well to keep available updated (guarded)
+if (fields.tents && fields.tents.total) {
+  fields.tents.total.addEventListener("input", () => updateAvailable("tents"));
+}
+if (fields.chairs && fields.chairs.total) {
+  fields.chairs.total.addEventListener("input", () => updateAvailable("chairs"));
+}
 
 // --- Save Changes (Modal Confirmation) ---
-saveBtn.addEventListener("click", () => {
+if (saveBtn) {
+  saveBtn.addEventListener("click", () => {
   // Get current and new values
   const tentsTotal = Number(fields.tents.total.value);
   const tentsInuse = Number(fields.tents.inuse.value);
@@ -7214,14 +7280,14 @@ saveBtn.addEventListener("click", () => {
   }
   
   // Style the confirmation message
-  confirmMessage.style.padding = '30px 20px';
+  confirmMessage.style.padding = '20px';
   confirmMessage.style.maxHeight = '80vh';
   confirmMessage.style.overflowY = 'auto';
   confirmMessage.style.display = 'flex';
   confirmMessage.style.flexDirection = 'column';
   confirmMessage.style.alignItems = 'center';
-  confirmMessage.style.justifyContent = 'center';
-  confirmMessage.style.minHeight = '300px';
+  confirmMessage.style.justifyContent = 'flex-start';
+  confirmMessage.style.paddingBottom = '20px';
   
   if (!hasChanges) {
     // Show no changes message
@@ -7244,79 +7310,95 @@ saveBtn.addEventListener("click", () => {
   confirmYes.style.opacity = '';
   confirmYes.style.cursor = '';
   
+  // Fancy two-column design
   confirmMessage.innerHTML = `
-    <h3 style="margin: 0 0 30px 0; color: #1a237e; font-size: 28px; text-align: center; font-weight: 600; text-transform: uppercase;">Review Your Changes</h3>
-    <div class="changes-list" style="display: flex; gap: 30px; justify-content: center; width: 100%; max-width: 700px;">
-      <div class="change-section" style="background: #f5f5f5; padding: 24px; border-radius: 8px; flex: 1; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
-        <h4 style="margin: 0 0 20px 0; color: #303f9f; font-size: 22px; text-align: center;">Tents</h4>
-        <div style="display: grid; gap: 12px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 18px;">Total:</span>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 18px;">${originalValues.tents.total}</span>
-              <span style="color: #666; font-size: 20px;">→</span>
-              <strong style="color: ${tentsTotal !== originalValues.tents.total ? (tentsTotal > originalValues.tents.total ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsTotal}</strong>
-            </div>
+    <h3 style="color: #3949AB; font-size: 20px; font-weight: 700; margin: 0 0 30px 0; text-align: center;">REVIEW YOUR CHANGES</h3>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; max-width: 700px;">
+      <!-- Tents Column -->
+      <div style="background: #f5f5f5; padding: 25px; border-radius: 12px;">
+        <h4 style="color: #3949AB; font-size: 18px; font-weight: 600; margin: 0 0 20px 0; text-align: center;">Tents</h4>
+        
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 14px; font-weight: 500; color: #666; margin-bottom: 8px;">Total:</div>
+          <div style="text-align: center; font-size: 18px;">
+            <span style="color: #999;">${originalValues.tents.total}</span>
+            <span style="margin: 0 8px; color: #666;">→</span>
+            <span style="font-weight: 700; color: ${tentsTotal > originalValues.tents.total ? '#4CAF50' : tentsTotal < originalValues.tents.total ? '#f44336' : '#666'};">${tentsTotal}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 18px;">In Use:</span>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 18px;">${originalValues.tents.inuse}</span>
-              <span style="color: #666; font-size: 20px;">→</span>
-              <strong style="color: ${tentsInuse !== originalValues.tents.inuse ? (tentsInuse > originalValues.tents.inuse ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsInuse}</strong>
-            </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 14px; font-weight: 500; color: #666; margin-bottom: 8px;">In Use:</div>
+          <div style="text-align: center; font-size: 18px;">
+            <span style="color: #999;">${originalValues.tents.inuse}</span>
+            <span style="margin: 0 8px; color: #666;">→</span>
+            <span style="font-weight: 700; color: ${tentsInuse > originalValues.tents.inuse ? '#4CAF50' : tentsInuse < originalValues.tents.inuse ? '#f44336' : '#666'};">${tentsInuse}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e0e0e0; padding-top: 16px; margin-top: 8px;">
-            <span style="font-weight: 600; font-size: 18px;">Available:</span>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 18px;">${originalValues.tents.total - originalValues.tents.inuse}</span>
-              <span style="color: #666; font-size: 20px;">→</span>
-              <strong style="color: ${(tentsTotal - tentsInuse) !== (originalValues.tents.total - originalValues.tents.inuse) ? ((tentsTotal - tentsInuse) > (originalValues.tents.total - originalValues.tents.inuse) ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsTotal - tentsInuse}</strong>
-            </div>
+        </div>
+        
+        <div>
+          <div style="font-size: 14px; font-weight: 500; color: #666; margin-bottom: 8px;">Available:</div>
+          <div style="text-align: center; font-size: 18px;">
+            <span style="color: #999;">${originalValues.tents.total - originalValues.tents.inuse}</span>
+            <span style="margin: 0 8px; color: #666;">→</span>
+            <span style="font-weight: 700; color: ${(tentsTotal - tentsInuse) > (originalValues.tents.total - originalValues.tents.inuse) ? '#4CAF50' : (tentsTotal - tentsInuse) < (originalValues.tents.total - originalValues.tents.inuse) ? '#f44336' : '#666'};">${tentsTotal - tentsInuse}</span>
           </div>
         </div>
       </div>
-      <div class="change-section" style="background: #f5f5f5; padding: 20px; border-radius: 8px; flex: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <h4 style="margin: 0 0 20px 0; color: #303f9f; font-size: 22px; text-align: center;">Chairs</h4>
-        <div style="display: grid; gap: 12px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 18px;">Total:</span>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 18px;">${originalValues.chairs.total}</span>
-              <span style="color: #666; font-size: 20px;">→</span>
-              <strong style="color: ${chairsTotal !== originalValues.chairs.total ? (chairsTotal > originalValues.chairs.total ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${chairsTotal}</strong>
-            </div>
+      
+      <!-- Chairs Column -->
+      <div style="background: #f5f5f5; padding: 25px; border-radius: 12px;">
+        <h4 style="color: #3949AB; font-size: 18px; font-weight: 600; margin: 0 0 20px 0; text-align: center;">Chairs</h4>
+        
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 14px; font-weight: 500; color: #666; margin-bottom: 8px;">Total:</div>
+          <div style="text-align: center; font-size: 18px;">
+            <span style="color: #999;">${originalValues.chairs.total}</span>
+            <span style="margin: 0 8px; color: #666;">→</span>
+            <span style="font-weight: 700; color: ${chairsTotal > originalValues.chairs.total ? '#4CAF50' : chairsTotal < originalValues.chairs.total ? '#f44336' : '#666'};">${chairsTotal}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 18px;">In Use:</span>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 18px;">${originalValues.chairs.inuse}</span>
-              <span style="color: #666; font-size: 20px;">→</span>
-              <strong style="color: ${chairsInuse !== originalValues.chairs.inuse ? (chairsInuse > originalValues.chairs.inuse ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${chairsInuse}</strong>
-            </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 14px; font-weight: 500; color: #666; margin-bottom: 8px;">In Use:</div>
+          <div style="text-align: center; font-size: 18px;">
+            <span style="color: #999;">${originalValues.chairs.inuse}</span>
+            <span style="margin: 0 8px; color: #666;">→</span>
+            <span style="font-weight: 700; color: ${chairsInuse > originalValues.chairs.inuse ? '#4CAF50' : chairsInuse < originalValues.chairs.inuse ? '#f44336' : '#666'};">${chairsInuse}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e0e0e0; padding-top: 16px; margin-top: 8px;">
-            <span style="font-weight: 600; font-size: 18px;">Available:</span>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span>${originalValues.chairs.total - originalValues.chairs.inuse}</span>
-              <span style="color: #666;">→</span>
-              <strong style="color: ${(chairsTotal - chairsInuse) > (originalValues.chairs.total - originalValues.chairs.inuse) ? '#4caf50' : '#f44336'}">${chairsTotal - chairsInuse}</strong>
-            </div>
+        </div>
+        
+        <div>
+          <div style="font-size: 14px; font-weight: 500; color: #666; margin-bottom: 8px;">Available:</div>
+          <div style="text-align: center; font-size: 18px;">
+            <span style="color: #999;">${originalValues.chairs.total - originalValues.chairs.inuse}</span>
+            <span style="margin: 0 8px; color: #666;">→</span>
+            <span style="font-weight: 700; color: ${(chairsTotal - chairsInuse) > (originalValues.chairs.total - originalValues.chairs.inuse) ? '#4CAF50' : (chairsTotal - chairsInuse) < (originalValues.chairs.total - originalValues.chairs.inuse) ? '#f44336' : '#666'};">${chairsTotal - chairsInuse}</span>
           </div>
         </div>
       </div>
     </div>
+    
+    <p style="text-align: center; color: #666; font-size: 14px; margin-top: 25px; margin-bottom: 0;">
+      <span style="color: #4CAF50; font-weight: 600;">Green</span> numbers indicate increases, 
+      <span style="color: #f44336; font-weight: 600;">red</span> numbers indicate decreases
+    </p>
   `;
   
   confirmModal.style.display = "flex";
-});
+  });
+}
 
-confirmNo.addEventListener("click", () => {
-  confirmModal.style.display = "none";
-});
+if (confirmNo) {
+  confirmNo.addEventListener("click", () => {
+    confirmModal.style.display = "none";
+  });
+}
 
 // --- Confirm and Save ---
-confirmYes.addEventListener("click", async () => {
+if (confirmYes) {
+  confirmYes.addEventListener("click", async () => {
   const inventoryRef = doc(db, "inventory", "equipment");
 
   const tentsTotal = Number(fields.tents.total.value);
@@ -7337,6 +7419,7 @@ confirmYes.addEventListener("click", async () => {
     confirmModal.style.display = "none";
     saveBtn.disabled = true;
     editBtn.disabled = false;
+    if (cancelBtn) cancelBtn.style.display = 'none'; // Hide cancel button after save
 
     Object.values(fields).forEach(item => {
       item.total.disabled = true;
@@ -7413,7 +7496,1119 @@ confirmYes.addEventListener("click", async () => {
 
     console.error("Error updating inventory:", error);
   }
-});
+  });
+}
 
-// --- Start ---
-loadInventoryRealtime();
+  // --- Start ---
+  loadInventoryRealtime();
+}
+
+/* =====================================================
+   END OF INVENTORY MANAGER
+===================================================== */
+
+/* ========================================================================================================
+   🏛️ CONFERENCE ROOM ADMIN MANAGEMENT SYSTEM
+   ======================================================================================================== */
+/**
+ * PAGE: admin-conference-requests.html
+ * PURPOSE: Manage conference room reservations (approve, deny, complete, archive)
+ * 
+ * KEY DIFFERENCES FROM TENTS ADMIN:
+ * - No inventory tracking (conference room is single resource)
+ * - Single event date + time range (not date range)
+ * - No delivery mode or quantities
+ * - Simpler approval process (no stock validation needed)
+ * 
+ * FIRESTORE COLLECTION: conferenceRoomBookings
+ * Document Structure:
+ * {
+ *   fullName: string,
+ *   contactNumber: string,
+ *   purpose: string,
+ *   eventDate: "YYYY-MM-DD",
+ *   startTime: "HH:mm",
+ *   endTime: "HH:mm",
+ *   status: "pending"|"approved"|"in-progress"|"completed"|"rejected"|"cancelled",
+ *   userId: string,
+ *   userEmail: string,
+ *   createdAt: Timestamp,
+ *   approvedAt?: Timestamp,
+ *   rejectedAt?: Timestamp,
+ *   completedAt?: Timestamp,
+ *   archivedAt?: Timestamp,
+ *   rejectionReason?: string,
+ *   archived?: boolean
+ * }
+ */
+
+if (window.location.pathname.endsWith('admin-conference-requests.html') || 
+    window.location.pathname.endsWith('/admin-conference-requests')) {
+  
+  console.log('🏛️ Conference Room Admin Page loaded');
+
+  // ========================================
+  // STATE VARIABLES
+  // ========================================
+  let allRequests = []; // All conference room requests from Firestore
+  let currentTab = 'all'; // 'all' (active requests) or 'history' (completed/rejected/cancelled) or 'archives'
+  let currentView = 'table'; // 'table' or 'calendar' (calendar is future feature)
+
+  // ========================================
+  // DATA LOADING
+  // ========================================
+
+  /**
+   * Load all conference room requests from Firestore
+   * Called on page load and after any data changes
+   */
+  async function loadAllRequests() {
+    console.log('🔄 Loading conference room requests from Firestore...');
+    try {
+      const requestsRef = collection(db, 'conferenceRoomBookings');
+      const snapshot = await getDocs(requestsRef);
+      
+      allRequests = [];
+      snapshot.forEach(doc => {
+        allRequests.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      console.log(`✅ Loaded ${allRequests.length} conference room requests`);
+      
+      // Update UI
+      updateStatistics();
+      renderContent();
+    } catch (error) {
+      console.error('❌ Error loading requests:', error);
+      showToast('Error loading requests. Please refresh the page.', false);
+    }
+  }
+
+  /**
+   * Update dashboard statistics (Total, Pending, Approved, Completed)
+   */
+  function updateStatistics() {
+    const total = allRequests.length;
+    const pending = allRequests.filter(r => r.status === 'pending').length;
+    const approved = allRequests.filter(r => r.status === 'approved').length;
+    const completed = allRequests.filter(r => r.status === 'completed').length;
+
+    // Update stat card numbers
+    document.getElementById('totalRequestsCount').textContent = total;
+    document.getElementById('pendingRequestsCount').textContent = pending;
+    document.getElementById('approvedRequestsCount').textContent = approved;
+    document.getElementById('completedRequestsCount').textContent = completed;
+
+    console.log(`📊 Stats: Total=${total}, Pending=${pending}, Approved=${approved}, Completed=${completed}`);
+  }
+
+  // ========================================
+  // FILTERING & SORTING
+  // ========================================
+
+  /**
+   * Get filtered requests based on current tab and filter inputs
+   * Returns array of requests matching all active filters
+   */
+  function getFilteredRequests() {
+    const searchTerm = (document.getElementById('searchInput')?.value || '').toLowerCase();
+    const statusFilter = document.getElementById('statusFilter')?.value || 'all';
+    const dateFilter = document.getElementById('dateFilter')?.value || '';
+    const sortBy = document.getElementById('sortByFilter')?.value || 'submitted-desc';
+
+    let filtered = [...allRequests];
+
+    // Tab filtering - different statuses for each tab
+    if (currentTab === 'all') {
+      // All Requests tab: show pending, approved, in-progress
+      filtered = filtered.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+    } else if (currentTab === 'history') {
+      // History tab: show completed, rejected, cancelled (but NOT archived)
+      filtered = filtered.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+    } else if (currentTab === 'archives') {
+      // Archives tab: show only archived requests
+      filtered = filtered.filter(r => r.archived === true);
+    }
+
+    // Search filter - search in full name
+    if (searchTerm) {
+      filtered = filtered.filter(r => 
+        (r.fullName || '').toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(r => r.status === statusFilter);
+    }
+
+    // Date filter - filter by event date
+    if (dateFilter) {
+      filtered = filtered.filter(r => r.eventDate === dateFilter);
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'submitted-desc':
+          return (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0);
+        case 'submitted-asc':
+          return (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0);
+        case 'event-desc':
+          return (b.eventDate || '').localeCompare(a.eventDate || '');
+        case 'event-asc':
+          return (a.eventDate || '').localeCompare(b.eventDate || '');
+        case 'name-asc':
+          // Sort by last name (extract last word from fullName)
+          const aLast = (a.fullName || '').split(' ').pop().toLowerCase();
+          const bLast = (b.fullName || '').split(' ').pop().toLowerCase();
+          return aLast.localeCompare(bLast);
+        case 'name-desc':
+          const aLastDesc = (a.fullName || '').split(' ').pop().toLowerCase();
+          const bLastDesc = (b.fullName || '').split(' ').pop().toLowerCase();
+          return bLastDesc.localeCompare(aLastDesc);
+        default:
+          return 0;
+      }
+    });
+
+    console.log(`🔍 Filtered: ${filtered.length} requests (from ${allRequests.length} total)`);
+    return filtered;
+  }
+
+  /**
+   * Update status filter dropdown options based on current tab
+   */
+  function updateStatusFilterOptions() {
+    const statusFilter = document.getElementById('statusFilter');
+    if (!statusFilter) return;
+
+    if (currentTab === 'all') {
+      statusFilter.innerHTML = `
+        <option value="all">All Statuses</option>
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="in-progress">In Progress</option>
+      `;
+    } else if (currentTab === 'history') {
+      statusFilter.innerHTML = `
+        <option value="all">All Statuses</option>
+        <option value="completed">Completed</option>
+        <option value="rejected">Rejected</option>
+        <option value="cancelled">Cancelled</option>
+      `;
+    } else if (currentTab === 'archives') {
+      statusFilter.innerHTML = `
+        <option value="all">All Statuses</option>
+        <option value="completed">Completed</option>
+        <option value="rejected">Rejected</option>
+        <option value="cancelled">Cancelled</option>
+      `;
+    }
+  }
+
+  /**
+   * Robust name extractor - returns { firstName, lastName }
+   * Tries multiple common fields and falls back to email local-part if needed.
+   */
+  function getNameParts(req) {
+    // Preferred explicit fields (new schema)
+    if (req.firstName || req.lastName) {
+      return {
+        firstName: String(req.firstName || '').trim(),
+        lastName: String(req.lastName || '').trim()
+      };
+    }
+
+    // Some documents may use camelCase without capitals
+    if (req.firstname || req.lastname) {
+      return {
+        firstName: String(req.firstname || '').trim(),
+        lastName: String(req.lastname || '').trim()
+      };
+    }
+
+    // Underscored variant
+    if (req.first_name || req.last_name) {
+      return {
+        firstName: String(req.first_name || '').trim(),
+        lastName: String(req.last_name || '').trim()
+      };
+    }
+
+    // Legacy combined fields
+    const raw = String(req.fullName || req.fullname || req.full_name || req.name || req.applicantName || '').trim();
+    if (raw) {
+      const parts = raw.split(/\s+/);
+      return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '' };
+    }
+
+    // fallback: try to extract from email local part
+    if (req.userEmail) {
+      const local = String(req.userEmail).split('@')[0];
+      const parts = local.split(/[._\-]/).filter(Boolean);
+      return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '' };
+    }
+
+    return { firstName: '', lastName: '' };
+  }
+
+  // ========================================
+  // RENDERING
+  // ========================================
+
+  /**
+   * Main render dispatcher - calls appropriate render function based on currentView
+   */
+  function renderContent() {
+    if (currentView === 'table') {
+      renderTableView();
+    } else {
+      renderCalendarView();
+    }
+  }
+
+  /**
+   * Render table view with all columns
+   * Columns: Submitted On, First Name, Last Name, Contact, Purpose, Event Date, Start Time, End Time, Status, Actions, Notify/Remarks
+   */
+  function renderTableView() {
+    const contentArea = document.getElementById('conferenceContentArea');
+    if (!contentArea) return;
+
+    const filteredRequests = getFilteredRequests();
+
+    // Empty state
+    if (filteredRequests.length === 0) {
+      contentArea.innerHTML = `
+        <div class="tents-empty-state">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+          </svg>
+          <h3>No requests found</h3>
+          <p>No conference room reservations match your current filters.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Prepare header labels depending on tab
+    const notifyOrRemarksHeader = currentTab === 'all' ? 'Notify User' : 'Remarks';
+    const trailingHeader = currentTab === 'history' ? '<th>Completed On</th>' : (currentTab === 'archives' ? '<th>Archived On</th>' : '');
+
+    // Build table HTML
+    let tableHTML = `
+      <div class="tents-table-container">
+        <table class="tents-requests-table">
+          <thead>
+            <tr>
+              <th>Submitted On</th>
+              <th>First Name</th>
+              <th>Last Name</th>
+              <th>Contact Number</th>
+              <th>Purpose</th>
+              <th>Event Date</th>
+              <th>Start Time</th>
+              <th>End Time</th>
+              <th>Status</th>
+              <th>Actions</th>
+              <th>${notifyOrRemarksHeader}</th>
+              ${trailingHeader}
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    // Render each request row
+    filteredRequests.forEach(req => {
+  // Split name into first and last using robust helper
+  const { firstName, lastName } = getNameParts(req);
+
+      // Format submitted date
+      const submittedDate = req.createdAt ? 
+        new Date(req.createdAt.toMillis()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 
+        'N/A';
+      const submittedTime = req.createdAt ? 
+        new Date(req.createdAt.toMillis()).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 
+        '';
+
+      // Format event date
+      const eventDate = req.eventDate ? 
+        new Date(req.eventDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 
+        'N/A';
+
+      // Format times to 12-hour format
+      const formatTime = (time24) => {
+        if (!time24) return 'N/A';
+        const [hours, minutes] = time24.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${hour12}:${minutes} ${ampm}`;
+      };
+
+      const startTime = formatTime(req.startTime);
+      const endTime = formatTime(req.endTime);
+
+      // Completed/Archived date and time (for history/archives tab)
+      let completedDate = '';
+      let completedTime = '';
+      if (currentTab === 'history') {
+        if (req.completedAt) {
+          const d = new Date(req.completedAt.toMillis());
+          completedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          completedTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } else if (req.rejectedAt) {
+          const d = new Date(req.rejectedAt.toMillis());
+          completedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          completedTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } else if (req.cancelledAt) {
+          const d = new Date(req.cancelledAt.toMillis());
+          completedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          completedTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } else {
+          completedDate = 'N/A';
+          completedTime = '';
+        }
+      } else if (currentTab === 'archives') {
+        if (req.archivedAt) {
+          const d = new Date(req.archivedAt.toMillis());
+          completedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          completedTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } else {
+          completedDate = 'N/A';
+          completedTime = '';
+        }
+      }
+
+      // Remarks (for history/archives tab)
+      let remarks = '';
+      if (currentTab !== 'all') {
+        if (req.status === 'rejected' && req.rejectionReason) {
+          remarks = sanitizeInput(req.rejectionReason);
+        } else if (req.status === 'cancelled') {
+          remarks = 'Cancelled by user';
+        } else {
+          remarks = '—';
+        }
+      }
+
+      tableHTML += `
+        <tr>
+          <td>
+            ${submittedDate}<br>
+            <span style="font-size: 11px; color: #6b7280; font-style: italic;">${submittedTime}</span>
+          </td>
+          <td>${sanitizeInput(firstName)}</td>
+          <td>${sanitizeInput(lastName)}</td>
+          <td>${sanitizeInput(req.contactNumber || '')}</td>
+          <td style="max-width: 250px; overflow-wrap: break-word;">${sanitizeInput(req.purpose || '')}</td>
+          <td>${eventDate}</td>
+          <td>${startTime}</td>
+          <td>${endTime}</td>
+          <td>${renderStatusBadge(req.status)}</td>
+          <td>${renderActionButtons(req)}</td>
+          <td>${currentTab === 'all' ? renderNotifyButtons(req) : remarks}</td>
+          ${currentTab !== 'all' ? `<td style="text-align: right;">${completedDate}${completedTime ? `<br><span style="font-size:11px;color:#6b7280;font-style:italic;">${completedTime}</span>` : ''}</td>` : ''}
+        </tr>
+      `;
+    });
+
+    tableHTML += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    contentArea.innerHTML = tableHTML;
+  }
+
+  /**
+   * Render status badge with appropriate color
+   */
+  function renderStatusBadge(status) {
+    const badgeClass = `tents-status-badge-${status}`;
+    const statusText = status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
+    return `<span class="${badgeClass}">${statusText}</span>`;
+  }
+
+  /**
+   * Render action buttons based on request status and current tab
+   */
+  function renderActionButtons(req) {
+    const buttons = [];
+
+    if (currentTab === 'all') {
+      // All Requests tab
+      if (req.status === 'pending') {
+        buttons.push(`<button class="tents-btn-approve" onclick="handleApprove('${req.id}')">Approve</button>`);
+        buttons.push(`<button class="tents-btn-deny" onclick="handleDeny('${req.id}')">Deny</button>`);
+      } else if (req.status === 'approved' || req.status === 'in-progress') {
+        buttons.push(`<button class="tents-btn-complete" onclick="handleComplete('${req.id}')">Mark as Completed</button>`);
+      }
+    } else if (currentTab === 'history') {
+      // History tab - only archive (no delete)
+      buttons.push(`<button class="tents-btn-archive" onclick="handleArchive('${req.id}')">Archive</button>`);
+    } else if (currentTab === 'archives') {
+      // Archives tab - only unarchive (no delete)
+      buttons.push(`<button class="tents-btn-unarchive" onclick="handleUnarchive('${req.id}')">Unarchive</button>`);
+    }
+
+    return buttons.length > 0 ? 
+      `<div class="tents-action-buttons">${buttons.join('')}</div>` : 
+      '—';
+  }
+
+  /**
+   * Render notification buttons (only for approved/in-progress requests in All Requests tab)
+   */
+  function renderNotifyButtons(req) {
+    // Show a yellow "Time's Up" button for approved/in-progress requests
+    if (req.status === 'approved' || req.status === 'in-progress') {
+      return `
+        <div class="tents-action-buttons">
+          <button class="tents-btn-timesup" style="background:#facc15;color:#111;border:none;padding:8px 12px;border-radius:6px;" onclick="handleTimesUp('${req.id}')">Time's Up</button>
+        </div>
+      `;
+    }
+    return '—';
+  }
+
+  /**
+   * Render calendar view (placeholder for future implementation)
+   */
+  function renderCalendarView() {
+    const contentArea = document.getElementById('conferenceContentArea');
+    if (!contentArea) return;
+
+    contentArea.innerHTML = `
+      <div class="tents-calendar-placeholder">
+        <h3>Calendar View</h3>
+        <p>Calendar view coming soon! This will display conference room reservations in a monthly calendar format.</p>
+      </div>
+    `;
+  }
+
+  // ========================================
+  // ACTION HANDLERS
+  // ========================================
+
+  /**
+   * Approve a pending request
+   * Simpler than tents - no inventory validation needed
+   */
+  window.handleApprove = async function(requestId) {
+    console.log('✅ Approving request:', requestId);
+
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      showToast('Request not found', false);
+      return;
+    }
+
+    // Build display name from available fields
+    const np = getNameParts(request);
+    const nameDisplay = (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.userEmail || 'user');
+
+    // Show confirmation modal
+    const confirmed = await showConfirmModal(
+      'Approve Reservation',
+      `Approve conference room reservation for ${nameDisplay}?\n\nDate: ${request.eventDate}\nTime: ${request.startTime} - ${request.endTime}`,
+      null,
+      false
+    );
+
+    if (!confirmed) return;
+
+    try {
+      // Update request status to approved
+      const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'approved',
+        approvedAt: new Date()
+      });
+
+      console.log('✅ Request approved successfully');
+      showToast('Reservation approved successfully!', true);
+      
+      // Reload data
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error approving request:', error);
+      showToast('Error approving request. Please try again.', false);
+    }
+  };
+
+  /**
+   * Deny a pending request (with reason)
+   */
+  window.handleDeny = async function(requestId) {
+    console.log('❌ Denying request:', requestId);
+
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      showToast('Request not found', false);
+      return;
+    }
+
+    // Build display name from available fields
+    const np = getNameParts(request);
+    const nameDisplay = (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.userEmail || 'user');
+
+    // Show confirmation with input field for reason
+    const reason = await showConfirmModalWithInput(
+      'Deny Reservation',
+      `Are you sure you want to deny this reservation?\n\nApplicant: ${nameDisplay}\nDate: ${request.eventDate}\nTime: ${request.startTime} - ${request.endTime}\n\nPlease provide a reason for denial:`,
+      'Enter reason for denial...'
+    );
+
+    if (!reason) return; // User cancelled or didn't provide reason
+
+    try {
+      // Update request status to rejected
+      const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'rejected',
+        rejectedAt: new Date(),
+        rejectionReason: reason
+      });
+
+      console.log('✅ Request denied successfully');
+      showToast('Reservation denied', true);
+      
+      // Reload data
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error denying request:', error);
+      showToast('Error denying request. Please try again.', false);
+    }
+  };
+
+  /**
+   * Mark approved/in-progress request as completed
+   */
+  window.handleComplete = async function(requestId) {
+    console.log('✔️ Completing request:', requestId);
+
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      showToast('Request not found', false);
+      return;
+    }
+
+    // Build display name from available fields
+    const np = getNameParts(request);
+    const nameDisplay = (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.userEmail || 'user');
+
+    // Show confirmation
+    const confirmed = await showConfirmModal(
+      'Mark as Completed',
+      `Mark this reservation as completed?\n\nApplicant: ${nameDisplay}\nDate: ${request.eventDate}`,
+      null,
+      false
+    );
+
+    if (!confirmed) return;
+
+    try {
+      // Update request status to completed
+      const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'completed',
+        completedAt: new Date()
+      });
+
+      console.log('✅ Request marked as completed');
+      showToast('Reservation marked as completed!', true);
+      
+      // Reload data
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error completing request:', error);
+      showToast('Error updating request. Please try again.', false);
+    }
+  };
+
+  /**
+   * Archive a request (soft delete - hide from history)
+   */
+  window.handleArchive = async function(requestId) {
+    console.log('📦 Archiving request:', requestId);
+
+    const confirmed = await showConfirmModal(
+      'Archive Request',
+      'Move this request to archives? You can unarchive it later if needed.',
+      null,
+      false
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+      await updateDoc(requestRef, {
+        archived: true,
+        archivedAt: new Date()
+      });
+
+      console.log('✅ Request archived');
+      showToast('Request archived successfully', true);
+      
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error archiving request:', error);
+      showToast('Error archiving request. Please try again.', false);
+    }
+  };
+
+  /**
+   * Unarchive a request
+   */
+  window.handleUnarchive = async function(requestId) {
+    console.log('📤 Unarchiving request:', requestId);
+
+    const confirmed = await showConfirmModal(
+      'Unarchive Request',
+      'Move this request back to history?',
+      null,
+      false
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+      await updateDoc(requestRef, {
+        archived: false
+      });
+
+      console.log('✅ Request unarchived');
+      showToast('Request unarchived successfully', true);
+      
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error unarchiving request:', error);
+      showToast('Error unarchiving request. Please try again.', false);
+    }
+  };
+
+  /**
+   * Delete a request permanently
+   */
+  window.handleDelete = async function(requestId) {
+    console.log('🗑️ Deleting request:', requestId);
+
+    // Double confirmation for permanent deletion
+    const confirmed = await showConfirmModal(
+      'Delete Request',
+      '⚠️ WARNING: This will permanently delete this request.\n\nThis action cannot be undone. Are you sure?',
+      null,
+      false
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await deleteDoc(doc(db, 'conferenceRoomBookings', requestId));
+
+      console.log('✅ Request deleted permanently');
+      showToast('Request deleted permanently', true);
+      
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error deleting request:', error);
+      showToast('Error deleting request. Please try again.', false);
+    }
+  };
+
+  /**
+   * Send reminder notification (placeholder for future email/SMS integration)
+   */
+  window.handleRemind = async function(requestId) {
+    console.log('🔔 Sending reminder for request:', requestId);
+
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      showToast('Request not found', false);
+      return;
+    }
+
+    const np = getNameParts(request);
+    const nameDisplay = (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.userEmail || 'user');
+
+    const confirmed = await showConfirmModal(
+      'Send Reminder',
+      `Send reminder notification to ${nameDisplay}?\n\nThis will notify them about their upcoming reservation.`,
+      null,
+      false
+    );
+
+    if (!confirmed) return;
+
+    // TODO: Implement actual notification (email/SMS via Cloud Functions)
+    showToast('Reminder feature coming soon!', true);
+    console.log('📧 TODO: Send email/SMS to:', request.userEmail, request.contactNumber);
+  };
+
+  /**
+   * Time's Up notification (yellow button) - placeholder
+   */
+  window.handleTimesUp = async function(requestId) {
+    console.log("⏰ Time's Up triggered for:", requestId);
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      showToast('Request not found', false);
+      return;
+    }
+
+    const confirmed = await showConfirmModal(
+      "Time's Up",
+      `Send Time's Up notification to ${(() => { const np = getNameParts(request); return (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.userEmail || 'user'); })()}?`,
+      null,
+      false
+    );
+
+    if (!confirmed) return;
+
+    // Placeholder: actual implementation should call Cloud Function to send email/SMS
+    showToast("Time's Up notification queued (placeholder)", true);
+    console.log("⏰ TODO: send Time's Up notification to:", request.userEmail, request.contactNumber);
+  };
+
+  // ========================================
+  // CONFIRMATION MODAL SYSTEM
+  // ========================================
+
+  /**
+   * Show confirmation modal
+   * @param {string} title - Modal title
+   * @param {string} message - Confirmation message (supports \n for line breaks)
+   * @param {object|null} inventoryChanges - Not used for conference room (kept for API consistency)
+   * @param {boolean} isAlert - If true, show only OK button (for alerts)
+   * @returns {Promise<boolean>} - Resolves to true if confirmed, false if cancelled
+   */
+  function showConfirmModal(title, message, inventoryChanges = null, isAlert = false) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('conferenceConfirmModal');
+      const titleEl = document.getElementById('conferenceConfirmTitle');
+      const messageEl = document.getElementById('conferenceConfirmMessage');
+      const inventoryEl = document.getElementById('conferenceConfirmInventory');
+      const yesBtn = document.getElementById('conferenceConfirmYes');
+      const noBtn = document.getElementById('conferenceConfirmNo');
+      const inputContainer = document.getElementById('conferenceConfirmInput');
+
+      if (!modal) {
+        console.error('❌ Confirmation modal not found');
+        resolve(false);
+        return;
+      }
+
+      // Set title and message
+      titleEl.textContent = title;
+      messageEl.textContent = message;
+
+      // Hide inventory preview (not used for conference room)
+      if (inventoryEl) inventoryEl.innerHTML = '';
+
+      // Hide input container
+      if (inputContainer) inputContainer.style.display = 'none';
+
+      // Configure buttons
+      if (isAlert) {
+        yesBtn.textContent = 'OK';
+        noBtn.style.display = 'none';
+      } else {
+        yesBtn.textContent = 'Yes';
+        noBtn.style.display = 'block';
+      }
+
+      // Show modal
+      modal.classList.add('active');
+
+      // Event handlers
+      const handleYes = () => {
+        cleanup();
+        resolve(true);
+      };
+
+      const handleNo = () => {
+        cleanup();
+        resolve(false);
+      };
+
+      const cleanup = () => {
+        modal.classList.remove('active');
+        yesBtn.removeEventListener('click', handleYes);
+        noBtn.removeEventListener('click', handleNo);
+      };
+
+      yesBtn.addEventListener('click', handleYes);
+      noBtn.addEventListener('click', handleNo);
+    });
+  }
+
+  /**
+   * Show confirmation modal with text input (for rejection reason)
+   */
+  function showConfirmModalWithInput(title, message, placeholder) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('conferenceConfirmModal');
+      const titleEl = document.getElementById('conferenceConfirmTitle');
+      const messageEl = document.getElementById('conferenceConfirmMessage');
+      const inputContainer = document.getElementById('conferenceConfirmInput');
+      const textarea = document.getElementById('conferenceConfirmInputTextarea');
+      const yesBtn = document.getElementById('conferenceConfirmYes');
+      const noBtn = document.getElementById('conferenceConfirmNo');
+
+      if (!modal) {
+        resolve(null);
+        return;
+      }
+
+      // Set content
+      titleEl.textContent = title;
+      messageEl.textContent = message;
+      textarea.value = '';
+      textarea.placeholder = placeholder;
+
+      // Show input container
+      inputContainer.style.display = 'block';
+
+      // Configure buttons
+      yesBtn.textContent = 'Submit';
+      noBtn.textContent = 'Cancel';
+      noBtn.style.display = 'block';
+
+      // Show modal
+      modal.classList.add('active');
+
+      const handleYes = () => {
+        const value = textarea.value.trim();
+        if (!value) {
+          showToast('Please provide a reason', false);
+          return;
+        }
+        cleanup();
+        resolve(value);
+      };
+
+      const handleNo = () => {
+        cleanup();
+        resolve(null);
+      };
+
+      const cleanup = () => {
+        modal.classList.remove('active');
+        inputContainer.style.display = 'none';
+        yesBtn.removeEventListener('click', handleYes);
+        noBtn.removeEventListener('click', handleNo);
+      };
+
+      yesBtn.addEventListener('click', handleYes);
+      noBtn.addEventListener('click', handleNo);
+    });
+  }
+
+  // ========================================
+  // TAB & VIEW SWITCHING
+  // ========================================
+
+  /**
+   * Switch between All Requests, History, and Archives tabs
+   */
+  window.switchTab = function(tabName) {
+    console.log('📑 Switching to tab:', tabName);
+    
+    currentTab = tabName;
+
+    // Update tab button states
+    document.getElementById('allRequestsTab')?.classList.toggle('active', tabName === 'all');
+    document.getElementById('historyTab')?.classList.toggle('active', tabName === 'history');
+    document.getElementById('archivesTab')?.classList.toggle('active', tabName === 'archives');
+
+    // Update filter options
+    updateStatusFilterOptions();
+
+    // Show/hide export dropdown (only in history/archives)
+    const exportDropdown = document.getElementById('exportDropdown');
+    const viewToggle = document.getElementById('viewToggle');
+    
+    if (exportDropdown) {
+      exportDropdown.style.display = (tabName === 'history' || tabName === 'archives') ? 'block' : 'none';
+    }
+    
+    if (viewToggle) {
+      viewToggle.style.display = tabName === 'all' ? 'flex' : 'none';
+    }
+
+    // Re-render content
+    renderContent();
+  };
+
+  /**
+   * Switch between Table and Calendar views
+   */
+  window.switchView = function(viewName) {
+    console.log('👁️ Switching to view:', viewName);
+    
+    currentView = viewName;
+
+    // Update view button states
+    document.getElementById('tableViewBtn')?.classList.toggle('active', viewName === 'table');
+    document.getElementById('calendarViewBtn')?.classList.toggle('active', viewName === 'calendar');
+
+    // Show/hide filters and booking buttons
+    const tableFilters = document.getElementById('tableFilters');
+    const calendarButtons = document.getElementById('calendarButtons');
+    
+    if (tableFilters) {
+      tableFilters.style.display = viewName === 'table' ? 'grid' : 'none';
+    }
+    
+    if (calendarButtons) {
+      calendarButtons.style.display = viewName === 'calendar' ? 'flex' : 'none';
+    }
+
+    // Re-render content
+    renderContent();
+  };
+
+  /**
+   * Toggle export dropdown menu
+   */
+  window.toggleExportMenu = function() {
+    const menu = document.getElementById('exportMenu');
+    if (menu) {
+      menu.classList.toggle('active');
+    }
+  };
+
+  /**
+   * Export data (placeholder)
+   */
+  window.exportData = function(format) {
+    console.log('📤 Exporting as:', format);
+    showToast(`${format.toUpperCase()} export coming soon!`, true);
+    
+    // Close dropdown
+    const menu = document.getElementById('exportMenu');
+    if (menu) menu.classList.remove('active');
+  };
+
+  // ========================================
+  // EVENT LISTENERS
+  // ========================================
+
+  // Tab switching - both inline onclick and addEventListener for redundancy
+  document.getElementById('allRequestsTab')?.addEventListener('click', () => switchTab('all'));
+  document.getElementById('historyTab')?.addEventListener('click', () => switchTab('history'));
+  document.getElementById('archivesTab')?.addEventListener('click', () => switchTab('archives'));
+
+  // View switching
+  document.getElementById('tableViewBtn')?.addEventListener('click', () => switchView('table'));
+  document.getElementById('calendarViewBtn')?.addEventListener('click', () => switchView('calendar'));
+
+  // Filter changes - re-render on any filter change
+  document.getElementById('searchInput')?.addEventListener('input', renderContent);
+  document.getElementById('statusFilter')?.addEventListener('change', renderContent);
+  document.getElementById('dateFilter')?.addEventListener('change', renderContent);
+  document.getElementById('sortByFilter')?.addEventListener('change', renderContent);
+
+  // ========================================
+  // MODAL & HELPER FUNCTIONS
+  // ========================================
+
+  /**
+   * Close conference modal (for calendar date clicks)
+   */
+  window.closeConferenceModal = function() {
+    const modal = document.getElementById('conferenceModalOverlay');
+    if (modal) {
+      modal.classList.remove('active');
+    }
+  };
+
+  /**
+   * Close modal when clicking on overlay
+   */
+  window.closeModalOnOverlay = function(event) {
+    if (event.target.id === 'conferenceModalOverlay') {
+      closeConferenceModal();
+    }
+  };
+
+  // ========================================
+  // SIDEBAR FUNCTIONALITY
+  // ========================================
+
+  /**
+   * Setup sidebar dropdown toggles
+   */
+  function setupSidebarDropdowns() {
+    const reviewRequestsToggle = document.getElementById('reviewRequestsToggle');
+    const manageCalendarToggle = document.getElementById('manageCalendarToggle');
+
+    if (reviewRequestsToggle) {
+      reviewRequestsToggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        const dropdown = document.getElementById('reviewRequestsDropdown');
+        if (dropdown) {
+          dropdown.classList.toggle('open');
+          this.classList.toggle('open');
+        }
+      });
+    }
+
+    if (manageCalendarToggle) {
+      manageCalendarToggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        const dropdown = document.getElementById('manageCalendarDropdown');
+        if (dropdown) {
+          dropdown.classList.toggle('open');
+          this.classList.toggle('open');
+        }
+      });
+    }
+  }
+
+  /**
+   * Setup mobile menu toggle
+   */
+  function setupMobileMenu() {
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.admin-sidebar');
+
+    if (menuToggle && sidebar) {
+      menuToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('active');
+      });
+
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener('click', function(e) {
+        if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+          sidebar.classList.remove('active');
+        }
+      });
+    }
+  }
+
+  // ========================================
+  // INITIALIZATION
+  // ========================================
+
+  // Setup sidebar and mobile menu
+  setupSidebarDropdowns();
+  setupMobileMenu();
+
+  // Load data when page loads
+  loadAllRequests();
+
+  console.log('✅ Conference Room Admin initialized');
+}
+
+/* ========================================================================================================
+   END OF CONFERENCE ROOM ADMIN MANAGEMENT SYSTEM
+   ======================================================================================================== */
