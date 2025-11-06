@@ -202,6 +202,19 @@ function clearSensitiveLoginFields() {
   }
 }
 
+/**
+ * Return the finalized timestamp (ms) for a request.
+ * Prefers completedAt, then rejectedAt, then cancelledAt. Returns 0 when none.
+ */
+function getFinalizedTimestampMillis(req) {
+  if (!req) return 0;
+  const ts = req.completedAt || req.rejectedAt || req.cancelledAt;
+  if (!ts) return 0;
+  if (typeof ts.toMillis === 'function') return ts.toMillis();
+  if (typeof ts === 'number') return ts;
+  try { return new Date(ts).getTime(); } catch (e) { return 0; }
+}
+
 // Ensure login inputs are cleared on pageshow (handles back/forward cache restoring the page)
 window.addEventListener('pageshow', (event) => {
   // If this page is the login page (index.html) and there is no authenticated user, clear fields
@@ -5371,32 +5384,22 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           // Event Date (Newest First)
           return new Date(b.startDate) - new Date(a.startDate);
         case 'completed-asc':
-          // Date Completed (Oldest First) - requests without completedAt go to end
-          const aHasCompleted = a.completedAt ? true : false;
-          const bHasCompleted = b.completedAt ? true : false;
-          
-          if (!aHasCompleted && !bHasCompleted) return 0; // Both without date, keep order
-          if (!aHasCompleted) return 1;  // a without date goes after b
-          if (!bHasCompleted) return -1; // b without date goes after a
-          
-          // Both have completedAt, compare dates (oldest first)
-          const aCompletedDate = a.completedAt.toDate ? a.completedAt.toDate() : new Date(a.completedAt);
-          const bCompletedDate = b.completedAt.toDate ? b.completedAt.toDate() : new Date(b.completedAt);
-          return aCompletedDate - bCompletedDate;
-          
+          // Date Finalized (Oldest First) - include completedAt, rejectedAt, cancelledAt
+          const aFinalizedAsc = getFinalizedTimestampMillis(a);
+          const bFinalizedAsc = getFinalizedTimestampMillis(b);
+          if (!aFinalizedAsc && !bFinalizedAsc) return 0;
+          if (!aFinalizedAsc) return 1;
+          if (!bFinalizedAsc) return -1;
+          return aFinalizedAsc - bFinalizedAsc;
+
         case 'completed-desc':
-          // Date Completed (Newest First) - requests without completedAt go to end
-          const aHasCompleted2 = a.completedAt ? true : false;
-          const bHasCompleted2 = b.completedAt ? true : false;
-          
-          if (!aHasCompleted2 && !bHasCompleted2) return 0; // Both without date, keep order
-          if (!aHasCompleted2) return 1;  // a without date goes after b
-          if (!bHasCompleted2) return -1; // b without date goes after a
-          
-          // Both have completedAt, compare dates (newest first)
-          const aCompletedDate2 = a.completedAt.toDate ? a.completedAt.toDate() : new Date(a.completedAt);
-          const bCompletedDate2 = b.completedAt.toDate ? b.completedAt.toDate() : new Date(b.completedAt);
-          return bCompletedDate2 - aCompletedDate2;
+          // Date Finalized (Newest First) - include completedAt, rejectedAt, cancelledAt
+          const aFinalizedDesc = getFinalizedTimestampMillis(a);
+          const bFinalizedDesc = getFinalizedTimestampMillis(b);
+          if (!aFinalizedDesc && !bFinalizedDesc) return 0;
+          if (!aFinalizedDesc) return 1;
+          if (!bFinalizedDesc) return -1;
+          return bFinalizedDesc - aFinalizedDesc;
           
         case 'archived-asc':
           // Date Archived (Oldest First) - requests without archivedAt go to end
@@ -7766,6 +7769,38 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
           return (b.eventDate || '').localeCompare(a.eventDate || '');
         case 'event-asc':
           return (a.eventDate || '').localeCompare(b.eventDate || '');
+        case 'completed-desc':
+          // Date Finalized (Newest First) - include completedAt, rejectedAt, cancelledAt
+          const aFinal = getFinalizedTimestampMillis(a);
+          const bFinal = getFinalizedTimestampMillis(b);
+          if (!aFinal && !bFinal) return 0;
+          if (!aFinal) return 1; // push items without final date to end
+          if (!bFinal) return -1;
+          return bFinal - aFinal;
+        case 'completed-asc':
+          // Date Finalized (Oldest First) - include completedAt, rejectedAt, cancelledAt
+          const aFinal2 = getFinalizedTimestampMillis(a);
+          const bFinal2 = getFinalizedTimestampMillis(b);
+          if (!aFinal2 && !bFinal2) return 0;
+          if (!aFinal2) return 1;
+          if (!bFinal2) return -1;
+          return aFinal2 - bFinal2;
+        case 'archived-desc':
+          // Date Archived (Newest First) - requests without archivedAt go to end
+          const aHasArchived = a.archivedAt ? true : false;
+          const bHasArchived = b.archivedAt ? true : false;
+          if (!aHasArchived && !bHasArchived) return 0;
+          if (!aHasArchived) return 1;
+          if (!bHasArchived) return -1;
+          return (b.archivedAt?.toMillis() || 0) - (a.archivedAt?.toMillis() || 0);
+        case 'archived-asc':
+          // Date Archived (Oldest First) - requests without archivedAt go to end
+          const aHasArchived2 = a.archivedAt ? true : false;
+          const bHasArchived2 = b.archivedAt ? true : false;
+          if (!aHasArchived2 && !bHasArchived2) return 0;
+          if (!aHasArchived2) return 1;
+          if (!bHasArchived2) return -1;
+          return (a.archivedAt?.toMillis() || 0) - (b.archivedAt?.toMillis() || 0);
         case 'name-asc':
           // Sort by last name (extract last word from fullName)
           const aLast = (a.fullName || '').split(' ').pop().toLowerCase();
@@ -7812,6 +7847,58 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         <option value="rejected">Rejected</option>
         <option value="cancelled">Cancelled</option>
       `;
+    }
+  }
+
+  /**
+   * Update sort by options based on current tab
+   */
+  function updateSortByOptions() {
+    const sortByFilter = document.getElementById('sortByFilter');
+    if (!sortByFilter) return;
+
+    // Store current selection to preserve it if possible
+    const currentValue = sortByFilter.value;
+
+    if (currentTab === 'all') {
+      // All Requests Tab: Show base sort options (no completed/archived dates)
+      sortByFilter.innerHTML = `
+        <option value="submitted-desc">Date Submitted (Newest First)</option>
+        <option value="submitted-asc">Date Submitted (Oldest First)</option>
+        <option value="event-desc">Event Date (Newest First)</option>
+        <option value="event-asc">Event Date (Oldest First)</option>
+        <option value="name-asc">Last Name (A-Z)</option>
+        <option value="name-desc">Last Name (Z-A)</option>
+      `;
+    } else if (currentTab === 'history') {
+      // History Tab: Add "Date Completed" options
+      sortByFilter.innerHTML = `
+        <option value="submitted-desc">Date Submitted (Newest First)</option>
+        <option value="submitted-asc">Date Submitted (Oldest First)</option>
+        <option value="event-desc">Event Date (Newest First)</option>
+        <option value="event-asc">Event Date (Oldest First)</option>
+        <option value="completed-desc">Date Completed (Newest First)</option>
+        <option value="completed-asc">Date Completed (Oldest First)</option>
+        <option value="name-asc">Last Name (A-Z)</option>
+        <option value="name-desc">Last Name (Z-A)</option>
+      `;
+    } else if (currentTab === 'archives') {
+      // Archives Tab: Add "Date Archived" options
+      sortByFilter.innerHTML = `
+        <option value="submitted-desc">Date Submitted (Newest First)</option>
+        <option value="submitted-asc">Date Submitted (Oldest First)</option>
+        <option value="event-desc">Event Date (Newest First)</option>
+        <option value="event-asc">Event Date (Oldest First)</option>
+        <option value="archived-desc">Date Archived (Newest First)</option>
+        <option value="archived-asc">Date Archived (Oldest First)</option>
+        <option value="name-asc">Last Name (A-Z)</option>
+        <option value="name-desc">Last Name (Z-A)</option>
+      `;
+    }
+
+    // Restore previous selection if still valid
+    if (sortByFilter.querySelector(`option[value="${currentValue}"]`)) {
+      sortByFilter.value = currentValue;
     }
   }
 
@@ -8536,6 +8623,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
 
     // Update filter options
     updateStatusFilterOptions();
+    updateSortByOptions();
 
     // Show/hide export dropdown (only in history/archives)
     const exportDropdown = document.getElementById('exportDropdown');
@@ -8549,8 +8637,13 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       viewToggle.style.display = tabName === 'all' ? 'flex' : 'none';
     }
 
-    // Re-render content
-    renderContent();
+    // Force table view for history/archives (they don't support calendar view)
+    if (tabName === 'history' || tabName === 'archives') {
+      switchView('table');
+    } else {
+      // Re-render content for All Requests tab
+      renderContent();
+    }
   };
 
   /**
@@ -8707,6 +8800,10 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   // Setup sidebar and mobile menu
   setupSidebarDropdowns();
   setupMobileMenu();
+
+  // Initialize filter options based on current tab
+  updateStatusFilterOptions();
+  updateSortByOptions();
 
   // Load data when page loads
   loadAllRequests();
