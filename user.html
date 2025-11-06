@@ -7,34 +7,76 @@
     <link rel="stylesheet" href="style.css">
   </head>
   <body>
-    <header>
-    <div class="nav-container">
-      <div class="logo">
-        <img src="Assets/BrgyLogo.png" alt="Barangay Seal">
-        <span>BARANGAY MAPULANG LUPA <br> Official Site</span>
-      </div>
-      <nav>
-        <ul>
-          <li><a href="user.html">HOME</a></li>
-          <li class="dropdown">
-            <a href="#">CALENDAR OF ACTIVITIES ▾</a>
-            <ul class="dropdown-menu">
-              <li><a href="tents-calendar.html">Tents and Chairs</a></li>
-              <li><a href="conference-room.html">Conference Room</a></li>
-            </ul>
-          </li>
-          <li><a href="about.html">ABOUT US</a></li>
-          <li><a href="ContactPage.html">CONTACT US</a></li>
-          <li class="user-icon-li" id="userIconNav" style="display: none;">
-            <a href="UserProfile.html"><img src="Assets/account.png" alt="User" class="user-icon-btn" width="32" height="32"></a>
-          </li>
-          <li id="loginButtonNav">
-            <a href="index.html" class="login-btn">LOGIN</a>
-          </li>
-        </ul>
-      </nav>
+    <!-- UPDATED HEADER SECTION WITH BURGER MENU -->
+<header>
+  <div class="nav-container">
+    <div class="logo">
+      <img src="Assets/BrgyLogo.png" alt="Barangay Seal">
+      <span>BARANGAY MAPULANG LUPA <br> Official Site</span>
     </div>
-  </header>
+    
+    <!-- Desktop Navigation (hidden on mobile) -->
+    <nav>
+      <ul>
+        <li><a href="user.html">HOME</a></li>
+        <li class="dropdown">
+          <a href="#">CALENDAR OF ACTIVITIES ▾</a>
+          <ul class="dropdown-menu">
+            <li><a href="tents-calendar.html">Tents and Chairs</a></li>
+            <li><a href="conference-room.html">Conference Room</a></li>
+          </ul>
+        </li>
+        <li><a href="about.html">ABOUT US</a></li>
+        <li><a href="ContactPage.html">CONTACT US</a></li>
+        <li class="user-icon-li" id="userIconNav" style="display: none;">
+          <a href="UserProfile.html"><img src="Assets/account.png" alt="User" class="user-icon-btn" width="32" height="32"></a>
+        </li>
+        <li id="loginButtonNav">
+          <a href="index.html" class="login-btn">LOGIN</a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Burger Menu Button (visible on mobile) -->
+    <div class="burger-menu" id="burgerMenu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+</header>
+
+<!-- Mobile Navigation Overlay -->
+<div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+
+<!-- Mobile Navigation Menu -->
+<nav class="mobile-nav" id="mobileNav">
+  <button class="mobile-nav-close" id="mobileNavClose">&times;</button>
+  <ul>
+    <li><a href="user.html">HOME</a></li>
+    <li class="dropdown">
+      <div class="dropdown-toggle" id="mobileDropdownToggle">
+        <span>CALENDAR OF ACTIVITIES</span>
+        <span>▾</span>
+      </div>
+      <ul class="dropdown-menu" id="mobileDropdownMenu">
+        <li><a href="tents-calendar.html">Tents and Chairs</a></li>
+        <li><a href="conference-room.html">Conference Room</a></li>
+      </ul>
+    </li>
+    <li><a href="about.html">ABOUT US</a></li>
+    <li><a href="ContactPage.html">CONTACT US</a></li>
+    <li class="user-icon-li" id="userIconMobile" style="display: none;">
+      <a href="UserProfile.html">
+        <img src="Assets/account.png" alt="User" class="user-icon-btn" width="32" height="32">
+        <span>MY PROFILE</span>
+      </a>
+    </li>
+    <li id="loginButtonMobile">
+      <a href="index.html" class="login-btn">LOGIN</a>
+    </li>
+  </ul>
+</nav>
 
     <!-- HERO -->
     <section class="hero-landing">
@@ -66,7 +108,7 @@
 
       <!-- CALENDARS OF BARANGAY-OWNED FACILITIES SECTION -->
       <section class="calendar-section animate-on-scroll">
-        <h2 class="calendar-title">CALENDARS OF BARANGAY-OWNED FACILITIES</h2>
+        <h2 class="calendar-Title">CALENDARS OF BARANGAY-OWNED FACILITIES</h2>
         <p class="calendar-desc">Choose the category of the Barangay-Owned Facility you want to check the schedule of.</p>
         
         <div class="calendar-cards">
@@ -100,7 +142,7 @@
             </div>
             <div class="service-info">
               <div class="service-label-main">Lending of Chairs & Tents</div>
-              <div class="service-label-desc"><b>Planning a celebration or community event?</b> Borrow tents and chairs hassle-free! Just pick your date, send your request online, and we'll prepare them for pickup or delivery.</div>
+              <div class="service-label-desc"><b>Planning a celebration or community event?</b> Borrow tents and chairs hassle-free! Just pick your date, send your request online, and we'll prepare them for pickup or delivery.<br><br></div>
               <a href="tents-calendar.html" class="service-btn">CHECK AVAILABILITY</a>
             </div>
           </div>
@@ -121,7 +163,7 @@
       <section id="about" class="about-section animate-on-scroll" style="scroll-margin-top: 80px;">
         <h2 class="about-title">ABOUT THE BARANGAY</h2>
         <div class="about-content">
-          <img src="Assets/Hall.jpg" alt="Barangay Hall" class="about-img">
+          <img src="Assets/3sHall.jpg" alt="Barangay Hall" class="about-img">
           <div class="about-text">
             <p>Barangay Mapulang Lupa in Valenzuela City is a vibrant and growing community that takes pride in its unity, service, and continuous progress. With dedicated leaders and active citizens, the barangay provides essential services such as public safety, health programs, community activities, and facilities that support the needs of every resident.</p>
             <p>More than just a place to live, Mapulang Lupa is a community where people work hand in hand, celebrate milestones together, and strive to build a stronger and better future.</p>
@@ -139,8 +181,8 @@
             <p>Got questions or requests? We’re here to help! Reach out to <b>Barangay Mapulang Lupa</b> for assistance, inquiries, or concerns.</p>
           </div>
           <div class="contact-box contact-box-right">
-            <p>📍 Address: 3S Center, Orosco St. Mapulang Lupa Valenzuela City<br><br>
-            📞 Phone: 09773848341<br><br>
+            <p>📍 Address: 3S Center, Orosco St. Mapulang Lupa Valenzuela City<br>
+            📞 Phone: 09773848341<br>
             ✉️ Email: barangaymapulanglupa@gmail.com</p>
           </div>
         </div>
