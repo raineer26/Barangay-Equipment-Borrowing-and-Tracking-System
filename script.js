@@ -7037,6 +7037,12 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    Each form now has its own dedicated handler that properly validates
    and saves to Firebase before redirecting.
 ===================================================== */
+
+/* =====================================================
+   ADMIN MANAGE INVENTORY PAGE
+===================================================== */
+if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.location.pathname.endsWith('/admin-manage-inventory')) {
+  
 // ===== Inventory Manager with Real-Time Firestore Sync =====
 // --- DOM Elements ---
 const editBtn = document.getElementById("editInventory");
@@ -7415,5 +7421,618 @@ confirmYes.addEventListener("click", async () => {
   }
 });
 
-// --- Start ---
-loadInventoryRealtime();
+  // --- Start ---
+  loadInventoryRealtime();
+
+} // End of admin-manage-inventory.html conditional
+
+/* =====================================================
+   ADMIN USER MANAGER PAGE
+   - Load total registered users count from Firebase
+   - Display count in stats card
+===================================================== */
+
+// Check if we're on the admin user manager page
+if (window.location.pathname.endsWith('admin-user-manager.html') || window.location.pathname.endsWith('/admin-user-manager')) {
+  
+  /**
+   * Load total registered users count from Firestore with real-time updates
+   * Uses onSnapshot to listen for changes in 'users' collection
+   * Automatically updates stat card when users are added or removed
+   */
+  function loadTotalUsersCount() {
+    try {
+      console.log('📊 Setting up real-time listener for total registered users...');
+      
+      // Reference to the users collection
+      const usersRef = collection(db, 'users');
+      
+      // Set up real-time listener
+      onSnapshot(usersRef, (snapshot) => {
+        // Count total users
+        const totalUsers = snapshot.size;
+        
+        console.log(`✅ Total registered users updated: ${totalUsers}`);
+        
+        // Update the stat card display
+        const totalUsersCountElement = document.getElementById('totalUsersCount');
+        if (totalUsersCountElement) {
+          // Format number with comma separator for better readability
+          totalUsersCountElement.textContent = totalUsers.toLocaleString();
+        }
+      }, (error) => {
+        console.error('❌ Error loading total users count:', error);
+        
+        // Display error state in stat card
+        const totalUsersCountElement = document.getElementById('totalUsersCount');
+        if (totalUsersCountElement) {
+          totalUsersCountElement.textContent = '—';
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error setting up real-time listener:', error);
+      
+      // Display error state in stat card
+      const totalUsersCountElement = document.getElementById('totalUsersCount');
+      if (totalUsersCountElement) {
+        totalUsersCountElement.textContent = '—';
+      }
+    }
+  }
+  
+  // Store all users data and their request counts
+  let allUsersData = [];
+  let userRequestCounts = {};
+  
+  /**
+   * Load request counts for all users
+   * Counts both conference room and tents/chairs bookings
+   */
+  async function loadUserRequestCounts() {
+    try {
+      console.log('📊 Loading user request counts...');
+      
+      userRequestCounts = {};
+      
+      // Get conference room bookings
+      const conferenceRef = collection(db, 'conferenceRoomBookings');
+      const conferenceSnapshot = await getDocs(conferenceRef);
+      
+      conferenceSnapshot.forEach((doc) => {
+        const data = doc.data();
+        const userId = data.userId;
+        if (userId) {
+          userRequestCounts[userId] = (userRequestCounts[userId] || 0) + 1;
+        }
+      });
+      
+      // Get tents & chairs bookings
+      const tentsRef = collection(db, 'tentsChairsBookings');
+      const tentsSnapshot = await getDocs(tentsRef);
+      
+      tentsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        const userId = data.userId;
+        if (userId) {
+          userRequestCounts[userId] = (userRequestCounts[userId] || 0) + 1;
+        }
+      });
+      
+      console.log(`✅ Request counts loaded for ${Object.keys(userRequestCounts).length} users`);
+      
+      // Re-render table with updated counts
+      renderUsersTable();
+      
+    } catch (error) {
+      console.error('❌ Error loading request counts:', error);
+    }
+  }
+  
+  /**
+   * Load all users from Firestore with real-time updates
+   * Fetches user data and renders the table
+   */
+  function loadAllUsers() {
+    try {
+      console.log('👥 Setting up real-time listener for all users...');
+      
+      // Reference to the users collection
+      const usersRef = collection(db, 'users');
+      
+      // Set up real-time listener
+      onSnapshot(usersRef, async (snapshot) => {
+        allUsersData = [];
+        
+        snapshot.forEach((doc) => {
+          const userData = doc.data();
+          allUsersData.push({
+            id: doc.id,
+            firstName: userData.firstName || '',
+            lastName: userData.lastName || '',
+            fullName: userData.fullName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+            email: userData.email || '',
+            contactNumber: userData.contactNumber || '',
+            address: userData.address || '',
+            role: userData.role || 'user',
+            createdAt: userData.createdAt?.toDate() || new Date(),
+            status: userData.status || 'active'
+          });
+        });
+        
+        console.log(`✅ Loaded ${allUsersData.length} users`);
+        
+        // Load request counts and render table
+        await loadUserRequestCounts();
+      }, (error) => {
+        console.error('❌ Error loading users:', error);
+      });
+      
+    } catch (error) {
+      console.error('❌ Error setting up users listener:', error);
+    }
+  }
+  
+  /**
+   * Get filtered and sorted users based on current filter values
+   */
+  function getFilteredUsers() {
+    let filteredUsers = [...allUsersData];
+    
+    // Filter by search name
+    const searchTerm = document.getElementById('searchUsers')?.value.toLowerCase().trim();
+    if (searchTerm) {
+      filteredUsers = filteredUsers.filter(user => 
+        user.fullName.toLowerCase().includes(searchTerm) ||
+        user.firstName.toLowerCase().includes(searchTerm) ||
+        user.lastName.toLowerCase().includes(searchTerm) ||
+        user.email.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Filter by status
+    const statusFilter = document.getElementById('filterStatus')?.value;
+    if (statusFilter) {
+      filteredUsers = filteredUsers.filter(user => 
+        user.status.toLowerCase() === statusFilter.toLowerCase()
+      );
+    }
+    
+    // Filter by date
+    const dateFilter = document.getElementById('filterDate')?.value;
+    if (dateFilter) {
+      const filterDate = new Date(dateFilter);
+      filterDate.setHours(0, 0, 0, 0);
+      
+      filteredUsers = filteredUsers.filter(user => {
+        const userDate = new Date(user.createdAt);
+        userDate.setHours(0, 0, 0, 0);
+        return userDate.getTime() === filterDate.getTime();
+      });
+    }
+    
+    // Sort users
+    const sortBy = document.getElementById('sortBy')?.value;
+    if (sortBy) {
+      switch (sortBy) {
+        case 'name-asc':
+          filteredUsers.sort((a, b) => a.lastName.localeCompare(b.lastName));
+          break;
+        case 'name-desc':
+          filteredUsers.sort((a, b) => b.lastName.localeCompare(a.lastName));
+          break;
+        case 'date-newest':
+          filteredUsers.sort((a, b) => b.createdAt - a.createdAt);
+          break;
+        case 'date-oldest':
+          filteredUsers.sort((a, b) => a.createdAt - b.createdAt);
+          break;
+      }
+    }
+    
+    return filteredUsers;
+  }
+  
+  /**
+   * Render users table with filtered data
+   */
+  function renderUsersTable() {
+    const tbody = document.querySelector('.um-users-table tbody');
+    if (!tbody) return;
+    
+    const filteredUsers = getFilteredUsers();
+    
+    // Filter out admin users for the "All Registered Users" tab
+    const regularUsers = filteredUsers.filter(user => user.role !== 'admin');
+    
+    // Clear existing rows
+    tbody.innerHTML = '';
+    
+    if (regularUsers.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
+            No users found matching your filters.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+    
+    // Render each user row
+    regularUsers.forEach(user => {
+      const row = document.createElement('tr');
+      
+      // Get initials for avatar
+      const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase() || 'U';
+      
+      // Format date
+      const formattedDate = user.createdAt.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      
+      // Status badge
+      const statusClass = user.status === 'active' ? 'um-status-active' : '';
+      const statusStyle = user.status !== 'active' ? 'background:#f8d7da;color:#dc3545;border:1.5px solid #eb8a90;' : '';
+      const statusText = user.status.charAt(0).toUpperCase() + user.status.slice(1);
+      
+      // Get total requests count for this user
+      const totalRequests = userRequestCounts[user.id] || 0;
+      
+      // Action button (Enable/Disable based on status)
+      const actionBtn = user.status === 'active' 
+        ? '<button class="um-action-btn um-btn-disable" type="button" style="background:#dc3545;border-color:#dc3545;" data-user-id="' + user.id + '">Disable</button>'
+        : '<button class="um-action-btn um-btn-enable" type="button" data-user-id="' + user.id + '">Enable</button>';
+      
+      row.innerHTML = `
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="um-user-avatar" aria-hidden="true">${initials}</div>
+            <div class="um-user-info">
+              <div class="um-user-name">${user.fullName}</div>
+              <div class="um-user-email">${user.email}</div>
+            </div>
+          </div>
+        </td>
+        <td>${user.contactNumber}</td>
+        <td>${user.address}</td>
+        <td>${formattedDate}</td>
+        <td><span class="um-status-label ${statusClass}" style="${statusStyle}">${statusText}</span></td>
+        <td style="text-align: center;">${totalRequests}</td>
+        <td class="um-table-actions">
+          <button class="um-action-btn um-btn-view" type="button" data-user-id="${user.id}">View</button>
+          ${actionBtn}
+        </td>
+      `;
+      
+      tbody.appendChild(row);
+    });
+    
+    console.log(`📋 Rendered ${regularUsers.length} users in table`);
+  }
+  
+  /**
+   * Setup filter event listeners
+   */
+  function setupFilters() {
+    // Search input
+    const searchInput = document.getElementById('searchUsers');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        renderUsersTable();
+      });
+    }
+    
+    // Status filter
+    const statusFilter = document.getElementById('filterStatus');
+    if (statusFilter) {
+      statusFilter.addEventListener('change', () => {
+        renderUsersTable();
+      });
+    }
+    
+    // Date filter
+    const dateFilter = document.getElementById('filterDate');
+    if (dateFilter) {
+      dateFilter.addEventListener('change', () => {
+        renderUsersTable();
+      });
+    }
+    
+    // Sort by
+    const sortBy = document.getElementById('sortBy');
+    if (sortBy) {
+      sortBy.addEventListener('change', () => {
+        renderUsersTable();
+      });
+    }
+    
+    console.log('✅ Filter event listeners setup complete');
+  }
+  
+  // View user details in modal
+  async function viewUserDetails(userId) {
+    console.log('👁️ Viewing user details for:', userId);
+    
+    const user = allUsersData.find(u => u.id === userId);
+    if (!user) {
+      console.error('❌ User not found:', userId);
+      return;
+    }
+    
+    const modal = document.getElementById('umUserDetailsModal');
+    const modalTitle = document.getElementById('umModalTitle');
+    const modalBody = document.getElementById('umModalBody');
+    
+    if (!modal || !modalTitle || !modalBody) {
+      console.error('❌ Modal elements not found');
+      return;
+    }
+    
+    // Set modal title
+    modalTitle.textContent = 'User Details';
+    
+    // Get initials for avatar
+    const firstName = user.firstName || '';
+    const lastName = user.lastName || '';
+    const initials = firstName && lastName 
+      ? `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+      : (user.fullName ? user.fullName.split(' ').map(n => n.charAt(0)).join('').substring(0, 2).toUpperCase() : '?');
+    
+    // Format created date
+    let formattedDate = 'N/A';
+    if (user.createdAt) {
+      const date = user.createdAt.toDate ? user.createdAt.toDate() : new Date(user.createdAt);
+      formattedDate = date.toLocaleDateString('en-US', { 
+        month: 'long', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+    }
+    
+    // Format status
+    const statusText = user.status === 'active' ? 'Active' : 'Inactive';
+    const statusColor = user.status === 'active' ? '#10b981' : '#ef4444';
+    
+    // Build user details HTML
+    let bodyHTML = `
+      <div class="um-user-detail-card">
+        <div class="um-user-detail-header">
+          <div class="um-user-detail-avatar">${initials}</div>
+          <div class="um-user-detail-name">
+            <h4>${sanitizeInput(user.fullName)}</h4>
+            <div class="um-user-email-text">
+              <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+              </svg>
+              ${sanitizeInput(user.email)}
+            </div>
+          </div>
+        </div>
+        
+        <div class="um-user-detail-row">
+          <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+          </svg>
+          <span><strong>Contact Number:</strong> ${sanitizeInput(user.contactNumber)}</span>
+        </div>
+        
+        <div class="um-user-detail-row">
+          <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span><strong>Address:</strong> ${sanitizeInput(user.address)}</span>
+        </div>
+        
+        <div class="um-user-detail-row">
+          <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <span><strong>Date Registered:</strong> ${formattedDate}</span>
+        </div>
+        
+        <div class="um-user-detail-row">
+          <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: 600;">${statusText}</span></span>
+        </div>
+        
+        <div class="um-user-detail-row">
+          <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          <span><strong>Total Requests:</strong> ${userRequestCounts[userId] || 0}</span>
+        </div>
+      </div>
+    `;
+    
+    // Load user's requests
+    try {
+      const conferenceRef = collection(db, 'conferenceRoomBookings');
+      const conferenceQuery = query(conferenceRef, where('userId', '==', userId));
+      const conferenceSnap = await getDocs(conferenceQuery);
+      
+      const tentsRef = collection(db, 'tentsChairsBookings');
+      const tentsQuery = query(tentsRef, where('userId', '==', userId));
+      const tentsSnap = await getDocs(tentsQuery);
+      
+      const allRequests = [];
+      
+      conferenceSnap.forEach(doc => {
+        const data = doc.data();
+        allRequests.push({
+          id: doc.id,
+          type: 'Conference Room',
+          ...data
+        });
+      });
+      
+      tentsSnap.forEach(doc => {
+        const data = doc.data();
+        allRequests.push({
+          id: doc.id,
+          type: 'Tents & Chairs',
+          ...data
+        });
+      });
+      
+      // Sort requests by date (newest first)
+      allRequests.sort((a, b) => {
+        const dateA = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate() : new Date(a.createdAt)) : new Date(0);
+        const dateB = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate() : new Date(b.createdAt)) : new Date(0);
+        return dateB - dateA;
+      });
+      
+      // Add requests section
+      bodyHTML += `<div class="um-user-requests-section">`;
+      bodyHTML += `
+        <h4>
+          <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          Recent Requests (${allRequests.length})
+        </h4>
+      `;
+      
+      if (allRequests.length === 0) {
+        bodyHTML += `
+          <div class="um-no-requests">
+            <svg style="width: 48px; height: 48px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <p>No requests found for this user.</p>
+          </div>
+        `;
+      } else {
+        // Show only last 5 requests
+        const displayRequests = allRequests.slice(0, 5);
+        
+        displayRequests.forEach(request => {
+          const statusClass = `tents-status-badge-${request.status}`;
+          const statusText = request.status.charAt(0).toUpperCase() + request.status.slice(1);
+          
+          let dateInfo = '';
+          if (request.type === 'Conference Room') {
+            const eventDate = request.eventDate ? new Date(request.eventDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+            dateInfo = `<strong>Date:</strong> ${eventDate}`;
+            if (request.startTime && request.endTime) {
+              dateInfo += ` | <strong>Time:</strong> ${request.startTime} - ${request.endTime}`;
+            }
+          } else {
+            const startDate = request.startDate ? new Date(request.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A';
+            const endDate = request.endDate ? new Date(request.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : startDate;
+            dateInfo = `<strong>Period:</strong> ${startDate} - ${endDate}`;
+          }
+          
+          const submittedDate = request.createdAt ? (request.createdAt.toDate ? request.createdAt.toDate() : new Date(request.createdAt)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+          
+          bodyHTML += `
+            <div class="um-request-item">
+              <div class="um-request-header">
+                <span class="um-request-type">${request.type}</span>
+                <span class="${statusClass}">${statusText}</span>
+              </div>
+              <div class="um-request-detail-row">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span>${dateInfo}</span>
+              </div>
+          `;
+          
+          if (request.type === 'Tents & Chairs') {
+            bodyHTML += `
+              <div class="um-request-detail-row">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                </svg>
+                <span><strong>Tents:</strong> ${request.quantityTents || 0} | <strong>Chairs:</strong> ${request.quantityChairs || 0}</span>
+              </div>
+            `;
+          }
+          
+          bodyHTML += `
+              <div class="um-request-detail-row">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span><strong>Submitted:</strong> ${submittedDate}</span>
+              </div>
+            </div>
+          `;
+        });
+        
+        if (allRequests.length > 5) {
+          bodyHTML += `<p style="text-align: center; margin-top: 12px; font-size: 13px; color: #6b7280;">Showing 5 of ${allRequests.length} requests</p>`;
+        }
+      }
+      
+      bodyHTML += `</div>`;
+      
+    } catch (error) {
+      console.error('❌ Error loading user requests:', error);
+    }
+    
+    modalBody.innerHTML = bodyHTML;
+    modal.classList.add('active');
+    
+    console.log('✅ User details modal displayed');
+  }
+  
+  // Close user details modal
+  window.closeUserDetailsModal = function() {
+    const modal = document.getElementById('umUserDetailsModal');
+    if (modal) {
+      modal.classList.remove('active');
+    }
+  };
+  
+  // Close modal when clicking on overlay
+  window.closeUserDetailsModalOnOverlay = function(event) {
+    if (event.target.id === 'umUserDetailsModal') {
+      closeUserDetailsModal();
+    }
+  };
+  
+  // Close modal on ESC key
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      const modal = document.getElementById('umUserDetailsModal');
+      if (modal && modal.classList.contains('active')) {
+        closeUserDetailsModal();
+      }
+    }
+  });
+  
+  // Load total users count and all users when page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Admin User Manager page loaded');
+    
+    // Load total users count (real-time)
+    loadTotalUsersCount();
+    
+    // Load all users (real-time)
+    loadAllUsers();
+    
+    // Setup filter listeners
+    setupFilters();
+    
+    // Add event delegation for view buttons
+    const tbody = document.querySelector('.um-users-table tbody');
+    if (tbody) {
+      tbody.addEventListener('click', (e) => {
+        if (e.target.classList.contains('um-btn-view')) {
+          const userId = e.target.getAttribute('data-user-id');
+          if (userId) {
+            viewUserDetails(userId);
+          }
+        }
+      });
+    }
+  });
+  
+} // End of admin-user-manager.html conditional

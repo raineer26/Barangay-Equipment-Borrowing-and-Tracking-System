@@ -308,8 +308,8 @@ nav a {
 /* Forgot Password Link */
 .forgot-password-link {
   text-align: right;
-  margin-top: 8px;
-  margin-bottom: 8px;
+  margin-top: 6px;
+  margin-bottom: 6px;
 }
 
 .forgot-password-link a {
@@ -2743,15 +2743,14 @@ footer a:hover {
 .modal-content {
   background-color: #fff;
   margin: 6% auto;
-  padding: 36px 44px 100px 44px; /* Increased bottom padding for button space */
+  padding: 24px 32px 20px 32px; /* Tighter padding - reduced bottom to 20px */
   border: none;
   border-radius: 12px;
   width: 92%;
-  max-width: 820px;
+  max-width: 520px; /* Reduced from 820px for tighter fit */
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   animation: slideDown 0.4s ease;
   position: relative;
-  min-height: 200px;
 }
 
 @keyframes slideDown {
@@ -2813,7 +2812,7 @@ footer a:hover {
   font-family: 'League Spartan', sans-serif;
   font-size: 1.8rem;
   color: #281ABC;
-  margin-bottom: 25px;
+  margin-bottom: 18px;
   font-weight: 700;
 }
 
@@ -2856,7 +2855,7 @@ footer a:hover {
   gap: 12px;
   justify-content: flex-end;
   align-items: center;
-  margin-top: 14px;
+  margin-top: 20px;
 }
 .modal-buttons .close-modal,
 .modal-buttons .save-changes {
@@ -2907,11 +2906,12 @@ footer a:hover {
   flex: 1;
   display: flex;
   flex-direction: column;
+  margin-bottom: 14px;
 }
 
 .form-group.full-width {
   width: 100%;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .form-group label {
@@ -2919,13 +2919,13 @@ footer a:hover {
   font-size: 1rem;
   font-weight: 600;
   color: #222;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
-  padding: 12px;
+  padding: 10px 12px;
   border: 2px solid #ddd;
   border-radius: 6px;
   font-family: 'Poppins', sans-serif;
@@ -7102,4 +7102,237 @@ input[type="number"]::-webkit-outer-spin-button {
     width: 100%;
     padding: 20px 15px;
   }
+}
+
+/* User Details Modal */
+.um-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+}
+
+.um-modal-overlay.active {
+  display: flex;
+}
+
+.um-modal {
+  background: white;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.um-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #2f21a1 0%, #1a1464 100%);
+}
+
+.um-modal-header h3 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.um-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.um-modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.um-modal-body {
+  padding: 24px;
+}
+
+.um-user-detail-card {
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+  margin-bottom: 16px;
+}
+
+.um-user-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.um-user-detail-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2f21a1 0%, #1a1464 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.um-user-detail-name {
+  flex: 1;
+}
+
+.um-user-detail-name h4 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 4px 0;
+}
+
+.um-user-detail-name .um-user-email-text {
+  font-size: 14px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.um-user-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.um-user-detail-row:last-child {
+  margin-bottom: 0;
+}
+
+.um-user-detail-row svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.um-user-detail-row strong {
+  color: #374151;
+  font-weight: 600;
+}
+
+.um-user-detail-row span {
+  color: #4b5563;
+}
+
+.um-user-requests-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid #e5e7eb;
+}
+
+.um-user-requests-section h4 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 14px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.um-request-item {
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #ffffff;
+  margin-bottom: 10px;
+  transition: all 0.2s;
+}
+
+.um-request-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: #d1d5db;
+}
+
+.um-request-item:last-child {
+  margin-bottom: 0;
+}
+
+.um-request-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.um-request-type {
+  font-weight: 600;
+  color: #111827;
+  font-size: 14px;
+}
+
+.um-request-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.um-request-detail-row:last-child {
+  margin-bottom: 0;
+}
+
+.um-request-detail-row svg {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.um-no-requests {
+  text-align: center;
+  padding: 30px 20px;
+  color: #9ca3af;
+}
+
+.um-no-requests svg {
+  margin: 0 auto 12px;
+  display: block;
+}
+
+.um-no-requests p {
+  margin: 0;
+  font-size: 14px;
 }
