@@ -2439,8 +2439,7 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     try {
       const bookingsRef = collection(db, 'conferenceRoomBookings');
       
-      // Simplified query: Get all approved/in-progress bookings, filter by date client-side
-      // This avoids the need for a composite index
+      // Get all approved/in-progress bookings, filter by date client-side
       const q = query(
         bookingsRef,
         where('status', 'in', ['approved', 'in-progress'])
@@ -2458,8 +2457,17 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
         
         // Client-side date filtering for current month
         if (eventDate >= startDate && eventDate <= endDate) {
-          bookedDates[eventDate] = data.status;
-          console.log(`   ✅ Found booking on ${eventDate}: ${data.purpose || 'No purpose'}`);
+          // Store array of bookings per date (multiple bookings per day possible)
+          if (!bookedDates[eventDate]) {
+            bookedDates[eventDate] = [];
+          }
+          bookedDates[eventDate].push({
+            startTime: data.startTime,
+            endTime: data.endTime,
+            purpose: data.purpose,
+            status: data.status
+          });
+          console.log(`   ✅ Found booking on ${eventDate}: ${data.startTime}-${data.endTime} - ${data.purpose || 'No purpose'}`);
           foundCount++;
         }
       });
@@ -2479,6 +2487,66 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
+
+  /**
+   * Check if a date is fully booked (no 4-hour continuous gap available)
+   * Operating hours: 8:00 AM - 5:00 PM (9 hours total)
+   * @param {Array} bookings - Array of booking objects with startTime and endTime
+   * @returns {boolean} - True if fully booked, false if has available slot
+   */
+  function isDateFullyBooked(bookings) {
+    if (!bookings || bookings.length === 0) return false;
+    
+    const OPERATING_START = '08:00';
+    const OPERATING_END = '17:00';
+    const MIN_REQUIRED_HOURS = 4;
+    
+    // Convert time string to minutes since midnight
+    function timeToMinutes(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+    
+    // Sort bookings by start time
+    const sortedBookings = [...bookings].sort((a, b) => 
+      timeToMinutes(a.startTime) - timeToMinutes(b.startTime)
+    );
+    
+    const operatingStartMinutes = timeToMinutes(OPERATING_START);
+    const operatingEndMinutes = timeToMinutes(OPERATING_END);
+    const minRequiredMinutes = MIN_REQUIRED_HOURS * 60;
+    
+    // Check gap before first booking
+    const firstBookingStart = timeToMinutes(sortedBookings[0].startTime);
+    const gapBeforeFirst = firstBookingStart - operatingStartMinutes;
+    if (gapBeforeFirst >= minRequiredMinutes) {
+      console.log(`   ⏰ Available slot: ${OPERATING_START} - ${sortedBookings[0].startTime} (${gapBeforeFirst / 60} hours)`);
+      return false;
+    }
+    
+    // Check gaps between bookings
+    for (let i = 0; i < sortedBookings.length - 1; i++) {
+      const currentEnd = timeToMinutes(sortedBookings[i].endTime);
+      const nextStart = timeToMinutes(sortedBookings[i + 1].startTime);
+      const gap = nextStart - currentEnd;
+      
+      if (gap >= minRequiredMinutes) {
+        console.log(`   ⏰ Available slot: ${sortedBookings[i].endTime} - ${sortedBookings[i + 1].startTime} (${gap / 60} hours)`);
+        return false;
+      }
+    }
+    
+    // Check gap after last booking
+    const lastBookingEnd = timeToMinutes(sortedBookings[sortedBookings.length - 1].endTime);
+    const gapAfterLast = operatingEndMinutes - lastBookingEnd;
+    if (gapAfterLast >= minRequiredMinutes) {
+      console.log(`   ⏰ Available slot: ${sortedBookings[sortedBookings.length - 1].endTime} - ${OPERATING_END} (${gapAfterLast / 60} hours)`);
+      return false;
+    }
+    
+    console.log(`   🚫 Date is fully booked - no 4-hour continuous slot available`);
+    return true;
+  }
 
   // Fetch booking preview for a specific date (Purpose + Time)
   async function fetchBookingPreview(date) {
@@ -2566,30 +2634,57 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
         dateCell.classList.add('today');
       }
       
-      // Check if date is booked
-      const hasBookings = bookedDates[currentDateStr];
+      // Check if date has bookings
+      const dateBookings = bookedDates[currentDateStr];
+      const hasBookings = dateBookings && dateBookings.length > 0;
       
-      console.log(`   Date ${currentDateStr}: booked=${hasBookings ? 'YES' : 'NO'}, isToday=${isToday}, isPast=${isPast}`);
+      console.log(`   Date ${currentDateStr}: bookings=${hasBookings ? dateBookings.length : 0}, isToday=${isToday}, isPast=${isPast}`);
       
       if (hasBookings) {
-        dateCell.classList.add('booked', 'has-bookings');
+        // Check if date is fully booked (no 4-hour gap)
+        const fullyBooked = isDateFullyBooked(dateBookings);
         
-        // Fetch booking details for preview banner
-        fetchBookingPreview(currentDateStr).then(preview => {
-          if (preview) {
-            const previewDiv = document.createElement('div');
-            previewDiv.classList.add('tents-booking-preview');
-            previewDiv.innerHTML = `
-              <div class="tents-preview-purpose">${sanitizeInput(preview.purpose)}</div>
-              <div class="tents-preview-time">${preview.time}</div>
-            `;
-            dateCell.appendChild(previewDiv);
-          }
-        });
-        
-        // Make booked dates clickable to show booking details
-        dateCell.style.cursor = 'pointer';
-        dateCell.addEventListener('click', () => showDateBookingsModalConference(currentDateStr));
+        if (fullyBooked) {
+          // Fully booked - yellow background, show preview, block clicking
+          dateCell.classList.add('booked', 'has-bookings', 'fully-booked');
+          
+          // Fetch booking details for preview banner
+          fetchBookingPreview(currentDateStr).then(preview => {
+            if (preview) {
+              const previewDiv = document.createElement('div');
+              previewDiv.classList.add('tents-booking-preview');
+              previewDiv.innerHTML = `
+                <div class="tents-preview-purpose">${sanitizeInput(preview.purpose)}</div>
+                <div class="tents-preview-time">${preview.time}</div>
+              `;
+              dateCell.appendChild(previewDiv);
+            }
+          });
+          
+          // Show error modal when clicked
+          dateCell.style.cursor = 'not-allowed';
+          dateCell.addEventListener('click', () => showFullyBookedError(currentDateStr));
+        } else {
+          // Partially booked - white background, show preview, allow booking
+          dateCell.classList.add('has-bookings');
+          
+          // Fetch booking details for preview banner
+          fetchBookingPreview(currentDateStr).then(preview => {
+            if (preview) {
+              const previewDiv = document.createElement('div');
+              previewDiv.classList.add('tents-booking-preview');
+              previewDiv.innerHTML = `
+                <div class="tents-preview-purpose">${sanitizeInput(preview.purpose)}</div>
+                <div class="tents-preview-time">${preview.time}</div>
+              `;
+              dateCell.appendChild(previewDiv);
+            }
+          });
+          
+          // Allow clicking to make new booking (redirect to form)
+          dateCell.style.cursor = 'pointer';
+          dateCell.addEventListener('click', () => openBookingModal(currentDateStr));
+        }
       } else if (isPast) {
         dateCell.classList.add('past');
       } else {
@@ -2635,6 +2730,24 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     }
     // Redirect to request form page with date parameter
     window.location.href = `conference-request.html?date=${dateStr}`;
+  }
+
+  /**
+   * Show error modal when user clicks a fully booked date
+   */
+  function showFullyBookedError(date) {
+    const dateObj = new Date(date + 'T00:00:00');
+    const formattedDate = dateObj.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+    
+    showAlert(
+      `${formattedDate} is fully booked. No continuous 4-hour slots available. Please select another date.`,
+      false
+    );
   }
 
   function closeBookingModal() {
@@ -2950,12 +3063,17 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
       // Check if date has bookings
       const hasBookings = bookedDates[currentDateStr] && bookedDates[currentDateStr].length > 0;
       
-      console.log(`   Date ${currentDateStr}: booked=${hasBookings ? 'YES' : 'NO'}, isToday=${isToday}, isPast=${isPast}`);
+      console.log(`   Date ${currentDateStr}: bookings=${hasBookings ? bookedDates[currentDateStr].length : 0}, isToday=${isToday}, isPast=${isPast}`);
       
-      if (hasBookings) {
-        dateCell.classList.add('booked', 'has-bookings');
+      if (isPast) {
+        // Past dates - grayed out, not clickable
+        dateCell.classList.add('past');
+      } else if (hasBookings) {
+        // Has bookings but still available (Option A)
+        // Show purple preview banner, white background, clickable for new requests
+        dateCell.classList.add('has-bookings-info');
         
-        // Fetch booking details for preview banner
+        // Fetch booking details for preview banner (informational only)
         fetchBookingPreview(currentDateStr).then(preview => {
           if (preview) {
             const previewDiv = document.createElement('div');
@@ -2968,12 +3086,12 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
           }
         });
         
-        // Make booked dates clickable to show booking details
+        // Still allow clicking to make new booking (inventory checked at form level)
+        dateCell.classList.add('available');
         dateCell.style.cursor = 'pointer';
-        dateCell.addEventListener('click', () => showDateBookingsModalTents(currentDateStr));
-      } else if (isPast) {
-        dateCell.classList.add('past');
+        dateCell.addEventListener('click', () => openBookingModal(currentDateStr));
       } else {
+        // No bookings - completely available
         dateCell.classList.add('available');
         dateCell.addEventListener('click', () => openBookingModal(currentDateStr));
       }

@@ -2692,17 +2692,29 @@ footer a:hover {
   color: #000;
 }
 
-/* Has bookings styling (matches admin calendar) */
-.calendar-date.has-bookings {
-  background: #fef08a;
-  border: 2px solid #eab308;
+/* Has bookings styling - Partially booked (still has 4+ hour slot) */
+.calendar-date.has-bookings:not(.fully-booked) {
+  background: white;
+  border: 2px solid #e5e7eb;
   cursor: pointer;
 }
 
-.calendar-date.has-bookings:hover {
-  background: #fde047;
+.calendar-date.has-bookings:not(.fully-booked):hover {
+  background: #f9fafb;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Fully booked styling - No 4-hour continuous slot available */
+.calendar-date.fully-booked {
+  background: #fef08a;
+  border: 2px solid #eab308;
+  cursor: not-allowed;
+}
+
+.calendar-date.fully-booked:hover {
+  background: #fef08a;
+  transform: none;
 }
 
 .calendar-date.today {
@@ -2716,7 +2728,7 @@ footer a:hover {
   font-weight: 700;
 }
 
-.calendar-date.today.has-bookings {
+.calendar-date.today.fully-booked {
   background: #fef08a;
   border: 2px solid #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
@@ -2759,6 +2771,18 @@ footer a:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Tents & Chairs: Informational preview (not blocking) */
+.calendar-date.has-bookings-info {
+  background: white;
+  border: 2px solid #e5e7eb;
+}
+
+.calendar-date.has-bookings-info:hover {
+  background: #f9fafb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .calendar-date.past {
