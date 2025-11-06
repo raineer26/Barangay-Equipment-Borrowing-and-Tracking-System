@@ -3958,6 +3958,9 @@ input[type="number"]::-webkit-outer-spin-button {
 
 /* Default (white icons) */
 .sidebar-link .nav-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
   filter: brightness(0) invert(1);
   transition: filter 0.2s ease;
 }
