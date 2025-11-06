@@ -8008,9 +8008,487 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     }
   });
   
+  // Load admin profile data
+  async function loadAdminProfile() {
+    console.log('👤 Loading admin profile...');
+    
+    const user = auth.currentUser;
+    if (!user) {
+      console.error('❌ No authenticated user');
+      return;
+    }
+    
+    try {
+      const docRef = doc(db, 'users', user.uid);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        
+        // Get name fields
+        const firstName = userData.firstName || '';
+        const lastName = userData.lastName || '';
+        const fullName = `${firstName} ${lastName}`.trim() || userData.fullName || 'Admin Account';
+        const email = userData.email || user.email || 'Not provided';
+        const contactNumber = userData.contactNumber || userData.contact || 'Not provided';
+        const address = userData.address || 'Not provided';
+        
+        // Generate initials for avatar
+        const initials = firstName && lastName 
+          ? `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+          : fullName.split(' ').map(n => n.charAt(0)).join('').substring(0, 2).toUpperCase();
+        
+        // Update admin tab panel display using IDs
+        const adminAvatar = document.getElementById('adminAvatar');
+        if (adminAvatar) adminAvatar.textContent = initials;
+        
+        const adminFullName = document.getElementById('adminFullName');
+        if (adminFullName) adminFullName.textContent = fullName;
+        
+        const adminEmailText = document.getElementById('adminEmailText');
+        if (adminEmailText) adminEmailText.textContent = email;
+        
+        const adminPhoneText = document.getElementById('adminPhoneText');
+        if (adminPhoneText) adminPhoneText.textContent = contactNumber;
+        
+        // Update account created date if available
+        if (userData.createdAt) {
+          const createdDate = userData.createdAt.toDate ? userData.createdAt.toDate() : new Date(userData.createdAt);
+          const formattedDate = createdDate.toLocaleDateString('en-US', { 
+            month: 'long', 
+            day: '2-digit', 
+            year: 'numeric' 
+          });
+          
+          const accountCreatedEl = document.getElementById('adminAccountCreated');
+          if (accountCreatedEl) accountCreatedEl.textContent = formattedDate;
+        }
+        
+        // Update account status (assuming admin is always active)
+        const accountStatusEl = document.getElementById('adminAccountStatus');
+        if (accountStatusEl && userData.status) {
+          const status = userData.status;
+          const statusText = status === 'active' ? 'Active' : 'Inactive';
+          const statusColor = status === 'active' ? '#28a745' : '#dc3545';
+          const statusBg = status === 'active' ? '#d8f3d8' : '#f8d7da';
+          
+          accountStatusEl.textContent = statusText;
+          accountStatusEl.style.color = statusColor;
+          accountStatusEl.style.background = statusBg;
+        }
+        
+        // Pre-fill edit form
+        document.getElementById('adminEditFirstName').value = firstName;
+        document.getElementById('adminEditLastName').value = lastName;
+        document.getElementById('adminEditEmail').value = email;
+        document.getElementById('adminEditContactNumber').value = userData.contactNumber || userData.contact || '';
+        
+        console.log('✅ Admin profile loaded successfully:', {
+          fullName,
+          email,
+          contactNumber,
+          initials
+        });
+        
+      } else {
+        console.warn('⚠️ Admin user document not found');
+      }
+    } catch (error) {
+      console.error('❌ Error loading admin profile:', error);
+    }
+  }
+  
+  // Handle Admin Edit Profile Form Submit
+  async function handleAdminEditProfile(e) {
+    e.preventDefault();
+    console.log('📝 Submitting admin profile edit...');
+    
+    const user = auth.currentUser;
+    if (!user) {
+      showToast('User not authenticated', false);
+      return;
+    }
+    
+    // Get error elements
+    const errorFirstName = document.getElementById('error-admin-edit-firstname');
+    const errorLastName = document.getElementById('error-admin-edit-lastname');
+    const errorContact = document.getElementById('error-admin-edit-contact');
+    
+    // Clear all previous errors
+    if (errorFirstName) clearErrorSignup(errorFirstName);
+    if (errorLastName) clearErrorSignup(errorLastName);
+    if (errorContact) clearErrorSignup(errorContact);
+    
+    // Get form values
+    const firstName = document.getElementById('adminEditFirstName').value.trim();
+    const lastName = document.getElementById('adminEditLastName').value.trim();
+    const contactNumber = document.getElementById('adminEditContactNumber').value.trim();
+    
+    let valid = true;
+    
+    // First Name validation
+    if (!firstName) {
+      if (errorFirstName) setErrorSignup(errorFirstName, "First name can't be blank");
+      valid = false;
+    } else if (firstName.length < 2) {
+      if (errorFirstName) setErrorSignup(errorFirstName, "First name must be at least 2 characters");
+      valid = false;
+    } else if (!/^[a-zA-Z\s'-]+$/.test(firstName)) {
+      if (errorFirstName) setErrorSignup(errorFirstName, "First name can only contain letters, spaces, hyphens, and apostrophes");
+      valid = false;
+    } else {
+      if (errorFirstName) setSuccessSignup(errorFirstName);
+    }
+    
+    // Last Name validation
+    if (!lastName) {
+      if (errorLastName) setErrorSignup(errorLastName, "Last name can't be blank");
+      valid = false;
+    } else if (lastName.length < 2) {
+      if (errorLastName) setErrorSignup(errorLastName, "Last name must be at least 2 characters");
+      valid = false;
+    } else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) {
+      if (errorLastName) setErrorSignup(errorLastName, "Last name can only contain letters, spaces, hyphens, and apostrophes");
+      valid = false;
+    } else {
+      if (errorLastName) setSuccessSignup(errorLastName);
+    }
+    
+    // Contact Number validation
+    if (!contactNumber) {
+      if (errorContact) setErrorSignup(errorContact, "Contact number can't be blank");
+      valid = false;
+    } else if (!/^\d+$/.test(contactNumber)) {
+      if (errorContact) setErrorSignup(errorContact, "Contact number must contain only numbers");
+      valid = false;
+    } else if (!/^09\d{9}$/.test(contactNumber)) {
+      if (errorContact) setErrorSignup(errorContact, "Contact number must be 11 digits and start with '09'");
+      valid = false;
+    } else {
+      if (errorContact) setSuccessSignup(errorContact);
+    }
+    
+    if (!valid) return;
+    
+    // Show loading state
+    const saveButton = document.querySelector('#adminEditProfileForm .save-changes');
+    if (saveButton) {
+      saveButton.disabled = true;
+      saveButton.textContent = 'Saving...';
+    }
+    
+    try {
+      const updates = {
+        firstName: firstName,
+        lastName: lastName,
+        fullName: `${firstName} ${lastName}`,
+        contactNumber: contactNumber
+      };
+      
+      // Update Firestore
+      await updateDoc(doc(db, 'users', user.uid), updates);
+      
+      // Also update Auth displayName
+      try {
+        await updateProfile(user, { displayName: updates.fullName });
+      } catch (err) {
+        console.warn('Failed to update Auth displayName:', err);
+      }
+      
+      // Close modal and reload profile
+      const modal = document.getElementById('adminEditProfileModal');
+      if (modal) modal.style.display = 'none';
+      
+      showToast('Profile updated successfully!', true);
+      
+      // Reload admin profile
+      await loadAdminProfile();
+      
+    } catch (error) {
+      console.error('❌ Error updating admin profile:', error);
+      showToast('Failed to update profile. Please try again.', false);
+    } finally {
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save Changes';
+      }
+    }
+  }
+  
+  // Handle Admin Change Password Form Submit
+  async function handleAdminChangePassword(e) {
+    e.preventDefault();
+    console.log('🔑 Submitting admin password change...');
+    
+    const user = auth.currentUser;
+    if (!user) {
+      showToast('User not authenticated', false);
+      return;
+    }
+    
+    // Get error elements
+    const errorCurrentPassword = document.getElementById('error-admin-current-password');
+    const errorNewPassword = document.getElementById('error-admin-new-password');
+    const errorConfirmPassword = document.getElementById('error-admin-confirm-password');
+    
+    // Clear all previous errors
+    if (errorCurrentPassword) clearErrorSignup(errorCurrentPassword);
+    if (errorNewPassword) clearErrorSignup(errorNewPassword);
+    if (errorConfirmPassword) clearErrorSignup(errorConfirmPassword);
+    
+    // Get form values
+    const currentPassword = document.getElementById('adminCurrentPassword').value;
+    const newPassword = document.getElementById('adminNewPassword').value;
+    const confirmPassword = document.getElementById('adminConfirmPassword').value;
+    
+    let valid = true;
+    
+    // Current Password validation
+    if (!currentPassword) {
+      if (errorCurrentPassword) setErrorSignup(errorCurrentPassword, 'Please enter your current password');
+      valid = false;
+    } else {
+      if (errorCurrentPassword) setSuccessSignup(errorCurrentPassword);
+    }
+    
+    // New Password validation
+    if (!newPassword) {
+      if (errorNewPassword) setErrorSignup(errorNewPassword, 'Please enter a new password');
+      valid = false;
+    } else if (newPassword.length < 8) {
+      if (errorNewPassword) setErrorSignup(errorNewPassword, 'Password must be at least 8 characters');
+      valid = false;
+    } else {
+      // Password strength validation
+      const hasUpperCase = /[A-Z]/.test(newPassword);
+      const hasLowerCase = /[a-z]/.test(newPassword);
+      const hasNumber = /\d/.test(newPassword);
+      const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
+      
+      if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecial) {
+        if (errorNewPassword) setErrorSignup(errorNewPassword, 'Password must contain uppercase, lowercase, number, and special character');
+        valid = false;
+      } else if (newPassword === currentPassword) {
+        if (errorNewPassword) setErrorSignup(errorNewPassword, 'New password must be different from your current password');
+        valid = false;
+      } else {
+        if (errorNewPassword) setSuccessSignup(errorNewPassword);
+      }
+    }
+    
+    // Confirm Password validation
+    if (!confirmPassword) {
+      if (errorConfirmPassword) setErrorSignup(errorConfirmPassword, 'Please confirm your new password');
+      valid = false;
+    } else if (newPassword !== confirmPassword) {
+      if (errorConfirmPassword) setErrorSignup(errorConfirmPassword, 'Passwords do not match');
+      valid = false;
+    } else {
+      if (errorConfirmPassword) setSuccessSignup(errorConfirmPassword);
+    }
+    
+    if (!valid) return;
+    
+    // Show loading state
+    const saveButton = document.querySelector('#adminChangePasswordForm .save-changes');
+    if (saveButton) {
+      saveButton.disabled = true;
+      saveButton.textContent = 'Changing...';
+    }
+    
+    try {
+      // Re-authenticate user
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, credential);
+      
+      // Update password
+      await updatePassword(user, newPassword);
+      
+      // Close modal and reset form
+      const modal = document.getElementById('adminChangePasswordModal');
+      const form = document.getElementById('adminChangePasswordForm');
+      if (modal) modal.style.display = 'none';
+      if (form) form.reset();
+      
+      // Clear all errors
+      if (errorCurrentPassword) clearErrorSignup(errorCurrentPassword);
+      if (errorNewPassword) clearErrorSignup(errorNewPassword);
+      if (errorConfirmPassword) clearErrorSignup(errorConfirmPassword);
+      
+      showToast('Password changed successfully!', true);
+      
+    } catch (error) {
+      console.error('❌ Error changing admin password:', error);
+      
+      // Show error inline instead of toast
+      switch (error.code) {
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          if (errorCurrentPassword) setErrorSignup(errorCurrentPassword, 'Incorrect password. Please try again.');
+          break;
+        case 'auth/weak-password':
+          if (errorNewPassword) setErrorSignup(errorNewPassword, 'New password is too weak. Choose a stronger password.');
+          break;
+        case 'auth/requires-recent-login':
+          if (errorCurrentPassword) setErrorSignup(errorCurrentPassword, 'Please sign in again and retry changing your password.');
+          break;
+        default:
+          if (errorCurrentPassword) setErrorSignup(errorCurrentPassword, 'Failed to update password. Try again later.');
+      }
+      
+    } finally {
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save Changes';
+      }
+    }
+  }
+  
+  // Show confirmation modal
+  function showConfirmModal(title, message, isDanger = false) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('umConfirmModal');
+      const titleEl = document.getElementById('umConfirmTitle');
+      const messageEl = document.getElementById('umConfirmMessage');
+      const yesBtn = document.getElementById('umConfirmYes');
+      const noBtn = document.getElementById('umConfirmNo');
+      
+      if (!modal || !titleEl || !messageEl || !yesBtn || !noBtn) {
+        console.error('❌ Confirmation modal elements not found');
+        resolve(false);
+        return;
+      }
+      
+      titleEl.textContent = title;
+      messageEl.textContent = message;
+      
+      // Apply danger styling if needed
+      if (isDanger) {
+        yesBtn.classList.add('danger');
+      } else {
+        yesBtn.classList.remove('danger');
+      }
+      
+      modal.classList.add('active');
+      
+      // Handle Yes button click
+      const handleYes = () => {
+        modal.classList.remove('active');
+        yesBtn.removeEventListener('click', handleYes);
+        noBtn.removeEventListener('click', handleNo);
+        resolve(true);
+      };
+      
+      // Handle No button click
+      const handleNo = () => {
+        modal.classList.remove('active');
+        yesBtn.removeEventListener('click', handleYes);
+        noBtn.removeEventListener('click', handleNo);
+        resolve(false);
+      };
+      
+      yesBtn.addEventListener('click', handleYes);
+      noBtn.addEventListener('click', handleNo);
+      
+      // Handle ESC key
+      const handleEscape = (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+          handleNo();
+          document.removeEventListener('keydown', handleEscape);
+        }
+      };
+      document.addEventListener('keydown', handleEscape);
+    });
+  }
+  
+  // Disable user account
+  async function disableUser(userId) {
+    console.log('🔒 Disabling user account:', userId);
+    
+    const user = allUsersData.find(u => u.id === userId);
+    if (!user) {
+      console.error('❌ User not found:', userId);
+      showToast('User not found', false);
+      return;
+    }
+    
+    const confirmed = await showConfirmModal(
+      'Disable User Account',
+      `Are you sure you want to disable ${user.fullName}'s account? They will not be able to log in or make requests until their account is re-enabled.`,
+      true
+    );
+    
+    if (!confirmed) {
+      console.log('ℹ️ User account disable cancelled');
+      return;
+    }
+    
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        status: 'inactive',
+        disabledAt: new Date()
+      });
+      
+      console.log('✅ User account disabled successfully');
+      showToast('User account disabled successfully', true);
+      
+      // Refresh table
+      await renderUsersTable();
+      
+    } catch (error) {
+      console.error('❌ Error disabling user account:', error);
+      showToast('Failed to disable user account', false);
+    }
+  }
+  
+  // Enable user account
+  async function enableUser(userId) {
+    console.log('🔓 Enabling user account:', userId);
+    
+    const user = allUsersData.find(u => u.id === userId);
+    if (!user) {
+      console.error('❌ User not found:', userId);
+      showToast('User not found', false);
+      return;
+    }
+    
+    const confirmed = await showConfirmModal(
+      'Enable User Account',
+      `Are you sure you want to enable ${user.fullName}'s account? They will be able to log in and make requests again.`,
+      false
+    );
+    
+    if (!confirmed) {
+      console.log('ℹ️ User account enable cancelled');
+      return;
+    }
+    
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        status: 'active',
+        enabledAt: new Date()
+      });
+      
+      console.log('✅ User account enabled successfully');
+      showToast('User account enabled successfully', true);
+      
+      // Refresh table
+      await renderUsersTable();
+      
+    } catch (error) {
+      console.error('❌ Error enabling user account:', error);
+      showToast('Failed to enable user account', false);
+    }
+  }
+  
   // Load total users count and all users when page loads
   document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Admin User Manager page loaded');
+    
+    // Load admin profile when page loads
+    loadAdminProfile();
     
     // Load total users count (real-time)
     loadTotalUsersCount();
@@ -8021,15 +8499,134 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     // Setup filter listeners
     setupFilters();
     
-    // Add event delegation for view buttons
+    // Admin Edit Profile button
+    const adminEditProfileBtn = document.getElementById('adminEditProfileBtn');
+    if (adminEditProfileBtn) {
+      adminEditProfileBtn.addEventListener('click', () => {
+        const modal = document.getElementById('adminEditProfileModal');
+        if (modal) modal.style.display = 'flex';
+      });
+    }
+    
+    // Admin Change Password button
+    const adminChangePasswordBtn = document.getElementById('adminChangePasswordBtn');
+    if (adminChangePasswordBtn) {
+      adminChangePasswordBtn.addEventListener('click', () => {
+        const modal = document.getElementById('adminChangePasswordModal');
+        if (modal) modal.style.display = 'flex';
+      });
+    }
+    
+    // Admin Edit Profile Form Submit
+    const adminEditProfileForm = document.getElementById('adminEditProfileForm');
+    if (adminEditProfileForm) {
+      adminEditProfileForm.addEventListener('submit', handleAdminEditProfile);
+    }
+    
+    // Admin Change Password Form Submit
+    const adminChangePasswordForm = document.getElementById('adminChangePasswordForm');
+    if (adminChangePasswordForm) {
+      adminChangePasswordForm.addEventListener('submit', handleAdminChangePassword);
+    }
+    
+    // Clear errors when admin types in edit profile form
+    document.getElementById('adminEditFirstName')?.addEventListener('input', () => {
+      const errorFirstName = document.getElementById('error-admin-edit-firstname');
+      if (errorFirstName) clearErrorSignup(errorFirstName);
+    });
+    
+    document.getElementById('adminEditLastName')?.addEventListener('input', () => {
+      const errorLastName = document.getElementById('error-admin-edit-lastname');
+      if (errorLastName) clearErrorSignup(errorLastName);
+    });
+    
+    document.getElementById('adminEditContactNumber')?.addEventListener('input', () => {
+      const errorContact = document.getElementById('error-admin-edit-contact');
+      if (errorContact) clearErrorSignup(errorContact);
+    });
+    
+    // Clear errors when admin types in change password form
+    document.getElementById('adminCurrentPassword')?.addEventListener('input', () => {
+      const errorCurrentPassword = document.getElementById('error-admin-current-password');
+      if (errorCurrentPassword) clearErrorSignup(errorCurrentPassword);
+    });
+    
+    document.getElementById('adminNewPassword')?.addEventListener('input', () => {
+      const errorNewPassword = document.getElementById('error-admin-new-password');
+      if (errorNewPassword) clearErrorSignup(errorNewPassword);
+    });
+    
+    document.getElementById('adminConfirmPassword')?.addEventListener('input', () => {
+      const errorConfirmPassword = document.getElementById('error-admin-confirm-password');
+      if (errorConfirmPassword) clearErrorSignup(errorConfirmPassword);
+    });
+    
+    // Close modals when clicking close buttons
+    const closeModalBtns = document.querySelectorAll('.close-modal');
+    closeModalBtns.forEach(btn => {
+      btn.addEventListener('click', function() {
+        const modal = this.closest('.modal');
+        if (modal) modal.style.display = 'none';
+      });
+    });
+    
+    // Close modals when clicking outside
+    window.addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal')) {
+        e.target.style.display = 'none';
+      }
+    });
+    
+    // Admin Forgot Password link
+    const adminForgotPassword = document.getElementById('adminForgotPassword');
+    if (adminForgotPassword) {
+      adminForgotPassword.addEventListener('click', async (e) => {
+        e.preventDefault();
+        
+        const user = auth.currentUser;
+        if (!user || !user.email) {
+          showToast('Unable to send password reset email', false);
+          return;
+        }
+        
+        const confirmed = await showConfirmModal(
+          'Reset Password',
+          `A password reset link will be sent to ${user.email}. You will need to use this link to reset your password. Continue?`,
+          false
+        );
+        
+        if (!confirmed) return;
+        
+        try {
+          await sendPasswordResetEmail(auth, user.email);
+          showToast('Password reset email sent! Check your inbox.', true);
+          
+          // Close the change password modal
+          const modal = document.getElementById('adminChangePasswordModal');
+          if (modal) modal.style.display = 'none';
+          
+        } catch (error) {
+          console.error('❌ Error sending password reset email:', error);
+          showToast('Failed to send password reset email', false);
+        }
+      });
+    }
+    
+    // Add event delegation for view, disable, and enable buttons
     const tbody = document.querySelector('.um-users-table tbody');
     if (tbody) {
       tbody.addEventListener('click', (e) => {
-        if (e.target.classList.contains('um-btn-view')) {
-          const userId = e.target.getAttribute('data-user-id');
-          if (userId) {
-            viewUserDetails(userId);
-          }
+        const target = e.target;
+        const userId = target.getAttribute('data-user-id');
+        
+        if (!userId) return;
+        
+        if (target.classList.contains('um-btn-view')) {
+          viewUserDetails(userId);
+        } else if (target.classList.contains('um-btn-disable')) {
+          disableUser(userId);
+        } else if (target.classList.contains('um-btn-enable')) {
+          enableUser(userId);
         }
       });
     }

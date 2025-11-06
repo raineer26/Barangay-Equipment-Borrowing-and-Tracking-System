@@ -149,14 +149,14 @@
         <div id="tabpanel-admin" role="tabpanel" aria-labelledby="tab-admin" tabindex="0" hidden>
           <section style="background:#d8e7ff;border-radius:6px;padding:20px 30px; margin-top: 20px; user-select:none;">
             <div style="display:flex; align-items:center; gap: 20px; margin-bottom:14px;">
-              <div class="um-user-avatar" aria-hidden="true" style="background:#2f21a1; font-weight: 700; font-size: 24px;">AD</div>
+              <div class="um-user-avatar" id="adminAvatar" aria-hidden="true" style="background:#2f21a1; font-weight: 700; font-size: 24px;">AD</div>
               <div>
-                <div style="font-weight:700; font-size:18px; user-select: text;">Admin Account</div>
-                <div style="font-size:14px; color:#2f21a1; user-select: text;">
-                  <span aria-label="Email">📧</span> mapulanglupa.gov.ph@gmail.com
+                <div id="adminFullName" style="font-weight:700; font-size:18px; user-select: text;">Admin Account</div>
+                <div id="adminEmail" style="font-size:14px; color:#2f21a1; user-select: text;">
+                  <span aria-label="Email">📧</span> <span id="adminEmailText">mapulanglupa.gov.ph@gmail.com</span>
                 </div>
-                <div style="font-size:14px; color:#2f21a1; user-select: text;">
-                  <span aria-label="Phone">📱</span> 0977384341
+                <div id="adminPhone" style="font-size:14px; color:#2f21a1; user-select: text;">
+                  <span aria-label="Phone">📱</span> <span id="adminPhoneText">0977384341</span>
                 </div>
               </div>
               <div style="margin-left:auto; display:flex; gap: 12px;">
@@ -170,11 +170,11 @@
               <div style="display:flex; gap: 50px; font-size: 14px;">
                 <div>
                   <div style="font-weight:600;">Account Created</div>
-                  <div>November 01, 2025</div>
+                  <div id="adminAccountCreated">November 01, 2025</div>
                 </div>
                 <div>
                   <div style="font-weight:600;">Account Status</div>
-                  <div><span style="background:#d8f3d8; color:#28a745; border-radius: 12px; padding: 4px 12px; font-weight: 700;">Active</span></div>
+                  <div><span id="adminAccountStatus" style="background:#d8f3d8; color:#28a745; border-radius: 12px; padding: 4px 12px; font-weight: 700;">Active</span></div>
                 </div>
               </div>
             </div>
@@ -255,6 +255,22 @@
             <button class="um-modal-close" onclick="closeUserDetailsModal()">&times;</button>
           </div>
           <div class="um-modal-body" id="umModalBody"></div>
+        </div>
+      </div>
+
+      <!-- Confirmation Modal -->
+      <div class="um-confirm-modal-overlay" id="umConfirmModal">
+        <div class="um-confirm-modal">
+          <div class="um-confirm-modal-header">
+            <h3 id="umConfirmTitle">Confirm Action</h3>
+          </div>
+          <div class="um-confirm-modal-body">
+            <p id="umConfirmMessage">Are you sure you want to perform this action?</p>
+          </div>
+          <div class="um-confirm-modal-footer">
+            <button class="um-confirm-btn-no" id="umConfirmNo">Cancel</button>
+            <button class="um-confirm-btn-yes" id="umConfirmYes">Confirm</button>
+          </div>
         </div>
       </div>
     </main>
