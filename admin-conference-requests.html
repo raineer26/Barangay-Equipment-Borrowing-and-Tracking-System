@@ -78,19 +78,19 @@
         <!-- Stats Cards -->
         <div class="tents-stats-container">
           <div class="tents-stat-card blue">
-            <div class="stat-number" id="totalRequestsCount">0</div>
+            <div class="stat-number" id="totalRequestsCount">-</div>
             <div class="stat-label">Total Requests</div>
           </div>
           <div class="tents-stat-card orange">
-            <div class="stat-number" id="pendingRequestsCount">0</div>
+            <div class="stat-number" id="pendingRequestsCount">-</div>
             <div class="stat-label">Pending Requests</div>
           </div>
           <div class="tents-stat-card green">
-            <div class="stat-number" id="approvedRequestsCount">0</div>
+            <div class="stat-number" id="approvedRequestsCount">-</div>
             <div class="stat-label">Approved Requests</div>
           </div>
           <div class="tents-stat-card purple">
-            <div class="stat-number" id="completedRequestsCount">0</div>
+            <div class="stat-number" id="completedRequestsCount">-</div>
             <div class="stat-label">Completed Requests</div>
           </div>
         </div>
@@ -105,14 +105,29 @@
             <button class="tents-tab" id="archivesTab" onclick="switchTab('archives')">Archives</button>
           </div>
           <div class="tents-header-actions">
-            <!-- Export Dropdown (History Tab Only) -->
-            <div class="tents-export-dropdown" id="exportDropdown" style="display: none;">
+            <!-- Export Dropdown -->
+            <div class="tents-export-dropdown" id="exportDropdown">
               <button class="btn-export" onclick="toggleExportMenu()">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 Export
               </button>
               <div class="tents-dropdown-menu" id="exportMenu">
-                <button class="tents-dropdown-item" onclick="exportData('csv')">Export as CSV</button>
+                <button class="tents-dropdown-item" onclick="exportData('excel-all')">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:8px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                  Export as Excel (All Tabs)
+                </button>
+                <button class="tents-dropdown-item" onclick="exportData('csv-all')">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:8px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                  Export as CSV (All Requests)
+                </button>
+                <button class="tents-dropdown-item" onclick="exportData('csv-history')">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:8px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  Export as CSV (History Only)
+                </button>
+                <button class="tents-dropdown-item" onclick="exportData('csv-archives')">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:8px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                  Export as CSV (Archives Only)
+                </button>
               </div>
             </div>
             <!-- View Toggle (All Requests Tab Only) -->
@@ -223,18 +238,29 @@
                 <span class="internal-error-message" id="error-internal-event-date-conference"></span>
               </div>
 
-              <!-- Start Time -->
-              <div class="internal-form-group">
-                <label for="internalStartTimeConference">Start Time <span class="required">*</span></label>
-                <input type="time" id="internalStartTimeConference" name="startTime" required />
-                <span class="internal-error-message" id="error-internal-start-time-conference"></span>
+              <!-- Time Fields (Start and End) -->
+              <div class="internal-form-group time-group">
+                <label>Time <span class="required">*</span></label>
+                <div class="time-inputs">
+                  <select id="internalStartTimeConference" name="startTime" required>
+                    <option value="">Start Time</option>
+                  </select>
+                  <span class="time-separator">–</span>
+                  <select id="internalEndTimeConference" name="endTime" required>
+                    <option value="">End Time</option>
+                  </select>
+                </div>
+                <div class="time-errors">
+                  <span class="internal-error-message" id="error-internal-start-time-conference"></span>
+                  <span class="internal-error-message" id="error-internal-end-time-conference"></span>
+                </div>
               </div>
 
-              <!-- End Time -->
+              <!-- Expected Attendees -->
               <div class="internal-form-group">
-                <label for="internalEndTimeConference">End Time <span class="required">*</span></label>
-                <input type="time" id="internalEndTimeConference" name="endTime" required />
-                <span class="internal-error-message" id="error-internal-end-time-conference"></span>
+                <label for="internalExpectedAttendeesConference">Expected Attendees <span class="required">*</span></label>
+                <input type="number" id="internalExpectedAttendeesConference" name="expectedAttendees" min="1" max="200" required placeholder="e.g., 50" />
+                <span class="internal-error-message" id="error-internal-expected-attendees-conference"></span>
               </div>
 
               <!-- Purpose -->
@@ -242,6 +268,13 @@
                 <label for="internalPurposeConference">Purpose <span class="required">*</span></label>
                 <textarea id="internalPurposeConference" name="purpose" rows="3" required placeholder="Enter the purpose of the reservation"></textarea>
                 <span class="internal-error-message" id="error-internal-purpose-conference"></span>
+              </div>
+
+              <!-- Department/Office (Optional) -->
+              <div class="internal-form-group">
+                <label for="internalDepartmentConference">Department/Office</label>
+                <input type="text" id="internalDepartmentConference" name="department" placeholder="e.g., Barangay Health Office" />
+                <span class="internal-error-message" id="error-internal-department-conference"></span>
               </div>
 
               <!-- Contact Person -->
@@ -273,6 +306,8 @@
       </div>
     </main>
 
+    <!-- SheetJS library for Excel export -->
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script type="module" src="script.js"></script>
   </body>
 </html>

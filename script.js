@@ -5471,6 +5471,52 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     return parts.slice(0, -1).join(' '); // Everything except last name
   }
 
+  /**
+   * Robust name extractor - returns { firstName, lastName }
+   * Tries multiple common fields and falls back to email local-part if needed.
+   */
+  function getNameParts(req) {
+    // Preferred explicit fields (new schema)
+    if (req.firstName || req.lastName) {
+      return {
+        firstName: String(req.firstName || '').trim(),
+        lastName: String(req.lastName || '').trim()
+      };
+    }
+
+    // Some documents may use camelCase without capitals
+    if (req.firstname || req.lastname) {
+      return {
+        firstName: String(req.firstname || '').trim(),
+        lastName: String(req.lastname || '').trim()
+      };
+    }
+
+    // Underscored variant
+    if (req.first_name || req.last_name) {
+      return {
+        firstName: String(req.first_name || '').trim(),
+        lastName: String(req.last_name || '').trim()
+      };
+    }
+
+    // Legacy combined fields
+    const raw = String(req.fullName || req.fullname || req.full_name || req.name || req.applicantName || '').trim();
+    if (raw) {
+      const parts = raw.split(/\s+/);
+      return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '' };
+    }
+
+    // fallback: try to extract from email local part
+    if (req.userEmail) {
+      const local = String(req.userEmail).split('@')[0];
+      const parts = local.split(/[._\-]/).filter(Boolean);
+      return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '' };
+    }
+
+    return { firstName: '', lastName: '' };
+  }
+
   // ========================================
   // DATE FORMATTING FUNCTIONS
   // ========================================
@@ -6615,15 +6661,14 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   const tabElementId = tabName === 'all' ? 'allRequestsTab' : `${tabName}Tab`;
   document.getElementById(tabElementId)?.classList.add('active');
 
-    // Show/hide view toggle and export based on tab. History does NOT support
-    // calendar view, so always force the table view when switching tabs. We
-    // call switchView('table') to ensure the view button active state and the
-    // table/calendar DOM sections are kept in sync.
+    // View toggle only visible on All Requests tab
     if (tabName === 'all') {
       document.getElementById('viewToggle').style.display = 'flex';
-      document.getElementById('exportDropdown').style.display = 'none';
+      // Export dropdown visibility will be controlled by switchView()
     } else {
+      // History and Archives tabs always show table view (no calendar)
       document.getElementById('viewToggle').style.display = 'none';
+      // Export dropdown visible on history/archives tabs (table view only)
       document.getElementById('exportDropdown').style.display = 'block';
     }
 
@@ -6767,10 +6812,14 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       document.getElementById('tableViewBtn')?.classList.add('active');
       document.getElementById('tableFilters').style.display = 'grid';
       document.getElementById('calendarButtons').style.display = 'none';
+      // Show export dropdown in table view
+      document.getElementById('exportDropdown').style.display = 'block';
     } else {
       document.getElementById('calendarViewBtn')?.classList.add('active');
       document.getElementById('tableFilters').style.display = 'none';
       document.getElementById('calendarButtons').style.display = 'flex';
+      // Hide export dropdown in calendar view
+      document.getElementById('exportDropdown').style.display = 'none';
     }
 
     // Re-render content
@@ -6782,7 +6831,306 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   // ========================================
 
   /**
-   * Export current filtered data to CSV
+   * Export to Excel with multiple sheets (All Requests, History, Archives)
+   */
+  function exportToExcel() {
+    console.log('📊 Exporting to Excel with multiple sheets...');
+    
+    // Check if XLSX library is loaded
+    if (typeof XLSX === 'undefined') {
+      console.error('❌ XLSX library not loaded');
+      showToast('Excel library not loaded. Please refresh the page and try again.', false);
+      return;
+    }
+    
+    try {
+      // Create a new workbook
+      const wb = XLSX.utils.book_new();
+      
+      // Sheet 1: All Requests (Active)
+      const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+      const allRequestsSheet = createExcelSheet(allRequestsData, 'all');
+      XLSX.utils.book_append_sheet(wb, allRequestsSheet, 'All Requests');
+      
+      // Sheet 2: History
+      const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+      const historySheet = createExcelSheet(historyData, 'history');
+      XLSX.utils.book_append_sheet(wb, historySheet, 'History');
+      
+      // Sheet 3: Archives
+      const archivesData = allRequests.filter(r => r.archived === true);
+      const archivesSheet = createExcelSheet(archivesData, 'archives');
+      XLSX.utils.book_append_sheet(wb, archivesSheet, 'Archives');
+      
+      // Generate filename with timestamp
+      const filename = `tents-chairs-requests-${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      // Write file
+      XLSX.writeFile(wb, filename);
+      
+      console.log('✅ Excel exported successfully');
+      showToast('Excel file exported successfully', true);
+    } catch (error) {
+      console.error('❌ Error exporting to Excel:', error);
+      showToast('Failed to export Excel file', false);
+    }
+  }
+
+  /**
+   * Create Excel sheet from requests data
+   * @param {Array} requests - Array of request objects
+   * @param {string} sheetType - Type of sheet: 'all', 'history', or 'archives'
+   */
+  function createExcelSheet(requests, sheetType) {
+    const data = [];
+    
+    // Headers vary based on sheet type
+    const headers = ['Submitted On', 'First Name', 'Last Name', 'Purpose', 'Start Date', 'End Date', 'Chairs', 'Tents', 'Delivery Mode', 'Address', 'Contact', 'Email', 'Status'];
+    
+    if (sheetType === 'history') {
+      headers.push('Remarks', 'Completed On');
+    } else if (sheetType === 'archives') {
+      headers.push('Remarks', 'Archived On');
+    }
+    // 'all' type has no extra columns
+    
+    data.push(headers);
+    
+    // Rows
+    requests.forEach(req => {
+      // Format submitted date with time
+      let submittedDateTime = 'N/A';
+      if (req.createdAt) {
+        const createdDate = req.createdAt.toDate();
+        submittedDateTime = createdDate.toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      
+      const nameParts = getNameParts(req);
+      const row = [
+        submittedDateTime,
+        nameParts.firstName,
+        nameParts.lastName,
+        req.purposeOfUse || req.purpose || '',
+        formatDateText(req.startDate),
+        formatDateText(req.endDate),
+        req.quantityChairs || 0,
+        req.quantityTents || 0,
+        req.modeOfReceiving || '',
+        req.completeAddress || '',
+        req.contactNumber || '',
+        req.userEmail || '',
+        req.status
+      ];
+      
+      if (sheetType === 'history') {
+        row.push(req.rejectionReason || req.remarks || '');
+        
+        // Completed On (for completed, rejected, cancelled)
+        let completedOn = '';
+        if (req.status === 'completed' && req.completedAt) {
+          completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'rejected' && req.rejectedAt) {
+          completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'cancelled' && req.cancelledAt) {
+          completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        row.push(completedOn);
+      } else if (sheetType === 'archives') {
+        row.push(req.rejectionReason || req.remarks || '');
+        
+        // Archived On
+        let archivedOn = '';
+        if (req.archivedAt) {
+          archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        row.push(archivedOn);
+      }
+      
+      data.push(row);
+    });
+    
+    return XLSX.utils.aoa_to_sheet(data);
+  }
+
+  /**
+   * Export to CSV (All Requests in sections)
+   */
+  function exportToCSVAll() {
+    console.log('💾 Exporting all data to CSV with sections...');
+    
+    let csv = '';
+    
+    // Section 1: All Requests (Active)
+    csv += '=== ALL REQUESTS (ACTIVE) ===\n';
+    const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+    csv += buildCSVSection(allRequestsData, 'all');
+    csv += '\n\n';
+    
+    // Section 2: History
+    csv += '=== HISTORY ===\n';
+    const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+    csv += buildCSVSection(historyData, 'history');
+    csv += '\n\n';
+    
+    // Section 3: Archives
+    csv += '=== ARCHIVES ===\n';
+    const archivesData = allRequests.filter(r => r.archived === true);
+    csv += buildCSVSection(archivesData, 'archives');
+    
+    downloadCSV(csv, `tents-chairs-all-requests-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('CSV exported successfully (All Data)', true);
+  }
+
+  /**
+   * Export History Only to CSV
+   */
+  function exportToCSVHistory() {
+    console.log('💾 Exporting history to CSV...');
+    
+    const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+    
+    if (historyData.length === 0) {
+      showToast('No history data to export', false);
+      return;
+    }
+    
+    const csv = buildCSVSection(historyData, 'history');
+    downloadCSV(csv, `tents-chairs-history-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('CSV exported successfully (History)', true);
+  }
+
+  /**
+   * Export Archives Only to CSV
+   */
+  function exportToCSVArchives() {
+    console.log('💾 Exporting archives to CSV...');
+    
+    const archivesData = allRequests.filter(r => r.archived === true);
+    
+    if (archivesData.length === 0) {
+      showToast('No archives data to export', false);
+      return;
+    }
+    
+    const csv = buildCSVSection(archivesData, 'archives');
+    downloadCSV(csv, `tents-chairs-archives-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('CSV exported successfully (Archives)', true);
+  }
+
+  /**
+   * Build CSV section from requests data
+   * @param {Array} requests - Array of request objects
+   * @param {string} sheetType - Type of section: 'all', 'history', or 'archives'
+   */
+  function buildCSVSection(requests, sheetType) {
+    let csv = '';
+    
+    // Headers vary based on sheet type
+    csv += 'Submitted On,First Name,Last Name,Purpose,Start Date,End Date,Chairs,Tents,Delivery Mode,Address,Contact,Email,Status';
+    if (sheetType === 'history') {
+      csv += ',Remarks,Completed On';
+    } else if (sheetType === 'archives') {
+      csv += ',Remarks,Archived On';
+    }
+    // 'all' type has no extra columns
+    csv += '\n';
+    
+    // Rows
+    requests.forEach(req => {
+      // Format submitted date with time
+      let submittedDateTime = 'N/A';
+      if (req.createdAt) {
+        const createdDate = req.createdAt.toDate();
+        submittedDateTime = createdDate.toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      
+      const nameParts = getNameParts(req);
+      const startDate = formatDateText(req.startDate);
+      const endDate = formatDateText(req.endDate);
+      const remarkRaw = (req.rejectionReason || req.remarks || '');
+      const remarkEsc = remarkRaw.replace(/"/g, '""');
+      const purposeEsc = (req.purposeOfUse || req.purpose || '').replace(/"/g, '""');
+      
+      csv += `"${submittedDateTime}","${nameParts.firstName}","${nameParts.lastName}","${purposeEsc}","${startDate}","${endDate}",${req.quantityChairs || 0},${req.quantityTents || 0},"${req.modeOfReceiving || ''}","${req.completeAddress || ''}","${req.contactNumber || ''}","${req.userEmail || ''}","${req.status}"`;
+      
+      if (sheetType === 'history') {
+        csv += `,"${remarkEsc}"`;
+        
+        // Completed On (for completed, rejected, cancelled)
+        let completedOn = '';
+        if (req.status === 'completed' && req.completedAt) {
+          completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'rejected' && req.rejectedAt) {
+          completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'cancelled' && req.cancelledAt) {
+          completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        csv += `,"${completedOn}"`;
+      } else if (sheetType === 'archives') {
+        csv += `,"${remarkEsc}"`;
+        
+        // Archived On
+        let archivedOn = '';
+        if (req.archivedAt) {
+          archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        csv += `,"${archivedOn}"`;
+      }
+      
+      csv += '\n';
+    });
+    
+    return csv;
+  }
+
+  /**
+   * Download CSV file
+   */
+  function downloadCSV(csvContent, filename) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Legacy export function (kept for compatibility)
+   * @deprecated Use exportToCSVAll, exportToCSVHistory, or exportToCSVArchives instead
    */
   function exportToCSV() {
     console.log('💾 Exporting to CSV...');
@@ -6793,25 +7141,74 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       return;
     }
 
-  // CSV headers
-  let csv = 'Submitted On,First Name,Last Name,Start Date,End Date,Chairs,Tents,Delivery Mode,Address,Contact,Email,Status';
-  // Include Remarks column for history/archives
-  if (currentTab === 'history' || currentTab === 'archives') csv += ',Remarks';
+  // CSV headers vary based on current tab
+  let csv = 'Submitted On,First Name,Last Name,Purpose,Start Date,End Date,Chairs,Tents,Delivery Mode,Address,Contact,Email,Status';
+  if (currentTab === 'history') {
+    csv += ',Remarks,Completed On';
+  } else if (currentTab === 'archives') {
+    csv += ',Remarks,Archived On';
+  }
+  // 'all' tab has no extra columns
   csv += '\n';
 
     // CSV rows
     requests.forEach(req => {
-      const submittedDate = req.createdAt ? req.createdAt.toDate().toLocaleDateString() : 'N/A';
-      const firstName = getFirstName(req.fullName);
-      const lastName = getLastName(req.fullName);
+      // Format submitted date with time
+      let submittedDateTime = 'N/A';
+      if (req.createdAt) {
+        const createdDate = req.createdAt.toDate();
+        submittedDateTime = createdDate.toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      
+      const nameParts = getNameParts(req);
       const startDate = formatDateText(req.startDate);
       const endDate = formatDateText(req.endDate);
 
-  // Escape double quotes in remarks for CSV
+  // Escape double quotes in remarks and purpose for CSV
   const remarkRaw = (req.rejectionReason || req.remarks || '');
   const remarkEsc = remarkRaw.replace(/"/g, '""');
-  csv += `"${submittedDate}","${firstName}","${lastName}","${startDate}","${endDate}",${req.quantityChairs || 0},${req.quantityTents || 0},"${req.modeOfReceiving || ''}","${req.completeAddress || ''}","${req.contactNumber || ''}","${req.userEmail || ''}","${req.status}"`;
-  if (currentTab === 'history' || currentTab === 'archives') csv += `,"${remarkEsc}"`;
+  const purposeEsc = (req.purposeOfUse || req.purpose || '').replace(/"/g, '""');
+  csv += `"${submittedDateTime}","${nameParts.firstName}","${nameParts.lastName}","${purposeEsc}","${startDate}","${endDate}",${req.quantityChairs || 0},${req.quantityTents || 0},"${req.modeOfReceiving || ''}","${req.completeAddress || ''}","${req.contactNumber || ''}","${req.userEmail || ''}","${req.status}"`;
+  
+  if (currentTab === 'history') {
+    csv += `,"${remarkEsc}"`;
+    
+    // Completed On (for completed, rejected, cancelled)
+    let completedOn = '';
+    if (req.status === 'completed' && req.completedAt) {
+      completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
+        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+      });
+    } else if (req.status === 'rejected' && req.rejectedAt) {
+      completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
+        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+      });
+    } else if (req.status === 'cancelled' && req.cancelledAt) {
+      completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
+        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+      });
+    }
+    csv += `,"${completedOn}"`;
+  } else if (currentTab === 'archives') {
+    csv += `,"${remarkEsc}"`;
+    
+    // Archived On
+    let archivedOn = '';
+    if (req.archivedAt) {
+      archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
+        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+      });
+    }
+    csv += `,"${archivedOn}"`;
+  }
+  
   csv += '\n';
     });
 
@@ -6842,9 +7239,29 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Handle export button click
    */
   function exportData(format) {
-    if (format === 'csv') {
-      exportToCSV();
+    console.log('📤 Export format selected:', format);
+    
+    switch(format) {
+      case 'excel-all':
+        exportToExcel();
+        break;
+      case 'csv-all':
+        exportToCSVAll();
+        break;
+      case 'csv-history':
+        exportToCSVHistory();
+        break;
+      case 'csv-archives':
+        exportToCSVArchives();
+        break;
+      case 'csv':
+        // Legacy support
+        exportToCSV();
+        break;
+      default:
+        console.warn('Unknown export format:', format);
     }
+    
     // Close dropdown
     document.getElementById('exportMenu')?.classList.remove('active');
   }
@@ -7112,15 +7529,23 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           throw new Error('No authenticated user');
         }
         
+        // Split contact person name into first and last name
+        const nameParts = contactPerson.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || ''; // Join remaining parts as last name
+        
         // Create booking
         const bookingData = {
           startDate: startDate,
           endDate: endDate,
           quantityTents: tents,
           quantityChairs: chairs,
-          purpose: sanitizeInput(purpose),
+          purposeOfUse: sanitizeInput(purpose), // Use purposeOfUse to match other requests
+          purpose: sanitizeInput(purpose), // Also keep purpose for consistency
           completeAddress: sanitizeInput(location),
-          fullName: sanitizeInput(contactPerson),
+          firstName: sanitizeInput(firstName),
+          lastName: sanitizeInput(lastName),
+          fullName: sanitizeInput(contactPerson), // Keep fullName for backwards compatibility
           contactNumber: contactNumber,
           modeOfReceiving: 'Internal',
           status: 'approved',
@@ -8844,17 +9269,14 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     updateStatusFilterOptions();
     updateSortByOptions();
 
-    // Show/hide export dropdown (only in history/archives)
-    const exportDropdown = document.getElementById('exportDropdown');
+    // Show/hide view toggle (only in All Requests tab)
     const viewToggle = document.getElementById('viewToggle');
-    
-    if (exportDropdown) {
-      exportDropdown.style.display = (tabName === 'history' || tabName === 'archives') ? 'block' : 'none';
-    }
-    
     if (viewToggle) {
       viewToggle.style.display = tabName === 'all' ? 'flex' : 'none';
     }
+
+    // Export dropdown visibility is controlled by switchView (show in table, hide in calendar)
+    // Don't hide export dropdown here - let switchView handle it based on currentView
 
     // Force table view for history/archives (they don't support calendar view)
     if (tabName === 'history' || tabName === 'archives') {
@@ -8880,6 +9302,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     // Show/hide filters and booking buttons
     const tableFilters = document.getElementById('tableFilters');
     const calendarButtons = document.getElementById('calendarButtons');
+    const exportDropdown = document.getElementById('exportDropdown');
     
     if (tableFilters) {
       tableFilters.style.display = viewName === 'table' ? 'grid' : 'none';
@@ -8889,9 +9312,348 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       calendarButtons.style.display = viewName === 'calendar' ? 'flex' : 'none';
     }
 
+    // Show export dropdown only in table view, hide in calendar view
+    if (exportDropdown) {
+      exportDropdown.style.display = viewName === 'table' ? 'block' : 'none';
+    }
+
     // Re-render content
     renderContent();
   };
+
+  /**
+   * Toggle export dropdown menu
+   */
+  // ========================================
+  // HELPER FUNCTIONS
+  // ========================================
+
+  /**
+   * Format date string for display
+   */
+  function formatDateText(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString + 'T00:00:00'); // Ensure local timezone
+      const options = { year: 'numeric', month: 'short', day: 'numeric' };
+      return date.toLocaleDateString('en-US', options);
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString;
+    }
+  }
+
+  // ========================================
+  // EXPORT FUNCTIONS
+  // ========================================
+
+  /**
+   * Export to Excel with multiple sheets (All Requests, History, Archives)
+   */
+  function exportToExcel() {
+    console.log('📊 [CONFERENCE] Exporting to Excel with multiple sheets...');
+    console.log('📊 [CONFERENCE] Total requests:', allRequests.length);
+    
+    // Check if XLSX library is loaded
+    if (typeof XLSX === 'undefined') {
+      console.error('❌ [CONFERENCE] XLSX library not loaded');
+      showToast('Excel library not loaded. Please refresh the page and try again.', false);
+      return;
+    }
+    
+    console.log('✅ [CONFERENCE] XLSX library loaded');
+    
+    try {
+      // Create a new workbook
+      const wb = XLSX.utils.book_new();
+      
+      // Sheet 1: All Requests (Active)
+      const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+      console.log('📄 [CONFERENCE] All Requests sheet:', allRequestsData.length, 'items');
+      const allRequestsSheet = createExcelSheet(allRequestsData, 'all');
+      XLSX.utils.book_append_sheet(wb, allRequestsSheet, 'All Requests');
+      
+      // Sheet 2: History
+      const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+      console.log('📄 [CONFERENCE] History sheet:', historyData.length, 'items');
+      const historySheet = createExcelSheet(historyData, 'history');
+      XLSX.utils.book_append_sheet(wb, historySheet, 'History');
+      
+      // Sheet 3: Archives
+      const archivesData = allRequests.filter(r => r.archived === true);
+      console.log('📄 [CONFERENCE] Archives sheet:', archivesData.length, 'items');
+      const archivesSheet = createExcelSheet(archivesData, 'archives');
+      XLSX.utils.book_append_sheet(wb, archivesSheet, 'Archives');
+      
+      // Generate filename with timestamp
+      const filename = `conference-room-requests-${new Date().toISOString().split('T')[0]}.xlsx`;
+      console.log('💾 [CONFERENCE] Writing file:', filename);
+      
+      // Write file
+      XLSX.writeFile(wb, filename);
+      
+      console.log('✅ [CONFERENCE] Excel exported successfully');
+      showToast('Excel file exported successfully', true);
+    } catch (error) {
+      console.error('❌ [CONFERENCE] Error exporting to Excel:', error);
+      showToast('Failed to export Excel file', false);
+    }
+  }
+
+  /**
+   * Create Excel sheet from requests data (Conference Room format)
+   * @param {Array} requests - Array of request objects
+   * @param {string} sheetType - Type of sheet: 'all', 'history', or 'archives'
+   */
+  function createExcelSheet(requests, sheetType) {
+    const data = [];
+    
+    // Headers vary based on sheet type
+    const headers = ['Submitted On', 'First Name', 'Last Name', 'Event Date', 'Start Time', 'End Time', 'Purpose', 'Contact', 'Email', 'Status'];
+    
+    if (sheetType === 'history') {
+      headers.push('Remarks', 'Completed On');
+    } else if (sheetType === 'archives') {
+      headers.push('Remarks', 'Archived On');
+    }
+    // 'all' type has no extra columns
+    
+    data.push(headers);
+    
+    // Rows
+    requests.forEach(req => {
+      const nameParts = getNameParts(req);
+      
+      // Format submitted date with time
+      let submittedDateTime = 'N/A';
+      if (req.createdAt) {
+        const createdDate = req.createdAt.toDate();
+        submittedDateTime = createdDate.toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      
+      const row = [
+        submittedDateTime,
+        nameParts.firstName,
+        nameParts.lastName,
+        formatDateText(req.eventDate),
+        req.startTime || '',
+        req.endTime || '',
+        req.purpose || '',
+        req.contactNumber || '',
+        req.userEmail || '',
+        req.status
+      ];
+      
+      if (sheetType === 'history') {
+        row.push(req.rejectionReason || req.remarks || '');
+        
+        // Completed On (for completed, rejected, cancelled)
+        let completedOn = '';
+        if (req.status === 'completed' && req.completedAt) {
+          completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'rejected' && req.rejectedAt) {
+          completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'cancelled' && req.cancelledAt) {
+          completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        row.push(completedOn);
+      } else if (sheetType === 'archives') {
+        row.push(req.rejectionReason || req.remarks || '');
+        
+        // Archived On
+        let archivedOn = '';
+        if (req.archivedAt) {
+          archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        row.push(archivedOn);
+      }
+      
+      data.push(row);
+    });
+    
+    return XLSX.utils.aoa_to_sheet(data);
+  }
+
+  /**
+   * Export to CSV (All Requests in sections)
+   */
+  function exportToCSVAll() {
+    console.log('💾 [CONFERENCE] Exporting all data to CSV with sections...');
+    console.log('💾 [CONFERENCE] Total requests:', allRequests.length);
+    
+    let csv = '';
+    
+    // Section 1: All Requests (Active)
+    csv += '=== ALL REQUESTS (ACTIVE) ===\n';
+    const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+    console.log('📄 [CONFERENCE] All Requests section:', allRequestsData.length, 'items');
+    csv += buildCSVSection(allRequestsData, 'all');
+    csv += '\n\n';
+    
+    // Section 2: History
+    csv += '=== HISTORY ===\n';
+    const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+    console.log('📄 [CONFERENCE] History section:', historyData.length, 'items');
+    csv += buildCSVSection(historyData, 'history');
+    csv += '\n\n';
+    
+    // Section 3: Archives
+    csv += '=== ARCHIVES ===\n';
+    const archivesData = allRequests.filter(r => r.archived === true);
+    console.log('📄 [CONFERENCE] Archives section:', archivesData.length, 'items');
+    csv += buildCSVSection(archivesData, 'archives');
+    
+    const filename = `conference-room-all-requests-${new Date().toISOString().split('T')[0]}.csv`;
+    console.log('💾 [CONFERENCE] Downloading file:', filename);
+    downloadCSV(csv, filename);
+    showToast('CSV exported successfully (All Data)', true);
+  }
+
+  /**
+   * Export History Only to CSV
+   */
+  function exportToCSVHistory() {
+    console.log('� Exporting history to CSV...');
+    
+    const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+    
+    if (historyData.length === 0) {
+      showToast('No history data to export', false);
+      return;
+    }
+    
+    const csv = buildCSVSection(historyData, 'history');
+    downloadCSV(csv, `conference-room-history-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('CSV exported successfully (History)', true);
+  }
+
+  /**
+   * Export Archives Only to CSV
+   */
+  function exportToCSVArchives() {
+    console.log('💾 Exporting archives to CSV...');
+    
+    const archivesData = allRequests.filter(r => r.archived === true);
+    
+    if (archivesData.length === 0) {
+      showToast('No archives data to export', false);
+      return;
+    }
+    
+    const csv = buildCSVSection(archivesData, 'archives');
+    downloadCSV(csv, `conference-room-archives-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('CSV exported successfully (Archives)', true);
+  }
+
+  /**
+   * Build CSV section from requests data (Conference Room format)
+   * @param {Array} requests - Array of request objects
+   * @param {string} sheetType - Type of section: 'all', 'history', or 'archives'
+   */
+  function buildCSVSection(requests, sheetType) {
+    let csv = '';
+    
+    // Headers vary based on sheet type
+    csv += 'Submitted On,First Name,Last Name,Event Date,Start Time,End Time,Purpose,Contact,Email,Status';
+    if (sheetType === 'history') {
+      csv += ',Remarks,Completed On';
+    } else if (sheetType === 'archives') {
+      csv += ',Remarks,Archived On';
+    }
+    // 'all' type has no extra columns
+    csv += '\n';
+    
+    // Rows
+    requests.forEach(req => {
+      // Format submitted date with time
+      let submittedDateTime = 'N/A';
+      if (req.createdAt) {
+        const createdDate = req.createdAt.toDate();
+        submittedDateTime = createdDate.toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      
+      const nameParts = getNameParts(req);
+      const eventDate = formatDateText(req.eventDate);
+      const remarkRaw = (req.rejectionReason || req.remarks || '');
+      const remarkEsc = remarkRaw.replace(/"/g, '""');
+      const purposeEsc = (req.purpose || '').replace(/"/g, '""');
+      
+      csv += `"${submittedDateTime}","${nameParts.firstName}","${nameParts.lastName}","${eventDate}","${req.startTime || ''}","${req.endTime || ''}","${purposeEsc}","${req.contactNumber || ''}","${req.userEmail || ''}","${req.status}"`;
+      
+      if (sheetType === 'history') {
+        csv += `,"${remarkEsc}"`;
+        
+        // Completed On (for completed, rejected, cancelled)
+        let completedOn = '';
+        if (req.status === 'completed' && req.completedAt) {
+          completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'rejected' && req.rejectedAt) {
+          completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'cancelled' && req.cancelledAt) {
+          completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        csv += `,"${completedOn}"`;
+      } else if (sheetType === 'archives') {
+        csv += `,"${remarkEsc}"`;
+        
+        // Archived On
+        let archivedOn = '';
+        if (req.archivedAt) {
+          archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        csv += `,"${archivedOn}"`;
+      }
+      
+      csv += '\n';
+    });
+    
+    return csv;
+  }
+
+  /**
+   * Download CSV file
+   */
+  function downloadCSV(csvContent, filename) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }
 
   /**
    * Toggle export dropdown menu
@@ -8904,16 +9666,421 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   };
 
   /**
-   * Export data (placeholder)
+   * Handle export button click
    */
   window.exportData = function(format) {
-    console.log('📤 Exporting as:', format);
-    showToast(`${format.toUpperCase()} export coming soon!`, true);
+    console.log('📤 [CONFERENCE] Export format selected:', format);
+    console.log('📤 [CONFERENCE] Current allRequests length:', allRequests.length);
+    
+    switch(format) {
+      case 'excel-all':
+        console.log('🔄 [CONFERENCE] Calling exportToExcel()...');
+        exportToExcel();
+        break;
+      case 'csv-all':
+        console.log('🔄 [CONFERENCE] Calling exportToCSVAll()...');
+        exportToCSVAll();
+        break;
+      case 'csv-history':
+        console.log('🔄 [CONFERENCE] Calling exportToCSVHistory()...');
+        exportToCSVHistory();
+        break;
+      case 'csv-archives':
+        console.log('🔄 [CONFERENCE] Calling exportToCSVArchives()...');
+        exportToCSVArchives();
+        break;
+      default:
+        console.warn('[CONFERENCE] Unknown export format:', format);
+    }
     
     // Close dropdown
-    const menu = document.getElementById('exportMenu');
-    if (menu) menu.classList.remove('active');
+    document.getElementById('exportMenu')?.classList.remove('active');
   };
+
+  // ========================================
+  // INTERNAL BOOKING MODAL FUNCTIONALITY
+  // ========================================
+
+  // Modal elements
+  const internalBookingModal = document.getElementById('internalBookingModalConference');
+  const addInternalBookingBtn = document.getElementById('addInternalBookingBtnConference');
+  const closeInternalBookingModal = document.getElementById('closeInternalBookingModalConference');
+  const cancelInternalBooking = document.getElementById('cancelInternalBookingConference');
+  const internalBookingForm = document.getElementById('internalBookingFormConference');
+
+  // Populate time dropdowns for internal booking
+  function populateInternalTimeDropdowns() {
+    const startTimeSelect = document.getElementById('internalStartTimeConference');
+    const endTimeSelect = document.getElementById('internalEndTimeConference');
+    if (!startTimeSelect || !endTimeSelect) return;
+
+    startTimeSelect.innerHTML = '<option value="">Start Time</option>';
+    endTimeSelect.innerHTML = '<option value="">End Time</option>';
+
+    for (let hour = 8; hour <= 17; hour++) {
+      const value = `${hour.toString().padStart(2, '0')}:00`;
+      const display = hour < 12 ? `${hour}:00 AM` : hour === 12 ? `12:00 PM` : `${hour - 12}:00 PM`;
+      startTimeSelect.add(new Option(display, value));
+      endTimeSelect.add(new Option(display, value));
+    }
+  }
+
+  // Open modal
+  if (addInternalBookingBtn) {
+    addInternalBookingBtn.addEventListener('click', () => {
+      internalBookingModal.classList.add('active');
+      // Set minimum date to today
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('internalEventDateConference').setAttribute('min', today);
+      // Populate time dropdowns
+      populateInternalTimeDropdowns();
+    });
+  }
+
+  // Close modal function
+  function closeInternalBookingModalFunc() {
+    internalBookingModal.classList.remove('active');
+    internalBookingForm.reset();
+    clearAllInternalErrors();
+  }
+
+  // Close modal on X button
+  if (closeInternalBookingModal) {
+    closeInternalBookingModal.addEventListener('click', closeInternalBookingModalFunc);
+  }
+
+  // Close modal on Cancel button
+  if (cancelInternalBooking) {
+    cancelInternalBooking.addEventListener('click', closeInternalBookingModalFunc);
+  }
+
+  // Close modal when clicking outside
+  if (internalBookingModal) {
+    internalBookingModal.addEventListener('click', (e) => {
+      if (e.target === internalBookingModal) {
+        closeInternalBookingModalFunc();
+      }
+    });
+  }
+
+  // Form validation helpers
+  function setInternalError(elementId, message) {
+    const errorElement = document.getElementById(elementId);
+    
+    if (errorElement) {
+      errorElement.textContent = message;
+    }
+    
+    // Handle time fields specially (they're in a separate container)
+    if (elementId === 'error-internal-start-time-conference') {
+      const inputElement = document.getElementById('internalStartTimeConference');
+      if (inputElement) inputElement.classList.add('error');
+    } else if (elementId === 'error-internal-end-time-conference') {
+      const inputElement = document.getElementById('internalEndTimeConference');
+      if (inputElement) inputElement.classList.add('error');
+    } else {
+      // For other fields, use previousElementSibling
+      const inputElement = errorElement?.previousElementSibling;
+      if (inputElement) {
+        inputElement.classList.add('error');
+      }
+    }
+  }
+
+  function clearInternalError(elementId) {
+    const errorElement = document.getElementById(elementId);
+    
+    if (errorElement) {
+      errorElement.textContent = '';
+    }
+    
+    // Handle time fields specially
+    if (elementId === 'error-internal-start-time-conference') {
+      const inputElement = document.getElementById('internalStartTimeConference');
+      if (inputElement) inputElement.classList.remove('error');
+    } else if (elementId === 'error-internal-end-time-conference') {
+      const inputElement = document.getElementById('internalEndTimeConference');
+      if (inputElement) inputElement.classList.remove('error');
+    } else {
+      // For other fields, use previousElementSibling
+      const inputElement = errorElement?.previousElementSibling;
+      if (inputElement) {
+        inputElement.classList.remove('error');
+      }
+    }
+  }
+
+  function clearAllInternalErrors() {
+    const errorIds = [
+      'error-internal-event-date-conference',
+      'error-internal-start-time-conference',
+      'error-internal-end-time-conference',
+      'error-internal-expected-attendees-conference',
+      'error-internal-purpose-conference',
+      'error-internal-department-conference',
+      'error-internal-contact-person-conference',
+      'error-internal-contact-number-conference'
+    ];
+    
+    errorIds.forEach(clearInternalError);
+  }
+
+  // Validate Philippine mobile number
+  function validateInternalContact(number) {
+    const phoneRegex = /^09\d{9}$/;
+    return phoneRegex.test(number);
+  }
+
+  // Validate time range (end time must be after start time)
+  function validateTimeRange(startTime, endTime) {
+    if (!startTime || !endTime) return true; // Skip if not both filled
+    
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+    
+    return endMinutes > startMinutes;
+  }
+
+  // Validate business hours (8 AM to 5 PM)
+  function validateBusinessHours(time) {
+    if (!time) return true; // Skip if empty
+    
+    const [hour, min] = time.split(':').map(Number);
+    const timeInMinutes = hour * 60 + min;
+    const startBusiness = 8 * 60; // 8:00 AM
+    const endBusiness = 17 * 60;  // 5:00 PM
+    
+    return timeInMinutes >= startBusiness && timeInMinutes <= endBusiness;
+  }
+
+  // Real-time validation
+  document.getElementById('internalEventDateConference')?.addEventListener('change', function() {
+    clearInternalError('error-internal-event-date-conference');
+  });
+
+  document.getElementById('internalStartTimeConference')?.addEventListener('change', function() {
+    clearInternalError('error-internal-start-time-conference');
+  });
+
+  document.getElementById('internalEndTimeConference')?.addEventListener('change', function() {
+    clearInternalError('error-internal-end-time-conference');
+  });
+
+  document.getElementById('internalExpectedAttendeesConference')?.addEventListener('input', function() {
+    clearInternalError('error-internal-expected-attendees-conference');
+  });
+
+  ['internalPurposeConference', 'internalDepartmentConference', 'internalContactPersonConference', 'internalContactNumberConference'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', function() {
+      const errorId = 'error-' + id.replace(/([A-Z])/g, '-$1').toLowerCase();
+      clearInternalError(errorId);
+    });
+  });
+
+  // Form submission
+  if (internalBookingForm) {
+    internalBookingForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      clearAllInternalErrors();
+      
+      // Get form values
+      const eventDate = document.getElementById('internalEventDateConference').value.trim();
+      const startTime = document.getElementById('internalStartTimeConference').value.trim();
+      const endTime = document.getElementById('internalEndTimeConference').value.trim();
+      const expectedAttendees = parseInt(document.getElementById('internalExpectedAttendeesConference').value) || 0;
+      const purpose = document.getElementById('internalPurposeConference').value.trim();
+      const department = document.getElementById('internalDepartmentConference').value.trim();
+      const contactPerson = document.getElementById('internalContactPersonConference').value.trim();
+      const contactNumber = document.getElementById('internalContactNumberConference').value.trim();
+      
+      let hasError = false;
+      
+      // Validate event date
+      if (!eventDate) {
+        setInternalError('error-internal-event-date-conference', 'Event date is required');
+        hasError = true;
+      } else {
+        // Check if date is in the past
+        const selectedDate = new Date(eventDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (selectedDate < today) {
+          setInternalError('error-internal-event-date-conference', 'Event date cannot be in the past');
+          hasError = true;
+        }
+      }
+      
+      // Validate start time
+      if (!startTime) {
+        setInternalError('error-internal-start-time-conference', 'Start time is required');
+        hasError = true;
+      } else if (!validateBusinessHours(startTime)) {
+        setInternalError('error-internal-start-time-conference', 'Start time must be between 8:00 AM and 5:00 PM');
+        hasError = true;
+      }
+      
+      // Validate end time
+      if (!endTime) {
+        setInternalError('error-internal-end-time-conference', 'End time is required');
+        hasError = true;
+      } else if (!validateBusinessHours(endTime)) {
+        setInternalError('error-internal-end-time-conference', 'End time must be between 8:00 AM and 5:00 PM');
+        hasError = true;
+      }
+      
+      // Validate time range
+      if (startTime && endTime && !validateTimeRange(startTime, endTime)) {
+        setInternalError('error-internal-end-time-conference', 'End time must be after start time');
+        hasError = true;
+      }
+
+      // Validate expected attendees
+      if (!expectedAttendees || expectedAttendees < 1) {
+        setInternalError('error-internal-expected-attendees-conference', 'Expected attendees is required (minimum: 1)');
+        hasError = true;
+      } else if (expectedAttendees > 200) {
+        setInternalError('error-internal-expected-attendees-conference', 'Expected attendees cannot exceed 200');
+        hasError = true;
+      }
+      
+      // Validate purpose
+      if (!purpose) {
+        setInternalError('error-internal-purpose-conference', 'Purpose is required');
+        hasError = true;
+      } else if (purpose.length < 10) {
+        setInternalError('error-internal-purpose-conference', 'Purpose must be at least 10 characters');
+        hasError = true;
+      }
+      
+      // Validate contact person
+      if (!contactPerson) {
+        setInternalError('error-internal-contact-person-conference', 'Contact person is required');
+        hasError = true;
+      }
+      
+      // Validate contact number
+      if (!contactNumber) {
+        setInternalError('error-internal-contact-number-conference', 'Contact number is required');
+        hasError = true;
+      } else if (!validateInternalContact(contactNumber)) {
+        setInternalError('error-internal-contact-number-conference', 'Invalid format. Use: 09XXXXXXXXX (11 digits)');
+        hasError = true;
+      }
+      
+      if (hasError) {
+        return;
+      }
+      
+      // Check for overlapping reservations
+      try {
+        const bookingsRef = collection(db, 'conferenceRoomBookings');
+        const q = query(
+          bookingsRef,
+          where('eventDate', '==', eventDate),
+          where('status', 'in', ['pending', 'approved', 'in-progress'])
+        );
+        const snapshot = await getDocs(q);
+        
+        let hasOverlap = false;
+        snapshot.forEach(doc => {
+          const booking = doc.data();
+          // Check if time ranges overlap
+          if (timeRangesOverlap(startTime, endTime, booking.startTime, booking.endTime)) {
+            hasOverlap = true;
+          }
+        });
+        
+        if (hasOverlap) {
+          setInternalError('error-internal-start-time-conference', 'This time slot overlaps with an existing reservation');
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking for overlaps:', error);
+      }
+      
+      // Show loading state
+      const submitBtn = this.querySelector('.internal-booking-submit-btn');
+      const btnText = submitBtn.querySelector('.btn-text');
+      const btnSpinner = submitBtn.querySelector('.btn-spinner');
+      
+      btnText.style.display = 'none';
+      btnSpinner.style.display = 'inline-flex';
+      submitBtn.disabled = true;
+      
+      try {
+        // Get current admin user
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('No authenticated user');
+        }
+        
+        // Split contact person name into first and last name
+        const nameParts = contactPerson.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || ''; // Join remaining parts as last name
+        
+        // Create booking document
+        const bookingData = {
+          eventDate: eventDate,
+          startTime: startTime,
+          endTime: endTime,
+          expectedAttendees: expectedAttendees,
+          purpose: sanitizeInput(purpose),
+          department: department ? sanitizeInput(department) : null,
+          firstName: sanitizeInput(firstName),
+          lastName: sanitizeInput(lastName),
+          fullName: sanitizeInput(contactPerson), // Keep fullName for backwards compatibility
+          contactNumber: contactNumber,
+          address: 'Internal Booking', // Can be modified if needed
+          status: 'approved', // Auto-approved for internal bookings
+          userId: currentUser.uid,
+          userEmail: currentUser.email,
+          createdAt: new Date(),
+          approvedAt: new Date(),
+          isInternalBooking: true
+        };
+        
+        // Add to Firestore
+        await addDoc(collection(db, 'conferenceRoomBookings'), bookingData);
+        
+        // Success!
+        showToast('Internal reservation added successfully!', true);
+        closeInternalBookingModalFunc();
+        
+        // Reload data
+        await loadAllRequests();
+        
+      } catch (error) {
+        console.error('Error creating internal booking:', error);
+        showToast('Failed to create internal reservation. Please try again.', false);
+      } finally {
+        btnText.style.display = 'inline';
+        btnSpinner.style.display = 'none';
+        submitBtn.disabled = false;
+      }
+    });
+  }
+
+  // Helper function to check if time ranges overlap
+  function timeRangesOverlap(start1, end1, start2, end2) {
+    const [start1Hour, start1Min] = start1.split(':').map(Number);
+    const [end1Hour, end1Min] = end1.split(':').map(Number);
+    const [start2Hour, start2Min] = start2.split(':').map(Number);
+    const [end2Hour, end2Min] = end2.split(':').map(Number);
+    
+    const start1Minutes = start1Hour * 60 + start1Min;
+    const end1Minutes = end1Hour * 60 + end1Min;
+    const start2Minutes = start2Hour * 60 + start2Min;
+    const end2Minutes = end2Hour * 60 + end2Min;
+    
+    // Ranges overlap if: start1 < end2 AND end1 > start2
+    return start1Minutes < end2Minutes && end1Minutes > start2Minutes;
+  }
 
   // ========================================
   // EVENT LISTENERS

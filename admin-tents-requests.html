@@ -78,19 +78,19 @@
         <!-- Stats Cards -->
         <div class="tents-stats-container">
         <div class="tents-stat-card blue">
-          <div class="stat-number" id="availableTentsCount">24</div>
+          <div class="stat-number" id="availableTentsCount">-</div>
           <div class="stat-label">Available Tents</div>
         </div>
         <div class="tents-stat-card blue">
-          <div class="stat-number" id="availableChairsCount">600</div>
+          <div class="stat-number" id="availableChairsCount">-</div>
           <div class="stat-label">Available Chairs</div>
         </div>
         <div class="tents-stat-card orange">
-          <div class="stat-number" id="tentsInUseCount">0</div>
+          <div class="stat-number" id="tentsInUseCount">-</div>
           <div class="stat-label">Tents in Use</div>
         </div>
         <div class="tents-stat-card orange">
-          <div class="stat-number" id="chairsInUseCount">0</div>
+          <div class="stat-number" id="chairsInUseCount">-</div>
           <div class="stat-label">Chairs in Use</div>
         </div>
       </div>
@@ -105,14 +105,29 @@
               <button class="tents-tab" id="archivesTab">Archives</button>
           </div>
           <div class="tents-header-actions">
-            <!-- Export Dropdown (History Tab Only) -->
-            <div class="tents-export-dropdown" id="exportDropdown" style="display: none;">
+            <!-- Export Dropdown (All Tabs) -->
+            <div class="tents-export-dropdown" id="exportDropdown">
               <button class="btn-export" onclick="toggleExportMenu()">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 Export
               </button>
               <div class="tents-dropdown-menu" id="exportMenu">
-                <button class="tents-dropdown-item" onclick="exportData('csv')">Export as CSV</button>
+                <button class="tents-dropdown-item" onclick="exportData('excel-all')">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:8px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                  Export as Excel (All Data - Multi-Sheet)
+                </button>
+                <button class="tents-dropdown-item" onclick="exportData('csv-all')">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:8px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                  Export as CSV (All Requests)
+                </button>
+                <button class="tents-dropdown-item" onclick="exportData('csv-history')">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:8px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  Export as CSV (History Only)
+                </button>
+                <button class="tents-dropdown-item" onclick="exportData('csv-archives')">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:8px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                  Export as CSV (Archives Only)
+                </button>
               </div>
             </div>
             <!-- View Toggle (All Requests Tab Only) -->
@@ -297,6 +312,9 @@
       </div>
     </main>
 
+    <!-- SheetJS library for Excel export - using unpkg CDN for better reliability -->
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
     <script type="module" src="script.js"></script>
   </body>
 </html>

@@ -4804,6 +4804,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .internal-form-group input,
+.internal-form-group select,
 .internal-form-group textarea {
   padding: 12px 16px;
   border: 2px solid #e0e0e0;
@@ -4814,6 +4815,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .internal-form-group input:focus,
+.internal-form-group select:focus,
 .internal-form-group textarea:focus {
   outline: none;
   border-color: #281ABC;
@@ -4821,8 +4823,34 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .internal-form-group input.error,
+.internal-form-group select.error,
 .internal-form-group textarea.error {
   border-color: #dc2626;
+}
+
+/* Time group styling for internal booking modal */
+.internal-form-group.time-group {
+  grid-column: 1 / -1; /* Full width */
+}
+
+.internal-form-group.time-group .time-inputs select {
+  flex: 1;
+  min-width: 0;
+}
+
+.internal-form-group.time-group .time-separator {
+  color: #281ABC;
+  font-size: 1.2rem;
+}
+
+.internal-form-group.time-group .time-errors {
+  display: flex;
+  gap: 15px;
+  margin-top: 4px;
+}
+
+.internal-form-group.time-group .time-errors .internal-error-message {
+  flex: 1;
 }
 
 .internal-form-group textarea {
@@ -5587,7 +5615,7 @@ input[type="number"]::-webkit-outer-spin-button {
   border: 1px solid #e5e7eb;
   border-radius: 4px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  min-width: 150px;
+  min-width: 280px;
   z-index: 100;
 }
 
@@ -5596,7 +5624,8 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .tents-dropdown-item {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
   padding: 10px 16px;
   text-align: left;
@@ -5607,6 +5636,7 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 14px;
   color: #374151;
   transition: background 0.2s;
+  white-space: nowrap;
 }
 
 .tents-dropdown-item:hover {
