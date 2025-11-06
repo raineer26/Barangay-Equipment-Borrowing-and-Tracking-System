@@ -2423,7 +2423,53 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     return booked;
   }
   */
-  const bookedDates = {};  // Empty for now, will be populated from Firebase
+  
+  // Booked dates object - populated from Firestore
+  let bookedDates = {};
+
+  // Load booked dates from Firestore for the current month
+  async function loadBookedDates(month, year) {
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+    
+    console.log(`📅 Conference Calendar: Loading bookings for ${monthNames[month]} ${year}`);
+    console.log(`   Date range: ${startDate} to ${endDate}`);
+    
+    try {
+      const bookingsRef = collection(db, 'conferenceRoomBookings');
+      
+      // Simplified query: Get all approved/in-progress bookings, filter by date client-side
+      // This avoids the need for a composite index
+      const q = query(
+        bookingsRef,
+        where('status', 'in', ['approved', 'in-progress'])
+      );
+      const querySnapshot = await getDocs(q);
+      
+      console.log(`   📊 Total approved/in-progress bookings: ${querySnapshot.size}`);
+      
+      bookedDates = {};
+      let foundCount = 0;
+      
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        const eventDate = data.eventDate;
+        
+        // Client-side date filtering for current month
+        if (eventDate >= startDate && eventDate <= endDate) {
+          bookedDates[eventDate] = data.status;
+          console.log(`   ✅ Found booking on ${eventDate}: ${data.purpose || 'No purpose'}`);
+          foundCount++;
+        }
+      });
+      
+      console.log(`   ✅ ${foundCount} bookings in ${monthNames[month]} ${year}`);
+    } catch (error) {
+      console.error('❌ Error loading booked dates:', error);
+      bookedDates = {};
+    }
+  }
 
   let currentDate = new Date();
   let currentMonth = currentDate.getMonth();
@@ -2434,21 +2480,61 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     "July", "August", "September", "October", "November", "December"
   ];
 
+  // Fetch booking preview for a specific date (Purpose + Time)
+  async function fetchBookingPreview(date) {
+    try {
+      const bookingsRef = collection(db, 'conferenceRoomBookings');
+      const q = query(
+        bookingsRef,
+        where('eventDate', '==', date),
+        where('status', 'in', ['approved', 'in-progress'])
+      );
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) return null;
+      
+      // Get first booking for preview (if multiple bookings, show first one)
+      const firstBooking = querySnapshot.docs[0].data();
+      const timeRange = `${formatTime12Hour(firstBooking.startTime)} - ${formatTime12Hour(firstBooking.endTime)}`;
+      
+      // Truncate purpose if too long
+      let purpose = firstBooking.purpose || 'Event';
+      if (purpose.length > 20) {
+        purpose = purpose.substring(0, 20) + '...';
+      }
+      
+      return {
+        purpose: purpose,
+        time: timeRange,
+        count: querySnapshot.size
+      };
+    } catch (error) {
+      console.error('Error fetching booking preview:', error);
+      return null;
+    }
+  }
+
   // Initialize calendar on page load
   document.addEventListener('DOMContentLoaded', function() {
     renderCalendar(currentMonth, currentYear);
     setupEventListeners();
   });
 
-  function renderCalendar(month, year) {
+  async function renderCalendar(month, year) {
+    // Load booked dates first
+    await loadBookedDates(month, year);
+    
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const today = new Date();
+    const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     
     // Update month/year display
     document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
     
     const calendarDates = document.getElementById('calendarDates');
+    if (!calendarDates) return;
+    
     calendarDates.innerHTML = '';
 
     // Add empty cells for days before the first day of the month
@@ -2475,17 +2561,35 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
       const isPast = cellDate < new Date(today.getFullYear(), today.getMonth(), today.getDate());
       
       // Check if it's today
-      if (cellDate.toDateString() === today.toDateString()) {
+      const isToday = currentDateStr === todayDateStr;
+      if (isToday) {
         dateCell.classList.add('today');
       }
       
       // Check if date is booked
-      if (bookedDates[currentDateStr]) {
-        dateCell.classList.add('booked');
-        const label = document.createElement('div');
-        label.classList.add('booking-label');
-        label.textContent = 'Booked';
-        dateCell.appendChild(label);
+      const hasBookings = bookedDates[currentDateStr];
+      
+      console.log(`   Date ${currentDateStr}: booked=${hasBookings ? 'YES' : 'NO'}, isToday=${isToday}, isPast=${isPast}`);
+      
+      if (hasBookings) {
+        dateCell.classList.add('booked', 'has-bookings');
+        
+        // Fetch booking details for preview banner
+        fetchBookingPreview(currentDateStr).then(preview => {
+          if (preview) {
+            const previewDiv = document.createElement('div');
+            previewDiv.classList.add('tents-booking-preview');
+            previewDiv.innerHTML = `
+              <div class="tents-preview-purpose">${sanitizeInput(preview.purpose)}</div>
+              <div class="tents-preview-time">${preview.time}</div>
+            `;
+            dateCell.appendChild(previewDiv);
+          }
+        });
+        
+        // Make booked dates clickable to show booking details
+        dateCell.style.cursor = 'pointer';
+        dateCell.addEventListener('click', () => showDateBookingsModalConference(currentDateStr));
       } else if (isPast) {
         dateCell.classList.add('past');
       } else {
@@ -2556,6 +2660,109 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     */
     return true; // Always return available until Firebase is integrated
   }
+
+  // =====================================================
+  // MODAL FUNCTIONS FOR VIEWING BOOKING DETAILS
+  // =====================================================
+
+  /**
+   * Show booking details modal for a specific date
+   * Displays: Purpose and Scheduled Time only
+   */
+  function showDateBookingsModalConference(date) {
+    const modal = document.getElementById('conferenceModalOverlay');
+    const titleEl = document.getElementById('conferenceModalTitle');
+    const bodyEl = document.getElementById('conferenceModalBody');
+    
+    if (!modal || !titleEl || !bodyEl) {
+      console.error('Conference modal elements not found');
+      return;
+    }
+
+    // Format date for display
+    const dateObj = new Date(date + 'T00:00:00');
+    const formattedDate = dateObj.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+    
+    titleEl.textContent = `Reservations for ${formattedDate}`;
+    bodyEl.innerHTML = '<p style="text-align:center;color:#6b7280;padding:20px;">Loading...</p>';
+    
+    // Show modal
+    modal.style.display = 'flex';
+
+    // Fetch bookings for this date
+    const bookingsRef = collection(db, 'conferenceRoomBookings');
+    const q = query(
+      bookingsRef,
+      where('eventDate', '==', date),
+      where('status', 'in', ['approved', 'in-progress'])
+    );
+    
+    getDocs(q).then(querySnapshot => {
+      if (querySnapshot.empty) {
+        bodyEl.innerHTML = '<div style="text-align:center;color:#6b7280;padding:20px;">No reservations on this date.</div>';
+        return;
+      }
+
+      let bodyHTML = '<div class="tents-modal-bookings-list">';
+      querySnapshot.forEach((doc, idx) => {
+        const b = doc.data();
+        const timeRange = `${formatTime12Hour(b.startTime)} - ${formatTime12Hour(b.endTime)}`;
+        
+        bodyHTML += `
+          <div class="tents-booking-item ${idx > 0 ? 'with-divider' : ''}">
+            <div class="tents-booking-item-details">
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                <span><strong>Purpose:</strong> ${sanitizeInput(b.purpose || 'N/A')}</span>
+              </div>
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span><strong>Scheduled Time:</strong> ${timeRange}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      bodyHTML += '</div>';
+      bodyEl.innerHTML = bodyHTML;
+    }).catch(error => {
+      console.error('Error fetching bookings:', error);
+      bodyEl.innerHTML = '<div style="text-align:center;color:#dc2626;padding:20px;">Error loading reservations. Please try again.</div>';
+    });
+  }
+
+  /**
+   * Close modal when clicking on overlay background
+   */
+  function closeModalOnOverlay(event) {
+    if (event.target.classList.contains('tents-modal-overlay')) {
+      event.target.style.display = 'none';
+    }
+  }
+
+  /**
+   * Close conference modal by ID
+   */
+  function closeConferenceModal() {
+    const modal = document.getElementById('conferenceModalOverlay');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  // Make functions globally accessible
+  window.showDateBookingsModalConference = showDateBookingsModalConference;
+  window.closeModalOnOverlay = closeModalOnOverlay;
+  window.closeConferenceModal = closeConferenceModal;
 }
 
 /* =====================================================
@@ -2583,25 +2790,101 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
     }
   });
 
-  // TODO: In production, fetch booked dates from Firebase
-  // Example of how to fetch booked dates:
-  /*
-  async function getBookedDates() {
-    const bookingsRef = collection(db, "bookings");
-    const q = query(bookingsRef, 
-      where("type", "==", "tents-and-chairs"),
-      where("status", "in", ["pending", "approved"])
-    );
-    const querySnapshot = await getDocs(q);
-    const booked = {};
-    querySnapshot.forEach(doc => {
-      const data = doc.data();
-      booked[data.date] = data.status;
-    });
-    return booked;
+  // Store booked dates (date ranges for tents/chairs)
+  let bookedDates = {};
+
+  // Load booked dates from Firestore for the current month
+  async function loadBookedDates(month, year) {
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+    
+    console.log(`🪑 Tents Calendar: Loading bookings for ${monthNames[month]} ${year}`);
+    console.log(`   Date range: ${startDate} to ${endDate}`);
+    
+    try {
+      const bookingsRef = collection(db, 'tentsChairsBookings');
+      
+      // Get all approved/in-progress bookings, filter by date client-side
+      const q = query(
+        bookingsRef,
+        where('status', 'in', ['approved', 'in-progress'])
+      );
+      const querySnapshot = await getDocs(q);
+      
+      console.log(`   📊 Total approved/in-progress bookings: ${querySnapshot.size}`);
+      
+      bookedDates = {};
+      let foundCount = 0;
+      
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        const bookingStart = data.startDate; // Format: "YYYY-MM-DD"
+        const bookingEnd = data.endDate;     // Format: "YYYY-MM-DD"
+        
+        // Check if booking overlaps with current month
+        if (bookingEnd >= startDate && bookingStart <= endDate) {
+          // Mark all dates in the booking range
+          const start = new Date(bookingStart);
+          const end = new Date(bookingEnd);
+          const current = new Date(start);
+          
+          while (current <= end) {
+            const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+            
+            // Only mark dates within current month
+            if (dateStr >= startDate && dateStr <= endDate) {
+              if (!bookedDates[dateStr]) {
+                bookedDates[dateStr] = [];
+              }
+              bookedDates[dateStr].push(data);
+              foundCount++;
+            }
+            
+            current.setDate(current.getDate() + 1);
+          }
+          
+          console.log(`   ✅ Booking: ${bookingStart} to ${bookingEnd} (${data.quantityTents || 0} tents, ${data.quantityChairs || 0} chairs)`);
+        }
+      });
+      
+      console.log(`   ✅ ${foundCount} booking dates in ${monthNames[month]} ${year}`);
+    } catch (error) {
+      console.error('❌ Error loading booked dates:', error);
+      bookedDates = {};
+    }
   }
-  */
-  const bookedDates = {};  // Empty for now, will be populated from Firebase
+
+  // Fetch booking preview for a specific date
+  async function fetchBookingPreview(date) {
+    try {
+      if (!bookedDates[date] || bookedDates[date].length === 0) {
+        return null;
+      }
+      
+      // Get first booking for preview
+      const firstBooking = bookedDates[date][0];
+      
+      // Create preview text
+      let purpose = firstBooking.purpose || 'Event';
+      if (purpose.length > 18) {
+        purpose = purpose.substring(0, 18) + '...';
+      }
+      
+      const tents = firstBooking.quantityTents || 0;
+      const chairs = firstBooking.quantityChairs || 0;
+      const quantities = `${tents} tent${tents !== 1 ? 's' : ''}, ${chairs} chair${chairs !== 1 ? 's' : ''}`;
+      
+      return {
+        purpose: purpose,
+        quantities: quantities,
+        count: bookedDates[date].length
+      };
+    } catch (error) {
+      console.error('Error fetching booking preview:', error);
+      return null;
+    }
+  }
 
   let currentDate = new Date();
   let currentMonth = currentDate.getMonth();
@@ -2618,15 +2901,21 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
     setupEventListeners();
   });
 
-  function renderCalendar(month, year) {
+  async function renderCalendar(month, year) {
+    // Load booked dates first
+    await loadBookedDates(month, year);
+    
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const today = new Date();
+    const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     
     // Update month/year display
     document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
     
     const calendarDates = document.getElementById('calendarDates');
+    if (!calendarDates) return;
+    
     calendarDates.innerHTML = '';
 
     // Add empty cells for days before the first day of the month
@@ -2653,17 +2942,35 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
       const isPast = cellDate < new Date(today.getFullYear(), today.getMonth(), today.getDate());
       
       // Check if it's today
-      if (cellDate.toDateString() === today.toDateString()) {
+      const isToday = currentDateStr === todayDateStr;
+      if (isToday) {
         dateCell.classList.add('today');
       }
       
-      // Check if date is booked
-      if (bookedDates[currentDateStr]) {
-        dateCell.classList.add('booked');
-        const label = document.createElement('div');
-        label.classList.add('booking-label');
-        label.textContent = 'Booked';
-        dateCell.appendChild(label);
+      // Check if date has bookings
+      const hasBookings = bookedDates[currentDateStr] && bookedDates[currentDateStr].length > 0;
+      
+      console.log(`   Date ${currentDateStr}: booked=${hasBookings ? 'YES' : 'NO'}, isToday=${isToday}, isPast=${isPast}`);
+      
+      if (hasBookings) {
+        dateCell.classList.add('booked', 'has-bookings');
+        
+        // Fetch booking details for preview banner
+        fetchBookingPreview(currentDateStr).then(preview => {
+          if (preview) {
+            const previewDiv = document.createElement('div');
+            previewDiv.classList.add('tents-booking-preview');
+            previewDiv.innerHTML = `
+              <div class="tents-preview-purpose">${sanitizeInput(preview.purpose)}</div>
+              <div class="tents-preview-time">${preview.quantities}</div>
+            `;
+            dateCell.appendChild(previewDiv);
+          }
+        });
+        
+        // Make booked dates clickable to show booking details
+        dateCell.style.cursor = 'pointer';
+        dateCell.addEventListener('click', () => showDateBookingsModalTents(currentDateStr));
       } else if (isPast) {
         dateCell.classList.add('past');
       } else {
@@ -2708,20 +3015,119 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
     window.location.href = `tents-chairs-request.html?date=${dateStr}`;
   }
 
-  async function checkDateAvailability(dateStr) {
-    // TODO: Implement Firebase integration
-    /*
-    const bookingsRef = collection(db, "bookings");
-    const q = query(bookingsRef, 
-      where("date", "==", dateStr),
-      where("type", "==", "tents-and-chairs"),
-      where("status", "in", ["pending", "approved"])
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.empty;
-    */
-    return true; // Always return available until Firebase is integrated
+  // =====================================================
+  // MODAL FUNCTIONS FOR VIEWING BOOKING DETAILS
+  // =====================================================
+
+  /**
+   * Show booking details modal for a specific date
+   * Displays: Purpose, Quantity of Tents, Quantity of Chairs
+   */
+  function showDateBookingsModalTents(date) {
+    const modal = document.getElementById('tentsModalOverlay');
+    const titleEl = document.getElementById('tentsModalTitle');
+    const bodyEl = document.getElementById('tentsModalBody');
+    
+    if (!modal || !titleEl || !bodyEl) {
+      console.error('Tents modal elements not found');
+      return;
+    }
+
+    // Format date for display
+    const dateObj = new Date(date + 'T00:00:00');
+    const formattedDate = dateObj.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+    
+    titleEl.textContent = `Reservations for ${formattedDate}`;
+    bodyEl.innerHTML = '<p style="text-align:center;color:#6b7280;padding:20px;">Loading...</p>';
+    
+    // Show modal
+    modal.style.display = 'flex';
+
+    // Get bookings for this date from already loaded data
+    const bookings = bookedDates[date] || [];
+    
+    if (bookings.length === 0) {
+      bodyEl.innerHTML = '<div style="text-align:center;color:#6b7280;padding:20px;">No reservations on this date.</div>';
+      return;
+    }
+
+    let bodyHTML = '<div class="tents-modal-bookings-list">';
+    bookings.forEach((b, idx) => {
+      const dateRange = b.startDate === b.endDate 
+        ? `${formatDateShort(b.startDate)}`
+        : `${formatDateShort(b.startDate)} - ${formatDateShort(b.endDate)}`;
+      
+      bodyHTML += `
+        <div class="tents-booking-item ${idx > 0 ? 'with-divider' : ''}">
+          <div class="tents-booking-item-details">
+            <div class="tents-booking-detail-row">
+              <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+              <span><strong>Purpose:</strong> ${sanitizeInput(b.purpose || 'N/A')}</span>
+            </div>
+            <div class="tents-booking-detail-row">
+              <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span><strong>Duration:</strong> ${dateRange}</span>
+            </div>
+            <div class="tents-booking-detail-row">
+              <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+              </svg>
+              <span><strong>Tents:</strong> ${b.quantityTents || 0}</span>
+            </div>
+            <div class="tents-booking-detail-row">
+              <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+              </svg>
+              <span><strong>Chairs:</strong> ${b.quantityChairs || 0}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    bodyHTML += '</div>';
+    bodyEl.innerHTML = bodyHTML;
   }
+
+  /**
+   * Format date as "Mon DD, YYYY"
+   */
+  function formatDateShort(dateStr) {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  /**
+   * Close modal when clicking on overlay background
+   */
+  function closeModalOnOverlayTents(event) {
+    if (event.target.classList.contains('tents-modal-overlay')) {
+      event.target.style.display = 'none';
+    }
+  }
+
+  /**
+   * Close tents modal by ID
+   */
+  function closeTentsModal() {
+    const modal = document.getElementById('tentsModalOverlay');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  // Make functions globally accessible
+  window.showDateBookingsModalTents = showDateBookingsModalTents;
+  window.closeModalOnOverlayTents = closeModalOnOverlayTents;
+  window.closeTentsModal = closeTentsModal;
 }
 
 /* =====================================================

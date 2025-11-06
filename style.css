@@ -2692,13 +2692,34 @@ footer a:hover {
   color: #000;
 }
 
+/* Has bookings styling (matches admin calendar) */
+.calendar-date.has-bookings {
+  background: #fef08a;
+  border: 2px solid #eab308;
+  cursor: pointer;
+}
+
+.calendar-date.has-bookings:hover {
+  background: #fde047;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
 .calendar-date.today {
-  background: white;
+  background: #dbeafe;
+  border: 2px solid #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 .calendar-date.today .date-number {
-  color: #000;
+  color: #1d4ed8;
   font-weight: 700;
+}
+
+.calendar-date.today.has-bookings {
+  background: #fef08a;
+  border: 2px solid #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .booking-label {
@@ -2709,6 +2730,35 @@ footer a:hover {
   text-align: left;
   word-wrap: break-word;
   line-height: 1.2;
+}
+
+/* Booking Preview Banner (Purpose + Time) - Purple background matching legend */
+.tents-booking-preview {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #5b21b6;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.3;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.tents-preview-purpose {
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tents-preview-time {
+  font-weight: 500;
+  color: #e9d5ff;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .calendar-date.past {
