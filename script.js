@@ -5240,6 +5240,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       });
 
       console.log(`✅ Loaded ${allRequests.length} requests`);
+      
+      // Update status filter counts after data is loaded
+      updateStatusFilterOptions();
+      
       renderContent();
     } catch (error) {
       console.error('❌ Error loading requests:', error);
@@ -6640,23 +6644,58 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   function updateStatusFilterOptions() {
     const statusFilter = document.getElementById('statusFilter');
     if (!statusFilter) return;
+
+    // Calculate counts based on current tab
+    let counts = {};
+    if (currentTab === 'all') {
+      const activeRequests = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+      counts = {
+        all: activeRequests.length,
+        pending: activeRequests.filter(r => r.status === 'pending').length,
+        approved: activeRequests.filter(r => r.status === 'approved').length,
+        'in-progress': activeRequests.filter(r => r.status === 'in-progress').length
+      };
+    } else if (currentTab === 'history') {
+      const historyRequests = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+      counts = {
+        all: historyRequests.length,
+        completed: historyRequests.filter(r => r.status === 'completed').length,
+        rejected: historyRequests.filter(r => r.status === 'rejected').length,
+        cancelled: historyRequests.filter(r => r.status === 'cancelled').length
+      };
+    } else if (currentTab === 'archives') {
+      const archivedRequests = allRequests.filter(r => r.archived === true);
+      counts = {
+        all: archivedRequests.length,
+        completed: archivedRequests.filter(r => r.status === 'completed').length,
+        rejected: archivedRequests.filter(r => r.status === 'rejected').length,
+        cancelled: archivedRequests.filter(r => r.status === 'cancelled').length
+      };
+    }
+
+    // Store current selection
+    const currentValue = statusFilter.value;
+
     if (currentTab === 'all') {
       // All Requests: All, Pending, Approved, In Progress
       statusFilter.innerHTML = `
-        <option value="all">All Statuses</option>
-        <option value="pending">Pending</option>
-        <option value="approved">Approved</option>
-        <option value="in-progress">In Progress</option>
+        <option value="all">All Statuses (${counts.all})</option>
+        <option value="pending">Pending (${counts.pending})</option>
+        <option value="approved">Approved (${counts.approved})</option>
+        <option value="in-progress">In Progress (${counts['in-progress']})</option>
       `;
     } else if (currentTab === 'history' || currentTab === 'archives') {
       // History & Archives: All, Completed, Rejected, Cancelled
       statusFilter.innerHTML = `
-        <option value="all">All Statuses</option>
-        <option value="completed">Completed</option>
-        <option value="rejected">Rejected</option>
-        <option value="cancelled">Cancelled</option>
+        <option value="all">All Statuses (${counts.all})</option>
+        <option value="completed">Completed (${counts.completed})</option>
+        <option value="rejected">Rejected (${counts.rejected})</option>
+        <option value="cancelled">Cancelled (${counts.cancelled})</option>
       `;
     }
+
+    // Restore selected value
+    statusFilter.value = currentValue;
   }
 
   /**
@@ -7642,6 +7681,8 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   let allRequests = []; // All conference room requests from Firestore
   let currentTab = 'all'; // 'all' (active requests) or 'history' (completed/rejected/cancelled) or 'archives'
   let currentView = 'table'; // 'table' or 'calendar' (calendar is future feature)
+  let currentMonth = new Date().getMonth(); // for calendar
+  let currentYear = new Date().getFullYear(); // for calendar
 
   // ========================================
   // DATA LOADING
@@ -7669,6 +7710,10 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       
       // Update UI
       updateStatistics();
+      
+      // Update status filter counts after data is loaded
+      updateStatusFilterOptions();
+      
       renderContent();
     } catch (error) {
       console.error('❌ Error loading requests:', error);
@@ -7826,28 +7871,62 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     const statusFilter = document.getElementById('statusFilter');
     if (!statusFilter) return;
 
+    // Calculate counts based on current tab
+    let counts = {};
+    if (currentTab === 'all') {
+      const activeRequests = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+      counts = {
+        all: activeRequests.length,
+        pending: activeRequests.filter(r => r.status === 'pending').length,
+        approved: activeRequests.filter(r => r.status === 'approved').length,
+        'in-progress': activeRequests.filter(r => r.status === 'in-progress').length
+      };
+    } else if (currentTab === 'history') {
+      const historyRequests = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+      counts = {
+        all: historyRequests.length,
+        completed: historyRequests.filter(r => r.status === 'completed').length,
+        rejected: historyRequests.filter(r => r.status === 'rejected').length,
+        cancelled: historyRequests.filter(r => r.status === 'cancelled').length
+      };
+    } else if (currentTab === 'archives') {
+      const archivedRequests = allRequests.filter(r => r.archived === true);
+      counts = {
+        all: archivedRequests.length,
+        completed: archivedRequests.filter(r => r.status === 'completed').length,
+        rejected: archivedRequests.filter(r => r.status === 'rejected').length,
+        cancelled: archivedRequests.filter(r => r.status === 'cancelled').length
+      };
+    }
+
+    // Store current selection
+    const currentValue = statusFilter.value;
+
     if (currentTab === 'all') {
       statusFilter.innerHTML = `
-        <option value="all">All Statuses</option>
-        <option value="pending">Pending</option>
-        <option value="approved">Approved</option>
-        <option value="in-progress">In Progress</option>
+        <option value="all">All Statuses (${counts.all})</option>
+        <option value="pending">Pending (${counts.pending})</option>
+        <option value="approved">Approved (${counts.approved})</option>
+        <option value="in-progress">In Progress (${counts['in-progress']})</option>
       `;
     } else if (currentTab === 'history') {
       statusFilter.innerHTML = `
-        <option value="all">All Statuses</option>
-        <option value="completed">Completed</option>
-        <option value="rejected">Rejected</option>
-        <option value="cancelled">Cancelled</option>
+        <option value="all">All Statuses (${counts.all})</option>
+        <option value="completed">Completed (${counts.completed})</option>
+        <option value="rejected">Rejected (${counts.rejected})</option>
+        <option value="cancelled">Cancelled (${counts.cancelled})</option>
       `;
     } else if (currentTab === 'archives') {
       statusFilter.innerHTML = `
-        <option value="all">All Statuses</option>
-        <option value="completed">Completed</option>
-        <option value="rejected">Rejected</option>
-        <option value="cancelled">Cancelled</option>
+        <option value="all">All Statuses (${counts.all})</option>
+        <option value="completed">Completed (${counts.completed})</option>
+        <option value="rejected">Rejected (${counts.rejected})</option>
+        <option value="cancelled">Cancelled (${counts.cancelled})</option>
       `;
     }
+
+    // Restore selected value
+    statusFilter.value = currentValue;
   }
 
   /**
@@ -8173,15 +8252,155 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
    * Render calendar view (placeholder for future implementation)
    */
   function renderCalendarView() {
-    const contentArea = document.getElementById('conferenceContentArea');
-    if (!contentArea) return;
+    const container = document.getElementById('conferenceContentArea');
+    if (!container) return;
 
-    contentArea.innerHTML = `
-      <div class="tents-calendar-placeholder">
-        <h3>Calendar View</h3>
-        <p>Calendar view coming soon! This will display conference room reservations in a monthly calendar format.</p>
+    console.log('📅 Rendering conference calendar view...');
+
+    const filtered = getFilteredRequests();
+
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    const now = new Date();
+    if (typeof currentMonth === 'undefined') currentMonth = now.getMonth();
+    if (typeof currentYear === 'undefined') currentYear = now.getFullYear();
+
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    const today = new Date();
+    const todayDateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+    let calendarHTML = `
+      <div class="tents-calendar-container">
+        <div class="tents-calendar-header">
+          <button class="tents-calendar-nav-btn" id="prevMonthBtn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <h2>${monthNames[currentMonth]} ${currentYear}</h2>
+          <button class="tents-calendar-nav-btn" id="nextMonthBtn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <div class="tents-calendar-legend">
+          <div class="tents-legend-item"><div class="tents-legend-box tents-legend-today"></div><span>Today</span></div>
+          <div class="tents-legend-item"><div class="tents-legend-box tents-legend-has-bookings"></div><span>Has Reservations</span></div>
+          <div class="tents-legend-item"><div class="tents-legend-box tents-legend-empty"></div><span>No Reservations</span></div>
+        </div>
+
+        <div class="tents-calendar-grid">
+          <div class="tents-calendar-day-header">Sun</div>
+          <div class="tents-calendar-day-header">Mon</div>
+          <div class="tents-calendar-day-header">Tue</div>
+          <div class="tents-calendar-day-header">Wed</div>
+          <div class="tents-calendar-day-header">Thu</div>
+          <div class="tents-calendar-day-header">Fri</div>
+          <div class="tents-calendar-day-header">Sat</div>
+    `;
+
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      calendarHTML += '<div class="tents-calendar-date empty"></div>';
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+
+      // Find bookings for this exact date (conference uses single eventDate)
+      const dayBookings = filtered.filter(req => ['approved','in-progress'].includes(req.status) && req.eventDate === dateStr);
+
+      const hasBookings = dayBookings.length > 0;
+      const isToday = dateStr === todayDateStr;
+
+      calendarHTML += `
+        <div class="tents-calendar-date ${hasBookings ? 'has-bookings' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">
+          <div class="tents-date-number">${day}</div>
+      `;
+
+      if (hasBookings) {
+        // show up to 2 booking previews
+        dayBookings.slice(0,2).forEach(b => {
+          const name = sanitizeInput(b.fullName || (b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : 'Unknown'));
+          const timeRange = `${formatTime12Hour(b.startTime)} - ${formatTime12Hour(b.endTime)}`;
+          calendarHTML += `<div class="tents-calendar-event"><div class="tents-event-name">${name}</div><div class="tents-event-items">${timeRange}</div></div>`;
+        });
+        if (dayBookings.length > 2) calendarHTML += `<div class="tents-more-bookings">+${dayBookings.length-2} more</div>`;
+      }
+
+      calendarHTML += '</div>';
+    }
+
+    calendarHTML += `
+        </div>
       </div>
     `;
+
+    container.innerHTML = calendarHTML;
+
+    // Nav handlers
+    document.getElementById('prevMonthBtn')?.addEventListener('click', () => {
+      currentMonth--;
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      renderCalendarView();
+    });
+    document.getElementById('nextMonthBtn')?.addEventListener('click', () => {
+      currentMonth++;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      renderCalendarView();
+    });
+
+    // Date click handlers
+    document.querySelectorAll('.tents-calendar-date:not(.empty)').forEach(dateEl => {
+      dateEl.style.cursor = 'pointer';
+      dateEl.addEventListener('click', () => {
+        const date = dateEl.getAttribute('data-date');
+        showDateBookingsModalConference(date);
+      });
+    });
+  }
+
+  // Show modal with conference bookings for a specific date
+  function showDateBookingsModalConference(date) {
+    console.log('📅 conference bookings for', date);
+    const filtered = getFilteredRequests();
+    const dateBookings = filtered.filter(req => ['approved','in-progress'].includes(req.status) && req.eventDate === date);
+
+    const modal = document.getElementById('conferenceModalOverlay');
+    const titleEl = document.getElementById('conferenceModalTitle');
+    const bodyEl = document.getElementById('conferenceModalBody');
+    if (!modal || !titleEl || !bodyEl) { console.error('Modal elements missing'); return; }
+
+    const dateObj = new Date(date + 'T00:00:00');
+    const formattedDate = dateObj.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    titleEl.textContent = `Reservations for ${formattedDate}`;
+
+    let bodyHTML = '';
+    if (dateBookings.length === 0) {
+      bodyHTML = `<div style="text-align:center;color:#6b7280;padding:20px;">No reservations on this date.</div>`;
+    } else {
+      bodyHTML = '<div class="tents-modal-bookings-list">';
+      dateBookings.forEach((b, idx) => {
+        const np = getNameParts(b);
+        const name = sanitizeInput((np.firstName || '') + (np.lastName ? ' ' + np.lastName : '') || b.userEmail || 'Unknown');
+        const timeRange = `${formatTime12Hour(b.startTime)} - ${formatTime12Hour(b.endTime)}`;
+        bodyHTML += `
+          <div class="tents-booking-item ${idx>0 ? 'with-divider' : ''}">
+            <div class="tents-booking-item-header"><div class="tents-booking-name"><strong>${name}</strong></div><span class="tents-status-badge-${b.status}">${b.status.replace('-', ' ')}</span></div>
+            <div class="tents-booking-item-details">
+              <div class="tents-booking-detail-row"><strong>Time:</strong> ${timeRange}</div>
+              <div class="tents-booking-detail-row"><strong>Purpose:</strong> ${sanitizeInput(b.purpose || '')}</div>
+              <div class="tents-booking-detail-row"><strong>Contact:</strong> ${sanitizeInput(b.contactNumber || '')}</div>
+            </div>
+          </div>
+        `;
+      });
+      bodyHTML += '</div>';
+    }
+
+    bodyEl.innerHTML = bodyHTML;
+    modal.classList.add('active');
   }
 
   // ========================================
