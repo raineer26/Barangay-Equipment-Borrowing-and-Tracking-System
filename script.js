@@ -1112,21 +1112,19 @@ function showConfirm(message, onConfirm, onCancel = null) {
    - window.logout signs the current user out and redirects to login
 ====================== */
 // Protect specific pages by pathname
-// Only admin.html and UserProfile.html are protected (user.html is now public)
+// user.html is public (browsing allowed), but transactions require login
 const protectedPaths = [
   "/admin.html", "admin.html", 
-  "/user.html", "user.html",
   "/UserProfile.html", "UserProfile.html",
   "/conference-request.html", "conference-request.html",
-  "/tents-chairs-request.html", "tents-chairs-request.html",
-  "/conference-room.html", "conference-room.html",
-  "/tents-calendar.html", "tents-calendar.html"
+  "/tents-chairs-request.html", "tents-chairs-request.html"
 ];
 if (protectedPaths.some(p => window.location.pathname.endsWith(p))) {
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
-      // Not signed in -> go to login
-      window.location.href = "index.html";
+      // Not signed in -> save current page and redirect to login
+      const currentPage = window.location.pathname + window.location.search;
+      window.location.href = `index.html?redirect=${encodeURIComponent(currentPage)}`;
     } else {
       // Check if user account is disabled
       try {
@@ -2794,7 +2792,9 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     // Check if user is logged in before allowing booking
     const user = auth.currentUser;
     if (!user) {
-      showAlert('Please log in to book a date. You must be logged in to make a reservation.', false);
+      showAlert('Please log in to make a reservation. You will be redirected to the login page.', false, () => {
+        window.location.href = `index.html?redirect=${encodeURIComponent(`conference-request.html?date=${dateStr}`)}`;
+      });
       return;
     }
     // Redirect to request form page with date parameter
@@ -3195,7 +3195,9 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
     // Check if user is logged in before allowing booking
     const user = auth.currentUser;
     if (!user) {
-      showAlert('Please log in to book a date. You must be logged in to make a reservation.', false);
+      showAlert('Please log in to make a reservation. You will be redirected to the login page.', false, () => {
+        window.location.href = `index.html?redirect=${encodeURIComponent(`tents-chairs-request.html?date=${dateStr}`)}`;
+      });
       return;
     }
     // Redirect to request form page with date parameter
