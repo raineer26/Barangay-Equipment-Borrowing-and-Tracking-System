@@ -3909,15 +3909,13 @@ if (window.location.pathname.endsWith('admin.html') ||
   const internalBookingForm = document.getElementById('internalBookingForm');
 
   // Open modal
-  if (addInternalBookingBtn && internalBookingModal) {
+  if (addInternalBookingBtn) {
     addInternalBookingBtn.addEventListener('click', () => {
       internalBookingModal.classList.add('active');
       // Set minimum date to today
       const today = new Date().toISOString().split('T')[0];
-      const startDateInput = document.getElementById('internalStartDate');
-      const endDateInput = document.getElementById('internalEndDate');
-      if (startDateInput) startDateInput.setAttribute('min', today);
-      if (endDateInput) endDateInput.setAttribute('min', today);
+      document.getElementById('internalStartDate').setAttribute('min', today);
+      document.getElementById('internalEndDate').setAttribute('min', today);
     });
   }
 
@@ -3933,23 +3931,21 @@ if (window.location.pathname.endsWith('admin.html') ||
   }
 
   // Close modal on X button
-  if (closeInternalBookingModal && internalBookingModal) {
+  if (closeInternalBookingModal) {
     closeInternalBookingModal.addEventListener('click', closeModal);
   }
 
   // Close modal on Cancel button
-  if (cancelInternalBooking && internalBookingModal) {
+  if (cancelInternalBooking) {
     cancelInternalBooking.addEventListener('click', closeModal);
   }
 
   // Close modal when clicking outside
-  if (internalBookingModal) {
-    internalBookingModal.addEventListener('click', (e) => {
-      if (e.target === internalBookingModal) {
-        closeModal();
-      }
-    });
-  }
+  internalBookingModal.addEventListener('click', (e) => {
+    if (e.target === internalBookingModal) {
+      closeModal();
+    }
+  });
 
   // Form validation helpers
   function setInternalError(elementId, message) {
