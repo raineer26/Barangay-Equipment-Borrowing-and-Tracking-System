@@ -28,6 +28,94 @@ const auth = getAuth(app);
 const inventoryRef = collection(db, "inventory");
 
 // =============================
+// BURGER MENU / MOBILE NAVIGATION
+// Global functionality - runs on all pages
+// =============================
+document.addEventListener('DOMContentLoaded', function() {
+  const burgerMenu = document.getElementById('burgerMenu');
+  const mobileNav = document.getElementById('mobileNav');
+  const mobileNavOverlay = document.getElementById('mobileNavOverlay');
+  const mobileNavClose = document.getElementById('mobileNavClose');
+  const mobileDropdownToggle = document.getElementById('mobileDropdownToggle');
+  const mobileDropdownMenu = document.getElementById('mobileDropdownMenu');
+
+  // Only initialize if burger menu exists on this page
+  if (!burgerMenu || !mobileNav || !mobileNavOverlay) {
+    return; // Exit if burger menu elements don't exist on this page
+  }
+
+  // Open mobile menu
+  function openMobileMenu() {
+    mobileNav.classList.add('active');
+    mobileNavOverlay.classList.add('active');
+    burgerMenu.classList.add('active');
+    document.body.style.overflow = 'hidden'; // Prevent scrolling when menu is open
+  }
+
+  // Close mobile menu
+  function closeMobileMenu() {
+    mobileNav.classList.remove('active');
+    mobileNavOverlay.classList.remove('active');
+    burgerMenu.classList.remove('active');
+    document.body.style.overflow = ''; // Restore scrolling
+  }
+
+  // Toggle mobile menu
+  burgerMenu.addEventListener('click', function() {
+    if (mobileNav.classList.contains('active')) {
+      closeMobileMenu();
+    } else {
+      openMobileMenu();
+    }
+  });
+
+  // Close menu when clicking close button
+  if (mobileNavClose) {
+    mobileNavClose.addEventListener('click', closeMobileMenu);
+  }
+
+  // Close menu when clicking overlay
+  mobileNavOverlay.addEventListener('click', closeMobileMenu);
+
+  // Toggle dropdown in mobile menu
+  if (mobileDropdownToggle && mobileDropdownMenu) {
+    mobileDropdownToggle.addEventListener('click', function() {
+      mobileDropdownMenu.classList.toggle('active');
+    });
+  }
+
+  // Close mobile menu when clicking a link
+  const mobileNavLinks = mobileNav.querySelectorAll('a');
+  mobileNavLinks.forEach(link => {
+    link.addEventListener('click', closeMobileMenu);
+  });
+
+  // Sync user authentication state with mobile menu
+  // This will be called by the auth state listener later in the code
+  window.updateMobileNavAuth = function(isLoggedIn) {
+    const userIconMobile = document.getElementById('userIconMobile');
+    const loginButtonMobile = document.getElementById('loginButtonMobile');
+    
+    if (userIconMobile && loginButtonMobile) {
+      if (isLoggedIn) {
+        userIconMobile.style.display = 'flex';
+        loginButtonMobile.style.display = 'none';
+      } else {
+        userIconMobile.style.display = 'none';
+        loginButtonMobile.style.display = 'block';
+      }
+    }
+  };
+
+  // Close mobile menu on window resize if screen becomes larger
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 425) {
+      closeMobileMenu();
+    }
+  });
+});
+
+// =============================
 // 2. Unique Custom Alert Function (no naming conflicts FOR BACKEND)
 // =============================
 function showBookingFormAlert(message, type = "success") {
@@ -7414,86 +7502,4 @@ confirmYes.addEventListener("click", async () => {
 
 // --- Start ---
 loadInventoryRealtime();
-  /**burger icon toggle**/
-  // Mobile Menu Functionality
-document.addEventListener('DOMContentLoaded', function() {
-  const burgerMenu = document.getElementById('burgerMenu');
-  const mobileNav = document.getElementById('mobileNav');
-  const mobileNavOverlay = document.getElementById('mobileNavOverlay');
-  const mobileNavClose = document.getElementById('mobileNavClose');
-  const mobileDropdownToggle = document.getElementById('mobileDropdownToggle');
-  const mobileDropdownMenu = document.getElementById('mobileDropdownMenu');
-
-  // Open mobile menu
-  function openMobileMenu() {
-    mobileNav.classList.add('active');
-    mobileNavOverlay.classList.add('active');
-    burgerMenu.classList.add('active');
-    document.body.style.overflow = 'hidden'; // Prevent scrolling when menu is open
-  }
-
-  // Close mobile menu
-  function closeMobileMenu() {
-    mobileNav.classList.remove('active');
-    mobileNavOverlay.classList.remove('active');
-    burgerMenu.classList.remove('active');
-    document.body.style.overflow = ''; // Restore scrolling
-  }
-
-  // Toggle mobile menu
-  burgerMenu.addEventListener('click', function() {
-    if (mobileNav.classList.contains('active')) {
-      closeMobileMenu();
-    } else {
-      openMobileMenu();
-    }
-  });
-
-  // Close menu when clicking close button
-  mobileNavClose.addEventListener('click', closeMobileMenu);
-
-  // Close menu when clicking overlay
-  mobileNavOverlay.addEventListener('click', closeMobileMenu);
-
-  // Toggle dropdown in mobile menu
-  mobileDropdownToggle.addEventListener('click', function() {
-    mobileDropdownMenu.classList.toggle('active');
-  });
-
-  // Close mobile menu when clicking a link
-  const mobileNavLinks = mobileNav.querySelectorAll('a');
-  mobileNavLinks.forEach(link => {
-    link.addEventListener('click', closeMobileMenu);
-  });
-
-  // Check if user is logged in and show/hide user icon accordingly
-  // This syncs with your existing user authentication logic
-  const userIconNav = document.getElementById('userIconNav');
-  const loginButtonNav = document.getElementById('loginButtonNav');
-  const userIconMobile = document.getElementById('userIconMobile');
-  const loginButtonMobile = document.getElementById('loginButtonMobile');
-
-  // Example: Check if user is logged in (modify based on your auth logic)
-  const isLoggedIn = localStorage.getItem('userLoggedIn') === 'true';
-
-  if (isLoggedIn) {
-    // Show user icon, hide login button
-    if (userIconNav) userIconNav.style.display = 'flex';
-    if (loginButtonNav) loginButtonNav.style.display = 'none';
-    if (userIconMobile) userIconMobile.style.display = 'flex';
-    if (loginButtonMobile) loginButtonMobile.style.display = 'none';
-  } else {
-    // Show login button, hide user icon
-    if (userIconNav) userIconNav.style.display = 'none';
-    if (loginButtonNav) loginButtonNav.style.display = 'block';
-    if (userIconMobile) userIconMobile.style.display = 'none';
-    if (loginButtonMobile) loginButtonMobile.style.display = 'block';
-  }
-
-  // Close mobile menu on window resize if screen becomes larger
-  window.addEventListener('resize', function() {
-    if (window.innerWidth > 425) {
-      closeMobileMenu();
-    }
-  });
-});
+// (Burger menu code moved to global scope at top of file after Firebase init)
