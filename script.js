@@ -3405,7 +3405,87 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
         return;
       }
 
-      // ✅ Save to Firebase (correct collection)
+      // 🔍 IDENTICAL REQUEST VALIDATION - Check for exact duplicates
+      console.log('🔍 [Tents/Chairs Submit] Starting identical request validation...');
+      console.log('📋 [Tents/Chairs Submit] Request details:', {
+        startDate: data.startDate,
+        endDate: data.endDate,
+        quantityTents: data.quantityTents,
+        quantityChairs: data.quantityChairs,
+        userId: user.uid
+      });
+
+      // Query existing bookings for same user with IDENTICAL dates (exclude cancelled/rejected)
+      const bookingsRef = collection(db, 'tentsChairsBookings');
+      const q = query(
+        bookingsRef,
+        where('userId', '==', user.uid),
+        where('startDate', '==', data.startDate),
+        where('endDate', '==', data.endDate),
+        where('status', 'in', ['pending', 'approved', 'in-progress'])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      console.log(`📊 [Tents/Chairs Submit] Found ${querySnapshot.size} existing booking(s) with same dates`);
+
+      // Check if any booking has IDENTICAL quantities
+      let hasIdenticalRequest = false;
+      let identicalBooking = null;
+
+      querySnapshot.forEach(doc => {
+        const existingBooking = doc.data();
+        console.log('🔍 [Tents/Chairs Submit] Checking against existing booking:', {
+          id: doc.id,
+          dates: `${existingBooking.startDate} to ${existingBooking.endDate}`,
+          tents: existingBooking.quantityTents,
+          chairs: existingBooking.quantityChairs,
+          status: existingBooking.status
+        });
+
+        // Check if quantities are IDENTICAL
+        if (existingBooking.quantityTents === data.quantityTents && 
+            existingBooking.quantityChairs === data.quantityChairs) {
+          hasIdenticalRequest = true;
+          identicalBooking = {
+            id: doc.id,
+            startDate: existingBooking.startDate,
+            endDate: existingBooking.endDate,
+            quantityTents: existingBooking.quantityTents,
+            quantityChairs: existingBooking.quantityChairs,
+            status: existingBooking.status
+          };
+          console.log('🚫 [Tents/Chairs Submit] IDENTICAL REQUEST DETECTED!');
+        }
+      });
+
+      // 🚫 BLOCK submission if identical request found
+      if (hasIdenticalRequest) {
+        console.error('❌ [Tents/Chairs Submit] Submission BLOCKED due to identical request');
+        
+        // Format dates for display
+        const formatDate = (dateStr) => {
+          const date = new Date(dateStr + 'T00:00:00');
+          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        };
+
+        const existingDateRange = `${formatDate(identicalBooking.startDate)} - ${formatDate(identicalBooking.endDate)}`;
+        
+        // Show error alert with conflict details
+        showAlert(
+          `⚠️ Identical Request Detected<br><br>` +
+          `You already have a ${identicalBooking.status} request with the exact same details:<br><br>` +
+          `<strong>Dates:</strong> ${existingDateRange}<br>` +
+          `<strong>Tents:</strong> ${identicalBooking.quantityTents}<br>` +
+          `<strong>Chairs:</strong> ${identicalBooking.quantityChairs}<br><br>` +
+          `Cannot submit identical requests. Please choose different dates or quantities, or cancel your existing request first.`,
+          false
+        );
+        return; // Stop submission
+      }
+
+      console.log('✅ [Tents/Chairs Submit] No identical requests found - proceeding with submission');
+
+      // ✅ NO IDENTICAL REQUESTS - Proceed with submission
       await addDoc(collection(db, 'tentsChairsBookings'), {
         ...data,
         userId: user.uid,
@@ -3414,13 +3494,14 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
         createdAt: serverTimestamp()
       });
 
+      console.log('✅ [Tents/Chairs Submit] Request submitted successfully!');
       showAlert('Your tents & chairs request has been submitted successfully!', true, () => {
         window.location.href = 'UserProfile.html';
       });
 
     } catch (err) {
-      console.error('Error submitting tents & chairs request:', err);
-      showAlert('Failed to submit request. Please try again.');
+      console.error('❌ [Tents/Chairs Submit] Error submitting request:', err);
+      showAlert('Failed to submit request. Please try again.', false);
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = originalText;
@@ -3518,21 +3599,45 @@ async function autofillUserData(fieldMappings) {
 
 if (window.location.pathname.endsWith('conference-request.html') || window.location.pathname.endsWith('/conference-request')) {
 
-  document.addEventListener('DOMContentLoaded', function () {
+  // Store bookings for the selected date
+  let dateBookings = [];
+
+  document.addEventListener('DOMContentLoaded', async function () {
     const form = document.getElementById('conferenceRoomForm');
     if (!form) return;
 
     // Prefill date if redirected from calendar
     const urlParams = new URLSearchParams(window.location.search);
     const preselectedDate = urlParams.get('date');
-    if (preselectedDate) document.getElementById('eventDate').value = preselectedDate;
+    if (preselectedDate) {
+      document.getElementById('eventDate').value = preselectedDate;
+      // Load bookings for preselected date
+      await loadBookingsForDate(preselectedDate);
+    }
 
     // Set minimum date to today
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('eventDate').min = today;
 
-    // Populate time dropdowns
+    // Populate time dropdowns (will be filtered if bookings exist)
     populateTimeDropdowns();
+
+    // Listen for date changes to reload available time slots
+    const eventDateInput = document.getElementById('eventDate');
+    eventDateInput.addEventListener('change', async function() {
+      const selectedDate = this.value;
+      if (selectedDate) {
+        console.log(`📅 [Conference Form] Date changed to: ${selectedDate}`);
+        await loadBookingsForDate(selectedDate);
+        populateTimeDropdowns(); // Repopulate with new availability
+      }
+    });
+
+    // Listen for start time changes to filter end time options
+    const startTimeSelect = document.getElementById('startTime');
+    startTimeSelect.addEventListener('change', function() {
+      updateEndTimeOptions();
+    });
 
     // Auto-fill user data
     onAuthStateChanged(auth, (user) => {
@@ -3556,10 +3661,76 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
     form.addEventListener('submit', handleConferenceRoomSubmit);
   });
 
+  /**
+   * Fetch all approved/in-progress bookings for a specific date
+   */
+  async function loadBookingsForDate(date) {
+    console.log(`🔍 [Conference Form] Loading bookings for date: ${date}`);
+    
+    try {
+      const bookingsRef = collection(db, 'conferenceRoomBookings');
+      const q = query(
+        bookingsRef,
+        where('eventDate', '==', date),
+        where('status', 'in', ['approved', 'in-progress'])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      dateBookings = [];
+      
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        dateBookings.push({
+          startTime: data.startTime,
+          endTime: data.endTime,
+          purpose: data.purpose || 'Reserved'
+        });
+      });
+      
+      console.log(`📊 [Conference Form] Found ${dateBookings.length} booking(s) for ${date}:`, dateBookings);
+      
+      // Show message if date is fully booked
+      if (dateBookings.length > 0) {
+        const fullyBooked = isDateFullyBooked(dateBookings);
+        if (fullyBooked) {
+          console.warn(`⚠️ [Conference Form] Date ${date} is fully booked!`);
+          showToast('This date is fully booked. Please select another date.', false, 3000);
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ [Conference Form] Error loading bookings:', error);
+      dateBookings = [];
+    }
+  }
+
+  /**
+   * Check if a time slot conflicts with any existing booking
+   */
+  function isTimeSlotUnavailable(timeSlot, existingBookings) {
+    if (!existingBookings || existingBookings.length === 0) return false;
+    
+    for (const booking of existingBookings) {
+      // A time slot is unavailable if it falls within any existing booking range
+      // timeSlot >= booking.startTime AND timeSlot < booking.endTime
+      if (timeSlot >= booking.startTime && timeSlot < booking.endTime) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Populate time dropdowns with availability filtering
+   */
   function populateTimeDropdowns() {
     const startTimeSelect = document.getElementById('startTime');
     const endTimeSelect = document.getElementById('endTime');
     if (!startTimeSelect || !endTimeSelect) return;
+
+    // Save current selections
+    const currentStart = startTimeSelect.value;
+    const currentEnd = endTimeSelect.value;
 
     startTimeSelect.innerHTML = '<option value="">Start Time</option>';
     endTimeSelect.innerHTML = '<option value="">End Time</option>';
@@ -3567,6 +3738,7 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
     // Generate 30-minute interval options from 08:00 through 17:00
     const startMinutes = 8 * 60; // 08:00 in minutes
     const endMinutes = 17 * 60;  // 17:00 in minutes
+    
     for (let mins = startMinutes; mins <= endMinutes; mins += 30) {
       const hh = Math.floor(mins / 60);
       const mm = mins % 60;
@@ -3577,9 +3749,147 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
       const ampm = hh >= 12 ? 'PM' : 'AM';
       const display = `${hour12}:${String(mm).padStart(2, '0')} ${ampm}`;
 
-      startTimeSelect.add(new Option(display, value));
-      endTimeSelect.add(new Option(display, value));
+      // Check if this time slot is unavailable for START time
+      const isUnavailableStart = isTimeSlotUnavailable(value, dateBookings);
+      
+      const startOption = new Option(display, value);
+      if (isUnavailableStart) {
+        startOption.disabled = true;
+        startOption.text = `${display} (Booked)`;
+        startOption.style.color = '#999';
+      }
+      startTimeSelect.add(startOption);
+
+      // For END time, add all options (will be filtered based on START selection)
+      const endOption = new Option(display, value);
+      endTimeSelect.add(endOption);
     }
+
+    // Restore selections if still valid
+    if (currentStart && !startTimeSelect.querySelector(`option[value="${currentStart}"]`).disabled) {
+      startTimeSelect.value = currentStart;
+    }
+    if (currentEnd) {
+      endTimeSelect.value = currentEnd;
+    }
+
+    // Update end time options based on current start time
+    if (startTimeSelect.value) {
+      updateEndTimeOptions();
+    }
+  }
+
+  /**
+   * Update end time options based on selected start time and existing bookings
+   */
+  function updateEndTimeOptions() {
+    const startTimeSelect = document.getElementById('startTime');
+    const endTimeSelect = document.getElementById('endTime');
+    if (!startTimeSelect || !endTimeSelect) return;
+
+    const selectedStart = startTimeSelect.value;
+    if (!selectedStart) {
+      // No start time selected, reset end time
+      endTimeSelect.querySelectorAll('option').forEach(opt => {
+        if (opt.value) {
+          opt.disabled = false;
+          opt.text = opt.text.replace(' (Unavailable)', '');
+          opt.style.color = '';
+        }
+      });
+      return;
+    }
+
+    console.log(`⏰ [Conference Form] Filtering end times based on start: ${selectedStart}`);
+
+    // Filter end time options
+    endTimeSelect.querySelectorAll('option').forEach(opt => {
+      if (!opt.value) return; // Skip placeholder
+
+      const endValue = opt.value;
+      
+      // Rule 1: End time must be after start time
+      if (endValue <= selectedStart) {
+        opt.disabled = true;
+        opt.style.color = '#999';
+        return;
+      }
+
+      // Rule 2: Check if this end time would cause overlap with existing bookings
+      let wouldOverlap = false;
+      for (const booking of dateBookings) {
+        // Check if the proposed time range (selectedStart to endValue) overlaps with booking
+        if (timeRangesOverlap(selectedStart, endValue, booking.startTime, booking.endTime)) {
+          wouldOverlap = true;
+          break;
+        }
+      }
+
+      if (wouldOverlap) {
+        opt.disabled = true;
+        opt.text = opt.text.replace(' (Unavailable)', '') + ' (Unavailable)';
+        opt.style.color = '#999';
+      } else {
+        opt.disabled = false;
+        opt.text = opt.text.replace(' (Unavailable)', '');
+        opt.style.color = '';
+      }
+    });
+
+    // If current end time selection is now invalid, clear it
+    const currentEnd = endTimeSelect.value;
+    if (currentEnd && endTimeSelect.querySelector(`option[value="${currentEnd}"]`)?.disabled) {
+      endTimeSelect.value = '';
+      console.log(`⚠️ [Conference Form] Current end time ${currentEnd} is invalid, cleared selection`);
+    }
+  }
+
+  /**
+   * Check if a date is fully booked (reuse from calendar logic)
+   */
+  function isDateFullyBooked(bookings) {
+    if (!bookings || bookings.length === 0) return false;
+    
+    const OPERATING_START = '08:00';
+    const OPERATING_END = '17:00';
+    const MIN_REQUIRED_HOURS = 4;
+    
+    function timeToMinutes(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+    
+    const operatingStartMin = timeToMinutes(OPERATING_START);
+    const operatingEndMin = timeToMinutes(OPERATING_END);
+    const minRequiredMinutes = MIN_REQUIRED_HOURS * 60;
+    
+    // Sort bookings by start time
+    const sortedBookings = [...bookings].sort((a, b) => 
+      timeToMinutes(a.startTime) - timeToMinutes(b.startTime)
+    );
+    
+    // Check gap before first booking
+    const firstBookingStart = timeToMinutes(sortedBookings[0].startTime);
+    if (firstBookingStart - operatingStartMin >= minRequiredMinutes) {
+      return false;
+    }
+    
+    // Check gaps between consecutive bookings
+    for (let i = 0; i < sortedBookings.length - 1; i++) {
+      const currentEnd = timeToMinutes(sortedBookings[i].endTime);
+      const nextStart = timeToMinutes(sortedBookings[i + 1].startTime);
+      if (nextStart - currentEnd >= minRequiredMinutes) {
+        return false;
+      }
+    }
+    
+    // Check gap after last booking
+    const lastBookingEnd = timeToMinutes(sortedBookings[sortedBookings.length - 1].endTime);
+    if (operatingEndMin - lastBookingEnd >= minRequiredMinutes) {
+      return false;
+    }
+    
+    return true;
   }
 
   async function handleConferenceRoomSubmit(e) {
@@ -5236,26 +5546,225 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
 
   // Approve request
   window.approveRequest = async function(requestId) {
-    const confirmed = await showConfirmModal(
-      'Approve Request',
-      'Are you sure you want to approve this request?'
-    );
-    if (!confirmed) return;
+    console.log('🔍 [Admin Approve Tents/Chairs] Starting approval process for request:', requestId);
+
+    // Find the request in allRequests array
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      await showConfirmModal('Error', 'Request not found.', null, true);
+      return;
+    }
+
+    console.log('📋 [Admin Approve Tents/Chairs] Request details:', {
+      startDate: request.startDate,
+      endDate: request.endDate,
+      quantityTents: request.quantityTents,
+      quantityChairs: request.quantityChairs,
+      status: request.status
+    });
 
     try {
-      console.log(`✅ Approving request ${requestId}...`);
+      // 🔍 STEP 1: Check for IDENTICAL pending requests (same dates + same quantities)
+      console.log('🔍 [Admin Approve Tents/Chairs] Checking for identical pending requests...');
       
-      const requestRef = doc(db, 'tentsChairsBookings', requestId);
-      await updateDoc(requestRef, {
-        status: 'approved'
+      const bookingsRef = collection(db, 'tentsChairsBookings');
+      const identicalQuery = query(
+        bookingsRef,
+        where('startDate', '==', request.startDate),
+        where('endDate', '==', request.endDate),
+        where('status', 'in', ['pending', 'approved', 'in-progress'])
+      );
+      
+      const identicalSnapshot = await getDocs(identicalQuery);
+      console.log(`📊 [Admin Approve Tents/Chairs] Found ${identicalSnapshot.size} booking(s) with same dates`);
+
+      // Check for IDENTICAL quantities (excluding self)
+      let hasIdentical = false;
+      let identicalBooking = null;
+
+      identicalSnapshot.forEach(doc => {
+        // Skip if this is the request being approved
+        if (doc.id === requestId) {
+          console.log('⏭️ [Admin Approve Tents/Chairs] Skipping self (request being approved)');
+          return;
+        }
+
+        const existing = doc.data();
+        console.log('🔍 [Admin Approve Tents/Chairs] Checking against existing booking:', {
+          id: doc.id,
+          dates: `${existing.startDate} to ${existing.endDate}`,
+          tents: existing.quantityTents,
+          chairs: existing.quantityChairs,
+          status: existing.status,
+          user: existing.userEmail || existing.fullName
+        });
+
+        // Check if quantities are IDENTICAL
+        if (existing.quantityTents === request.quantityTents && 
+            existing.quantityChairs === request.quantityChairs) {
+          hasIdentical = true;
+          identicalBooking = {
+            id: doc.id,
+            userName: existing.fullName || existing.userEmail || 'Unknown user',
+            startDate: existing.startDate,
+            endDate: existing.endDate,
+            quantityTents: existing.quantityTents,
+            quantityChairs: existing.quantityChairs,
+            status: existing.status
+          };
+          console.log('🚫 [Admin Approve Tents/Chairs] IDENTICAL REQUEST DETECTED!', identicalBooking);
+        }
       });
 
-      console.log('✅ Request approved');
-      await loadTentsRequests(); // Reload
+      // 🚫 BLOCK if identical request found
+      if (hasIdentical) {
+        console.error('❌ [Admin Approve Tents/Chairs] Approval BLOCKED due to identical request');
+        
+        const formatDate = (dateStr) => {
+          const date = new Date(dateStr + 'T00:00:00');
+          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        };
+
+        const existingDateRange = `${formatDate(identicalBooking.startDate)} - ${formatDate(identicalBooking.endDate)}`;
+        const thisDateRange = `${formatDate(request.startDate)} - ${formatDate(request.endDate)}`;
+        
+        await showConfirmModal(
+          '❌ Cannot Approve - Identical Request',
+          `Another request with identical details already exists:<br><br>` +
+          `<strong>📋 Existing Request:</strong><br>` +
+          `   User: ${identicalBooking.userName}<br>` +
+          `   Dates: ${existingDateRange}<br>` +
+          `   Tents: ${identicalBooking.quantityTents}<br>` +
+          `   Chairs: ${identicalBooking.quantityChairs}<br>` +
+          `   Status: ${identicalBooking.status}<br><br>` +
+          `<strong>📋 This Request:</strong><br>` +
+          `   User: ${request.fullName || request.userEmail || 'Unknown'}<br>` +
+          `   Dates: ${thisDateRange}<br>` +
+          `   Tents: ${request.quantityTents}<br>` +
+          `   Chairs: ${request.quantityChairs}<br><br>` +
+          `Please reject one of the duplicate requests.`,
+          null,
+          true // Alert mode (OK button only)
+        );
+        return; // Stop approval
+      }
+
+      console.log('✅ [Admin Approve Tents/Chairs] No identical requests found');
+
+      // 🔍 STEP 2: Validate inventory availability
+      console.log('🔍 [Admin Approve Tents/Chairs] Validating inventory availability...');
+      
+      const inventoryRef = doc(db, 'inventory', 'equipment');
+      const inventorySnap = await getDoc(inventoryRef);
+      
+      if (!inventorySnap.exists()) {
+        console.error('❌ [Admin Approve Tents/Chairs] Inventory document not found');
+        await showConfirmModal(
+          '❌ Inventory Error',
+          'Inventory data not found. Please initialize the inventory first.',
+          null,
+          true
+        );
+        return;
+      }
+
+      const inventory = inventorySnap.data();
+      const availableTents = inventory.availableTents || 0;
+      const availableChairs = inventory.availableChairs || 0;
+
+      console.log('📦 [Admin Approve Tents/Chairs] Current inventory:', {
+        availableTents,
+        availableChairs,
+        requestedTents: request.quantityTents,
+        requestedChairs: request.quantityChairs
+      });
+
+      // Check if requested quantities exceed available stock
+      const tentsShortage = request.quantityTents - availableTents;
+      const chairsShortage = request.quantityChairs - availableChairs;
+      const hasShortage = tentsShortage > 0 || chairsShortage > 0;
+
+      if (hasShortage) {
+        console.error('❌ [Admin Approve Tents/Chairs] Approval BLOCKED due to insufficient inventory');
+        
+        let shortageMessage = '<strong>📦 Current Inventory:</strong><br>' +
+          `   Available Tents: ${availableTents}<br>` +
+          `   Available Chairs: ${availableChairs}<br><br>` +
+          `<strong>📋 This Request:</strong><br>` +
+          `   Requested Tents: ${request.quantityTents}`;
+        
+        if (tentsShortage > 0) {
+          shortageMessage += ` <span style="color:#dc2626;">(Shortage: ${tentsShortage})</span>`;
+        }
+        
+        shortageMessage += `<br>   Requested Chairs: ${request.quantityChairs}`;
+        
+        if (chairsShortage > 0) {
+          shortageMessage += ` <span style="color:#dc2626;">(Shortage: ${chairsShortage})</span>`;
+        }
+
+        shortageMessage += '<br><br>Cannot approve - insufficient inventory. Please wait for other bookings to complete or ask user to reduce quantities.';
+        
+        await showConfirmModal(
+          '❌ Insufficient Inventory',
+          shortageMessage,
+          null,
+          true // Alert mode
+        );
+        return; // Stop approval
+      }
+
+      console.log('✅ [Admin Approve Tents/Chairs] Inventory sufficient');
+
+      // ✅ ALL VALIDATIONS PASSED - Show final confirmation
+      const confirmed = await showConfirmModal(
+        'Approve Request',
+        `Approve this tents & chairs request?<br><br>` +
+        `<strong>User:</strong> ${request.fullName || request.userEmail || 'Unknown'}<br>` +
+        `<strong>Dates:</strong> ${request.startDate} to ${request.endDate}<br>` +
+        `<strong>Tents:</strong> ${request.quantityTents}<br>` +
+        `<strong>Chairs:</strong> ${request.quantityChairs}<br><br>` +
+        `Inventory will be updated automatically.`
+      );
+
+      if (!confirmed) {
+        console.log('⏹️ [Admin Approve Tents/Chairs] Admin cancelled approval');
+        return;
+      }
+
+      // Update request status to approved
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'approved',
+        approvedAt: new Date()
+      });
+
+      // Update inventory (deduct approved quantities)
+      await updateDoc(inventoryRef, {
+        availableTents: availableTents - request.quantityTents,
+        availableChairs: availableChairs - request.quantityChairs,
+        tentsInUse: (inventory.tentsInUse || 0) + request.quantityTents,
+        chairsInUse: (inventory.chairsInUse || 0) + request.quantityChairs,
+        lastUpdated: new Date()
+      });
+
+      console.log('✅ [Admin Approve Tents/Chairs] Request approved and inventory updated successfully!');
+      await loadTentsRequests(); // Reload data
+      
+      // Show success message
+      await showConfirmModal(
+        '✅ Request Approved',
+        `Request has been approved successfully!<br><br>` +
+        `<strong>Updated Inventory:</strong><br>` +
+        `   Available Tents: ${availableTents - request.quantityTents}<br>` +
+        `   Available Chairs: ${availableChairs - request.quantityChairs}`,
+        null,
+        true
+      );
       
     } catch (error) {
-      console.error('❌ Error approving request:', error);
-      alert('Failed to approve request. Please try again.');
+      console.error('❌ [Admin Approve Tents/Chairs] Error approving request:', error);
+      await showConfirmModal('Error', 'Failed to approve request. Please try again.', null, true);
     }
   };
 
@@ -5296,24 +5805,125 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
   window.completeRequest = async function(requestId) {
     const confirmed = await showConfirmModal(
       'Mark as Completed',
-      'Mark this request as completed?'
+      'Mark this request as completed? Equipment will be returned to available inventory.'
     );
     if (!confirmed) return;
 
     try {
-      console.log(`✓ Completing request ${requestId}...`);
+      console.log(`🔍 [Admin Complete Tents/Chairs] Starting completion for request ${requestId}...`);
       
+      // STEP 1: Get the request details
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      const requestSnap = await getDoc(requestRef);
+      
+      if (!requestSnap.exists()) {
+        console.error('❌ Request not found');
+        await showConfirmModal('Error', 'Request not found.', null, true);
+        return;
+      }
+      
+      const requestData = requestSnap.data();
+      const tentsToReturn = requestData.quantityTents || 0;
+      const chairsToReturn = requestData.quantityChairs || 0;
+      
+      console.log(`📋 Request Details:
+        Tents: ${tentsToReturn}
+        Chairs: ${chairsToReturn}
+        Status: ${requestData.status}`);
+      
+      // STEP 2: Only restore inventory if request was approved/in-progress
+      // (Don't restore for rejected/cancelled requests that never took inventory)
+      if (requestData.status === 'approved' || requestData.status === 'in-progress') {
+        console.log('📦 Restoring inventory for approved/in-progress booking...');
+        
+        // Get current inventory
+        const inventoryRef = doc(db, 'inventory', 'equipment');
+        const inventorySnap = await getDoc(inventoryRef);
+        
+        if (!inventorySnap.exists()) {
+          console.warn('⚠️ Inventory document does not exist. Creating with default values...');
+          await setDoc(inventoryRef, {
+            availableTents: tentsToReturn,
+            availableChairs: chairsToReturn,
+            tentsInUse: 0,
+            chairsInUse: 0,
+            totalTents: tentsToReturn,
+            totalChairs: chairsToReturn,
+            lastUpdated: new Date()
+          });
+        } else {
+          const inventoryData = inventorySnap.data();
+          const currentAvailableTents = inventoryData.availableTents || 0;
+          const currentAvailableChairs = inventoryData.availableChairs || 0;
+          const currentTentsInUse = inventoryData.tentsInUse || 0;
+          const currentChairsInUse = inventoryData.chairsInUse || 0;
+          
+          console.log(`📊 Current Inventory:
+            Available Tents: ${currentAvailableTents}
+            Available Chairs: ${currentAvailableChairs}
+            Tents In Use: ${currentTentsInUse}
+            Chairs In Use: ${currentChairsInUse}`);
+          
+          // Calculate new inventory (return items to available, remove from in-use)
+          const newAvailableTents = currentAvailableTents + tentsToReturn;
+          const newAvailableChairs = currentAvailableChairs + chairsToReturn;
+          const newTentsInUse = Math.max(0, currentTentsInUse - tentsToReturn);
+          const newChairsInUse = Math.max(0, currentChairsInUse - chairsToReturn);
+          
+          console.log(`📦 New Inventory After Return:
+            Available Tents: ${newAvailableTents} (was ${currentAvailableTents})
+            Available Chairs: ${newAvailableChairs} (was ${currentAvailableChairs})
+            Tents In Use: ${newTentsInUse} (was ${currentTentsInUse})
+            Chairs In Use: ${newChairsInUse} (was ${currentChairsInUse})`);
+          
+          // Update inventory
+          await updateDoc(inventoryRef, {
+            availableTents: newAvailableTents,
+            availableChairs: newAvailableChairs,
+            tentsInUse: newTentsInUse,
+            chairsInUse: newChairsInUse,
+            lastUpdated: new Date()
+          });
+          
+          console.log('✅ Inventory restored successfully');
+        }
+      } else {
+        console.log(`ℹ️ Skipping inventory restoration (status: ${requestData.status})`);
+      }
+      
+      // STEP 3: Mark request as completed
       await updateDoc(requestRef, {
         status: 'completed',
         completedAt: new Date()
       });
 
       console.log('✅ Request marked as completed');
+      
+      // Show success confirmation with inventory update info
+      if (requestData.status === 'approved' || requestData.status === 'in-progress') {
+        await showConfirmModal(
+          'Request Completed',
+          `Request has been marked as completed.<br><br>` +
+          `<strong>Equipment Returned:</strong><br>` +
+          `Tents: ${tentsToReturn}<br>` +
+          `Chairs: ${chairsToReturn}<br><br>` +
+          `Inventory has been updated.`,
+          null,
+          true
+        );
+      } else {
+        await showConfirmModal(
+          'Request Completed',
+          'Request has been marked as completed.',
+          null,
+          true
+        );
+      }
+      
       await loadTentsRequests(); // Reload
       
     } catch (error) {
-      console.error('❌ Error completing request:', error);
+      console.error('❌ [Admin Complete Tents/Chairs] Error completing request:', error);
       await showConfirmModal('Error', 'Failed to complete request. Please try again.', null, true);
     }
   };
