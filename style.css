@@ -8591,7 +8591,7 @@ input[type="number"]::-webkit-outer-spin-button {
    to the end of this file for better organization.
    Search for: "CONSOLIDATED RESPONSIVE STYLES"
    =================================== */
-  
+  @media screen and (max-width: 425px) {
   /* About Hero Section */
   .about-hero {
     height: 200px;
@@ -8742,7 +8742,7 @@ input[type="number"]::-webkit-outer-spin-button {
     width: 280px;
   }
 
-
+}
 /* ===================================
    CONTACT PAGE MOBILE RESPONSIVE STYLES
    Add these to your existing media query section
@@ -11104,6 +11104,449 @@ input[type="number"]::-webkit-outer-spin-button {
     border: none;
   }
 }
+
+/* ===================================
+   CALENDAR PAGES MOBILE RESPONSIVE STYLES
+   (Tents & Chairs Calendar + Conference Room Calendar)
+   Add these to your existing media query section
+   =================================== */
+
+@media screen and (max-width: 425px) {
+  
+  /* Calendar Hero Section */
+  .calendar-hero {
+    height: 200px;
+  }
+
+  .calendar-hero-content h1 {
+    font-size: 28px;
+    line-height: 1.2;
+  }
+
+  .calendar-hero-content .highlight-yellow {
+    font-size: 28px;
+  }
+
+  .calendar-hero-content p {
+    font-size: 12px;
+    padding: 0 15px;
+  }
+
+  /* Calendar Container */
+  .calendar-container {
+    padding: 0 0 30px 0;
+    overflow-x: hidden; /* Prevent double scrollbar */
+  }
+
+  /* Calendar Top Bar - Reorganize for Mobile */
+  .calendar-top-bar {
+    display: flex;
+    flex-direction: column;
+    padding: 20px 15px;
+    gap: 15px;
+  }
+
+  /* Back Button Section */
+  .calendar-back-section {
+    width: 100%;
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .back-to-dashboard-btn {
+    width: fit-content;
+    padding: 10px 16px;
+    font-size: 0.75rem;
+  }
+
+  .back-arrow {
+    font-size: 1.1rem;
+  }
+
+  .back-text {
+    line-height: 1.2;
+  }
+
+  /* Legend - Stack Vertically on Mobile */
+  .legend-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .tents-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  .tents-legend-box {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+
+  .tents-legend-event {
+    width: 70px;
+    height: 28px;
+    font-size: 11px;
+  }
+
+  /* Month Navigation - Center Section */
+  .calendar-center-section {
+    width: 100%;
+    justify-content: center;
+    padding: 15px 0;
+    order: -1; /* Move to top on mobile */
+  }
+
+  .calendar-month-display {
+    font-size: 1.6rem;
+    min-width: auto;
+  }
+
+  .month-nav-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.8rem;
+  }
+
+  /* Right Section - Hide on Mobile */
+  .calendar-right-section {
+    display: none;
+  }
+
+  /* Calendar Grid Wrapper - Add horizontal scroll */
+  .calendar-grid {
+    width: 100%;
+    margin: 15px auto;
+    border-radius: 0;
+    overflow-x: auto; /* Enable horizontal scrolling */
+    overflow-y: visible;
+    display: block; /* Change from grid to block for scroll container */
+    padding: 0 10px;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
+
+  /* Scrollbar styling */
+  .calendar-grid::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .calendar-grid::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  .calendar-grid::-webkit-scrollbar-thumb {
+    background: #281ABC;
+    border-radius: 4px;
+  }
+
+  .calendar-grid::-webkit-scrollbar-thumb:hover {
+    background: #1a0e7a;
+  }
+
+  /* Inner calendar wrapper to maintain grid */
+  .calendar-grid > * {
+    display: inline-block;
+    vertical-align: top;
+  }
+
+  /* Create a minimum width container for the calendar */
+  #calendarDates {
+    display: grid;
+    grid-template-columns: repeat(7, 80px); /* Fixed width columns */
+    min-width: 560px; /* 7 columns × 80px */
+    border: 2px solid #000;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  /* Calendar Day Headers - Also need grid */
+  .calendar-grid {
+    position: relative;
+  }
+
+  /* Wrapper for day headers */
+  .calendar-grid::before {
+    content: '';
+    display: block;
+    width: 100%;
+    min-width: 560px;
+  }
+
+  /* Calendar Day Headers - Fixed to match date columns */
+  .calendar-day-header {
+    flex-direction: column;
+    width: 80px;
+    font-size: 11px;
+    padding: 10px 4px;
+    text-align: center;
+   
+    border-right: 1px solid black;
+    box-sizing: border-box;
+    
+  }
+
+  .calendar-day-header:last-child {
+    border-right: none;
+  }
+
+  /* Calendar Date Cells */
+  .calendar-date {
+    min-height: 90px;
+    width: 80px;
+    padding: 6px 4px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  /* Remove borders from edges */
+  .calendar-date:nth-child(7n) {
+    border-right: none;
+  }
+
+  /* Remove bottom border from last row */
+  .calendar-date:nth-last-child(-n+7) {
+    border-bottom: none;
+  }
+
+  .calendar-date .date-number {
+    font-size: 1rem;
+    margin-bottom: 3px;
+    font-weight: 700;
+  }
+
+  /* Booking Label */
+  .booking-label {
+    font-size: 0.7rem;
+    margin-top: 4px;
+    line-height: 1.1;
+    word-break: break-word;
+  }
+
+  /* Booking Preview */
+  .tents-booking-preview {
+    margin-top: 3px;
+    padding: 3px 4px;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  .tents-preview-purpose {
+    font-size: 9px;
+    margin-bottom: 1px;
+  }
+
+  .tents-preview-time {
+    font-size: 8px;
+  }
+
+  /* Calendar Events (Conference Room) */
+  .tents-calendar-event {
+    padding: 3px 4px;
+    margin-bottom: 2px;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  .tents-event-name {
+    font-size: 9px;
+  }
+
+  .tents-event-items {
+    font-size: 8px;
+  }
+
+  .tents-more-bookings {
+    font-size: 8px;
+    margin-top: 2px;
+    padding: 2px 3px;
+  }
+
+  /* Booking Indicator */
+  .tents-booking-indicator {
+    padding: 3px 4px;
+    font-size: 9px;
+    margin-top: 3px;
+  }
+
+  /* Scroll indicator hint */
+  .calendar-container::after {
+    content: '← Swipe to see more dates →';
+    display: block;
+    text-align: center;
+    padding: 10px;
+    font-size: 12px;
+    color: #666;
+    font-family: 'Poppins', sans-serif;
+    font-style: italic;
+  }
+
+  /* Modal Overlay */
+  .tents-modal-overlay {
+    padding: 20px;
+  }
+
+  /* Modal */
+  .tents-modal {
+    width: 95%;
+    max-width: 380px;
+    max-height: 85vh;
+  }
+
+  .tents-modal-header {
+    padding: 16px 20px;
+  }
+
+  .tents-modal-header h3 {
+    font-size: 1.2rem;
+  }
+
+  .tents-modal-close {
+    font-size: 28px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .tents-modal-body {
+    padding: 20px;
+  }
+
+  /* Booking Items in Modal */
+  .tents-booking-item {
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+
+  .tents-booking-item-header {
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+  }
+
+  .tents-booking-name {
+    font-size: 15px;
+  }
+
+  .tents-booking-item-details {
+    font-size: 13px;
+    gap: 8px;
+  }
+
+  .tents-booking-detail-row {
+    gap: 8px;
+  }
+
+  .tents-booking-detail-row svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Status Badges in Modal */
+  .status-badge {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+
+  /* No Bookings Message */
+  .tents-no-bookings {
+    padding: 40px 15px;
+    font-size: 14px;
+  }
+
+  /* Form Modal (if used) */
+  .modal {
+    padding: 15px;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-width: 380px;
+    padding: 20px;
+  }
+
+  .modal-content h2 {
+    font-size: 1.3rem;
+    margin-bottom: 15px;
+  }
+
+  /* Form Rows in Modal */
+  .form-row {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .form-group {
+    width: 100%;
+  }
+
+  .form-group label {
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    font-size: 0.9rem;
+    padding: 10px 12px;
+  }
+
+  /* Time Inputs (Conference Room) */
+  .time-inputs {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .time-separator {
+    display: none;
+  }
+
+  .time-inputs select {
+    width: 100%;
+  }
+
+  /* Modal Buttons */
+  .modal-buttons {
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+  }
+
+  .close-modal,
+  .save-changes {
+    width: 100%;
+    padding: 11px 20px;
+    font-size: 0.9rem;
+  }
+
+  /* Toast Notifications */
+  #top-right-toast-container {
+    top: 10px !important;
+    right: 10px !important;
+    left: 10px !important;
+    width: auto !important;
+  }
+
+  .tr-toast {
+    font-size: 0.85rem;
+    padding: 10px 12px;
+  }
+}
+
 /* ============================================================================
    END OF CONSOLIDATED RESPONSIVE STYLES
    All media queries above this point are organized by breakpoint
