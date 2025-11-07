@@ -8,7 +8,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import { signInWithEmailAndPassword, getAuth, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 
-import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, orderBy, updateDoc ,onSnapshot, } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, orderBy, updateDoc, onSnapshot, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 // ====== Your Firebase config
 const firebaseConfig = {
@@ -1142,6 +1142,9 @@ document.addEventListener('DOMContentLoaded', function() {
   console.log('[UserProfile] Page initialized');
   console.log('[UserProfile] Logout button found:', !!logoutBtn);
 
+  // Initialize tab switching functionality
+  initializeProfileTabs();
+
   // Load user data after Firebase confirms auth state so auth.currentUser is available
   onAuthStateChanged(auth, (user) => {
     console.log('[UserProfile] Auth state changed. User:', user ? user.email : 'Not logged in');
@@ -1152,9 +1155,28 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     // User signed in -> populate profile and requests
-    console.log('[UserProfile] Loading user data and requests');
+    console.log('[UserProfile] ═══════════════════════════════════════════════════════════');
+    console.log('[UserProfile] 🚀 INITIALIZING USER PROFILE PAGE (STRATEGY 3)');
+    console.log('[UserProfile] User:', user.email);
+    console.log('[UserProfile] User ID:', user.uid);
+    console.log('[UserProfile] Timestamp:', new Date().toISOString());
+    console.log('[UserProfile] ═══════════════════════════════════════════════════════════');
+    
+    console.log('[UserProfile] Step 1/3: Loading user personal data...');
     loadUserData();
+    
+    console.log('[UserProfile] Step 2/3: Loading user requests (filtered view)...');
     loadUserRequests();
+    
+    console.log('[UserProfile] Step 3/3: Loading notifications from Firestore...');
+    loadNotifications();
+    
+    // Start auto-refresh for notification count
+    startNotificationRefresh();
+    
+    console.log('[UserProfile] ═══════════════════════════════════════════════════════════');
+    console.log('[UserProfile] ✓ ALL INITIALIZATION COMPLETE');
+    console.log('[UserProfile] ═══════════════════════════════════════════════════════════');
   });
 
   // Status Filter Event Listener
@@ -1869,10 +1891,1509 @@ function timeRangesOverlap(start1, end1, start2, end2) {
   return t1Start < t2End && t1End > t2Start;
 }
 
+/**
+ * ============================================
+ * NOTIFICATION SYSTEM - BELL BADGE & BANNERS
+ * ============================================
+ * Displays notification badge count and inline banners for upcoming bookings
+ * Created: November 7, 2025
+ */
+
+/**
+ * Load and display notification banners for upcoming events (within 3 days)
+ * Banners appear at the top of the user profile for immediate visibility
+ */
+async function loadNotificationBanners() {
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log('[NOTIFICATIONS - Banners] Starting to load notification banners...');
+  console.log('[NOTIFICATIONS - Banners] Timestamp:', new Date().toISOString());
+  
+  const user = auth.currentUser;
+  if (!user) {
+    console.warn('[NOTIFICATIONS - Banners] ⚠️ No authenticated user found, skipping banner load');
+    return;
+  }
+  console.log('[NOTIFICATIONS - Banners] ✓ User authenticated:', user.email);
+  console.log('[NOTIFICATIONS - Banners] User ID:', user.uid);
+
+  const bannersContainer = document.getElementById('notificationBanners');
+  if (!bannersContainer) {
+    console.error('[NOTIFICATIONS - Banners] ❌ Banner container element not found in DOM');
+    console.error('[NOTIFICATIONS - Banners] Expected element ID: "notificationBanners"');
+    return;
+  }
+  console.log('[NOTIFICATIONS - Banners] ✓ Banner container found in DOM');
+
+  try {
+    // Query approved and in-progress requests from both collections
+    console.log('[NOTIFICATIONS - Banners] 📊 Querying Firestore collections...');
+    
+    const tentsQuery = query(
+      collection(db, "tentsChairsBookings"),
+      where("userId", "==", user.uid),
+      where("status", "in", ["approved", "in-progress"])
+    );
+    
+    const conferenceQuery = query(
+      collection(db, "conferenceRoomBookings"),
+      where("userId", "==", user.uid),
+      where("status", "in", ["approved", "in-progress"])
+    );
+
+    const [tentsSnapshot, conferenceSnapshot] = await Promise.all([
+      getDocs(tentsQuery),
+      getDocs(conferenceQuery)
+    ]);
+
+    console.log('[NOTIFICATIONS - Banners] ✓ Firestore queries completed');
+    console.log('[NOTIFICATIONS - Banners]   - Tents & Chairs bookings found:', tentsSnapshot.size);
+    console.log('[NOTIFICATIONS - Banners]   - Conference Room bookings found:', conferenceSnapshot.size);
+
+    // Clear existing banners
+    bannersContainer.innerHTML = '';
+    console.log('[NOTIFICATIONS - Banners] ✓ Cleared existing banners from container');
+
+    // Calculate time thresholds
+    const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const threeDaysFromNow = new Date(today);
+    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+
+    console.log('[NOTIFICATIONS - Banners] 📅 Time thresholds calculated:');
+    console.log('[NOTIFICATIONS - Banners]   - Today:', today.toDateString());
+    console.log('[NOTIFICATIONS - Banners]   - Tomorrow:', tomorrow.toDateString());
+    console.log('[NOTIFICATIONS - Banners]   - 3 Days from now:', threeDaysFromNow.toDateString());
+
+    let bannerCount = 0;
+    let urgentCount = 0;
+
+    // Process tents & chairs bookings
+    console.log('[NOTIFICATIONS - Banners] 🎪 Processing Tents & Chairs bookings...');
+    tentsSnapshot.forEach((doc, index) => {
+      const data = doc.data();
+      const startDate = new Date(data.startDate + 'T00:00:00'); // Add time to avoid timezone issues
+      
+      console.log(`[NOTIFICATIONS - Banners]   Booking ${index + 1}/${tentsSnapshot.size}:`, doc.id);
+      console.log(`[NOTIFICATIONS - Banners]     - Start Date: ${data.startDate} (${startDate.toDateString()})`);
+      console.log(`[NOTIFICATIONS - Banners]     - Status: ${data.status}`);
+      
+      // Only show banners for events within next 3 days
+      if (startDate >= today && startDate <= threeDaysFromNow) {
+        const isToday = startDate.toDateString() === today.toDateString();
+        const isTomorrow = startDate.toDateString() === tomorrow.toDateString();
+        const isUrgent = isToday || isTomorrow;
+        
+        // Calculate days until event
+        const daysUntil = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+        let timeText;
+        if (isToday) {
+          timeText = 'today';
+        } else if (isTomorrow) {
+          timeText = 'tomorrow';
+        } else {
+          timeText = `in ${daysUntil} days`;
+        }
+        
+        console.log(`[NOTIFICATIONS - Banners]     ✓ Within 3-day window (${timeText})`);
+        console.log(`[NOTIFICATIONS - Banners]     - Urgency: ${isUrgent ? '🔴 URGENT' : '⚠️ Normal'}`);
+        
+        // Build message
+        const dateStr = formatDateToWords(data.startDate);
+        const items = [];
+        if (data.quantityChairs) items.push(`${data.quantityChairs} chairs`);
+        if (data.quantityTents) items.push(`${data.quantityTents} tents`);
+        const itemsText = items.length > 0 ? ` (${items.join(', ')})` : '';
+        const modeText = data.modeOfReceiving === 'Delivery' 
+          ? 'Delivery will be arranged.' 
+          : 'Items are ready for pick-up at the barangay office.';
+        
+        const message = `Your tents & chairs booking is <strong>${timeText}</strong> (${dateStr})${itemsText}. ${modeText}`;
+        
+        console.log(`[NOTIFICATIONS - Banners]     - Message: ${message.replace(/<\/?strong>/g, '')}`);
+        
+        const banner = createNotificationBanner({
+          id: doc.id,
+          type: 'tents-chairs',
+          icon: isUrgent ? '🔔' : '⏰',
+          message: message,
+          urgent: isUrgent,
+          requestData: { id: doc.id, type: 'tents-chairs', ...data }
+        });
+        
+        bannersContainer.appendChild(banner);
+        bannerCount++;
+        if (isUrgent) urgentCount++;
+        console.log(`[NOTIFICATIONS - Banners]     ✓ Banner created and added to container`);
+      } else {
+        console.log(`[NOTIFICATIONS - Banners]     ⊘ Outside 3-day window, skipping`);
+      }
+    });
+
+    // Process conference room bookings
+    console.log('[NOTIFICATIONS - Banners] 🏢 Processing Conference Room bookings...');
+    conferenceSnapshot.forEach((doc, index) => {
+      const data = doc.data();
+      const eventDate = new Date(data.eventDate + 'T00:00:00'); // Add time to avoid timezone issues
+      
+      console.log(`[NOTIFICATIONS - Banners]   Booking ${index + 1}/${conferenceSnapshot.size}:`, doc.id);
+      console.log(`[NOTIFICATIONS - Banners]     - Event Date: ${data.eventDate} (${eventDate.toDateString()})`);
+      console.log(`[NOTIFICATIONS - Banners]     - Status: ${data.status}`);
+      
+      // Only show banners for events within next 3 days
+      if (eventDate >= today && eventDate <= threeDaysFromNow) {
+        const isToday = eventDate.toDateString() === today.toDateString();
+        const isTomorrow = eventDate.toDateString() === tomorrow.toDateString();
+        const isUrgent = isToday || isTomorrow;
+        
+        // Calculate days until event
+        const daysUntil = Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24));
+        let timeText;
+        if (isToday) {
+          timeText = 'today';
+        } else if (isTomorrow) {
+          timeText = 'tomorrow';
+        } else {
+          timeText = `in ${daysUntil} days`;
+        }
+        
+        console.log(`[NOTIFICATIONS - Banners]     ✓ Within 3-day window (${timeText})`);
+        console.log(`[NOTIFICATIONS - Banners]     - Urgency: ${isUrgent ? '🔴 URGENT' : '⚠️ Normal'}`);
+        
+        // Build message
+        const dateStr = formatDateToWords(data.eventDate);
+        const timeStr = data.startTime && data.endTime 
+          ? ` at ${formatTime12Hour(data.startTime)}` 
+          : '';
+        const purposeText = data.purpose ? ` for ${data.purpose}` : '';
+        
+        const message = `Your conference room reservation is <strong>${timeText}</strong> (${dateStr}${timeStr})${purposeText}.`;
+        
+        console.log(`[NOTIFICATIONS - Banners]     - Message: ${message.replace(/<\/?strong>/g, '')}`);
+        
+        const banner = createNotificationBanner({
+          id: doc.id,
+          type: 'conference-room',
+          icon: isUrgent ? '🔔' : '📅',
+          message: message,
+          urgent: isUrgent,
+          requestData: { id: doc.id, type: 'conference-room', ...data }
+        });
+        
+        bannersContainer.appendChild(banner);
+        bannerCount++;
+        if (isUrgent) urgentCount++;
+        console.log(`[NOTIFICATIONS - Banners]     ✓ Banner created and added to container`);
+      } else {
+        console.log(`[NOTIFICATIONS - Banners]     ⊘ Outside 3-day window, skipping`);
+      }
+    });
+
+    console.log('[NOTIFICATIONS - Banners] ═══════════════════════════════════');
+    console.log('[NOTIFICATIONS - Banners] 📊 SUMMARY:');
+    console.log(`[NOTIFICATIONS - Banners]   - Total banners displayed: ${bannerCount}`);
+    console.log(`[NOTIFICATIONS - Banners]   - Urgent banners (today/tomorrow): ${urgentCount}`);
+    console.log(`[NOTIFICATIONS - Banners]   - Normal banners (2-3 days): ${bannerCount - urgentCount}`);
+    console.log('[NOTIFICATIONS - Banners] ✓ Banner loading completed successfully');
+    console.log('═══════════════════════════════════════════════════════════');
+
+  } catch (error) {
+    console.error('[NOTIFICATIONS - Banners] ═══════════════════════════════════');
+    console.error('[NOTIFICATIONS - Banners] ❌ ERROR loading notification banners');
+    console.error('[NOTIFICATIONS - Banners] Error type:', error.name);
+    console.error('[NOTIFICATIONS - Banners] Error message:', error.message);
+    console.error('[NOTIFICATIONS - Banners] Error code:', error.code);
+    console.error('[NOTIFICATIONS - Banners] Stack trace:', error.stack);
+    console.error('[NOTIFICATIONS - Banners] ═══════════════════════════════════');
+  }
+}
+
+/**
+ * Create a notification banner element
+ * @param {Object} config - Banner configuration
+ * @returns {HTMLElement} Banner element
+ */
+function createNotificationBanner({ id, type, icon, message, urgent, requestData }) {
+  console.log(`[NOTIFICATIONS - Banner Create] Creating banner for request: ${id}`);
+  console.log(`[NOTIFICATIONS - Banner Create]   - Type: ${type}`);
+  console.log(`[NOTIFICATIONS - Banner Create]   - Icon: ${icon}`);
+  console.log(`[NOTIFICATIONS - Banner Create]   - Urgent: ${urgent}`);
+  
+  const banner = document.createElement('div');
+  banner.className = `notification-banner${urgent ? ' urgent' : ''}`;
+  banner.setAttribute('data-notification-id', id);
+  banner.setAttribute('data-notification-type', type);
+
+  banner.innerHTML = `
+    <div class="notification-banner-icon">${icon}</div>
+    <div class="notification-banner-content">${message}</div>
+    <div class="notification-banner-actions">
+      <button class="banner-view-btn" data-request='${JSON.stringify(requestData).replace(/'/g, "&apos;")}'>View Details</button>
+      <button class="banner-dismiss-btn">Dismiss</button>
+    </div>
+  `;
+
+  // View button handler - opens request details modal
+  const viewBtn = banner.querySelector('.banner-view-btn');
+  viewBtn.addEventListener('click', (e) => {
+    console.log(`[NOTIFICATIONS - Banner Action] "View Details" clicked for: ${id}`);
+    try {
+      const requestDataStr = e.target.getAttribute('data-request');
+      const request = JSON.parse(requestDataStr.replace(/&apos;/g, "'"));
+      console.log(`[NOTIFICATIONS - Banner Action] Opening modal with request data:`, request);
+      showRequestDetailsModal(request);
+      console.log(`[NOTIFICATIONS - Banner Action] ✓ Modal opened successfully`);
+    } catch (error) {
+      console.error(`[NOTIFICATIONS - Banner Action] ❌ Error opening modal:`, error);
+      console.error(`[NOTIFICATIONS - Banner Action] Error details:`, error.message);
+      showToast('Failed to open request details', false);
+    }
+  });
+
+  // Dismiss button handler - removes banner with animation
+  const dismissBtn = banner.querySelector('.banner-dismiss-btn');
+  dismissBtn.addEventListener('click', () => {
+    console.log(`[NOTIFICATIONS - Banner Action] "Dismiss" clicked for: ${id}`);
+    console.log(`[NOTIFICATIONS - Banner Action] Starting slide-up animation...`);
+    banner.style.animation = 'slideUpBanner 0.3s ease-out';
+    setTimeout(() => {
+      banner.remove();
+      console.log(`[NOTIFICATIONS - Banner Action] ✓ Banner removed from DOM`);
+    }, 300);
+  });
+
+  console.log(`[NOTIFICATIONS - Banner Create] ✓ Banner element created successfully`);
+  return banner;
+}
+
+/**
+ * Update notification count badge in header
+ * Counts approved/in-progress requests with events within 3 days
+ */
+async function updateNotificationCount() {
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log('[NOTIFICATIONS - Badge] Starting to update notification count...');
+  console.log('[NOTIFICATIONS - Badge] Timestamp:', new Date().toISOString());
+  
+  const user = auth.currentUser;
+  if (!user) {
+    console.warn('[NOTIFICATIONS - Badge] ⚠️ No authenticated user found, skipping count update');
+    return;
+  }
+  console.log('[NOTIFICATIONS - Badge] ✓ User authenticated:', user.email);
+
+  const badge = document.getElementById('notificationBadge');
+  if (!badge) {
+    console.error('[NOTIFICATIONS - Badge] ❌ Badge element not found in DOM');
+    console.error('[NOTIFICATIONS - Badge] Expected element ID: "notificationBadge"');
+    return;
+  }
+  console.log('[NOTIFICATIONS - Badge] ✓ Badge element found in DOM');
+
+  try {
+    // Query approved and in-progress requests from both collections
+    console.log('[NOTIFICATIONS - Badge] 📊 Querying Firestore collections...');
+    
+    const tentsQuery = query(
+      collection(db, "tentsChairsBookings"),
+      where("userId", "==", user.uid),
+      where("status", "in", ["approved", "in-progress"])
+    );
+    
+    const conferenceQuery = query(
+      collection(db, "conferenceRoomBookings"),
+      where("userId", "==", user.uid),
+      where("status", "in", ["approved", "in-progress"])
+    );
+
+    const [tentsSnapshot, conferenceSnapshot] = await Promise.all([
+      getDocs(tentsQuery),
+      getDocs(conferenceQuery)
+    ]);
+
+    console.log('[NOTIFICATIONS - Badge] ✓ Firestore queries completed');
+    console.log('[NOTIFICATIONS - Badge]   - Tents & Chairs bookings found:', tentsSnapshot.size);
+    console.log('[NOTIFICATIONS - Badge]   - Conference Room bookings found:', conferenceSnapshot.size);
+
+    // Calculate time thresholds
+    const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    
+    const threeDaysFromNow = new Date(today);
+    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+
+    console.log('[NOTIFICATIONS - Badge] 📅 Counting events within 3-day window...');
+    console.log('[NOTIFICATIONS - Badge]   - From:', today.toDateString());
+    console.log('[NOTIFICATIONS - Badge]   - To:', threeDaysFromNow.toDateString());
+
+    let notificationCount = 0;
+
+    // Count tents bookings with upcoming events
+    tentsSnapshot.forEach((doc, index) => {
+      const data = doc.data();
+      const startDate = new Date(data.startDate + 'T00:00:00');
+      
+      if (startDate >= today && startDate <= threeDaysFromNow) {
+        notificationCount++;
+        console.log(`[NOTIFICATIONS - Badge]   ✓ Tents booking ${index + 1}: ${data.startDate} (counted)`);
+      } else {
+        console.log(`[NOTIFICATIONS - Badge]   ⊘ Tents booking ${index + 1}: ${data.startDate} (skipped)`);
+      }
+    });
+
+    // Count conference bookings with upcoming events
+    conferenceSnapshot.forEach((doc, index) => {
+      const data = doc.data();
+      const eventDate = new Date(data.eventDate + 'T00:00:00');
+      
+      if (eventDate >= today && eventDate <= threeDaysFromNow) {
+        notificationCount++;
+        console.log(`[NOTIFICATIONS - Badge]   ✓ Conference booking ${index + 1}: ${data.eventDate} (counted)`);
+      } else {
+        console.log(`[NOTIFICATIONS - Badge]   ⊘ Conference booking ${index + 1}: ${data.eventDate} (skipped)`);
+      }
+    });
+
+    // Update badge display
+    console.log('[NOTIFICATIONS - Badge] 🔄 Updating badge UI...');
+    badge.textContent = notificationCount;
+    
+    if (notificationCount > 0) {
+      badge.classList.add('active', 'pulse');
+      console.log(`[NOTIFICATIONS - Badge] ✓ Badge activated with count: ${notificationCount}`);
+      console.log(`[NOTIFICATIONS - Badge]   - Classes applied: active, pulse`);
+      console.log(`[NOTIFICATIONS - Badge]   - Badge is now VISIBLE and PULSING`);
+    } else {
+      badge.classList.remove('active', 'pulse');
+      console.log('[NOTIFICATIONS - Badge] ⊘ No upcoming events, badge hidden');
+      console.log('[NOTIFICATIONS - Badge]   - Classes removed: active, pulse');
+    }
+
+    console.log('[NOTIFICATIONS - Badge] ═══════════════════════════════════');
+    console.log('[NOTIFICATIONS - Badge] 📊 FINAL COUNT:', notificationCount);
+    console.log('[NOTIFICATIONS - Badge] ✓ Badge update completed successfully');
+    console.log('═══════════════════════════════════════════════════════════');
+
+  } catch (error) {
+    console.error('[NOTIFICATIONS - Badge] ═══════════════════════════════════');
+    console.error('[NOTIFICATIONS - Badge] ❌ ERROR updating notification count');
+    console.error('[NOTIFICATIONS - Badge] Error type:', error.name);
+    console.error('[NOTIFICATIONS - Badge] Error message:', error.message);
+    console.error('[NOTIFICATIONS - Badge] Error code:', error.code);
+    console.error('[NOTIFICATIONS - Badge] Stack trace:', error.stack);
+    console.error('[NOTIFICATIONS - Badge] ═══════════════════════════════════');
+  }
+}
+
+/**
+ * Start auto-refresh for notification count
+ * Refreshes every 5 minutes to keep count up-to-date
+ */
+let notificationCountInterval = null;
+
+function startNotificationCountRefresh() {
+  console.log('[NOTIFICATIONS - Auto-Refresh] ═══════════════════════════════════');
+  console.log('[NOTIFICATIONS - Auto-Refresh] Initializing auto-refresh system...');
+  
+  // Clear any existing interval to prevent duplicates
+  if (notificationCountInterval) {
+    clearInterval(notificationCountInterval);
+    console.log('[NOTIFICATIONS - Auto-Refresh] ⚠️ Cleared existing interval to prevent duplicates');
+  }
+  
+  // Update immediately on start
+  console.log('[NOTIFICATIONS - Auto-Refresh] 🔄 Running initial count update...');
+  updateNotificationCount();
+  
+  // Then update every 5 minutes (300,000 milliseconds)
+  const refreshInterval = 5 * 60 * 1000; // 5 minutes
+  notificationCountInterval = setInterval(() => {
+    console.log('[NOTIFICATIONS - Auto-Refresh] ⏰ Auto-refresh triggered (5 min elapsed)');
+    updateNotificationCount();
+  }, refreshInterval);
+  
+  console.log('[NOTIFICATIONS - Auto-Refresh] ✓ Auto-refresh enabled');
+  console.log('[NOTIFICATIONS - Auto-Refresh]   - Refresh interval: 5 minutes');
+  console.log('[NOTIFICATIONS - Auto-Refresh]   - Interval ID:', notificationCountInterval);
+  console.log('[NOTIFICATIONS - Auto-Refresh]   - Next refresh in: 5 minutes');
+  console.log('[NOTIFICATIONS - Auto-Refresh] ═══════════════════════════════════');
+}
+
+// Stop auto-refresh when leaving page (cleanup)
+window.addEventListener('beforeunload', () => {
+  if (notificationCountInterval) {
+    console.log('[NOTIFICATIONS - Auto-Refresh] 🛑 Page unloading, stopping auto-refresh...');
+    console.log('[NOTIFICATIONS - Auto-Refresh]   - Clearing interval ID:', notificationCountInterval);
+    clearInterval(notificationCountInterval);
+    notificationCountInterval = null;
+    console.log('[NOTIFICATIONS - Auto-Refresh] ✓ Auto-refresh stopped successfully');
+  }
+});
+
+// ========================================
+// STRATEGY 3: TAB NAVIGATION SYSTEM
+// ========================================
+
+/**
+ * Initialize profile tab navigation
+ */
+function initializeProfileTabs() {
+  console.log('[Tabs] ═══════════════════════════════════');
+  console.log('[Tabs] Initializing tab navigation system');
+  
+  const tabs = document.querySelectorAll('.profile-tab');
+  const panes = document.querySelectorAll('.tab-pane');
+  
+  if (!tabs.length || !panes.length) {
+    console.warn('[Tabs] ⚠️ Tab elements not found');
+    console.warn('[Tabs]   - Tabs found:', tabs.length);
+    console.warn('[Tabs]   - Panes found:', panes.length);
+    return;
+  }
+  
+  console.log(`[Tabs] Found ${tabs.length} tabs and ${panes.length} panes`);
+  
+  tabs.forEach(tab => {
+    tab.addEventListener('click', function() {
+      const targetTab = this.dataset.tab;
+      console.log(`[Tabs] 🖱️ Tab clicked: ${targetTab}`);
+      
+      // Remove active class from all tabs
+      tabs.forEach(t => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+      });
+      
+      // Remove active class from all panes
+      panes.forEach(p => p.classList.remove('active'));
+      
+      // Add active class to clicked tab
+      this.classList.add('active');
+      this.setAttribute('aria-selected', 'true');
+      
+      // Show corresponding pane
+      const targetPane = document.getElementById(`${targetTab}Tab`);
+      if (targetPane) {
+        targetPane.classList.add('active');
+        console.log(`[Tabs] ✓ Switched to ${targetTab} tab`);
+        
+        // If notifications tab, refresh the list
+        if (targetTab === 'notifications') {
+          console.log('[Tabs] 🔔 Notifications tab activated, refreshing list...');
+          loadNotifications();
+        }
+      } else {
+        console.error(`[Tabs] ❌ Pane not found: ${targetTab}Tab`);
+      }
+    });
+  });
+  
+  console.log('[Tabs] ✓ Tab navigation initialized');
+  console.log('[Tabs] ═══════════════════════════════════');
+}
+
+// ========================================
+// STRATEGY 3: NOTIFICATIONS MANAGEMENT
+// ========================================
+
+let currentNotificationFilter = 'all'; // 'all', 'unread', 'read'
+let allNotifications = []; // Cache of all notifications
+
+/**
+ * Load notifications from Firestore
+ */
+async function loadNotifications() {
+  console.log('[Notifications] ═══════════════════════════════════');
+  console.log('[Notifications] Loading notifications from Firestore...');
+  
+  const user = auth.currentUser;
+  if (!user) {
+    console.warn('[Notifications] ⚠️ No authenticated user');
+    return;
+  }
+  
+  const notificationsList = document.getElementById('notificationsList');
+  if (!notificationsList) {
+    console.warn('[Notifications] ⚠️ Notifications list element not found');
+    return;
+  }
+  
+  try {
+    // Query notifications for current user
+    const q = query(
+      collection(db, "notifications"),
+      where("userId", "==", user.uid),
+      orderBy("createdAt", "desc"),
+      limit(100) // Limit to last 100 notifications
+    );
+    
+    console.log('[Notifications] 🔍 Querying Firestore for user:', user.uid);
+    const querySnapshot = await getDocs(q);
+    console.log(`[Notifications] 📊 Found ${querySnapshot.size} notifications`);
+    
+    // Store all notifications
+    allNotifications = [];
+    querySnapshot.forEach(doc => {
+      allNotifications.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    console.log('[Notifications] 📋 Notification breakdown:');
+    const unreadCount = allNotifications.filter(n => !n.read).length;
+    const readCount = allNotifications.filter(n => n.read).length;
+    console.log(`[Notifications]   - Total: ${allNotifications.length}`);
+    console.log(`[Notifications]   - Unread: ${unreadCount}`);
+    console.log(`[Notifications]   - Read: ${readCount}`);
+    
+    // Update filter counts
+    updateNotificationCounts();
+    
+    // Render filtered notifications
+    renderNotifications();
+    
+    console.log('[Notifications] ✓ Notifications loaded successfully');
+    console.log('[Notifications] ═══════════════════════════════════');
+    
+  } catch (error) {
+    console.error('[Notifications] ❌ Error loading notifications:', error);
+    console.error('[Notifications]   - Error code:', error.code);
+    console.error('[Notifications]   - Error message:', error.message);
+    
+    notificationsList.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: #d32f2f;">
+        <p style="font-size: 1.2rem; margin-bottom: 8px;">⚠️ Error loading notifications</p>
+        <p style="font-size: 0.85rem; color: #999;">${error.message}</p>
+        <p style="font-size: 0.75rem; color: #bbb; margin-top: 12px;">
+          Note: Make sure the 'notifications' collection exists in Firestore<br>
+          and that you have proper read permissions.
+        </p>
+      </div>
+    `;
+  }
+}
+
+/**
+ * Update notification counts for filters
+ */
+function updateNotificationCounts() {
+  console.log('[Notifications] 📊 Updating filter counts...');
+  
+  const unreadCount = allNotifications.filter(n => !n.read).length;
+  const readCount = allNotifications.filter(n => n.read).length;
+  const totalCount = allNotifications.length;
+  
+  // Update filter count badges
+  const countAll = document.getElementById('countAll');
+  const countUnread = document.getElementById('countUnread');
+  const countRead = document.getElementById('countRead');
+  
+  if (countAll) countAll.textContent = totalCount;
+  if (countUnread) countUnread.textContent = unreadCount;
+  if (countRead) countRead.textContent = readCount;
+  
+  // Update tab badge
+  const tabBadge = document.getElementById('notifTabBadge');
+  if (tabBadge) {
+    tabBadge.textContent = unreadCount;
+    tabBadge.setAttribute('data-count', unreadCount);
+  }
+  
+  // Enable/disable "Mark All as Read" button
+  const markAllBtn = document.getElementById('markAllReadBtn');
+  if (markAllBtn) {
+    markAllBtn.disabled = unreadCount === 0;
+  }
+  
+  console.log(`[Notifications] Counts - Total: ${totalCount}, Unread: ${unreadCount}, Read: ${readCount}`);
+}
+
+/**
+ * Render notifications based on current filter
+ */
+function renderNotifications() {
+  console.log(`[Notifications] 🎨 Rendering notifications (filter: ${currentNotificationFilter})`);
+  
+  const notificationsList = document.getElementById('notificationsList');
+  if (!notificationsList) return;
+  
+  // Filter notifications
+  let filteredNotifications = allNotifications;
+  if (currentNotificationFilter === 'unread') {
+    filteredNotifications = allNotifications.filter(n => !n.read);
+  } else if (currentNotificationFilter === 'read') {
+    filteredNotifications = allNotifications.filter(n => n.read);
+  }
+  
+  console.log(`[Notifications] Displaying ${filteredNotifications.length} notifications`);
+  
+  // Clear list
+  notificationsList.innerHTML = '';
+  
+  // Show empty state if no notifications
+  if (filteredNotifications.length === 0) {
+    const emptyMessage = currentNotificationFilter === 'all' 
+      ? 'No notifications yet' 
+      : `No ${currentNotificationFilter} notifications`;
+    
+    notificationsList.innerHTML = `
+      <div style="text-align: center; padding: 60px 20px; color: #999;">
+        <div style="font-size: 3rem; margin-bottom: 16px;">🔔</div>
+        <p style="font-size: 1.1rem; font-weight: 500; margin-bottom: 8px;">${emptyMessage}</p>
+        <p style="font-size: 0.9rem; color: #bbb;">
+          ${currentNotificationFilter === 'all' 
+            ? 'Notifications about your bookings will appear here.' 
+            : `Switch to a different filter to see other notifications.`}
+        </p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Render each notification
+  filteredNotifications.forEach(notification => {
+    const notifElement = createNotificationElement(notification);
+    notificationsList.appendChild(notifElement);
+  });
+  
+  console.log('[Notifications] ✓ Notifications rendered');
+}
+
+/**
+ * Create notification element
+ */
+function createNotificationElement(notification) {
+  const div = document.createElement('div');
+  div.className = `notification-item ${notification.read ? 'read' : 'unread'}`;
+  div.dataset.id = notification.id;
+  
+  // Determine icon based on type
+  let icon = '🔔';
+  let iconClass = 'type-reminder';
+  
+  if (notification.type === 'booking_reminder') {
+    icon = '🔔';
+    iconClass = 'type-reminder';
+  } else if (notification.type === 'status_change') {
+    icon = '✅';
+    iconClass = 'type-status';
+  } else if (notification.type === 'admin_message') {
+    icon = '📢';
+    iconClass = 'type-message';
+  }
+  
+  // Format time ago
+  const timeAgo = formatTimeAgo(notification.createdAt);
+  
+  // Build type badge text
+  let typeBadgeText = 'Notification';
+  if (notification.requestType === 'tents-chairs') {
+    typeBadgeText = 'Tents & Chairs';
+  } else if (notification.requestType === 'conference-room') {
+    typeBadgeText = 'Conference Room';
+  }
+  
+  div.innerHTML = `
+    <div class="notification-icon ${iconClass}">${icon}</div>
+    <div class="notification-content">
+      <h3 class="notification-title">${sanitizeInput(notification.title)}</h3>
+      <p class="notification-message">${sanitizeInput(notification.message)}</p>
+      <div class="notification-meta">
+        ${notification.requestType ? `<span class="notification-type-badge">${typeBadgeText}</span>` : ''}
+        <span class="notification-time">🕒 ${timeAgo}</span>
+      </div>
+    </div>
+    <div class="notification-actions">
+      ${!notification.read ? `
+        <button class="notification-action-btn mark-read" data-action="mark-read">
+          Mark as Read
+        </button>
+      ` : ''}
+      ${notification.requestId ? `
+        <button class="notification-action-btn view-request" data-action="view-request" data-request-id="${notification.requestId}" data-request-type="${notification.requestType}">
+          View Request
+        </button>
+      ` : ''}
+      <button class="notification-action-btn delete" data-action="delete">
+        Delete
+      </button>
+    </div>
+  `;
+  
+  // Add event listeners
+  div.querySelectorAll('.notification-action-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      
+      console.log(`[Notifications] 🖱️ Action clicked: ${action} for notification ${notification.id}`);
+      
+      if (action === 'mark-read') {
+        await markNotificationAsRead(notification.id);
+      } else if (action === 'view-request') {
+        const requestId = btn.dataset.requestId;
+        const requestType = btn.dataset.requestType;
+        await viewRequestFromNotification(requestId, requestType);
+      } else if (action === 'delete') {
+        await deleteNotification(notification.id);
+      }
+    });
+  });
+  
+  // Click anywhere on notification to mark as read (if unread)
+  if (!notification.read) {
+    div.addEventListener('click', () => {
+      console.log(`[Notifications] 🖱️ Notification clicked: ${notification.id}`);
+      markNotificationAsRead(notification.id);
+    });
+  }
+  
+  return div;
+}
+
+/**
+ * Mark notification as read
+ */
+async function markNotificationAsRead(notificationId) {
+  console.log(`[Notifications] 📖 Marking notification as read: ${notificationId}`);
+  
+  try {
+    await updateDoc(doc(db, "notifications", notificationId), {
+      read: true
+    });
+    
+    console.log('[Notifications] ✓ Notification marked as read');
+    
+    // Reload notifications
+    await loadNotifications();
+    
+  } catch (error) {
+    console.error('[Notifications] ❌ Error marking as read:', error);
+    showToast('Error updating notification', false);
+  }
+}
+
+/**
+ * Mark all notifications as read
+ */
+async function markAllNotificationsAsRead() {
+  console.log('[Notifications] 📖 Marking all notifications as read...');
+  
+  const unreadNotifications = allNotifications.filter(n => !n.read);
+  
+  if (unreadNotifications.length === 0) {
+    console.log('[Notifications] No unread notifications to mark');
+    return;
+  }
+  
+  console.log(`[Notifications] Found ${unreadNotifications.length} unread notifications`);
+  
+  try {
+    // Update all unread notifications
+    const promises = unreadNotifications.map(n => 
+      updateDoc(doc(db, "notifications", n.id), { read: true })
+    );
+    
+    await Promise.all(promises);
+    
+    console.log(`[Notifications] ✓ Marked ${unreadNotifications.length} notifications as read`);
+    showToast('All notifications marked as read', true);
+    
+    // Reload notifications
+    await loadNotifications();
+    
+  } catch (error) {
+    console.error('[Notifications] ❌ Error marking all as read:', error);
+    showToast('Error updating notifications', false);
+  }
+}
+
+/**
+ * Delete notification
+ */
+async function deleteNotification(notificationId) {
+  console.log(`[Notifications] 🗑️ Deleting notification: ${notificationId}`);
+  
+  // Confirm deletion
+  const confirmed = confirm('Are you sure you want to delete this notification?');
+  if (!confirmed) {
+    console.log('[Notifications] Deletion cancelled by user');
+    return;
+  }
+  
+  try {
+    await deleteDoc(doc(db, "notifications", notificationId));
+    
+    console.log('[Notifications] ✓ Notification deleted');
+    showToast('Notification deleted', true);
+    
+    // Reload notifications
+    await loadNotifications();
+    
+  } catch (error) {
+    console.error('[Notifications] ❌ Error deleting notification:', error);
+    showToast('Error deleting notification', false);
+  }
+}
+
+/**
+ * View request from notification
+ */
+async function viewRequestFromNotification(requestId, requestType) {
+  console.log(`[Notifications] 👁️ Opening request: ${requestId} (${requestType})`);
+  
+  // Switch to Requests tab
+  const requestsTab = document.querySelector('.profile-tab[data-tab="requests"]');
+  if (requestsTab) {
+    requestsTab.click();
+    
+    // Wait for tab to switch, then find and click request card
+    setTimeout(() => {
+      const requestCard = document.querySelector(`.request-card[data-id="${requestId}"]`);
+      if (requestCard) {
+        requestCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        requestCard.click();
+        console.log('[Notifications] ✓ Request card opened');
+      } else {
+        console.warn('[Notifications] ⚠️ Request card not found');
+        showToast('Request not found in your list', false);
+      }
+    }, 300);
+  }
+}
+
+/**
+ * Filter notifications by read status
+ */
+function filterNotifications(filterType) {
+  console.log(`[Notifications] 🔍 Filtering by: ${filterType}`);
+  
+  currentNotificationFilter = filterType;
+  
+  // Update filter button states
+  document.querySelectorAll('.notif-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filterType);
+  });
+  
+  // Re-render notifications
+  renderNotifications();
+}
+
+/**
+ * Start notification count refresh (every 5 minutes)
+ */
+function startNotificationRefresh() {
+  console.log('[Notifications] ⏰ Starting auto-refresh (5 min interval)');
+  
+  // Refresh every 5 minutes
+  setInterval(async () => {
+    console.log('[Notifications] ⏰ Auto-refresh triggered');
+    await loadNotifications();
+  }, 5 * 60 * 1000);
+}
+
+/**
+ * Format timestamp to "time ago" string
+ */
+function formatTimeAgo(timestamp) {
+  if (!timestamp) return 'Just now';
+  
+  const now = new Date();
+  const past = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const diffMs = now - past;
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffSeconds < 60) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes} min ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  
+  return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// ========================================
+// NOTIFICATION FILTER EVENT LISTENERS
+// ========================================
+
+// Attach filter event listeners when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', attachNotificationEventListeners);
+} else {
+  attachNotificationEventListeners();
+}
+
+function attachNotificationEventListeners() {
+  console.log('[Notifications] 🎛️ Attaching event listeners...');
+  
+  // Filter buttons
+  const filterButtons = document.querySelectorAll('.notif-filter-btn');
+  if (filterButtons.length > 0) {
+    filterButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        const filterType = this.dataset.filter;
+        filterNotifications(filterType);
+      });
+    });
+    console.log(`[Notifications] ✓ Attached ${filterButtons.length} filter button listeners`);
+  }
+  
+  // Mark all as read button
+  const markAllBtn = document.getElementById('markAllReadBtn');
+  if (markAllBtn) {
+    markAllBtn.addEventListener('click', markAllNotificationsAsRead);
+    console.log('[Notifications] ✓ Attached mark all as read listener');
+  }
+}
+
+// ========================================
+// AUTOMATED NOTIFICATION CREATION SYSTEM
+// ========================================
+
+/**
+ * Create notification in Firestore
+ * Called by admin actions or automated triggers
+ */
+async function createNotification(notificationData) {
+  console.log('┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓');
+  console.log('┃  💾 [FIRESTORE] createNotification() - BASE FUNCTION   ┃');
+  console.log('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛');
+  console.log('📊 Input Data:');
+  console.log('   - User ID:', notificationData.userId);
+  console.log('   - Type:', notificationData.type);
+  console.log('   - Title:', notificationData.title);
+  console.log('   - Message Length:', (notificationData.message || '').length, 'chars');
+  console.log('   - Request ID:', notificationData.requestId || 'N/A');
+  console.log('   - Request Type:', notificationData.requestType || 'N/A');
+  console.log('   - Metadata:', JSON.stringify(notificationData.metadata || {}));
+  
+  try {
+    console.log('🔍 Validating required fields...');
+    // Validate required fields
+    if (!notificationData.userId || !notificationData.type || !notificationData.title || !notificationData.message) {
+      const missing = [];
+      if (!notificationData.userId) missing.push('userId');
+      if (!notificationData.type) missing.push('type');
+      if (!notificationData.title) missing.push('title');
+      if (!notificationData.message) missing.push('message');
+      
+      console.error('❌ Validation FAILED! Missing fields:', missing.join(', '));
+      throw new Error(`Missing required notification fields: ${missing.join(', ')}`);
+    }
+    console.log('✅ Validation passed!');
+    
+    console.log('🚀 Saving to Firestore collection: "notifications"...');
+    console.log('   Writing document with fields:');
+    console.log('   - userId:', notificationData.userId);
+    console.log('   - type:', notificationData.type);
+    console.log('   - title:', notificationData.title);
+    console.log('   - read: false (default)');
+    console.log('   - createdAt: serverTimestamp()');
+    
+    // Create notification document
+    const notificationRef = await addDoc(collection(db, "notifications"), {
+      userId: notificationData.userId,
+      type: notificationData.type,
+      requestId: notificationData.requestId || null,
+      requestType: notificationData.requestType || null,
+      title: notificationData.title,
+      message: notificationData.message,
+      read: false,
+      createdAt: serverTimestamp(),
+      actionUrl: notificationData.actionUrl || null,
+      metadata: notificationData.metadata || {}
+    });
+    
+    console.log('┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓');
+    console.log('┃  ✅ SUCCESS! Notification saved to Firestore           ┃');
+    console.log('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛');
+    console.log('📝 Document ID:', notificationRef.id);
+    console.log('📍 Path: notifications/' + notificationRef.id);
+    console.log('👤 User will see this notification when they open UserProfile');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    
+    return notificationRef.id;
+    
+  } catch (error) {
+    console.error('┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓');
+    console.error('┃  ❌ FAILED! Error saving to Firestore                 ┃');
+    console.error('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛');
+    console.error('🔴 Error Type:', error.name);
+    console.error('🔴 Error Message:', error.message);
+    console.error('🔴 Error Code:', error.code || 'N/A');
+    console.error('🔴 Full Stack:', error.stack);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    throw error;
+  }
+}
+
+/**
+ * SCENARIO 1: Request Status Changed (Admin Action)
+ * Creates notification when admin approves/rejects a request
+ */
+async function createStatusChangeNotification(requestId, requestType, userId, oldStatus, newStatus, requestData) {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📢 [NOTIFICATION CREATOR] createStatusChangeNotification()');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📋 Request ID:', requestId);
+  console.log('📦 Request Type:', requestType);
+  console.log('👤 User ID:', userId);
+  console.log('🔄 Status Change:', `${oldStatus} → ${newStatus}`);
+  console.log('📊 Request Data Keys:', Object.keys(requestData || {}).join(', '));
+  
+  let title = '';
+  let message = '';
+  let icon = '';
+  
+  if (newStatus === 'approved') {
+    icon = '✅';
+    title = 'Request Approved';
+    console.log('✅ Building APPROVAL notification...');
+    
+    if (requestType === 'tents-chairs') {
+      const eventDate = requestData.startDate || 'your scheduled date';
+      const deliveryMode = requestData.modeOfReceiving || 'Pick-up';
+      message = `Great news! Your tents & chairs booking request for ${formatDateToWords(eventDate)} has been approved by the admin. ` +
+                `${deliveryMode === 'Delivery' ? 'The items will be delivered to your address.' : 'You can pick up the items at the barangay office.'}`;
+      console.log('   Type: Tents & Chairs');
+      console.log('   Event Date:', eventDate);
+      console.log('   Delivery Mode:', deliveryMode);
+    } else {
+      const eventDate = requestData.eventDate || 'your scheduled date';
+      const timeRange = requestData.startTime && requestData.endTime 
+        ? ` (${formatTime12Hour(requestData.startTime)} - ${formatTime12Hour(requestData.endTime)})`
+        : '';
+      message = `Great news! Your conference room booking for ${formatDateToWords(eventDate)}${timeRange} has been approved by the admin. Please arrive on time for your reservation.`;
+      console.log('   Type: Conference Room');
+      console.log('   Event Date:', eventDate);
+      console.log('   Time Range:', timeRange || 'Not specified');
+    }
+    
+  } else if (newStatus === 'rejected') {
+    icon = '❌';
+    title = 'Request Rejected';
+    console.log('❌ Building REJECTION notification...');
+    
+    const reason = requestData.rejectionReason || 'administrative reasons';
+    message = `We regret to inform you that your ${requestType === 'tents-chairs' ? 'tents & chairs' : 'conference room'} booking request has been rejected. Reason: ${reason}. You may submit a new request or contact the admin for more information.`;
+    console.log('   Reason:', reason);
+    
+  } else if (newStatus === 'in-progress') {
+    icon = '🔄';
+    title = 'Booking In Progress';
+    console.log('🔄 Building IN-PROGRESS notification...');
+    
+    if (requestType === 'tents-chairs') {
+      message = `Your tents & chairs booking is now in progress! The event is happening today. Make sure to take care of the borrowed items and return them on time.`;
+    } else {
+      const endTime = requestData.endTime ? formatTime12Hour(requestData.endTime) : 'the scheduled time';
+      message = `Your conference room reservation is now in progress! The room is ready for your use. Please remember to vacate by ${endTime}.`;
+    }
+    
+  } else if (newStatus === 'completed') {
+    icon = '🏁';
+    title = 'Booking Completed';
+    console.log('🏁 Building COMPLETION notification...');
+    
+    message = `Your ${requestType === 'tents-chairs' ? 'tents & chairs' : 'conference room'} booking has been marked as completed. Thank you for using our services! We hope your event was successful.`;
+  }
+  
+  console.log('📝 Notification Title:', `${icon} ${title}`);
+  console.log('📝 Message Length:', message.length, 'chars');
+  console.log('🚀 Calling createNotification() to save to Firestore...');
+  
+  try {
+    await createNotification({
+      userId: userId,
+      type: 'status_change',
+      requestId: requestId,
+      requestType: requestType,
+      title: `${icon} ${title}`,
+      message: message,
+      metadata: {
+        oldStatus: oldStatus,
+        newStatus: newStatus,
+        eventDate: requestData.startDate || requestData.eventDate,
+        changedAt: new Date().toISOString()
+      }
+    });
+    
+    console.log('✅ [NOTIFICATION CREATOR] SUCCESS! Notification saved to Firestore.');
+    console.log('   Collection: notifications');
+    console.log('   User ID:', userId);
+    console.log('   Type: status_change');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    
+  } catch (error) {
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('❌ [NOTIFICATION CREATOR] FAILED to save notification!');
+    console.error('Error:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Full error:', error);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    throw error;
+  }
+}
+
+/**
+ * SCENARIO 2: Event is Tomorrow (Reminder)
+ * Creates notification 1 day before the event
+ */
+async function createTomorrowReminderNotification(requestId, requestType, userId, requestData) {
+  console.log('[Tomorrow Reminder] ═══════════════════════════════════');
+  console.log('[Tomorrow Reminder] Request ID:', requestId);
+  console.log('[Tomorrow Reminder] Event date:', requestData.startDate || requestData.eventDate);
+  
+  let message = '';
+  
+  if (requestType === 'tents-chairs') {
+    const eventDate = formatDateToWords(requestData.startDate);
+    const deliveryMode = requestData.modeOfReceiving || 'Pick-up';
+    const items = [];
+    if (requestData.quantityChairs) items.push(`${requestData.quantityChairs} chairs`);
+    if (requestData.quantityTents) items.push(`${requestData.quantityTents} tents`);
+    
+    message = `🔔 Reminder: Your tents & chairs booking is tomorrow (${eventDate}). ` +
+              `Items: ${items.join(', ')}. ` +
+              `${deliveryMode === 'Delivery' ? 'Delivery will be made to your address. Please ensure someone is available to receive the items.' : 'Please pick up the items at the barangay office during office hours.'}`;
+  } else {
+    const eventDate = formatDateToWords(requestData.eventDate);
+    const timeRange = requestData.startTime && requestData.endTime 
+      ? `${formatTime12Hour(requestData.startTime)} - ${formatTime12Hour(requestData.endTime)}`
+      : 'your scheduled time';
+    
+    message = `🔔 Reminder: Your conference room reservation is tomorrow (${eventDate}) at ${timeRange}. Please arrive on time and bring any necessary materials for your meeting.`;
+  }
+  
+  try {
+    await createNotification({
+      userId: userId,
+      type: 'booking_reminder',
+      requestId: requestId,
+      requestType: requestType,
+      title: '🔔 Tomorrow: Event Reminder',
+      message: message,
+      metadata: {
+        eventDate: requestData.startDate || requestData.eventDate,
+        reminderType: 'tomorrow',
+        daysUntil: 1
+      }
+    });
+    
+    console.log('[Tomorrow Reminder] ✓ Reminder notification created');
+    console.log('[Tomorrow Reminder] ═══════════════════════════════════');
+    
+  } catch (error) {
+    console.error('[Tomorrow Reminder] ❌ Failed to create reminder:', error);
+  }
+}
+
+/**
+ * SCENARIO 3: Event is Today (In Progress)
+ * Creates notification on the day of the event
+ */
+async function createTodayEventNotification(requestId, requestType, userId, requestData) {
+  console.log('[Today Event] ═══════════════════════════════════');
+  console.log('[Today Event] Request ID:', requestId);
+  console.log('[Today Event] Event is TODAY');
+  
+  let message = '';
+  
+  if (requestType === 'tents-chairs') {
+    const deliveryMode = requestData.modeOfReceiving || 'Pick-up';
+    const items = [];
+    if (requestData.quantityChairs) items.push(`${requestData.quantityChairs} chairs`);
+    if (requestData.quantityTents) items.push(`${requestData.quantityTents} tents`);
+    
+    message = `🎉 Today is your event day! Your booking is now in progress. ` +
+              `${deliveryMode === 'Delivery' ? 'The items should arrive at your location shortly.' : 'Please collect your items from the barangay office.'} ` +
+              `Items: ${items.join(', ')}. Have a great event!`;
+  } else {
+    const timeRange = requestData.startTime && requestData.endTime 
+      ? `${formatTime12Hour(requestData.startTime)} - ${formatTime12Hour(requestData.endTime)}`
+      : 'your scheduled time';
+    
+    message = `🎉 Today is your conference room reservation! Your booking is now in progress. ` +
+              `Time: ${timeRange}. The room is ready for your use. Please ensure to clean up and vacate on time.`;
+  }
+  
+  try {
+    await createNotification({
+      userId: userId,
+      type: 'booking_reminder',
+      requestId: requestId,
+      requestType: requestType,
+      title: '🎉 Today: Your Event is Happening Now!',
+      message: message,
+      metadata: {
+        eventDate: requestData.startDate || requestData.eventDate,
+        reminderType: 'today',
+        isToday: true
+      }
+    });
+    
+    console.log('[Today Event] ✓ Today event notification created');
+    console.log('[Today Event] ═══════════════════════════════════');
+    
+  } catch (error) {
+    console.error('[Today Event] ❌ Failed to create today notification:', error);
+  }
+}
+
+/**
+ * SCENARIO 4: Event Ending Soon (Return Reminder)
+ * Creates notification when event is about to end
+ */
+async function createEndingSoonNotification(requestId, requestType, userId, requestData) {
+  console.log('[Ending Soon] ═══════════════════════════════════');
+  console.log('[Ending Soon] Request ID:', requestId);
+  console.log('[Ending Soon] Event ending soon');
+  
+  let message = '';
+  
+  if (requestType === 'tents-chairs') {
+    const endDate = formatDateToWords(requestData.endDate);
+    const deliveryMode = requestData.modeOfReceiving || 'Pick-up';
+    
+    message = `⏰ Reminder: Your tents & chairs booking ends on ${endDate}. ` +
+              `${deliveryMode === 'Delivery' ? 'Please prepare the items for pick-up. Ensure they are clean and in good condition.' : 'Please return the items to the barangay office by end of day.'} ` +
+              `Thank you for taking care of the equipment!`;
+  } else {
+    const endTime = requestData.endTime ? formatTime12Hour(requestData.endTime) : 'your scheduled time';
+    
+    message = `⏰ Reminder: Your conference room reservation ends at ${endTime}. ` +
+              `Please prepare to vacate the room. Ensure all equipment is turned off and the room is clean. ` +
+              `Thank you for using our facilities!`;
+  }
+  
+  try {
+    await createNotification({
+      userId: userId,
+      type: 'booking_reminder',
+      requestId: requestId,
+      requestType: requestType,
+      title: '⏰ Ending Soon: Prepare to Return/Vacate',
+      message: message,
+      metadata: {
+        eventDate: requestData.endDate || requestData.eventDate,
+        reminderType: 'ending_soon',
+        endingToday: true
+      }
+    });
+    
+    console.log('[Ending Soon] ✓ Ending soon notification created');
+    console.log('[Ending Soon] ═══════════════════════════════════');
+    
+  } catch (error) {
+    console.error('[Ending Soon] ❌ Failed to create ending reminder:', error);
+  }
+}
+
+/**
+ * SCENARIO 5: 3-Day Advance Reminder
+ * Creates notification 3 days before the event
+ */
+async function create3DayReminderNotification(requestId, requestType, userId, requestData) {
+  console.log('[3-Day Reminder] ═══════════════════════════════════');
+  console.log('[3-Day Reminder] Request ID:', requestId);
+  console.log('[3-Day Reminder] Event in 3 days');
+  
+  let message = '';
+  
+  if (requestType === 'tents-chairs') {
+    const eventDate = formatDateToWords(requestData.startDate);
+    message = `📅 Your tents & chairs booking is coming up in 3 days (${eventDate}). Please finalize your event preparations and ensure contact information is up-to-date.`;
+  } else {
+    const eventDate = formatDateToWords(requestData.eventDate);
+    const timeRange = requestData.startTime && requestData.endTime 
+      ? ` at ${formatTime12Hour(requestData.startTime)}`
+      : '';
+    message = `📅 Your conference room reservation is coming up in 3 days (${eventDate}${timeRange}). Please prepare your agenda and materials in advance.`;
+  }
+  
+  try {
+    await createNotification({
+      userId: userId,
+      type: 'booking_reminder',
+      requestId: requestId,
+      requestType: requestType,
+      title: '📅 3-Day Reminder: Event Coming Up',
+      message: message,
+      metadata: {
+        eventDate: requestData.startDate || requestData.eventDate,
+        reminderType: '3_days',
+        daysUntil: 3
+      }
+    });
+    
+    console.log('[3-Day Reminder] ✓ 3-day reminder created');
+    console.log('[3-Day Reminder] ═══════════════════════════════════');
+    
+  } catch (error) {
+    console.error('[3-Day Reminder] ❌ Failed to create 3-day reminder:', error);
+  }
+}
+
+/**
+ * Check and create automated reminders for upcoming/ongoing events
+ * This should be called periodically (e.g., daily via Cloud Functions or on page load)
+ */
+async function checkAndCreateAutomatedReminders() {
+  console.log('[Auto Reminders] ═══════════════════════════════════════════════════');
+  console.log('[Auto Reminders] Checking for events that need reminders...');
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  const in3Days = new Date(today);
+  in3Days.setDate(in3Days.getDate() + 3);
+  
+  console.log('[Auto Reminders] Today:', today.toISOString().split('T')[0]);
+  console.log('[Auto Reminders] Tomorrow:', tomorrow.toISOString().split('T')[0]);
+  console.log('[Auto Reminders] In 3 days:', in3Days.toISOString().split('T')[0]);
+  
+  try {
+    // Check tents & chairs bookings
+    const tentsQuery = query(
+      collection(db, "tentsChairsBookings"),
+      where("status", "in", ["approved", "in-progress"])
+    );
+    
+    const tentsSnapshot = await getDocs(tentsQuery);
+    console.log(`[Auto Reminders] Found ${tentsSnapshot.size} active tents bookings`);
+    
+    for (const docSnapshot of tentsSnapshot.docs) {
+      const request = { id: docSnapshot.id, ...docSnapshot.data() };
+      const startDate = new Date(request.startDate + 'T00:00:00');
+      const endDate = request.endDate ? new Date(request.endDate + 'T00:00:00') : startDate;
+      
+      // Check if we already sent this reminder
+      const existingReminderQuery = query(
+        collection(db, "notifications"),
+        where("userId", "==", request.userId),
+        where("requestId", "==", request.id),
+        where("metadata.reminderType", "in", ["3_days", "tomorrow", "today", "ending_soon"])
+      );
+      
+      const existingReminders = await getDocs(existingReminderQuery);
+      const sentReminderTypes = new Set(existingReminders.docs.map(d => d.data().metadata?.reminderType));
+      
+      // 3-day reminder
+      if (startDate.getTime() === in3Days.getTime() && !sentReminderTypes.has('3_days')) {
+        console.log(`[Auto Reminders] 📅 Creating 3-day reminder for ${request.id}`);
+        await create3DayReminderNotification(request.id, 'tents-chairs', request.userId, request);
+      }
+      
+      // Tomorrow reminder
+      if (startDate.getTime() === tomorrow.getTime() && !sentReminderTypes.has('tomorrow')) {
+        console.log(`[Auto Reminders] 🔔 Creating tomorrow reminder for ${request.id}`);
+        await createTomorrowReminderNotification(request.id, 'tents-chairs', request.userId, request);
+      }
+      
+      // Today notification
+      if (startDate.getTime() === today.getTime() && !sentReminderTypes.has('today')) {
+        console.log(`[Auto Reminders] 🎉 Creating today notification for ${request.id}`);
+        await createTodayEventNotification(request.id, 'tents-chairs', request.userId, request);
+      }
+      
+      // Ending soon (on end date)
+      if (endDate.getTime() === today.getTime() && !sentReminderTypes.has('ending_soon')) {
+        console.log(`[Auto Reminders] ⏰ Creating ending soon reminder for ${request.id}`);
+        await createEndingSoonNotification(request.id, 'tents-chairs', request.userId, request);
+      }
+    }
+    
+    // Check conference room bookings
+    const conferenceQuery = query(
+      collection(db, "conferenceRoomBookings"),
+      where("status", "in", ["approved", "in-progress"])
+    );
+    
+    const conferenceSnapshot = await getDocs(conferenceQuery);
+    console.log(`[Auto Reminders] Found ${conferenceSnapshot.size} active conference bookings`);
+    
+    for (const docSnapshot of conferenceSnapshot.docs) {
+      const request = { id: docSnapshot.id, ...docSnapshot.data() };
+      const eventDate = new Date(request.eventDate + 'T00:00:00');
+      
+      // Check existing reminders
+      const existingReminderQuery = query(
+        collection(db, "notifications"),
+        where("userId", "==", request.userId),
+        where("requestId", "==", request.id),
+        where("metadata.reminderType", "in", ["3_days", "tomorrow", "today", "ending_soon"])
+      );
+      
+      const existingReminders = await getDocs(existingReminderQuery);
+      const sentReminderTypes = new Set(existingReminders.docs.map(d => d.data().metadata?.reminderType));
+      
+      // 3-day reminder
+      if (eventDate.getTime() === in3Days.getTime() && !sentReminderTypes.has('3_days')) {
+        console.log(`[Auto Reminders] 📅 Creating 3-day reminder for ${request.id}`);
+        await create3DayReminderNotification(request.id, 'conference-room', request.userId, request);
+      }
+      
+      // Tomorrow reminder
+      if (eventDate.getTime() === tomorrow.getTime() && !sentReminderTypes.has('tomorrow')) {
+        console.log(`[Auto Reminders] 🔔 Creating tomorrow reminder for ${request.id}`);
+        await createTomorrowReminderNotification(request.id, 'conference-room', request.userId, request);
+      }
+      
+      // Today notification
+      if (eventDate.getTime() === today.getTime() && !sentReminderTypes.has('today')) {
+        console.log(`[Auto Reminders] 🎉 Creating today notification for ${request.id}`);
+        await createTodayEventNotification(request.id, 'conference-room', request.userId, request);
+      }
+      
+      // Ending soon notification (same day, near end time)
+      if (eventDate.getTime() === today.getTime() && !sentReminderTypes.has('ending_soon')) {
+        console.log(`[Auto Reminders] ⏰ Creating ending soon reminder for ${request.id}`);
+        await createEndingSoonNotification(request.id, 'conference-room', request.userId, request);
+      }
+    }
+    
+    console.log('[Auto Reminders] ✓ Automated reminder check completed');
+    console.log('[Auto Reminders] ═══════════════════════════════════════════════════');
+    
+  } catch (error) {
+    console.error('[Auto Reminders] ❌ Error checking for reminders:', error);
+  }
+}
+
+// Run automated reminders check on UserProfile page load
+if (window.location.pathname.endsWith('UserProfile.html')) {
+  // Check for automated reminders when page loads
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      // Wait a bit for page to fully load, then check
+      setTimeout(() => {
+        console.log('[UserProfile] Running automated reminder check...');
+        checkAndCreateAutomatedReminders();
+      }, 2000);
+    }
+  });
+}
+
 // Helper function to create a request card
 function createRequestCard(request) {
   const card = document.createElement('div');
   card.className = 'request-card';
+  
+  // Add data-id attribute for "View Request" functionality
+  if (request.id) {
+    card.dataset.id = request.id;
+  }
 
   // Determine status badge class
   const statusClass = `status-${request.status?.toLowerCase().replace(/\s+/g, '-') || 'pending'}`;
@@ -7531,6 +9052,42 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       });
 
       console.log('✅ Request approved successfully');
+      
+      // ✅ CREATE NOTIFICATION FOR USER
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔔 [ADMIN → USER NOTIFICATION] Tents/Chairs APPROVAL');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('📋 Request ID:', requestId);
+      console.log('👤 User ID:', request.userId);
+      console.log('📧 User Email:', request.userEmail || 'N/A');
+      console.log('👥 User Name:', request.fullName || 'N/A');
+      console.log('📅 Event Date:', request.startDate, '-', request.endDate);
+      console.log('🪑 Chairs:', request.quantityChairs || 0);
+      console.log('⛺ Tents:', request.quantityTents || 0);
+      console.log('📍 Delivery Mode:', request.modeOfReceiving || 'N/A');
+      console.log('🔄 Status Change: pending → approved');
+      console.log('⏰ Timestamp:', new Date().toISOString());
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      try {
+        console.log('🚀 Calling createStatusChangeNotification()...');
+        await createStatusChangeNotification(
+          requestId,                    // Request ID
+          'tents-chairs',              // Request type
+          request.userId,              // User ID to notify
+          'pending',                   // Old status
+          'approved',                  // New status
+          request                      // Full request data
+        );
+        console.log('✅ [ADMIN → USER NOTIFICATION] SUCCESS! Notification created.');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      } catch (notifError) {
+        console.error('❌ [ADMIN → USER NOTIFICATION] FAILED!');
+        console.error('Error details:', notifError);
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+        // Don't block approval if notification fails
+      }
+      
       showToast('Request approved successfully', true);
       
       // Reload data
@@ -7562,6 +9119,13 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     const reason = typeof reasonInput === 'string' ? reasonInput : '';
 
     try {
+      // Get request data first for notification
+      const request = allRequests.find(r => r.id === requestId);
+      if (!request) {
+        showToast('Request not found', false);
+        return;
+      }
+
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await updateDoc(requestRef, {
         status: 'rejected',
@@ -7570,6 +9134,40 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       });
 
       console.log('✅ Request rejected successfully');
+      
+      // ✅ CREATE NOTIFICATION FOR USER
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔔 [ADMIN → USER NOTIFICATION] Tents/Chairs REJECTION');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('📋 Request ID:', requestId);
+      console.log('👤 User ID:', request.userId);
+      console.log('📧 User Email:', request.userEmail || 'N/A');
+      console.log('👥 User Name:', request.fullName || 'N/A');
+      console.log('📅 Event Date:', request.startDate, '-', request.endDate);
+      console.log('❌ Rejection Reason:', reason || 'No reason provided');
+      console.log('🔄 Status Change: pending → rejected');
+      console.log('⏰ Timestamp:', new Date().toISOString());
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      try {
+        console.log('🚀 Calling createStatusChangeNotification()...');
+        await createStatusChangeNotification(
+          requestId,
+          'tents-chairs',
+          request.userId,
+          'pending',
+          'rejected',
+          { ...request, rejectionReason: reason || 'No reason provided' }  // Include rejection reason
+        );
+        console.log('✅ [ADMIN → USER NOTIFICATION] SUCCESS! Notification created.');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      } catch (notifError) {
+        console.error('❌ [ADMIN → USER NOTIFICATION] FAILED!');
+        console.error('Error details:', notifError);
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+        // Don't block rejection if notification fails
+      }
+      
       showToast('Request rejected', true);
       
       // Reload data
@@ -7596,6 +9194,13 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     }
 
     try {
+      // Get request data first for notification
+      const request = allRequests.find(r => r.id === requestId);
+      if (!request) {
+        showToast('Request not found', false);
+        return;
+      }
+
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await updateDoc(requestRef, {
         status: 'completed',
@@ -7603,6 +9208,41 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       });
 
       console.log('✅ Request completed successfully');
+      
+      // ✅ CREATE NOTIFICATION FOR USER
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔔 [ADMIN → USER NOTIFICATION] Tents/Chairs COMPLETION');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('📋 Request ID:', requestId);
+      console.log('👤 User ID:', request.userId);
+      console.log('📧 User Email:', request.userEmail || 'N/A');
+      console.log('👥 User Name:', request.fullName || 'N/A');
+      console.log('📅 Event Date:', request.startDate, '-', request.endDate);
+      console.log('🪑 Chairs:', request.quantityChairs || 0);
+      console.log('⛺ Tents:', request.quantityTents || 0);
+      console.log('🔄 Status Change:', request.status || 'in-progress', '→ completed');
+      console.log('⏰ Timestamp:', new Date().toISOString());
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      try {
+        console.log('🚀 Calling createStatusChangeNotification()...');
+        await createStatusChangeNotification(
+          requestId,
+          'tents-chairs',
+          request.userId,
+          request.status || 'in-progress',  // Old status
+          'completed',                       // New status
+          request
+        );
+        console.log('✅ [ADMIN → USER NOTIFICATION] SUCCESS! Notification created.');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      } catch (notifError) {
+        console.error('❌ [ADMIN → USER NOTIFICATION] FAILED!');
+        console.error('Error details:', notifError);
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+        // Don't block completion if notification fails
+      }
+      
       showToast('Request marked as completed', true);
       
       // Reload data
@@ -10261,6 +11901,41 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       });
 
       console.log('✅ [Admin Approve] Request approved successfully!');
+      
+      // ✅ CREATE NOTIFICATION FOR USER
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔔 [ADMIN → USER NOTIFICATION] Conference Room APPROVAL');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('📋 Request ID:', requestId);
+      console.log('👤 User ID:', request.userId);
+      console.log('📧 User Email:', request.userEmail || 'N/A');
+      console.log('👥 User Name:', request.fullName || 'N/A');
+      console.log('📅 Event Date:', request.eventDate);
+      console.log('⏰ Time:', request.startTime, '-', request.endTime);
+      console.log('📝 Purpose:', request.purpose || 'N/A');
+      console.log('🔄 Status Change: pending → approved');
+      console.log('⏰ Timestamp:', new Date().toISOString());
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      try {
+        console.log('🚀 Calling createStatusChangeNotification()...');
+        await createStatusChangeNotification(
+          requestId,
+          'conference-room',         // Request type
+          request.userId,
+          'pending',
+          'approved',
+          request
+        );
+        console.log('✅ [ADMIN → USER NOTIFICATION] SUCCESS! Notification created.');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      } catch (notifError) {
+        console.error('❌ [ADMIN → USER NOTIFICATION] FAILED!');
+        console.error('Error details:', notifError);
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+        // Don't block approval if notification fails
+      }
+      
       showToast('Reservation approved successfully!', true);
       
       // Reload data
@@ -10306,6 +11981,41 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       });
 
       console.log('✅ Request denied successfully');
+      
+      // ✅ CREATE NOTIFICATION FOR USER
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔔 [ADMIN → USER NOTIFICATION] Conference Room REJECTION');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('📋 Request ID:', requestId);
+      console.log('👤 User ID:', request.userId);
+      console.log('📧 User Email:', request.userEmail || 'N/A');
+      console.log('👥 User Name:', request.fullName || 'N/A');
+      console.log('📅 Event Date:', request.eventDate);
+      console.log('⏰ Time:', request.startTime, '-', request.endTime);
+      console.log('❌ Rejection Reason:', reason);
+      console.log('🔄 Status Change: pending → rejected');
+      console.log('⏰ Timestamp:', new Date().toISOString());
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      try {
+        console.log('🚀 Calling createStatusChangeNotification()...');
+        await createStatusChangeNotification(
+          requestId,
+          'conference-room',
+          request.userId,
+          'pending',
+          'rejected',
+          { ...request, rejectionReason: reason }
+        );
+        console.log('✅ [ADMIN → USER NOTIFICATION] SUCCESS! Notification created.');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      } catch (notifError) {
+        console.error('❌ [ADMIN → USER NOTIFICATION] FAILED!');
+        console.error('Error details:', notifError);
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+        // Don't block rejection if notification fails
+      }
+      
       showToast('Reservation denied', true);
       
       // Reload data
@@ -10351,6 +12061,41 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       });
 
       console.log('✅ Request marked as completed');
+      
+      // ✅ CREATE NOTIFICATION FOR USER
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔔 [ADMIN → USER NOTIFICATION] Conference Room COMPLETION');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('📋 Request ID:', requestId);
+      console.log('👤 User ID:', request.userId);
+      console.log('📧 User Email:', request.userEmail || 'N/A');
+      console.log('👥 User Name:', request.fullName || 'N/A');
+      console.log('📅 Event Date:', request.eventDate);
+      console.log('⏰ Time:', request.startTime, '-', request.endTime);
+      console.log('📝 Purpose:', request.purpose || 'N/A');
+      console.log('🔄 Status Change:', request.status || 'in-progress', '→ completed');
+      console.log('⏰ Timestamp:', new Date().toISOString());
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      try {
+        console.log('🚀 Calling createStatusChangeNotification()...');
+        await createStatusChangeNotification(
+          requestId,
+          'conference-room',
+          request.userId,
+          request.status || 'in-progress',
+          'completed',
+          request
+        );
+        console.log('✅ [ADMIN → USER NOTIFICATION] SUCCESS! Notification created.');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      } catch (notifError) {
+        console.error('❌ [ADMIN → USER NOTIFICATION] FAILED!');
+        console.error('Error details:', notifError);
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+        // Don't block completion if notification fails
+      }
+      
       showToast('Reservation marked as completed!', true);
       
       // Reload data
