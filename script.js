@@ -3928,8 +3928,8 @@ if (window.location.pathname.endsWith('admin.html') ||
     }
     if (internalBookingForm) {
       internalBookingForm.reset();
+      clearAllInternalErrors();
     }
-    clearAllInternalErrors();
   }
 
   // Close modal on X button
