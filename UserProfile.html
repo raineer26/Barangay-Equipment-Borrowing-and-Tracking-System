@@ -38,7 +38,7 @@
       <div class="profile-hero-overlay"></div>
       <div class="profile-hero-text">
         <h1>USER PROFILE</h1>
-        <p>HOME | CONTACT US</p>
+        <p>HOME | USER PROFILE</p>
       </div>
     </section>
 
@@ -50,55 +50,107 @@
           <button class="logout-btn">Logout</button>
         </div>
       </div>
+      
+      <!-- Tab Navigation Bar -->
+      <div class="profile-tabs">
+        <button class="profile-tab active" data-tab="info" aria-selected="true">
+          Personal Info
+        </button>
+        <button class="profile-tab" data-tab="requests" aria-selected="false">
+          Requests
+        </button>
+        <button class="profile-tab" data-tab="notifications" aria-selected="false">
+          Notifications 
+          <span class="tab-badge" id="notifTabBadge">0</span>
+        </button>
+      </div>
+      
       <div class="user-profile-content">
-        <div class="user-info-card">
-          <h2>Personal Information</h2>
-          <div class="info-item"><span class="info-label">First Name</span><span id="infoFirstName"></span></div>
-          <div class="info-item"><span class="info-label">Last Name</span><span id="infoLastName"></span></div>
-          <div class="info-item"><span class="info-label">Contact Number</span><span id="infoContactNumber"></span></div>
-          <div class="info-item"><span class="info-label">Email Address</span><span id="infoEmail"></span></div>
-          <div class="info-item"><span class="info-label">Address</span><span id="infoAddress"></span></div>
-          <!-- Moved buttons here -->
-          <div class="user-profile-actions">
-            <button class="edit-profile-btn"><span>🖉</span> Edit Profile</button>
-            <button class="change-password-btn"><span>🔑</span> Change Password</button>
-          </div>
-        </div>
-        <div class="user-request-status">
-          <div class="request-status-header">
-            <h2>Request Status</h2>
-            <div class="request-filters-inline">
-              <label for="statusFilter">Filter:</label>
-              <select id="statusFilter" class="filter-select">
-                <option value="all">All Requests</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="in-progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="rejected">Rejected</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+        <!-- Tab 1: Personal Info -->
+        <div class="tab-pane active" id="infoTab">
+          <div class="user-info-card">
+            <h2>Personal Information</h2>
+            <div class="info-item"><span class="info-label">First Name</span><span id="infoFirstName"></span></div>
+            <div class="info-item"><span class="info-label">Last Name</span><span id="infoLastName"></span></div>
+            <div class="info-item"><span class="info-label">Contact Number</span><span id="infoContactNumber"></span></div>
+            <div class="info-item"><span class="info-label">Email Address</span><span id="infoEmail"></span></div>
+            <div class="info-item"><span class="info-label">Address</span><span id="infoAddress"></span></div>
+            <!-- Moved buttons here -->
+            <div class="user-profile-actions">
+              <button class="edit-profile-btn"><span>🖉</span> Edit Profile</button>
+              <button class="change-password-btn"><span>🔑</span> Change Password</button>
             </div>
-          </div>
-          
-          <div class="request-cards">
-            <!-- Request cards will be dynamically loaded here -->
-          </div>
-          <div class="dropdown custom-dropdown">
-            <button class="make-request-btn" aria-haspopup="true" aria-expanded="false">
-              <span>Make New Request</span>
-              <!-- Inline SVG caret for crisper rendering and smooth rotation -->
-              <svg class="dropdown-caret" width="14" height="9" viewBox="0 0 14 9" aria-hidden="true" focusable="false">
-                <path d="M1 1l6 6 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-              </svg>
-            </button>
-            <ul class="dropdown-menu show-on-parent-hover">
-              <li><a href="tents-calendar.html">Tents and Chairs</a></li>
-              <li><a href="conference-room.html">Conference Room</a></li>
-            </ul>
           </div>
         </div>
 
+        <!-- Tab 2: Requests -->
+        <div class="tab-pane" id="requestsTab">
+          <div class="user-request-status">
+            <div class="request-status-header">
+              <h2>Request Status</h2>
+              <div class="request-filters-inline">
+                <label for="statusFilter">Filter:</label>
+                <select id="statusFilter" class="filter-select">
+                  <option value="all">All Requests</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="in-progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="request-cards">
+              <!-- Request cards will be dynamically loaded here -->
+            </div>
+            <div class="dropdown custom-dropdown">
+              <button class="make-request-btn" aria-haspopup="true" aria-expanded="false">
+                <span>Make New Request</span>
+                <!-- Inline SVG caret for crisper rendering and smooth rotation -->
+                <svg class="dropdown-caret" width="14" height="9" viewBox="0 0 14 9" aria-hidden="true" focusable="false">
+                  <path d="M1 1l6 6 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+                </svg>
+              </button>
+              <ul class="dropdown-menu show-on-parent-hover">
+                <li><a href="tents-calendar.html">Tents and Chairs</a></li>
+                <li><a href="conference-room.html">Conference Room</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Notifications -->
+        <div class="tab-pane" id="notificationsTab">
+          <div class="notifications-panel">
+            <div class="notifications-header">
+              <h2>Notifications</h2>
+              <button class="mark-all-read-btn" id="markAllReadBtn">
+                Mark All as Read
+              </button>
+            </div>
+            
+            <div class="notifications-filter">
+              <button class="notif-filter-btn active" data-filter="all">
+                All <span class="filter-count" id="countAll">0</span>
+              </button>
+              <button class="notif-filter-btn" data-filter="unread">
+                Unread <span class="filter-count" id="countUnread">0</span>
+              </button>
+              <button class="notif-filter-btn" data-filter="read">
+                Read <span class="filter-count" id="countRead">0</span>
+              </button>
+            </div>
+
+            <div class="notifications-list" id="notificationsList">
+              <!-- Notifications will be dynamically loaded here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </main>
         <!-- Edit Profile Modal -->
         <div id="editProfileModal" class="modal">
           <div class="modal-content">

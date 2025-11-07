@@ -1097,14 +1097,692 @@ footer {
   transition: background-color 0.18s ease, color 0.18s ease, transform 0.12s ease;
 }
 
+/* ============================================
+   NOTIFICATION BELL ICON & BADGE
+   ============================================ */
+
+.notification-bell {
+  position: relative;
+  margin-right: 8px;
+}
+
+.bell-btn {
+  background: transparent;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+}
+
+.bell-btn:hover {
+  background-color: rgba(40, 26, 188, 0.08);
+  border-color: rgba(40, 26, 188, 0.2);
+}
+
+.bell-btn:active {
+  transform: scale(0.95);
+}
+
+.bell-icon {
+  font-size: 1.5rem;
+  display: block;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.bell-btn:hover .bell-icon {
+  transform: rotate(15deg);
+  animation: bellRing 0.5s ease;
+}
+
+@keyframes bellRing {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(15deg); }
+  50% { transform: rotate(-15deg); }
+  75% { transform: rotate(10deg); }
+}
+
+.notification-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: #d32f2f;
+  color: white;
+  border-radius: 10px;
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  font-family: 'Poppins', sans-serif;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.3;
+  display: none; /* Hidden by default */
+  box-shadow: 0 2px 4px rgba(211, 47, 47, 0.3);
+}
+
+.notification-badge.active {
+  display: block;
+}
+
+.notification-badge.pulse {
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% { 
+    transform: scale(1); 
+    box-shadow: 0 2px 4px rgba(211, 47, 47, 0.3);
+  }
+  50% { 
+    transform: scale(1.1); 
+    box-shadow: 0 3px 6px rgba(211, 47, 47, 0.5);
+  }
+}
+
+/* ============================================
+   NOTIFICATION BANNERS (Inline Alerts)
+   ============================================ */
+
+.notification-banners {
+  max-width: 900px;
+  margin: 0 auto 20px auto;
+}
+
+.notification-banner {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  border-left: 4px solid #f39c12;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(243, 156, 18, 0.15);
+  animation: slideDownBanner 0.3s ease-out;
+}
+
+@keyframes slideDownBanner {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUpBanner {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+.notification-banner.urgent {
+  background: linear-gradient(135deg, #fee 0%, #fdd 100%);
+  border-left-color: #d32f2f;
+}
+
+.notification-banner-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.notification-banner-content {
+  flex-grow: 1;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  color: #333;
+  line-height: 1.5;
+}
+
+.notification-banner-content strong {
+  color: #281abc;
+  font-weight: 600;
+}
+
+.notification-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.notification-banner-actions button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notification-banner-actions .banner-view-btn {
+  background: #281abc;
+  color: white;
+}
+
+.notification-banner-actions .banner-view-btn:hover {
+  background: #1a0e7a;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(40, 26, 188, 0.2);
+}
+
+.notification-banner-actions .banner-dismiss-btn {
+  background: white;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.notification-banner-actions .banner-dismiss-btn:hover {
+  background: #f5f5f5;
+  border-color: #999;
+  transform: translateY(-1px);
+}
+
+/* Responsive adjustments for notifications */
+@media (max-width: 768px) {
+  .bell-btn {
+    width: 40px;
+    height: 40px;
+    padding: 8px;
+  }
+  
+  .bell-icon {
+    font-size: 1.3rem;
+  }
+  
+  .notification-badge {
+    top: 4px;
+    right: 4px;
+    font-size: 0.65rem;
+    min-width: 16px;
+  }
+  
+  .notification-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .notification-banner-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* ========================================
+   PROFILE TABS NAVIGATION (STRATEGY 3)
+   ======================================== */
+
+.profile-tabs {
+  display: flex;
+  gap: 8px;
+  max-width: 900px;
+  margin: 0 auto 24px auto;
+  background: white;
+  border-radius: 10px;
+  padding: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.profile-tab {
+  flex: 1;
+  padding: 14px 20px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.profile-tab:hover {
+  background: #f5f5f5;
+  color: #281abc;
+}
+
+.profile-tab.active {
+  background: linear-gradient(135deg, #281abc 0%, #1a0e7a 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(40, 26, 188, 0.25);
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: #d32f2f;
+  color: white;
+  border-radius: 11px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.profile-tab.active .tab-badge {
+  background: white;
+  color: #281abc;
+}
+
+.tab-badge:empty,
+.tab-badge[data-count="0"] {
+  display: none;
+}
+
+/* ========================================
+   TAB CONTENT PANES
+   ======================================== */
+
+.tab-pane {
+  display: none;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .user-profile-content {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
+  /* Changed from grid to block for tab layout */
+  display: block;
   width: 100%;
   max-width: 900px;
-  align-items: start;
 }
+
+/* Tab 1 (Personal Info) - Keep centered card */
+#infoTab .user-info-card {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Tab 2 (Requests) - Full width */
+#requestsTab .user-request-status {
+  width: 100%;
+}
+
+/* ========================================
+   NOTIFICATIONS PANEL (TAB 3)
+   ======================================== */
+
+.notifications-panel {
+  background: white;
+  border: 2px solid #d9d9d9;
+  border-radius: 12px;
+  padding: 24px;
+  min-height: 500px;
+}
+
+.notifications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.notifications-header h2 {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1.5rem;
+  color: #281abc;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mark-all-read-btn {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1.5px solid #281abc;
+  border-radius: 6px;
+  color: #281abc;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mark-all-read-btn:hover {
+  background: #281abc;
+  color: white;
+}
+
+.mark-all-read-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: #ccc;
+  color: #ccc;
+}
+
+/* ========================================
+   NOTIFICATION FILTERS
+   ======================================== */
+
+.notifications-filter {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.notif-filter-btn {
+  padding: 10px 18px;
+  background: white;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  color: #666;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notif-filter-btn:hover {
+  border-color: #281abc;
+  color: #281abc;
+}
+
+.notif-filter-btn.active {
+  background: #281abc;
+  border-color: #281abc;
+  color: white;
+}
+
+.filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  background: #f0f0f0;
+  color: #666;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.notif-filter-btn.active .filter-count {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+/* ========================================
+   NOTIFICATIONS LIST
+   ======================================== */
+
+.notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notifications-list:empty::after {
+  content: 'No notifications yet';
+  display: block;
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+}
+
+/* Individual Notification Item */
+.notification-item {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.notification-item:hover {
+  border-color: #281abc;
+  box-shadow: 0 4px 12px rgba(40, 26, 188, 0.1);
+  transform: translateX(4px);
+}
+
+.notification-item.unread {
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8f0ff 100%);
+  border-left: 4px solid #281abc;
+}
+
+.notification-item.unread::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  right: 16px;
+  width: 10px;
+  height: 10px;
+  background: #d32f2f;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.2);
+}
+
+/* Notification Icon */
+.notification-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  background: #f5f5f5;
+}
+
+.notification-item.unread .notification-icon {
+  background: linear-gradient(135deg, #281abc 0%, #1a0e7a 100%);
+}
+
+.notification-icon.type-reminder {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+}
+
+.notification-icon.type-status {
+  background: linear-gradient(135deg, #d4f4dd 0%, #b8e6c3 100%);
+}
+
+.notification-icon.type-message {
+  background: linear-gradient(135deg, #d1ecf1 0%, #b8dfe5 100%);
+}
+
+/* Notification Content */
+.notification-content {
+  flex: 1;
+  min-width: 0; /* Allows text truncation */
+}
+
+.notification-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 6px 0;
+}
+
+.notification-item.unread .notification-title {
+  color: #281abc;
+}
+
+.notification-message {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.5;
+  margin: 0 0 8px 0;
+}
+
+.notification-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.notification-type-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  font-weight: 500;
+  color: #666;
+}
+
+.notification-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Notification Actions */
+.notification-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 1px solid #e0e0e0;
+}
+
+.notification-action-btn {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  color: #666;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.notification-action-btn:hover {
+  background: #f5f5f5;
+  border-color: #281abc;
+  color: #281abc;
+}
+
+.notification-action-btn.mark-read {
+  color: #1e7e34;
+  border-color: #1e7e34;
+}
+
+.notification-action-btn.mark-read:hover {
+  background: #d4f4dd;
+}
+
+.notification-action-btn.view-request {
+  color: #281abc;
+  border-color: #281abc;
+}
+
+.notification-action-btn.view-request:hover {
+  background: #f0f4ff;
+}
+
+.notification-action-btn.delete {
+  color: #d32f2f;
+  border-color: #d32f2f;
+}
+
+.notification-action-btn.delete:hover {
+  background: #fee;
+}
+
+/* ========================================
+   RESPONSIVE DESIGN FOR TABS & NOTIFICATIONS
+   ======================================== */
+
+@media (max-width: 768px) {
+  .profile-tabs {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .profile-tab {
+    width: 100%;
+  }
+  
+  .notifications-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .notifications-filter {
+    flex-wrap: wrap;
+  }
+  
+  .notification-item {
+    flex-direction: column;
+  }
+  
+  .notification-actions {
+    flex-direction: row;
+    border-left: none;
+    border-top: 1px solid #e0e0e0;
+    padding-left: 0;
+    padding-top: 12px;
+  }
+  
+  .notification-action-btn {
+    flex: 1;
+  }
+}
+
+/* Keep existing user-info-card and user-request-status styles below */
+
+
 
 .user-info-card {
   background: #fff;
