@@ -3439,15 +3439,235 @@ async function checkAndCreateAutomatedReminders() {
   }
 }
 
-// Run automated reminders check on UserProfile page load
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * AUTOMATIC STATUS TRANSITION SYSTEM (OPTION 3: HYBRID APPROACH)
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Automatically transitions request statuses based on event dates:
+ * - APPROVED → IN-PROGRESS (when event start date arrives)
+ * - Creates notifications for status changes
+ * - Supports both automatic and manual transitions
+ * 
+ * Called on: UserProfile page load, Admin pages load
+ * Created: November 8, 2025
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+async function checkAndUpdateEventStatuses() {
+  console.log('═══════════════════════════════════════════════════════════════════');
+  console.log('🔄 [Status Auto-Update] Starting automatic status transition check...');
+  console.log('═══════════════════════════════════════════════════════════════════');
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split('T')[0]; // "YYYY-MM-DD"
+  
+  console.log('📅 [Status Auto-Update] Current date:', todayStr);
+  console.log('⏰ [Status Auto-Update] Timestamp:', new Date().toISOString());
+  
+  let transitionCount = 0;
+  
+  try {
+    // ═══════════════════════════════════════════════════════════════════
+    // PART 1: TENTS & CHAIRS BOOKINGS
+    // ═══════════════════════════════════════════════════════════════════
+    console.log('\n📦 [Status Auto-Update] Checking Tents & Chairs bookings...');
+    
+    const tentsQuery = query(
+      collection(db, "tentsChairsBookings"),
+      where("status", "==", "approved")
+    );
+    
+    const tentsSnapshot = await getDocs(tentsQuery);
+    console.log(`📊 [Status Auto-Update] Found ${tentsSnapshot.size} approved tents bookings`);
+    
+    for (const docSnap of tentsSnapshot.docs) {
+      const request = docSnap.data();
+      const requestId = docSnap.id;
+      
+      console.log(`\n🔍 [Status Auto-Update] Checking request: ${requestId}`);
+      console.log(`   - User: ${request.fullName || request.userEmail}`);
+      console.log(`   - Start Date: ${request.startDate}`);
+      console.log(`   - End Date: ${request.endDate}`);
+      console.log(`   - Current Status: ${request.status}`);
+      
+      // Check if event should be in-progress (today is within event period)
+      if (todayStr >= request.startDate && todayStr <= request.endDate) {
+        console.log(`✅ [Status Auto-Update] Event is active! Transitioning to IN-PROGRESS...`);
+        
+        // Update status to in-progress
+        await updateDoc(doc(db, "tentsChairsBookings", requestId), {
+          status: 'in-progress',
+          inProgressAt: new Date(),
+          autoTransitioned: true // Flag to track automatic transitions
+        });
+        
+        transitionCount++;
+        console.log(`✅ [Status Auto-Update] SUCCESS! ${requestId} → in-progress`);
+        
+        // Create notification for user
+        try {
+          const items = [];
+          if (request.quantityChairs) items.push(`${request.quantityChairs} chairs`);
+          if (request.quantityTents) items.push(`${request.quantityTents} tents`);
+          const itemsList = items.join(', ');
+          
+          const deliveryMode = request.modeOfReceiving || 'Pick-up';
+          
+          await createNotification({
+            userId: request.userId,
+            type: 'status_change',
+            requestId: requestId,
+            requestType: 'tents-chairs',
+            title: '🎉 Your Event Started!',
+            message: `Your tents & chairs booking is now in progress! ` +
+                    `${deliveryMode === 'Delivery' ? 'Equipment should have been delivered to your location.' : 'Equipment is ready for collection at the barangay office.'} ` +
+                    `Items: ${itemsList}. Event runs until ${formatDateToWords(request.endDate)}. Enjoy your event!`,
+            metadata: {
+              eventDate: request.startDate,
+              endDate: request.endDate,
+              statusChange: 'approved_to_in_progress',
+              autoTransitioned: true
+            }
+          });
+          
+          console.log(`📧 [Status Auto-Update] Notification sent to user`);
+          
+        } catch (notifError) {
+          console.error(`❌ [Status Auto-Update] Failed to create notification:`, notifError);
+          // Don't block status update if notification fails
+        }
+        
+      } else {
+        console.log(`⏭️ [Status Auto-Update] Event not started yet (starts ${request.startDate})`);
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // PART 2: CONFERENCE ROOM BOOKINGS
+    // ═══════════════════════════════════════════════════════════════════
+    console.log('\n🏢 [Status Auto-Update] Checking Conference Room bookings...');
+    
+    const conferenceQuery = query(
+      collection(db, "conferenceRoomBookings"),
+      where("status", "==", "approved"),
+      where("eventDate", "==", todayStr)
+    );
+    
+    const conferenceSnapshot = await getDocs(conferenceQuery);
+    console.log(`📊 [Status Auto-Update] Found ${conferenceSnapshot.size} approved conference bookings for today`);
+    
+    for (const docSnap of conferenceSnapshot.docs) {
+      const request = docSnap.data();
+      const requestId = docSnap.id;
+      
+      console.log(`\n🔍 [Status Auto-Update] Checking conference request: ${requestId}`);
+      console.log(`   - User: ${request.fullName || request.userEmail}`);
+      console.log(`   - Event Date: ${request.eventDate}`);
+      console.log(`   - Time: ${request.startTime} - ${request.endTime}`);
+      console.log(`   - Current Status: ${request.status}`);
+      
+      console.log(`✅ [Status Auto-Update] Event is TODAY! Transitioning to IN-PROGRESS...`);
+      
+      // Update status to in-progress
+      await updateDoc(doc(db, "conferenceRoomBookings", requestId), {
+        status: 'in-progress',
+        inProgressAt: new Date(),
+        autoTransitioned: true
+      });
+      
+      transitionCount++;
+      console.log(`✅ [Status Auto-Update] SUCCESS! ${requestId} → in-progress`);
+      
+      // Create notification for user
+      try {
+        const timeRange = request.startTime && request.endTime 
+          ? `${formatTime12Hour(request.startTime)} - ${formatTime12Hour(request.endTime)}`
+          : 'your scheduled time';
+        
+        await createNotification({
+          userId: request.userId,
+          type: 'status_change',
+          requestId: requestId,
+          requestType: 'conference-room',
+          title: '🎉 Conference Room Ready!',
+          message: `Your conference room reservation is now in progress! ` +
+                  `Time: ${timeRange}. The room is ready for your use. ` +
+                  `Please ensure to clean up and vacate on time. Have a productive meeting!`,
+          metadata: {
+            eventDate: request.eventDate,
+            startTime: request.startTime,
+            endTime: request.endTime,
+            statusChange: 'approved_to_in_progress',
+            autoTransitioned: true
+          }
+        });
+        
+        console.log(`📧 [Status Auto-Update] Notification sent to user`);
+        
+      } catch (notifError) {
+        console.error(`❌ [Status Auto-Update] Failed to create notification:`, notifError);
+        // Don't block status update if notification fails
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // SUMMARY
+    // ═══════════════════════════════════════════════════════════════════
+    console.log('\n═══════════════════════════════════════════════════════════════════');
+    console.log('📊 [Status Auto-Update] SUMMARY:');
+    console.log(`   - Total transitions: ${transitionCount}`);
+    console.log(`   - Tents bookings checked: ${tentsSnapshot.size}`);
+    console.log(`   - Conference bookings checked: ${conferenceSnapshot.size}`);
+    console.log('✅ [Status Auto-Update] Status check completed successfully!');
+    console.log('═══════════════════════════════════════════════════════════════════\n');
+    
+    return transitionCount; // Return count for debugging
+    
+  } catch (error) {
+    console.error('═══════════════════════════════════════════════════════════════════');
+    console.error('❌ [Status Auto-Update] ERROR during status transition check');
+    console.error('Error type:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Stack trace:', error.stack);
+    console.error('═══════════════════════════════════════════════════════════════════\n');
+    
+    // Don't throw - allow page to continue loading even if status check fails
+    return 0;
+  }
+}
+
+// Run automated status updates and reminders on UserProfile page load
 if (window.location.pathname.endsWith('UserProfile.html')) {
-  // Check for automated reminders when page loads
+  // Check for status updates and automated reminders when page loads
   onAuthStateChanged(auth, (user) => {
     if (user) {
-      // Wait a bit for page to fully load, then check
-      setTimeout(() => {
-        console.log('[UserProfile] Running automated reminder check...');
-        checkAndCreateAutomatedReminders();
+      // Wait a bit for page to fully load, then run checks
+      setTimeout(async () => {
+        console.log('[UserProfile] ═══════════════════════════════════════');
+        console.log('[UserProfile] Running automated system checks...');
+        console.log('[UserProfile] User:', user.email);
+        console.log('[UserProfile] ═══════════════════════════════════════\n');
+        
+        try {
+          // STEP 1: Update event statuses (approved → in-progress)
+          console.log('[UserProfile] 🔄 Step 1: Checking for status transitions...');
+          const transitionCount = await checkAndUpdateEventStatuses();
+          console.log(`[UserProfile] ✅ Status check complete (${transitionCount} transitions)\n`);
+          
+          // STEP 2: Check for automated reminders
+          console.log('[UserProfile] 🔔 Step 2: Checking for automated reminders...');
+          await checkAndCreateAutomatedReminders();
+          console.log('[UserProfile] ✅ Reminder check complete\n');
+          
+          console.log('[UserProfile] ═══════════════════════════════════════');
+          console.log('[UserProfile] ✅ All automated checks completed!');
+          console.log('[UserProfile] ═══════════════════════════════════════\n');
+          
+        } catch (error) {
+          console.error('[UserProfile] ❌ Error during automated checks:', error);
+          // Don't prevent page from loading even if checks fail
+        }
       }, 2000);
     }
   });
@@ -8046,8 +8266,11 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
     }
   });
 
-  // Initialize on page load
-  initializeInventory().then(() => {
+  // Initialize on page load with status check
+  initializeInventory().then(async () => {
+    console.log('[Admin Tents] 🔄 Running status transition check...');
+    await checkAndUpdateEventStatuses(); // Check for status transitions before loading
+    console.log('[Admin Tents] ✅ Status check complete, loading requests...');
     loadTentsRequests();
     updateStats();
   });
@@ -10681,7 +10904,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       updateStatusFilterOptions();
       updateSortByOptions();
 
-      // Load data
+      // Load data with status check
+      console.log('[Admin Tents v2] 🔄 Running status transition check...');
+      await checkAndUpdateEventStatuses(); // Check for status transitions before loading
+      console.log('[Admin Tents v2] ✅ Status check complete, loading data...');
       await loadInventoryStats();
       await loadAllRequests();
 
@@ -13432,8 +13658,13 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   updateStatusFilterOptions();
   updateSortByOptions();
 
-  // Load data when page loads
-  loadAllRequests();
+  // Load data when page loads with status check
+  (async () => {
+    console.log('[Admin Conference] 🔄 Running status transition check...');
+    await checkAndUpdateEventStatuses(); // Check for status transitions before loading
+    console.log('[Admin Conference] ✅ Status check complete, loading requests...');
+    loadAllRequests();
+  })();
 
   console.log('✅ Conference Room Admin initialized');
 }
