@@ -2021,10 +2021,7 @@ function showRequestDetailsModal(request) {
         <span class="detail-label">Contact Number:</span>
         <span class="detail-value">${request.contactNumber || 'N/A'}</span>
       </div>
-      <div class="detail-row">
-        <span class="detail-label">Address:</span>
-        <span class="detail-value">${request.address || 'N/A'}</span>
-      </div>
+      
       <div class="detail-row">
         <span class="detail-label">Event Date:</span>
         <span class="detail-value">${formatDateToWords(request.eventDate)}</span>

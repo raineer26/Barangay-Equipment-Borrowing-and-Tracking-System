@@ -7,31 +7,77 @@
     <link rel="stylesheet" href="style.css">
   </head>
   <body>
-    <header>
-    <div class="nav-container">
-      <div class="logo">
-        <img src="Assets/BrgyLogo.png" alt="Barangay Seal">
-        <span>BARANGAY MAPULANG LUPA <br> Official Site</span>
-      </div>
-      <nav>
-        <ul>
-          <li><a href="user.html">HOME</a></li>
-          <li class="dropdown">
-            <a href="#">CALENDAR OF ACTIVITIES ▾</a>
-            <ul class="dropdown-menu">
-              <li><a href="tents-calendar.html">Tents and Chairs</a></li>
-              <li><a href="conference-room.html">Conference Room</a></li>
-            </ul>
-          </li>
-          <li><a href="about.html">ABOUT US</a></li>
-          <li><a href="ContactPage.html">CONTACT US</a></li>
-          <li class="user-icon-li">
-            <a href="UserProfile.html"><img src="Assets/account.png" alt="User" class="user-icon-btn" width="32" height="32"></a>
-          </li>
-        </ul>
-      </nav>
+    <!-- UPDATED HEADER SECTION WITH BURGER MENU -->
+<header>
+  <div class="nav-container">
+    <div class="logo">
+      <img src="Assets/BrgyLogo.png" alt="Barangay Seal">
+      <span>BARANGAY MAPULANG LUPA <br> Official Site</span>
     </div>
-    </header>
+    
+    <!-- Desktop Navigation (hidden on mobile) -->
+    <nav>
+      <ul>
+        <li><a href="user.html">HOME</a></li>
+        <li class="dropdown">
+          <a href="#">CALENDAR OF ACTIVITIES ▾</a>
+          <ul class="dropdown-menu">
+            <li><a href="tents-calendar.html">Tents and Chairs</a></li>
+            <li><a href="conference-room.html">Conference Room</a></li>
+          </ul>
+        </li>
+        <li><a href="about.html">ABOUT US</a></li>
+        <li><a href="ContactPage.html">CONTACT US</a></li>
+        <li class="user-icon-li" id="userIconNav" style="display: none;">
+          <a href="UserProfile.html"><img src="Assets/account.png" alt="User" class="user-icon-btn" width="32" height="32"></a>
+        </li>
+        <li id="loginButtonNav">
+          <a href="index.html" class="login-btn">LOGIN</a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Burger Menu Button (visible on mobile) -->
+    <div class="burger-menu" id="burgerMenu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+</header>
+
+<!-- Mobile Navigation Overlay -->
+<div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+
+<!-- Mobile Navigation Menu -->
+<nav class="mobile-nav" id="mobileNav">
+  <button class="mobile-nav-close" id="mobileNavClose">&times;</button>
+  <ul>
+    <li><a href="user.html">HOME</a></li>
+    <li class="dropdown">
+      <div class="dropdown-toggle" id="mobileDropdownToggle">
+        <span>CALENDAR OF ACTIVITIES</span>
+        <span>▾</span>
+      </div>
+      <ul class="dropdown-menu" id="mobileDropdownMenu">
+        <li><a href="tents-calendar.html">Tents and Chairs</a></li>
+        <li><a href="conference-room.html">Conference Room</a></li>
+      </ul>
+    </li>
+    <li><a href="about.html">ABOUT US</a></li>
+    <li><a href="ContactPage.html">CONTACT US</a></li>
+    <li class="user-icon-li" id="userIconMobile" style="display: none;">
+      <a href="UserProfile.html">
+        <img src="Assets/account.png" alt="User" class="user-icon-btn" width="32" height="32">
+        <span>MY PROFILE</span>
+      </a>
+    </li>
+    <li id="loginButtonMobile">
+      <a href="index.html" class="login-btn">LOGIN</a>
+    </li>
+  </ul>
+</nav>
+
 
     <!-- HERO SECTION -->
     <section class="profile-hero">
