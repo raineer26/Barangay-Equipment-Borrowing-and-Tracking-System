@@ -7579,14 +7579,15 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
   function getFilteredUsers() {
     let filteredUsers = [...allUsersData];
     
-    // Filter by search name
+    // Filter by search (name, email, or address)
     const searchTerm = document.getElementById('searchUsers')?.value.toLowerCase().trim();
     if (searchTerm) {
       filteredUsers = filteredUsers.filter(user => 
         user.fullName.toLowerCase().includes(searchTerm) ||
         user.firstName.toLowerCase().includes(searchTerm) ||
         user.lastName.toLowerCase().includes(searchTerm) ||
-        user.email.toLowerCase().includes(searchTerm)
+        user.email.toLowerCase().includes(searchTerm) ||
+        (user.address && user.address.toLowerCase().includes(searchTerm))
       );
     }
     
