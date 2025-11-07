@@ -3909,39 +3909,47 @@ if (window.location.pathname.endsWith('admin.html') ||
   const internalBookingForm = document.getElementById('internalBookingForm');
 
   // Open modal
-  if (addInternalBookingBtn) {
+  if (addInternalBookingBtn && internalBookingModal) {
     addInternalBookingBtn.addEventListener('click', () => {
       internalBookingModal.classList.add('active');
       // Set minimum date to today
       const today = new Date().toISOString().split('T')[0];
-      document.getElementById('internalStartDate').setAttribute('min', today);
-      document.getElementById('internalEndDate').setAttribute('min', today);
+      const startDateInput = document.getElementById('internalStartDate');
+      const endDateInput = document.getElementById('internalEndDate');
+      if (startDateInput) startDateInput.setAttribute('min', today);
+      if (endDateInput) endDateInput.setAttribute('min', today);
     });
   }
 
   // Close modal function
   function closeModal() {
-    internalBookingModal.classList.remove('active');
-    internalBookingForm.reset();
+    if (internalBookingModal) {
+      internalBookingModal.classList.remove('active');
+    }
+    if (internalBookingForm) {
+      internalBookingForm.reset();
+    }
     clearAllInternalErrors();
   }
 
   // Close modal on X button
-  if (closeInternalBookingModal) {
+  if (closeInternalBookingModal && internalBookingModal) {
     closeInternalBookingModal.addEventListener('click', closeModal);
   }
 
   // Close modal on Cancel button
-  if (cancelInternalBooking) {
+  if (cancelInternalBooking && internalBookingModal) {
     cancelInternalBooking.addEventListener('click', closeModal);
   }
 
   // Close modal when clicking outside
-  internalBookingModal.addEventListener('click', (e) => {
-    if (e.target === internalBookingModal) {
-      closeModal();
-    }
-  });
+  if (internalBookingModal) {
+    internalBookingModal.addEventListener('click', (e) => {
+      if (e.target === internalBookingModal) {
+        closeModal();
+      }
+    });
+  }
 
   // Form validation helpers
   function setInternalError(elementId, message) {
