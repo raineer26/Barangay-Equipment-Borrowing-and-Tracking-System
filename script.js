@@ -2493,7 +2493,7 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
   ];
 
   /**
-   * Check if a date is fully booked (no 4-hour continuous gap available)
+   * Check if a date is fully booked (no 2-hour continuous gap available)
    * Operating hours: 8:00 AM - 5:00 PM (9 hours total)
    * @param {Array} bookings - Array of booking objects with startTime and endTime
    * @returns {boolean} - True if fully booked, false if has available slot
@@ -2503,7 +2503,7 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     
     const OPERATING_START = '08:00';
     const OPERATING_END = '17:00';
-    const MIN_REQUIRED_HOURS = 4;
+    const MIN_REQUIRED_HOURS = 2; // Changed from 4 to 2 hours
     
     // Convert time string to minutes since midnight
     function timeToMinutes(timeStr) {
@@ -3379,6 +3379,18 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     else if (start < today) setFieldError('startDate', 'Cannot be in the past'), valid = false;
     if (!d.endDate) setFieldError('endDate', 'End date required'), valid = false;
     else if (end < start) setFieldError('endDate', 'End date must be after start'), valid = false;
+    
+    // CRITICAL: Enforce 2-week (14 days) maximum duration
+    if (d.startDate && d.endDate && end >= start) {
+      const timeDiff = end.getTime() - start.getTime();
+      const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+      const MAX_DURATION_DAYS = 14; // 2 weeks
+      
+      if (daysDiff > MAX_DURATION_DAYS) {
+        setFieldError('endDate', `Maximum borrowing period is ${MAX_DURATION_DAYS} days (2 weeks). Current duration: ${daysDiff} day${daysDiff !== 1 ? 's' : ''}`);
+        valid = false;
+      }
+    }
 
     return valid;
   }
@@ -3706,14 +3718,37 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
 
   /**
    * Check if a time slot conflicts with any existing booking
+   * IMPORTANT: Requires 30-minute gap between bookings
+   * Example: If booking ends at 10:00, next available start is 10:30
    */
   function isTimeSlotUnavailable(timeSlot, existingBookings) {
     if (!existingBookings || existingBookings.length === 0) return false;
     
+    // Helper: Convert time string (HH:mm) to minutes
+    function timeToMinutes(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+    
+    const slotMinutes = timeToMinutes(timeSlot);
+    
     for (const booking of existingBookings) {
-      // A time slot is unavailable if it falls within any existing booking range
-      // timeSlot >= booking.startTime AND timeSlot < booking.endTime
-      if (timeSlot >= booking.startTime && timeSlot < booking.endTime) {
+      const bookingStartMinutes = timeToMinutes(booking.startTime);
+      const bookingEndMinutes = timeToMinutes(booking.endTime);
+      
+      // A time slot is unavailable if:
+      // 1. It falls within the booking range (slot >= start AND slot < end)
+      // 2. It's within 30 minutes AFTER the booking ends (requires gap)
+      //    Example: Booking ends 10:00, slot 10:00 is unavailable (need 10:30)
+      
+      // Check if slot is during the booking
+      if (slotMinutes >= bookingStartMinutes && slotMinutes < bookingEndMinutes) {
+        return true;
+      }
+      
+      // Check if slot is within 30 minutes after booking ends
+      // Booking ends at bookingEndMinutes, need gap until bookingEndMinutes + 30
+      if (slotMinutes >= bookingEndMinutes && slotMinutes < bookingEndMinutes + 30) {
         return true;
       }
     }
@@ -3781,6 +3816,7 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
 
   /**
    * Update end time options based on selected start time and existing bookings
+   * IMPORTANT: Enforces 30-minute gap requirement before next booking
    */
   function updateEndTimeOptions() {
     const startTimeSelect = document.getElementById('startTime');
@@ -3802,11 +3838,20 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
 
     console.log(`⏰ [Conference Form] Filtering end times based on start: ${selectedStart}`);
 
+    // Helper: Convert time string to minutes
+    function timeToMinutes(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+
+    const selectedStartMinutes = timeToMinutes(selectedStart);
+
     // Filter end time options
     endTimeSelect.querySelectorAll('option').forEach(opt => {
       if (!opt.value) return; // Skip placeholder
 
       const endValue = opt.value;
+      const endValueMinutes = timeToMinutes(endValue);
       
       // Rule 1: End time must be after start time
       if (endValue <= selectedStart) {
@@ -3815,17 +3860,30 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
         return;
       }
 
-      // Rule 2: Check if this end time would cause overlap with existing bookings
-      let wouldOverlap = false;
+      // Rule 2: Check if this end time would cause overlap OR violate 30-min gap with existing bookings
+      let isInvalid = false;
+      
       for (const booking of dateBookings) {
-        // Check if the proposed time range (selectedStart to endValue) overlaps with booking
+        const bookingStartMinutes = timeToMinutes(booking.startTime);
+        const bookingEndMinutes = timeToMinutes(booking.endTime);
+        
+        // Check if the proposed time range overlaps with booking
         if (timeRangesOverlap(selectedStart, endValue, booking.startTime, booking.endTime)) {
-          wouldOverlap = true;
+          isInvalid = true;
+          break;
+        }
+        
+        // CRITICAL: Check if proposed end time violates 30-minute gap requirement
+        // If our end time is within 30 minutes BEFORE the next booking starts, it's invalid
+        // Example: Booking at 12:00 PM, our end time 11:30 or 11:00 AM is invalid (need gap)
+        // We can only end at 11:30 AM if booking starts at 12:00 PM or later
+        if (endValueMinutes > bookingStartMinutes - 30 && endValueMinutes <= bookingStartMinutes) {
+          isInvalid = true;
           break;
         }
       }
 
-      if (wouldOverlap) {
+      if (isInvalid) {
         opt.disabled = true;
         opt.text = opt.text.replace(' (Unavailable)', '') + ' (Unavailable)';
         opt.style.color = '#999';
@@ -3846,13 +3904,14 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
 
   /**
    * Check if a date is fully booked (reuse from calendar logic)
+   * Updated: Minimum required time is now 2 hours (was 4 hours)
    */
   function isDateFullyBooked(bookings) {
     if (!bookings || bookings.length === 0) return false;
     
     const OPERATING_START = '08:00';
     const OPERATING_END = '17:00';
-    const MIN_REQUIRED_HOURS = 4;
+    const MIN_REQUIRED_HOURS = 2; // Changed from 4 to 2 hours
     
     function timeToMinutes(timeStr) {
       const [hours, minutes] = timeStr.split(':').map(Number);
@@ -3935,6 +3994,31 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
     if (!startTime) setFieldError('startTime', 'Start time is required'), isValid = false;
     if (!endTime) setFieldError('endTime', 'End time is required'), isValid = false;
     else if (startTime && endTime <= startTime) setFieldError('endTime', 'End time must be after start time'), isValid = false;
+    
+    // CRITICAL: Enforce 2-hour minimum booking duration
+    if (startTime && endTime && isValid) {
+      const timeToMinutes = (timeStr) => {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return hours * 60 + minutes;
+      };
+      
+      const startMinutes = timeToMinutes(startTime);
+      const endMinutes = timeToMinutes(endTime);
+      const durationMinutes = endMinutes - startMinutes;
+      const MIN_DURATION_HOURS = 2;
+      const minDurationMinutes = MIN_DURATION_HOURS * 60; // 120 minutes
+      
+      if (durationMinutes < minDurationMinutes) {
+        const hours = Math.floor(durationMinutes / 60);
+        const minutes = durationMinutes % 60;
+        const durationText = hours > 0 
+          ? `${hours} hour${hours !== 1 ? 's' : ''}${minutes > 0 ? ` ${minutes} min` : ''}`
+          : `${minutes} minutes`;
+        
+        setFieldError('endTime', `Minimum booking duration is ${MIN_DURATION_HOURS} hours. Current duration: ${durationText}`);
+        isValid = false;
+      }
+    }
 
     if (!isValid) {
       const firstError = document.querySelector('.error-message:not(:empty)');
