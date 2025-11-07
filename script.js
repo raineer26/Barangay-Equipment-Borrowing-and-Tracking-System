@@ -4301,19 +4301,9 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
   // Sidebar dropdown toggle functionality
   function setupSidebarDropdowns() {
     const reviewRequestsToggle = document.getElementById('reviewRequestsToggle');
-    const manageCalendarToggle = document.getElementById('manageCalendarToggle');
 
     if (reviewRequestsToggle) {
       reviewRequestsToggle.addEventListener('click', function(e) {
-        e.preventDefault();
-        const dropdown = this.nextElementSibling;
-        dropdown.classList.toggle('open');
-        this.classList.toggle('open');
-      });
-    }
-
-    if (manageCalendarToggle) {
-      manageCalendarToggle.addEventListener('click', function(e) {
         e.preventDefault();
         const dropdown = this.nextElementSibling;
         dropdown.classList.toggle('open');
@@ -11547,23 +11537,11 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
    */
   function setupSidebarDropdowns() {
     const reviewRequestsToggle = document.getElementById('reviewRequestsToggle');
-    const manageCalendarToggle = document.getElementById('manageCalendarToggle');
 
     if (reviewRequestsToggle) {
       reviewRequestsToggle.addEventListener('click', function(e) {
         e.preventDefault();
         const dropdown = document.getElementById('reviewRequestsDropdown');
-        if (dropdown) {
-          dropdown.classList.toggle('open');
-          this.classList.toggle('open');
-        }
-      });
-    }
-
-    if (manageCalendarToggle) {
-      manageCalendarToggle.addEventListener('click', function(e) {
-        e.preventDefault();
-        const dropdown = document.getElementById('manageCalendarDropdown');
         if (dropdown) {
           dropdown.classList.toggle('open');
           this.classList.toggle('open');
