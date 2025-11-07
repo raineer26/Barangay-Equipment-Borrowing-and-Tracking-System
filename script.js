@@ -3292,8 +3292,11 @@ if (window.location.pathname.endsWith('admin.html')) {
 
 //===================================================== ADMIN DASHBOARD SCRIPT Add this section to your script.js file*/
 
-// Check if we're on the admin dashboard page
-if (window.location.pathname.endsWith('admin.html') || window.location.pathname.endsWith('/admin')) {
+// Check if we're on the admin dashboard page or manage inventory page
+if (window.location.pathname.endsWith('admin.html') || 
+    window.location.pathname.endsWith('/admin') || 
+    window.location.pathname.endsWith('admin-manage-inventory.html') || 
+    window.location.pathname.endsWith('/admin-manage-inventory')) {
   
   // Store all reservations data loaded from Firestore
   let allReservationsData = [];
@@ -3330,22 +3333,16 @@ if (window.location.pathname.endsWith('admin.html') || window.location.pathname.
   // Sidebar dropdown toggle functionality
   function setupSidebarDropdowns() {
     const reviewRequestsToggle = document.getElementById('reviewRequestsToggle');
-    const manageCalendarToggle = document.getElementById('manageCalendarToggle');
 
     if (reviewRequestsToggle) {
       reviewRequestsToggle.addEventListener('click', function(e) {
         e.preventDefault();
-        const dropdown = this.nextElementSibling;
-        dropdown.classList.toggle('open');
-        this.classList.toggle('open');
-      });
-    }
-
-    if (manageCalendarToggle) {
-      manageCalendarToggle.addEventListener('click', function(e) {
-        e.preventDefault();
-        const dropdown = this.nextElementSibling;
-        dropdown.classList.toggle('open');
+        // Get the parent .sidebar-dropdown container
+        const parentDropdown = this.closest('.sidebar-dropdown');
+        if (parentDropdown) {
+          parentDropdown.classList.toggle('open');
+        }
+        // Toggle arrow rotation on the toggle button
         this.classList.toggle('open');
       });
     }
@@ -7050,10 +7047,53 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   // ========================================
 
   /**
+   * Setup sidebar dropdown toggles
+   */
+  function setupSidebarDropdowns() {
+    const reviewRequestsToggle = document.getElementById('reviewRequestsToggle');
+
+    if (reviewRequestsToggle) {
+      reviewRequestsToggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        const dropdown = this.nextElementSibling;
+        dropdown.classList.toggle('open');
+        this.classList.toggle('open');
+      });
+    }
+  }
+
+  /**
+   * Setup mobile menu toggle
+   */
+  function setupMobileMenu() {
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.admin-sidebar');
+
+    if (menuToggle && sidebar) {
+      menuToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('open');
+      });
+
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768) {
+          if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+            sidebar.classList.remove('open');
+          }
+        }
+      });
+    }
+  }
+
+  /**
    * Initialize the page
    */
   async function initPage() {
     console.log('🚀 Initializing Tents & Chairs Admin page...');
+    
+    // Setup sidebar dropdowns and mobile menu
+    setupSidebarDropdowns();
+    setupMobileMenu();
     
     // Check authentication
     onAuthStateChanged(auth, async (user) => {
@@ -7475,3 +7515,2238 @@ confirmYes.addEventListener("click", async () => {
 
 } // End of admin-manage-inventory.html conditional
 
+/* ========================================================================================================
+   🏛️ CONFERENCE ROOM ADMIN MANAGEMENT SYSTEM
+   ======================================================================================================== */
+/**
+ * PAGE: admin-conference-requests.html
+ * PURPOSE: Manage conference room reservations (approve, deny, complete, archive)
+ * 
+ * KEY DIFFERENCES FROM TENTS ADMIN:
+ * - No inventory tracking (conference room is single resource)
+ * - Single event date + time range (not date range)
+ * - No delivery mode or quantities
+ * - Simpler approval process (no stock validation needed)
+ * 
+ * FIRESTORE COLLECTION: conferenceRoomBookings
+ * Document Structure:
+ * {
+ *   fullName: string,
+ *   contactNumber: string,
+ *   purpose: string,
+ *   eventDate: "YYYY-MM-DD",
+ *   startTime: "HH:mm",
+ *   endTime: "HH:mm",
+ *   status: "pending"|"approved"|"in-progress"|"completed"|"rejected"|"cancelled",
+ *   userId: string,
+ *   userEmail: string,
+ *   createdAt: Timestamp,
+ *   approvedAt?: Timestamp,
+ *   rejectedAt?: Timestamp,
+ *   completedAt?: Timestamp,
+ *   archivedAt?: Timestamp,
+ *   rejectionReason?: string,
+ *   archived?: boolean
+ * }
+ */
+
+if (window.location.pathname.endsWith('admin-conference-requests.html') || 
+    window.location.pathname.endsWith('/admin-conference-requests')) {
+  
+  console.log('🏛️ Conference Room Admin Page loaded');
+
+  // ========================================
+  // STATE VARIABLES
+  // ========================================
+  let allRequests = []; // All conference room requests from Firestore
+  let currentTab = 'all'; // 'all' (active requests) or 'history' (completed/rejected/cancelled) or 'archives'
+  let currentView = 'table'; // 'table' or 'calendar' (calendar is future feature)
+  let currentMonth = new Date().getMonth(); // for calendar
+  let currentYear = new Date().getFullYear(); // for calendar
+
+  // ========================================
+  // DATA LOADING
+  // ========================================
+
+  /**
+   * Load all conference room requests from Firestore
+   * Called on page load and after any data changes
+   */
+  async function loadAllRequests() {
+    console.log('🔄 Loading conference room requests from Firestore...');
+    try {
+      const requestsRef = collection(db, 'conferenceRoomBookings');
+      const snapshot = await getDocs(requestsRef);
+      
+      allRequests = [];
+      snapshot.forEach(doc => {
+        allRequests.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      console.log(`✅ Loaded ${allRequests.length} conference room requests`);
+      
+      // Update UI
+      updateStatistics();
+      
+      // Update status filter counts after data is loaded
+      updateStatusFilterOptions();
+      
+      renderContent();
+    } catch (error) {
+      console.error('❌ Error loading requests:', error);
+      showToast('Error loading requests. Please refresh the page.', false);
+    }
+  }
+
+  /**
+   * Update dashboard statistics (Total, Pending, Approved, Completed)
+   */
+  function updateStatistics() {
+    const total = allRequests.length;
+    const pending = allRequests.filter(r => r.status === 'pending').length;
+    const approved = allRequests.filter(r => r.status === 'approved').length;
+    const completed = allRequests.filter(r => r.status === 'completed').length;
+
+    // Update stat card numbers
+    document.getElementById('totalRequestsCount').textContent = total;
+    document.getElementById('pendingRequestsCount').textContent = pending;
+    document.getElementById('approvedRequestsCount').textContent = approved;
+    document.getElementById('completedRequestsCount').textContent = completed;
+
+    console.log(`📊 Stats: Total=${total}, Pending=${pending}, Approved=${approved}, Completed=${completed}`);
+  }
+
+  // ========================================
+  // FILTERING & SORTING
+  // ========================================
+
+  /**
+   * Get filtered requests based on current tab and filter inputs
+   * Returns array of requests matching all active filters
+   */
+  function getFilteredRequests() {
+    const searchTerm = (document.getElementById('searchInput')?.value || '').toLowerCase();
+    const statusFilter = document.getElementById('statusFilter')?.value || 'all';
+    const dateFilter = document.getElementById('dateFilter')?.value || '';
+    const sortBy = document.getElementById('sortByFilter')?.value || 'submitted-desc';
+
+    let filtered = [...allRequests];
+
+    // Tab filtering - different statuses for each tab
+    if (currentTab === 'all') {
+      // All Requests tab: show pending, approved, in-progress
+      filtered = filtered.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+    } else if (currentTab === 'history') {
+      // History tab: show completed, rejected, cancelled (but NOT archived)
+      filtered = filtered.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+    } else if (currentTab === 'archives') {
+      // Archives tab: show only archived requests
+      filtered = filtered.filter(r => r.archived === true);
+    }
+
+    // Enhanced multi-field search - searches firstName, lastName, fullName, purpose, and address
+    if (searchTerm) {
+      console.log(`🔍 Conference Room - Searching for: "${searchTerm}"`);
+      const beforeCount = filtered.length;
+      
+      filtered = filtered.filter(r => {
+        // Get all searchable text fields (handle both naming conventions)
+        const firstName = (r.firstName || '').toLowerCase();
+        const lastName = (r.lastName || '').toLowerCase();
+        const fullName = (r.fullName || '').toLowerCase();
+        const purpose = (r.purpose || '').toLowerCase();
+        const address = (r.address || '').toLowerCase();
+        
+        // Return true if search term is found in ANY of these fields
+        const isMatch = firstName.includes(searchTerm) ||
+                       lastName.includes(searchTerm) ||
+                       fullName.includes(searchTerm) ||
+                       purpose.includes(searchTerm) ||
+                       address.includes(searchTerm);
+        
+        return isMatch;
+      });
+      
+      console.log(`✅ Found ${filtered.length} matches (from ${beforeCount} requests)`);
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(r => r.status === statusFilter);
+    }
+
+    // Date filter - filter by event date
+    if (dateFilter) {
+      filtered = filtered.filter(r => r.eventDate === dateFilter);
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'submitted-desc':
+          return (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0);
+        case 'submitted-asc':
+          return (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0);
+        case 'event-desc':
+          return (b.eventDate || '').localeCompare(a.eventDate || '');
+        case 'event-asc':
+          return (a.eventDate || '').localeCompare(b.eventDate || '');
+        case 'completed-desc':
+          // Date Finalized (Newest First) - include completedAt, rejectedAt, cancelledAt
+          const aFinal = getFinalizedTimestampMillis(a);
+          const bFinal = getFinalizedTimestampMillis(b);
+          if (!aFinal && !bFinal) return 0;
+          if (!aFinal) return 1; // push items without final date to end
+          if (!bFinal) return -1;
+          return bFinal - aFinal;
+        case 'completed-asc':
+          // Date Finalized (Oldest First) - include completedAt, rejectedAt, cancelledAt
+          const aFinal2 = getFinalizedTimestampMillis(a);
+          const bFinal2 = getFinalizedTimestampMillis(b);
+          if (!aFinal2 && !bFinal2) return 0;
+          if (!aFinal2) return 1;
+          if (!bFinal2) return -1;
+          return aFinal2 - bFinal2;
+        case 'archived-desc':
+          // Date Archived (Newest First) - requests without archivedAt go to end
+          const aHasArchived = a.archivedAt ? true : false;
+          const bHasArchived = b.archivedAt ? true : false;
+          if (!aHasArchived && !bHasArchived) return 0;
+          if (!aHasArchived) return 1;
+          if (!bHasArchived) return -1;
+          return (b.archivedAt?.toMillis() || 0) - (a.archivedAt?.toMillis() || 0);
+        case 'archived-asc':
+          // Date Archived (Oldest First) - requests without archivedAt go to end
+          const aHasArchived2 = a.archivedAt ? true : false;
+          const bHasArchived2 = b.archivedAt ? true : false;
+          if (!aHasArchived2 && !bHasArchived2) return 0;
+          if (!aHasArchived2) return 1;
+          if (!bHasArchived2) return -1;
+          return (a.archivedAt?.toMillis() || 0) - (b.archivedAt?.toMillis() || 0);
+        case 'name-asc':
+          // Sort by last name (extract last word from fullName)
+          const aLast = (a.fullName || '').split(' ').pop().toLowerCase();
+          const bLast = (b.fullName || '').split(' ').pop().toLowerCase();
+          return aLast.localeCompare(bLast);
+        case 'name-desc':
+          const aLastDesc = (a.fullName || '').split(' ').pop().toLowerCase();
+          const bLastDesc = (b.fullName || '').split(' ').pop().toLowerCase();
+          return bLastDesc.localeCompare(aLastDesc);
+        default:
+          return 0;
+      }
+    });
+
+    console.log(`🔍 Filtered: ${filtered.length} requests (from ${allRequests.length} total)`);
+    return filtered;
+  }
+
+  /**
+   * Update status filter dropdown options based on current tab
+   */
+  function updateStatusFilterOptions() {
+    const statusFilter = document.getElementById('statusFilter');
+    if (!statusFilter) return;
+
+    // Calculate counts based on current tab
+    let counts = {};
+    if (currentTab === 'all') {
+      const activeRequests = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+      counts = {
+        all: activeRequests.length,
+        pending: activeRequests.filter(r => r.status === 'pending').length,
+        approved: activeRequests.filter(r => r.status === 'approved').length,
+        'in-progress': activeRequests.filter(r => r.status === 'in-progress').length
+      };
+    } else if (currentTab === 'history') {
+      const historyRequests = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+      counts = {
+        all: historyRequests.length,
+        completed: historyRequests.filter(r => r.status === 'completed').length,
+        rejected: historyRequests.filter(r => r.status === 'rejected').length,
+        cancelled: historyRequests.filter(r => r.status === 'cancelled').length
+      };
+    } else if (currentTab === 'archives') {
+      const archivedRequests = allRequests.filter(r => r.archived === true);
+      counts = {
+        all: archivedRequests.length,
+        completed: archivedRequests.filter(r => r.status === 'completed').length,
+        rejected: archivedRequests.filter(r => r.status === 'rejected').length,
+        cancelled: archivedRequests.filter(r => r.status === 'cancelled').length
+      };
+    }
+
+    // Store current selection
+    const currentValue = statusFilter.value;
+
+    if (currentTab === 'all') {
+      statusFilter.innerHTML = `
+        <option value="all">All Statuses (${counts.all})</option>
+        <option value="pending">Pending (${counts.pending})</option>
+        <option value="approved">Approved (${counts.approved})</option>
+        <option value="in-progress">In Progress (${counts['in-progress']})</option>
+      `;
+    } else if (currentTab === 'history') {
+      statusFilter.innerHTML = `
+        <option value="all">All Statuses (${counts.all})</option>
+        <option value="completed">Completed (${counts.completed})</option>
+        <option value="rejected">Rejected (${counts.rejected})</option>
+        <option value="cancelled">Cancelled (${counts.cancelled})</option>
+      `;
+    } else if (currentTab === 'archives') {
+      statusFilter.innerHTML = `
+        <option value="all">All Statuses (${counts.all})</option>
+        <option value="completed">Completed (${counts.completed})</option>
+        <option value="rejected">Rejected (${counts.rejected})</option>
+        <option value="cancelled">Cancelled (${counts.cancelled})</option>
+      `;
+    }
+
+    // Restore selected value
+    statusFilter.value = currentValue;
+  }
+
+  /**
+   * Update sort by options based on current tab
+   */
+  function updateSortByOptions() {
+    const sortByFilter = document.getElementById('sortByFilter');
+    if (!sortByFilter) return;
+
+    // Store current selection to preserve it if possible
+    const currentValue = sortByFilter.value;
+
+    if (currentTab === 'all') {
+      // All Requests Tab: Show base sort options (no completed/archived dates)
+      sortByFilter.innerHTML = `
+        <option value="submitted-desc">Date Submitted (Newest First)</option>
+        <option value="submitted-asc">Date Submitted (Oldest First)</option>
+        <option value="event-desc">Event Date (Newest First)</option>
+        <option value="event-asc">Event Date (Oldest First)</option>
+        <option value="name-asc">Last Name (A-Z)</option>
+        <option value="name-desc">Last Name (Z-A)</option>
+      `;
+    } else if (currentTab === 'history') {
+      // History Tab: Add "Date Completed" options
+      sortByFilter.innerHTML = `
+        <option value="submitted-desc">Date Submitted (Newest First)</option>
+        <option value="submitted-asc">Date Submitted (Oldest First)</option>
+        <option value="event-desc">Event Date (Newest First)</option>
+        <option value="event-asc">Event Date (Oldest First)</option>
+        <option value="completed-desc">Date Completed (Newest First)</option>
+        <option value="completed-asc">Date Completed (Oldest First)</option>
+        <option value="name-asc">Last Name (A-Z)</option>
+        <option value="name-desc">Last Name (Z-A)</option>
+      `;
+    } else if (currentTab === 'archives') {
+      // Archives Tab: Add "Date Archived" options
+      sortByFilter.innerHTML = `
+        <option value="submitted-desc">Date Submitted (Newest First)</option>
+        <option value="submitted-asc">Date Submitted (Oldest First)</option>
+        <option value="event-desc">Event Date (Newest First)</option>
+        <option value="event-asc">Event Date (Oldest First)</option>
+        <option value="archived-desc">Date Archived (Newest First)</option>
+        <option value="archived-asc">Date Archived (Oldest First)</option>
+        <option value="name-asc">Last Name (A-Z)</option>
+        <option value="name-desc">Last Name (Z-A)</option>
+      `;
+    }
+
+    // Restore previous selection if still valid
+    if (sortByFilter.querySelector(`option[value="${currentValue}"]`)) {
+      sortByFilter.value = currentValue;
+    }
+  }
+
+  /**
+   * Robust name extractor - returns { firstName, lastName }
+   * Tries multiple common fields and falls back to email local-part if needed.
+   */
+  function getNameParts(req) {
+    // Preferred explicit fields (new schema)
+    if (req.firstName || req.lastName) {
+      return {
+        firstName: String(req.firstName || '').trim(),
+        lastName: String(req.lastName || '').trim()
+      };
+    }
+
+    // Some documents may use camelCase without capitals
+    if (req.firstname || req.lastname) {
+      return {
+        firstName: String(req.firstname || '').trim(),
+        lastName: String(req.lastname || '').trim()
+      };
+    }
+
+    // Underscored variant
+    if (req.first_name || req.last_name) {
+      return {
+        firstName: String(req.first_name || '').trim(),
+        lastName: String(req.last_name || '').trim()
+      };
+    }
+
+    // Legacy combined fields
+    const raw = String(req.fullName || req.fullname || req.full_name || req.name || req.applicantName || '').trim();
+    if (raw) {
+      const parts = raw.split(/\s+/);
+      return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '' };
+    }
+
+    // fallback: try to extract from email local part
+    if (req.userEmail) {
+      const local = String(req.userEmail).split('@')[0];
+      const parts = local.split(/[._\-]/).filter(Boolean);
+      return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '' };
+    }
+
+    return { firstName: '', lastName: '' };
+  }
+
+  // ========================================
+  // RENDERING
+  // ========================================
+
+  /**
+   * Main render dispatcher - calls appropriate render function based on currentView
+   */
+  function renderContent() {
+    if (currentView === 'table') {
+      renderTableView();
+    } else {
+      renderCalendarView();
+    }
+  }
+
+  /**
+   * Render table view with all columns
+   * Columns: Submitted On, First Name, Last Name, Contact, Purpose, Event Date, Start Time, End Time, Status, Actions, Notify/Remarks
+   */
+  function renderTableView() {
+    const contentArea = document.getElementById('conferenceContentArea');
+    if (!contentArea) return;
+
+    const filteredRequests = getFilteredRequests();
+
+    // Empty state
+    if (filteredRequests.length === 0) {
+      contentArea.innerHTML = `
+        <div class="tents-empty-state">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+          </svg>
+          <h3>No requests found</h3>
+          <p>No conference room reservations match your current filters.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Prepare header labels depending on tab
+    const notifyOrRemarksHeader = currentTab === 'all' ? 'Notify User' : 'Remarks';
+    const trailingHeader = currentTab === 'history' ? '<th>Completed On</th>' : (currentTab === 'archives' ? '<th>Archived On</th>' : '');
+
+    // Build table HTML
+    let tableHTML = `
+      <div class="tents-table-container">
+        <table class="tents-requests-table">
+          <thead>
+            <tr>
+              <th>Submitted On</th>
+              <th>First Name</th>
+              <th>Last Name</th>
+              <th>Contact Number</th>
+              <th>Purpose</th>
+              <th>Event Date</th>
+              <th>Start Time</th>
+              <th>End Time</th>
+              <th>Status</th>
+              <th>Actions</th>
+              <th>${notifyOrRemarksHeader}</th>
+              ${trailingHeader}
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    // Render each request row
+    filteredRequests.forEach(req => {
+  // Split name into first and last using robust helper
+  const { firstName, lastName } = getNameParts(req);
+
+      // Format submitted date
+      const submittedDate = req.createdAt ? 
+        new Date(req.createdAt.toMillis()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 
+        'N/A';
+      const submittedTime = req.createdAt ? 
+        new Date(req.createdAt.toMillis()).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 
+        '';
+
+      // Format event date
+      const eventDate = req.eventDate ? 
+        new Date(req.eventDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 
+        'N/A';
+
+      // Format times to 12-hour format
+      const formatTime = (time24) => {
+        if (!time24) return 'N/A';
+        const [hours, minutes] = time24.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${hour12}:${minutes} ${ampm}`;
+      };
+
+      const startTime = formatTime(req.startTime);
+      const endTime = formatTime(req.endTime);
+
+      // Completed/Archived date and time (for history/archives tab)
+      let completedDate = '';
+      let completedTime = '';
+      if (currentTab === 'history') {
+        if (req.completedAt) {
+          const d = new Date(req.completedAt.toMillis());
+          completedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          completedTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } else if (req.rejectedAt) {
+          const d = new Date(req.rejectedAt.toMillis());
+          completedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          completedTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } else if (req.cancelledAt) {
+          const d = new Date(req.cancelledAt.toMillis());
+          completedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          completedTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } else {
+          completedDate = 'N/A';
+          completedTime = '';
+        }
+      } else if (currentTab === 'archives') {
+        if (req.archivedAt) {
+          const d = new Date(req.archivedAt.toMillis());
+          completedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          completedTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } else {
+          completedDate = 'N/A';
+          completedTime = '';
+        }
+      }
+
+      // Remarks (for history/archives tab)
+      let remarks = '';
+      if (currentTab !== 'all') {
+        if (req.status === 'rejected' && req.rejectionReason) {
+          remarks = sanitizeInput(req.rejectionReason);
+        } else if (req.status === 'cancelled') {
+          remarks = 'Cancelled by user';
+        } else {
+          remarks = '—';
+        }
+      }
+
+      tableHTML += `
+        <tr>
+          <td>
+            ${submittedDate}<br>
+            <span style="font-size: 11px; color: #6b7280; font-style: italic;">${submittedTime}</span>
+          </td>
+          <td>${sanitizeInput(firstName)}</td>
+          <td>${sanitizeInput(lastName)}</td>
+          <td>${sanitizeInput(req.contactNumber || '')}</td>
+          <td style="max-width: 250px; overflow-wrap: break-word;">${sanitizeInput(req.purpose || '')}</td>
+          <td>${eventDate}</td>
+          <td>${startTime}</td>
+          <td>${endTime}</td>
+          <td>${renderStatusBadge(req.status)}</td>
+          <td>${renderActionButtons(req)}</td>
+          <td>${currentTab === 'all' ? renderNotifyButtons(req) : remarks}</td>
+          ${currentTab !== 'all' ? `<td style="text-align: right;">${completedDate}${completedTime ? `<br><span style="font-size:11px;color:#6b7280;font-style:italic;">${completedTime}</span>` : ''}</td>` : ''}
+        </tr>
+      `;
+    });
+
+    tableHTML += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    contentArea.innerHTML = tableHTML;
+  }
+
+  /**
+   * Render status badge with appropriate color
+   */
+  function renderStatusBadge(status) {
+    const badgeClass = `tents-status-badge-${status}`;
+    const statusText = status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
+    return `<span class="${badgeClass}">${statusText}</span>`;
+  }
+
+  /**
+   * Render action buttons based on request status and current tab
+   */
+  function renderActionButtons(req) {
+    const buttons = [];
+
+    if (currentTab === 'all') {
+      // All Requests tab
+      if (req.status === 'pending') {
+        buttons.push(`<button class="tents-btn-approve" onclick="handleApprove('${req.id}')">Approve</button>`);
+        buttons.push(`<button class="tents-btn-deny" onclick="handleDeny('${req.id}')">Deny</button>`);
+      } else if (req.status === 'approved' || req.status === 'in-progress') {
+        buttons.push(`<button class="tents-btn-complete" onclick="handleComplete('${req.id}')">Mark as Completed</button>`);
+      }
+    } else if (currentTab === 'history') {
+      // History tab - only archive (no delete)
+      buttons.push(`<button class="tents-btn-archive" onclick="handleArchive('${req.id}')">Archive</button>`);
+    } else if (currentTab === 'archives') {
+      // Archives tab - only unarchive (no delete)
+      buttons.push(`<button class="tents-btn-unarchive" onclick="handleUnarchive('${req.id}')">Unarchive</button>`);
+    }
+
+    return buttons.length > 0 ? 
+      `<div class="tents-action-buttons">${buttons.join('')}</div>` : 
+      '—';
+  }
+
+  /**
+   * Render notification buttons (only for approved/in-progress requests in All Requests tab)
+   */
+  function renderNotifyButtons(req) {
+    // Show a yellow "Time's Up" button for approved/in-progress requests
+    if (req.status === 'approved' || req.status === 'in-progress') {
+      return `
+        <div class="tents-action-buttons">
+          <button class="tents-btn-timesup" style="background:#facc15;color:#111;border:none;padding:8px 12px;border-radius:6px;" onclick="handleTimesUp('${req.id}')">Time's Up</button>
+        </div>
+      `;
+    }
+    return '—';
+  }
+
+  /**
+   * Render calendar view (placeholder for future implementation)
+   */
+  function renderCalendarView() {
+    const container = document.getElementById('conferenceContentArea');
+    if (!container) return;
+
+    console.log('📅 Rendering conference calendar view...');
+
+    const filtered = getFilteredRequests();
+
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    const now = new Date();
+    if (typeof currentMonth === 'undefined') currentMonth = now.getMonth();
+    if (typeof currentYear === 'undefined') currentYear = now.getFullYear();
+
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    const today = new Date();
+    const todayDateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+    let calendarHTML = `
+      <div class="tents-calendar-container">
+        <div class="tents-calendar-header">
+          <button class="tents-calendar-nav-btn" id="prevMonthBtn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <h2>${monthNames[currentMonth]} ${currentYear}</h2>
+          <button class="tents-calendar-nav-btn" id="nextMonthBtn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <div class="tents-calendar-legend">
+          <div class="tents-legend-item"><div class="tents-legend-box tents-legend-today"></div><span>Today</span></div>
+          <div class="tents-legend-item"><div class="tents-legend-box tents-legend-has-bookings"></div><span>Has Reservations</span></div>
+          <div class="tents-legend-item"><div class="tents-legend-box tents-legend-empty"></div><span>No Reservations</span></div>
+        </div>
+
+        <div class="tents-calendar-grid">
+          <div class="tents-calendar-day-header">Sun</div>
+          <div class="tents-calendar-day-header">Mon</div>
+          <div class="tents-calendar-day-header">Tue</div>
+          <div class="tents-calendar-day-header">Wed</div>
+          <div class="tents-calendar-day-header">Thu</div>
+          <div class="tents-calendar-day-header">Fri</div>
+          <div class="tents-calendar-day-header">Sat</div>
+    `;
+
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      calendarHTML += '<div class="tents-calendar-date empty"></div>';
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+
+      // Find bookings for this exact date (conference uses single eventDate)
+      const dayBookings = filtered.filter(req => ['approved','in-progress'].includes(req.status) && req.eventDate === dateStr);
+
+      const hasBookings = dayBookings.length > 0;
+      const isToday = dateStr === todayDateStr;
+
+      calendarHTML += `
+        <div class="tents-calendar-date ${hasBookings ? 'has-bookings' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">
+          <div class="tents-date-number">${day}</div>
+      `;
+
+      if (hasBookings) {
+        // show up to 2 booking previews
+        dayBookings.slice(0,2).forEach(b => {
+          const name = sanitizeInput(b.fullName || (b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : 'Unknown'));
+          const timeRange = `${formatTime12Hour(b.startTime)} - ${formatTime12Hour(b.endTime)}`;
+          calendarHTML += `<div class="tents-calendar-event"><div class="tents-event-name">${name}</div><div class="tents-event-items">${timeRange}</div></div>`;
+        });
+        if (dayBookings.length > 2) calendarHTML += `<div class="tents-more-bookings">+${dayBookings.length-2} more</div>`;
+      }
+
+      calendarHTML += '</div>';
+    }
+
+    calendarHTML += `
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = calendarHTML;
+
+    // Nav handlers
+    document.getElementById('prevMonthBtn')?.addEventListener('click', () => {
+      currentMonth--;
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      renderCalendarView();
+    });
+    document.getElementById('nextMonthBtn')?.addEventListener('click', () => {
+      currentMonth++;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      renderCalendarView();
+    });
+
+    // Date click handlers
+    document.querySelectorAll('.tents-calendar-date:not(.empty)').forEach(dateEl => {
+      dateEl.style.cursor = 'pointer';
+      dateEl.addEventListener('click', () => {
+        const date = dateEl.getAttribute('data-date');
+        showDateBookingsModalConference(date);
+      });
+    });
+  }
+
+  // Show modal with conference bookings for a specific date
+  function showDateBookingsModalConference(date) {
+    console.log('📅 conference bookings for', date);
+    const filtered = getFilteredRequests();
+    const dateBookings = filtered.filter(req => ['approved','in-progress'].includes(req.status) && req.eventDate === date);
+
+    const modal = document.getElementById('conferenceModalOverlay');
+    const titleEl = document.getElementById('conferenceModalTitle');
+    const bodyEl = document.getElementById('conferenceModalBody');
+    if (!modal || !titleEl || !bodyEl) { console.error('Modal elements missing'); return; }
+
+    const dateObj = new Date(date + 'T00:00:00');
+    const formattedDate = dateObj.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    titleEl.textContent = `Reservations for ${formattedDate}`;
+
+    let bodyHTML = '';
+    if (dateBookings.length === 0) {
+      bodyHTML = `<div style="text-align:center;color:#6b7280;padding:20px;">No reservations on this date.</div>`;
+    } else {
+      bodyHTML = '<div class="tents-modal-bookings-list">';
+      dateBookings.forEach((b, idx) => {
+        const np = getNameParts(b);
+        const name = sanitizeInput((np.firstName || '') + (np.lastName ? ' ' + np.lastName : '') || b.userEmail || 'Unknown');
+        const timeRange = `${formatTime12Hour(b.startTime)} - ${formatTime12Hour(b.endTime)}`;
+        bodyHTML += `
+          <div class="tents-booking-item ${idx>0 ? 'with-divider' : ''}">
+            <div class="tents-booking-item-header"><div class="tents-booking-name"><strong>${name}</strong></div><span class="tents-status-badge-${b.status}">${b.status.replace('-', ' ')}</span></div>
+            <div class="tents-booking-item-details">
+              <div class="tents-booking-detail-row"><strong>Time:</strong> ${timeRange}</div>
+              <div class="tents-booking-detail-row"><strong>Purpose:</strong> ${sanitizeInput(b.purpose || '')}</div>
+              <div class="tents-booking-detail-row"><strong>Contact:</strong> ${sanitizeInput(b.contactNumber || '')}</div>
+            </div>
+          </div>
+        `;
+      });
+      bodyHTML += '</div>';
+    }
+
+    bodyEl.innerHTML = bodyHTML;
+    modal.classList.add('active');
+  }
+
+  // ========================================
+  // ACTION HANDLERS
+  // ========================================
+
+  /**
+   * Approve a pending request
+   * Validates for time conflicts with existing approved bookings
+   */
+  window.handleApprove = async function(requestId) {
+    console.log('🔍 [Admin Approve] Starting approval process for request:', requestId);
+
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      showToast('Request not found', false);
+      return;
+    }
+
+    console.log('📋 [Admin Approve] Request details:', {
+      eventDate: request.eventDate,
+      startTime: request.startTime,
+      endTime: request.endTime,
+      status: request.status
+    });
+
+    // Build display name from available fields
+    const np = getNameParts(request);
+    const nameDisplay = (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.userEmail || 'user');
+
+    // 🔍 OVERLAP VALIDATION - Check for conflicts with approved bookings
+    console.log('🔍 [Admin Approve] Checking for time conflicts on', request.eventDate);
+
+    try {
+      // Query all approved/in-progress bookings on the same date (excluding this request)
+      const bookingsRef = collection(db, 'conferenceRoomBookings');
+      const q = query(
+        bookingsRef,
+        where('eventDate', '==', request.eventDate),
+        where('status', 'in', ['approved', 'in-progress'])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      console.log(`📊 [Admin Approve] Found ${querySnapshot.size} approved/in-progress booking(s) on ${request.eventDate}`);
+
+      // Check for time overlaps with existing approved bookings
+      let hasConflict = false;
+      let conflictingBooking = null;
+
+      querySnapshot.forEach(doc => {
+        // Skip if this is the same request being approved
+        if (doc.id === requestId) {
+          console.log('⏭️ [Admin Approve] Skipping self (request being approved)');
+          return;
+        }
+
+        const existingBooking = doc.data();
+        console.log('🔍 [Admin Approve] Checking against existing booking:', {
+          id: doc.id,
+          time: `${existingBooking.startTime} - ${existingBooking.endTime}`,
+          status: existingBooking.status,
+          user: existingBooking.userEmail || existingBooking.fullName
+        });
+
+        // Check if times overlap using helper function
+        if (timeRangesOverlap(request.startTime, request.endTime, existingBooking.startTime, existingBooking.endTime)) {
+          hasConflict = true;
+          const conflictNp = getNameParts(existingBooking);
+          conflictingBooking = {
+            id: doc.id,
+            userName: (conflictNp.firstName || conflictNp.lastName) 
+              ? (conflictNp.firstName + (conflictNp.lastName ? ' ' + conflictNp.lastName : ''))
+              : (existingBooking.userEmail || 'Unknown user'),
+            startTime: existingBooking.startTime,
+            endTime: existingBooking.endTime,
+            status: existingBooking.status,
+            purpose: existingBooking.purpose || 'Conference room reservation'
+          };
+          console.log('🚫 [Admin Approve] CONFLICT DETECTED - Times overlap!', conflictingBooking);
+        }
+      });
+
+      // 🚫 BLOCK approval if conflict found
+      if (hasConflict) {
+        console.error('❌ [Admin Approve] Approval BLOCKED due to time conflict');
+        
+        // Format times for display
+        const newTimeRange = `${formatTime12Hour(request.startTime)} - ${formatTime12Hour(request.endTime)}`;
+        const existingTimeRange = `${formatTime12Hour(conflictingBooking.startTime)} - ${formatTime12Hour(conflictingBooking.endTime)}`;
+        
+        // Calculate overlap period for detailed message
+        const overlapStart = request.startTime > conflictingBooking.startTime ? request.startTime : conflictingBooking.startTime;
+        const overlapEnd = request.endTime < conflictingBooking.endTime ? request.endTime : conflictingBooking.endTime;
+        const overlapRange = `${formatTime12Hour(overlapStart)} - ${formatTime12Hour(overlapEnd)}`;
+        
+        // Show detailed error modal (using alert mode of confirm modal)
+        await showConfirmModal(
+          '❌ Cannot Approve - Time Conflict',
+          `Another reservation already exists for this time slot:\n\n` +
+          `📋 Existing Reservation:\n` +
+          `   User: ${conflictingBooking.userName}\n` +
+          `   Time: ${existingTimeRange}\n` +
+          `   Status: ${conflictingBooking.status}\n` +
+          `   Purpose: ${conflictingBooking.purpose}\n\n` +
+          `📋 This Request:\n` +
+          `   User: ${nameDisplay}\n` +
+          `   Time: ${newTimeRange}\n\n` +
+          `⚠️ Overlap Period: ${overlapRange}\n\n` +
+          `Please ask the user to choose a different time slot.`,
+          null,
+          true // Alert mode (OK button only)
+        );
+        return; // Stop approval
+      }
+
+      console.log('✅ [Admin Approve] No conflicts found - proceeding with approval');
+
+      // ✅ NO CONFLICTS - Show final confirmation modal
+      const confirmed = await showConfirmModal(
+        'Approve Reservation',
+        `Approve conference room reservation for ${nameDisplay}?\n\nDate: ${request.eventDate}\nTime: ${request.startTime} - ${request.endTime}`,
+        null,
+        false
+      );
+
+      if (!confirmed) {
+        console.log('⏹️ [Admin Approve] Admin cancelled approval');
+        return;
+      }
+
+      // Update request status to approved
+      const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'approved',
+        approvedAt: new Date()
+      });
+
+      console.log('✅ [Admin Approve] Request approved successfully!');
+      showToast('Reservation approved successfully!', true);
+      
+      // Reload data
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error approving request:', error);
+      showToast('Error approving request. Please try again.', false);
+    }
+  };
+
+  /**
+   * Deny a pending request (with reason)
+   */
+  window.handleDeny = async function(requestId) {
+    console.log('❌ Denying request:', requestId);
+
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      showToast('Request not found', false);
+      return;
+    }
+
+    // Build display name from available fields
+    const np = getNameParts(request);
+    const nameDisplay = (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.userEmail || 'user');
+
+    // Show confirmation with input field for reason
+    const reason = await showConfirmModalWithInput(
+      'Deny Reservation',
+      `Are you sure you want to deny this reservation?\n\nApplicant: ${nameDisplay}\nDate: ${request.eventDate}\nTime: ${request.startTime} - ${request.endTime}\n\nPlease provide a reason for denial:`,
+      'Enter reason for denial...'
+    );
+
+    if (!reason) return; // User cancelled or didn't provide reason
+
+    try {
+      // Update request status to rejected
+      const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'rejected',
+        rejectedAt: new Date(),
+        rejectionReason: reason
+      });
+
+      console.log('✅ Request denied successfully');
+      showToast('Reservation denied', true);
+      
+      // Reload data
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error denying request:', error);
+      showToast('Error denying request. Please try again.', false);
+    }
+  };
+
+  /**
+   * Mark approved/in-progress request as completed
+   */
+  window.handleComplete = async function(requestId) {
+    console.log('✔️ Completing request:', requestId);
+
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      showToast('Request not found', false);
+      return;
+    }
+
+    // Build display name from available fields
+    const np = getNameParts(request);
+    const nameDisplay = (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.userEmail || 'user');
+
+    // Show confirmation
+    const confirmed = await showConfirmModal(
+      'Mark as Completed',
+      `Mark this reservation as completed?\n\nApplicant: ${nameDisplay}\nDate: ${request.eventDate}`,
+      null,
+      false
+    );
+
+    if (!confirmed) return;
+
+    try {
+      // Update request status to completed
+      const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'completed',
+        completedAt: new Date()
+      });
+
+      console.log('✅ Request marked as completed');
+      showToast('Reservation marked as completed!', true);
+      
+      // Reload data
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error completing request:', error);
+      showToast('Error updating request. Please try again.', false);
+    }
+  };
+
+  /**
+   * Archive a request (soft delete - hide from history)
+   */
+  window.handleArchive = async function(requestId) {
+    console.log('📦 Archiving request:', requestId);
+
+    const confirmed = await showConfirmModal(
+      'Archive Request',
+      'Move this request to archives? You can unarchive it later if needed.',
+      null,
+      false
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+      await updateDoc(requestRef, {
+        archived: true,
+        archivedAt: new Date()
+      });
+
+      console.log('✅ Request archived');
+      showToast('Request archived successfully', true);
+      
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error archiving request:', error);
+      showToast('Error archiving request. Please try again.', false);
+    }
+  };
+
+  /**
+   * Unarchive a request
+   */
+  window.handleUnarchive = async function(requestId) {
+    console.log('📤 Unarchiving request:', requestId);
+
+    const confirmed = await showConfirmModal(
+      'Unarchive Request',
+      'Move this request back to history?',
+      null,
+      false
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+      await updateDoc(requestRef, {
+        archived: false
+      });
+
+      console.log('✅ Request unarchived');
+      showToast('Request unarchived successfully', true);
+      
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error unarchiving request:', error);
+      showToast('Error unarchiving request. Please try again.', false);
+    }
+  };
+
+  /**
+   * Delete a request permanently
+   */
+  window.handleDelete = async function(requestId) {
+    console.log('🗑️ Deleting request:', requestId);
+
+    // Double confirmation for permanent deletion
+    const confirmed = await showConfirmModal(
+      'Delete Request',
+      '⚠️ WARNING: This will permanently delete this request.\n\nThis action cannot be undone. Are you sure?',
+      null,
+      false
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await deleteDoc(doc(db, 'conferenceRoomBookings', requestId));
+
+      console.log('✅ Request deleted permanently');
+      showToast('Request deleted permanently', true);
+      
+      await loadAllRequests();
+    } catch (error) {
+      console.error('❌ Error deleting request:', error);
+      showToast('Error deleting request. Please try again.', false);
+    }
+  };
+
+  /**
+   * Send reminder notification (placeholder for future email/SMS integration)
+   */
+  window.handleRemind = async function(requestId) {
+    console.log('🔔 Sending reminder for request:', requestId);
+
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      showToast('Request not found', false);
+      return;
+    }
+
+    const np = getNameParts(request);
+    const nameDisplay = (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.userEmail || 'user');
+
+    const confirmed = await showConfirmModal(
+      'Send Reminder',
+      `Send reminder notification to ${nameDisplay}?\n\nThis will notify them about their upcoming reservation.`,
+      null,
+      false
+    );
+
+    if (!confirmed) return;
+
+    // TODO: Implement actual notification (email/SMS via Cloud Functions)
+    showToast('Reminder feature coming soon!', true);
+    console.log('📧 TODO: Send email/SMS to:', request.userEmail, request.contactNumber);
+  };
+
+  /**
+   * Time's Up notification (yellow button) - placeholder
+   */
+  window.handleTimesUp = async function(requestId) {
+    console.log("⏰ Time's Up triggered for:", requestId);
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      showToast('Request not found', false);
+      return;
+    }
+
+    const confirmed = await showConfirmModal(
+      "Time's Up",
+      `Send Time's Up notification to ${(() => { const np = getNameParts(request); return (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.userEmail || 'user'); })()}?`,
+      null,
+      false
+    );
+
+    if (!confirmed) return;
+
+    // Placeholder: actual implementation should call Cloud Function to send email/SMS
+    showToast("Time's Up notification queued (placeholder)", true);
+    console.log("⏰ TODO: send Time's Up notification to:", request.userEmail, request.contactNumber);
+  };
+
+  // ========================================
+  // CONFIRMATION MODAL SYSTEM
+  // ========================================
+
+  /**
+   * Show confirmation modal
+   * @param {string} title - Modal title
+   * @param {string} message - Confirmation message (supports \n for line breaks)
+   * @param {object|null} inventoryChanges - Not used for conference room (kept for API consistency)
+   * @param {boolean} isAlert - If true, show only OK button (for alerts)
+   * @returns {Promise<boolean>} - Resolves to true if confirmed, false if cancelled
+   */
+  function showConfirmModal(title, message, inventoryChanges = null, isAlert = false) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('conferenceConfirmModal');
+      const titleEl = document.getElementById('conferenceConfirmTitle');
+      const messageEl = document.getElementById('conferenceConfirmMessage');
+      const inventoryEl = document.getElementById('conferenceConfirmInventory');
+      const yesBtn = document.getElementById('conferenceConfirmYes');
+      const noBtn = document.getElementById('conferenceConfirmNo');
+      const inputContainer = document.getElementById('conferenceConfirmInput');
+
+      if (!modal) {
+        console.error('❌ Confirmation modal not found');
+        resolve(false);
+        return;
+      }
+
+      // Set title and message
+      titleEl.textContent = title;
+      // Convert \n to <br> for proper line breaks in message
+      const formattedMessage = message.replace(/\n/g, '<br>');
+      messageEl.innerHTML = formattedMessage;
+
+      // Hide inventory preview (not used for conference room)
+      if (inventoryEl) inventoryEl.innerHTML = '';
+
+      // Hide input container
+      if (inputContainer) inputContainer.style.display = 'none';
+
+      // Configure buttons
+      if (isAlert) {
+        yesBtn.textContent = 'OK';
+        noBtn.style.display = 'none';
+      } else {
+        yesBtn.textContent = 'Yes';
+        noBtn.style.display = 'block';
+      }
+
+      // Show modal
+      modal.classList.add('active');
+
+      // Event handlers
+      const handleYes = () => {
+        cleanup();
+        resolve(true);
+      };
+
+      const handleNo = () => {
+        cleanup();
+        resolve(false);
+      };
+
+      const cleanup = () => {
+        modal.classList.remove('active');
+        yesBtn.removeEventListener('click', handleYes);
+        noBtn.removeEventListener('click', handleNo);
+      };
+
+      yesBtn.addEventListener('click', handleYes);
+      noBtn.addEventListener('click', handleNo);
+    });
+  }
+
+  /**
+   * Show confirmation modal with text input (for rejection reason)
+   */
+  function showConfirmModalWithInput(title, message, placeholder) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('conferenceConfirmModal');
+      const titleEl = document.getElementById('conferenceConfirmTitle');
+      const messageEl = document.getElementById('conferenceConfirmMessage');
+      const inputContainer = document.getElementById('conferenceConfirmInput');
+      const textarea = document.getElementById('conferenceConfirmInputTextarea');
+      const yesBtn = document.getElementById('conferenceConfirmYes');
+      const noBtn = document.getElementById('conferenceConfirmNo');
+
+      if (!modal) {
+        resolve(null);
+        return;
+      }
+
+      // Set content
+      titleEl.textContent = title;
+      // Convert \n to <br> for proper line breaks in message
+      const formattedMessage = message.replace(/\n/g, '<br>');
+      messageEl.innerHTML = formattedMessage;
+      textarea.value = '';
+      textarea.placeholder = placeholder;
+
+      // Show input container
+      inputContainer.style.display = 'block';
+
+      // Configure buttons
+      yesBtn.textContent = 'Submit';
+      noBtn.textContent = 'Cancel';
+      noBtn.style.display = 'block';
+
+      // Show modal
+      modal.classList.add('active');
+
+      const handleYes = () => {
+        const value = textarea.value.trim();
+        if (!value) {
+          showToast('Please provide a reason', false);
+          return;
+        }
+        cleanup();
+        resolve(value);
+      };
+
+      const handleNo = () => {
+        cleanup();
+        resolve(null);
+      };
+
+      const cleanup = () => {
+        modal.classList.remove('active');
+        inputContainer.style.display = 'none';
+        yesBtn.removeEventListener('click', handleYes);
+        noBtn.removeEventListener('click', handleNo);
+      };
+
+      yesBtn.addEventListener('click', handleYes);
+      noBtn.addEventListener('click', handleNo);
+    });
+  }
+
+  // ========================================
+  // TAB & VIEW SWITCHING
+  // ========================================
+
+  /**
+   * Switch between All Requests, History, and Archives tabs
+   */
+  window.switchTab = function(tabName) {
+    console.log('📑 Switching to tab:', tabName);
+    
+    currentTab = tabName;
+
+    // Update tab button states
+    document.getElementById('allRequestsTab')?.classList.toggle('active', tabName === 'all');
+    document.getElementById('historyTab')?.classList.toggle('active', tabName === 'history');
+    document.getElementById('archivesTab')?.classList.toggle('active', tabName === 'archives');
+
+    // Update filter options
+    updateStatusFilterOptions();
+    updateSortByOptions();
+
+    // Show/hide view toggle (only in All Requests tab)
+    const viewToggle = document.getElementById('viewToggle');
+    if (viewToggle) {
+      viewToggle.style.display = tabName === 'all' ? 'flex' : 'none';
+    }
+
+    // Export dropdown visibility is controlled by switchView (show in table, hide in calendar)
+    // Don't hide export dropdown here - let switchView handle it based on currentView
+
+    // Force table view for history/archives (they don't support calendar view)
+    if (tabName === 'history' || tabName === 'archives') {
+      switchView('table');
+    } else {
+      // Re-render content for All Requests tab
+      renderContent();
+    }
+  };
+
+  /**
+   * Switch between Table and Calendar views
+   */
+  window.switchView = function(viewName) {
+    console.log('👁️ Switching to view:', viewName);
+    
+    currentView = viewName;
+
+    // Update view button states
+    document.getElementById('tableViewBtn')?.classList.toggle('active', viewName === 'table');
+    document.getElementById('calendarViewBtn')?.classList.toggle('active', viewName === 'calendar');
+
+    // Show/hide filters and booking buttons
+    const tableFilters = document.getElementById('tableFilters');
+    const calendarButtons = document.getElementById('calendarButtons');
+    const exportDropdown = document.getElementById('exportDropdown');
+    
+    if (tableFilters) {
+      tableFilters.style.display = viewName === 'table' ? 'grid' : 'none';
+    }
+    
+    if (calendarButtons) {
+      calendarButtons.style.display = viewName === 'calendar' ? 'flex' : 'none';
+    }
+
+    // Show export dropdown only in table view, hide in calendar view
+    if (exportDropdown) {
+      exportDropdown.style.display = viewName === 'table' ? 'block' : 'none';
+    }
+
+    // Re-render content
+    renderContent();
+  };
+
+  /**
+   * Toggle export dropdown menu
+   */
+  // ========================================
+  // HELPER FUNCTIONS
+  // ========================================
+
+  /**
+   * Format date string for display
+   */
+  function formatDateText(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString + 'T00:00:00'); // Ensure local timezone
+      const options = { year: 'numeric', month: 'short', day: 'numeric' };
+      return date.toLocaleDateString('en-US', options);
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString;
+    }
+  }
+
+  // ========================================
+  // EXPORT FUNCTIONS
+  // ========================================
+
+  /**
+   * Export to Excel with multiple sheets (All Requests, History, Archives)
+   */
+  function exportToExcel() {
+    console.log('📊 [CONFERENCE] Exporting to Excel with multiple sheets...');
+    console.log('📊 [CONFERENCE] Total requests:', allRequests.length);
+    
+    // Check if XLSX library is loaded
+    if (typeof XLSX === 'undefined') {
+      console.error('❌ [CONFERENCE] XLSX library not loaded');
+      showToast('Excel library not loaded. Please refresh the page and try again.', false);
+      return;
+    }
+    
+    console.log('✅ [CONFERENCE] XLSX library loaded');
+    
+    try {
+      // Create a new workbook
+      const wb = XLSX.utils.book_new();
+      
+      // Sheet 1: All Requests (Active)
+      const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+      console.log('📄 [CONFERENCE] All Requests sheet:', allRequestsData.length, 'items');
+      const allRequestsSheet = createExcelSheet(allRequestsData, 'all');
+      XLSX.utils.book_append_sheet(wb, allRequestsSheet, 'All Requests');
+      
+      // Sheet 2: History
+      const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+      console.log('📄 [CONFERENCE] History sheet:', historyData.length, 'items');
+      const historySheet = createExcelSheet(historyData, 'history');
+      XLSX.utils.book_append_sheet(wb, historySheet, 'History');
+      
+      // Sheet 3: Archives
+      const archivesData = allRequests.filter(r => r.archived === true);
+      console.log('📄 [CONFERENCE] Archives sheet:', archivesData.length, 'items');
+      const archivesSheet = createExcelSheet(archivesData, 'archives');
+      XLSX.utils.book_append_sheet(wb, archivesSheet, 'Archives');
+      
+      // Generate filename with timestamp
+      const filename = `conference-room-requests-${new Date().toISOString().split('T')[0]}.xlsx`;
+      console.log('💾 [CONFERENCE] Writing file:', filename);
+      
+      // Write file
+      XLSX.writeFile(wb, filename);
+      
+      console.log('✅ [CONFERENCE] Excel exported successfully');
+      showToast('Excel file exported successfully', true);
+    } catch (error) {
+      console.error('❌ [CONFERENCE] Error exporting to Excel:', error);
+      showToast('Failed to export Excel file', false);
+    }
+  }
+
+  /**
+   * Create Excel sheet from requests data (Conference Room format)
+   * @param {Array} requests - Array of request objects
+   * @param {string} sheetType - Type of sheet: 'all', 'history', or 'archives'
+   */
+  function createExcelSheet(requests, sheetType) {
+    const data = [];
+    
+    // Headers vary based on sheet type
+    const headers = ['Submitted On', 'First Name', 'Last Name', 'Event Date', 'Start Time', 'End Time', 'Purpose', 'Contact', 'Email', 'Status'];
+    
+    if (sheetType === 'history') {
+      headers.push('Remarks', 'Completed On');
+    } else if (sheetType === 'archives') {
+      headers.push('Remarks', 'Archived On');
+    }
+    // 'all' type has no extra columns
+    
+    data.push(headers);
+    
+    // Rows
+    requests.forEach(req => {
+      const nameParts = getNameParts(req);
+      
+      // Format submitted date with time
+      let submittedDateTime = 'N/A';
+      if (req.createdAt) {
+        const createdDate = req.createdAt.toDate();
+        submittedDateTime = createdDate.toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      
+      const row = [
+        submittedDateTime,
+        nameParts.firstName,
+        nameParts.lastName,
+        formatDateText(req.eventDate),
+        req.startTime || '',
+        req.endTime || '',
+        req.purpose || '',
+        req.contactNumber || '',
+        req.userEmail || '',
+        req.status
+      ];
+      
+      if (sheetType === 'history') {
+        row.push(req.rejectionReason || req.remarks || '');
+        
+        // Completed On (for completed, rejected, cancelled)
+        let completedOn = '';
+        if (req.status === 'completed' && req.completedAt) {
+          completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'rejected' && req.rejectedAt) {
+          completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'cancelled' && req.cancelledAt) {
+          completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        row.push(completedOn);
+      } else if (sheetType === 'archives') {
+        row.push(req.rejectionReason || req.remarks || '');
+        
+        // Archived On
+        let archivedOn = '';
+        if (req.archivedAt) {
+          archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        row.push(archivedOn);
+      }
+      
+      data.push(row);
+    });
+    
+    return XLSX.utils.aoa_to_sheet(data);
+  }
+
+  /**
+   * Export to CSV (All Requests in sections)
+   */
+  function exportToCSVAll() {
+    console.log('💾 [CONFERENCE] Exporting all data to CSV with sections...');
+    console.log('💾 [CONFERENCE] Total requests:', allRequests.length);
+    
+    let csv = '';
+    
+    // Section 1: All Requests (Active)
+    csv += '=== ALL REQUESTS (ACTIVE) ===\n';
+    const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+    console.log('📄 [CONFERENCE] All Requests section:', allRequestsData.length, 'items');
+    csv += buildCSVSection(allRequestsData, 'all');
+    csv += '\n\n';
+    
+    // Section 2: History
+    csv += '=== HISTORY ===\n';
+    const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+    console.log('📄 [CONFERENCE] History section:', historyData.length, 'items');
+    csv += buildCSVSection(historyData, 'history');
+    csv += '\n\n';
+    
+    // Section 3: Archives
+    csv += '=== ARCHIVES ===\n';
+    const archivesData = allRequests.filter(r => r.archived === true);
+    console.log('📄 [CONFERENCE] Archives section:', archivesData.length, 'items');
+    csv += buildCSVSection(archivesData, 'archives');
+    
+    const filename = `conference-room-all-requests-${new Date().toISOString().split('T')[0]}.csv`;
+    console.log('💾 [CONFERENCE] Downloading file:', filename);
+    downloadCSV(csv, filename);
+    showToast('CSV exported successfully (All Data)', true);
+  }
+
+  /**
+   * Export History Only to CSV
+   */
+  function exportToCSVHistory() {
+    console.log('� Exporting history to CSV...');
+    
+    const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+    
+    if (historyData.length === 0) {
+      showToast('No history data to export', false);
+      return;
+    }
+    
+    const csv = buildCSVSection(historyData, 'history');
+    downloadCSV(csv, `conference-room-history-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('CSV exported successfully (History)', true);
+  }
+
+  /**
+   * Export Archives Only to CSV
+   */
+  function exportToCSVArchives() {
+    console.log('💾 Exporting archives to CSV...');
+    
+    const archivesData = allRequests.filter(r => r.archived === true);
+    
+    if (archivesData.length === 0) {
+      showToast('No archives data to export', false);
+      return;
+    }
+    
+    const csv = buildCSVSection(archivesData, 'archives');
+    downloadCSV(csv, `conference-room-archives-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('CSV exported successfully (Archives)', true);
+  }
+
+  /**
+   * Build CSV section from requests data (Conference Room format)
+   * @param {Array} requests - Array of request objects
+   * @param {string} sheetType - Type of section: 'all', 'history', or 'archives'
+   */
+  function buildCSVSection(requests, sheetType) {
+    let csv = '';
+    
+    // Headers vary based on sheet type
+    csv += 'Submitted On,First Name,Last Name,Event Date,Start Time,End Time,Purpose,Contact,Email,Status';
+    if (sheetType === 'history') {
+      csv += ',Remarks,Completed On';
+    } else if (sheetType === 'archives') {
+      csv += ',Remarks,Archived On';
+    }
+    // 'all' type has no extra columns
+    csv += '\n';
+    
+    // Rows
+    requests.forEach(req => {
+      // Format submitted date with time
+      let submittedDateTime = 'N/A';
+      if (req.createdAt) {
+        const createdDate = req.createdAt.toDate();
+        submittedDateTime = createdDate.toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      
+      const nameParts = getNameParts(req);
+      const eventDate = formatDateText(req.eventDate);
+      const remarkRaw = (req.rejectionReason || req.remarks || '');
+      const remarkEsc = remarkRaw.replace(/"/g, '""');
+      const purposeEsc = (req.purpose || '').replace(/"/g, '""');
+      
+      csv += `"${submittedDateTime}","${nameParts.firstName}","${nameParts.lastName}","${eventDate}","${req.startTime || ''}","${req.endTime || ''}","${purposeEsc}","${req.contactNumber || ''}","${req.userEmail || ''}","${req.status}"`;
+      
+      if (sheetType === 'history') {
+        csv += `,"${remarkEsc}"`;
+        
+        // Completed On (for completed, rejected, cancelled)
+        let completedOn = '';
+        if (req.status === 'completed' && req.completedAt) {
+          completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'rejected' && req.rejectedAt) {
+          completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'cancelled' && req.cancelledAt) {
+          completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        csv += `,"${completedOn}"`;
+      } else if (sheetType === 'archives') {
+        csv += `,"${remarkEsc}"`;
+        
+        // Archived On
+        let archivedOn = '';
+        if (req.archivedAt) {
+          archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        csv += `,"${archivedOn}"`;
+      }
+      
+      csv += '\n';
+    });
+    
+    return csv;
+  }
+
+  /**
+   * Download CSV file
+   */
+  function downloadCSV(csvContent, filename) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Toggle export dropdown menu
+   */
+  window.toggleExportMenu = function() {
+    const menu = document.getElementById('exportMenu');
+    if (menu) {
+      menu.classList.toggle('active');
+    }
+  };
+
+  /**
+   * Handle export button click
+   */
+  window.exportData = function(format) {
+    console.log('📤 [CONFERENCE] Export format selected:', format);
+    console.log('📤 [CONFERENCE] Current allRequests length:', allRequests.length);
+    
+    switch(format) {
+      case 'excel-all':
+        console.log('🔄 [CONFERENCE] Calling exportToExcel()...');
+        exportToExcel();
+        break;
+      case 'csv-all':
+        console.log('🔄 [CONFERENCE] Calling exportToCSVAll()...');
+        exportToCSVAll();
+        break;
+      case 'csv-history':
+        console.log('🔄 [CONFERENCE] Calling exportToCSVHistory()...');
+        exportToCSVHistory();
+        break;
+      case 'csv-archives':
+        console.log('🔄 [CONFERENCE] Calling exportToCSVArchives()...');
+        exportToCSVArchives();
+        break;
+      default:
+        console.warn('[CONFERENCE] Unknown export format:', format);
+    }
+    
+    // Close dropdown
+    document.getElementById('exportMenu')?.classList.remove('active');
+  };
+
+  // ========================================
+  // INTERNAL BOOKING MODAL FUNCTIONALITY
+  // ========================================
+
+  // Modal elements
+  const internalBookingModal = document.getElementById('internalBookingModalConference');
+  const addInternalBookingBtn = document.getElementById('addInternalBookingBtnConference');
+  const closeInternalBookingModal = document.getElementById('closeInternalBookingModalConference');
+  const cancelInternalBooking = document.getElementById('cancelInternalBookingConference');
+  const internalBookingForm = document.getElementById('internalBookingFormConference');
+
+  // Populate time dropdowns for internal booking
+  function populateInternalTimeDropdowns() {
+    const startTimeSelect = document.getElementById('internalStartTimeConference');
+    const endTimeSelect = document.getElementById('internalEndTimeConference');
+    if (!startTimeSelect || !endTimeSelect) return;
+
+    startTimeSelect.innerHTML = '<option value="">Start Time</option>';
+    endTimeSelect.innerHTML = '<option value="">End Time</option>';
+
+    // Generate 30-minute interval options from 08:00 through 17:00
+    const startMinutes = 8 * 60; // 08:00 in minutes
+    const endMinutes = 17 * 60;  // 17:00 in minutes
+    for (let mins = startMinutes; mins <= endMinutes; mins += 30) {
+      const hh = Math.floor(mins / 60);
+      const mm = mins % 60;
+      const value = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+      const hour12 = hh % 12 === 0 ? 12 : hh % 12;
+      const ampm = hh >= 12 ? 'PM' : 'AM';
+      const display = `${hour12}:${String(mm).padStart(2, '0')} ${ampm}`;
+      startTimeSelect.add(new Option(display, value));
+      endTimeSelect.add(new Option(display, value));
+    }
+  }
+
+  // Open modal
+  if (addInternalBookingBtn) {
+    addInternalBookingBtn.addEventListener('click', () => {
+      internalBookingModal.classList.add('active');
+      // Set minimum date to today
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('internalEventDateConference').setAttribute('min', today);
+      // Populate time dropdowns
+      populateInternalTimeDropdowns();
+    });
+  }
+
+  // Close modal function
+  function closeInternalBookingModalFunc() {
+    internalBookingModal.classList.remove('active');
+    internalBookingForm.reset();
+    clearAllInternalErrors();
+  }
+
+  // Close modal on X button
+  if (closeInternalBookingModal) {
+    closeInternalBookingModal.addEventListener('click', closeInternalBookingModalFunc);
+  }
+
+  // Close modal on Cancel button
+  if (cancelInternalBooking) {
+    cancelInternalBooking.addEventListener('click', closeInternalBookingModalFunc);
+  }
+
+  // Close modal when clicking outside
+  if (internalBookingModal) {
+    internalBookingModal.addEventListener('click', (e) => {
+      if (e.target === internalBookingModal) {
+        closeInternalBookingModalFunc();
+      }
+    });
+  }
+
+  // Form validation helpers
+  function setInternalError(elementId, message) {
+    const errorElement = document.getElementById(elementId);
+    
+    if (errorElement) {
+      errorElement.textContent = message;
+    }
+    
+    // Handle time fields specially (they're in a separate container)
+    if (elementId === 'error-internal-start-time-conference') {
+      const inputElement = document.getElementById('internalStartTimeConference');
+      if (inputElement) inputElement.classList.add('error');
+    } else if (elementId === 'error-internal-end-time-conference') {
+      const inputElement = document.getElementById('internalEndTimeConference');
+      if (inputElement) inputElement.classList.add('error');
+    } else {
+      // For other fields, use previousElementSibling
+      const inputElement = errorElement?.previousElementSibling;
+      if (inputElement) {
+        inputElement.classList.add('error');
+      }
+    }
+  }
+
+  function clearInternalError(elementId) {
+    const errorElement = document.getElementById(elementId);
+    
+    if (errorElement) {
+      errorElement.textContent = '';
+    }
+    
+    // Handle time fields specially
+    if (elementId === 'error-internal-start-time-conference') {
+      const inputElement = document.getElementById('internalStartTimeConference');
+      if (inputElement) inputElement.classList.remove('error');
+    } else if (elementId === 'error-internal-end-time-conference') {
+      const inputElement = document.getElementById('internalEndTimeConference');
+      if (inputElement) inputElement.classList.remove('error');
+    } else {
+      // For other fields, use previousElementSibling
+      const inputElement = errorElement?.previousElementSibling;
+      if (inputElement) {
+        inputElement.classList.remove('error');
+      }
+    }
+  }
+
+  function clearAllInternalErrors() {
+    const errorIds = [
+      'error-internal-event-date-conference',
+      'error-internal-start-time-conference',
+      'error-internal-end-time-conference',
+      'error-internal-expected-attendees-conference',
+      'error-internal-purpose-conference',
+      'error-internal-department-conference',
+      'error-internal-contact-person-conference',
+      'error-internal-contact-number-conference'
+    ];
+    
+    errorIds.forEach(clearInternalError);
+  }
+
+  // Validate Philippine mobile number
+  function validateInternalContact(number) {
+    const phoneRegex = /^09\d{9}$/;
+    return phoneRegex.test(number);
+  }
+
+  // Validate time range (end time must be after start time)
+  function validateTimeRange(startTime, endTime) {
+    if (!startTime || !endTime) return true; // Skip if not both filled
+    
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+    
+    return endMinutes > startMinutes;
+  }
+
+  // Validate business hours (8 AM to 5 PM)
+  function validateBusinessHours(time) {
+    if (!time) return true; // Skip if empty
+    
+    const [hour, min] = time.split(':').map(Number);
+    const timeInMinutes = hour * 60 + min;
+    const startBusiness = 8 * 60; // 8:00 AM
+    const endBusiness = 17 * 60;  // 5:00 PM
+    
+    return timeInMinutes >= startBusiness && timeInMinutes <= endBusiness;
+  }
+
+  // Real-time validation
+  document.getElementById('internalEventDateConference')?.addEventListener('change', function() {
+    clearInternalError('error-internal-event-date-conference');
+  });
+
+  document.getElementById('internalStartTimeConference')?.addEventListener('change', function() {
+    clearInternalError('error-internal-start-time-conference');
+  });
+
+  document.getElementById('internalEndTimeConference')?.addEventListener('change', function() {
+    clearInternalError('error-internal-end-time-conference');
+  });
+
+  document.getElementById('internalExpectedAttendeesConference')?.addEventListener('input', function() {
+    clearInternalError('error-internal-expected-attendees-conference');
+  });
+
+  ['internalPurposeConference', 'internalDepartmentConference', 'internalContactPersonConference', 'internalContactNumberConference'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', function() {
+      const errorId = 'error-' + id.replace(/([A-Z])/g, '-$1').toLowerCase();
+      clearInternalError(errorId);
+    });
+  });
+
+  // Form submission
+  if (internalBookingForm) {
+    internalBookingForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      clearAllInternalErrors();
+      
+      // Get form values
+      const eventDate = document.getElementById('internalEventDateConference').value.trim();
+      const startTime = document.getElementById('internalStartTimeConference').value.trim();
+      const endTime = document.getElementById('internalEndTimeConference').value.trim();
+      const expectedAttendees = parseInt(document.getElementById('internalExpectedAttendeesConference').value) || 0;
+      const purpose = document.getElementById('internalPurposeConference').value.trim();
+      const department = document.getElementById('internalDepartmentConference').value.trim();
+      const contactPerson = document.getElementById('internalContactPersonConference').value.trim();
+      const contactNumber = document.getElementById('internalContactNumberConference').value.trim();
+      
+      let hasError = false;
+      
+      // Validate event date
+      if (!eventDate) {
+        setInternalError('error-internal-event-date-conference', 'Event date is required');
+        hasError = true;
+      } else {
+        // Check if date is in the past
+        const selectedDate = new Date(eventDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (selectedDate < today) {
+          setInternalError('error-internal-event-date-conference', 'Event date cannot be in the past');
+          hasError = true;
+        }
+      }
+      
+      // Validate start time
+      if (!startTime) {
+        setInternalError('error-internal-start-time-conference', 'Start time is required');
+        hasError = true;
+      } else if (!validateBusinessHours(startTime)) {
+        setInternalError('error-internal-start-time-conference', 'Start time must be between 8:00 AM and 5:00 PM');
+        hasError = true;
+      }
+      
+      // Validate end time
+      if (!endTime) {
+        setInternalError('error-internal-end-time-conference', 'End time is required');
+        hasError = true;
+      } else if (!validateBusinessHours(endTime)) {
+        setInternalError('error-internal-end-time-conference', 'End time must be between 8:00 AM and 5:00 PM');
+        hasError = true;
+      }
+      
+      // Validate time range
+      if (startTime && endTime && !validateTimeRange(startTime, endTime)) {
+        setInternalError('error-internal-end-time-conference', 'End time must be after start time');
+        hasError = true;
+      }
+
+      // Validate expected attendees
+      if (!expectedAttendees || expectedAttendees < 1) {
+        setInternalError('error-internal-expected-attendees-conference', 'Expected attendees is required (minimum: 1)');
+        hasError = true;
+      } else if (expectedAttendees > 200) {
+        setInternalError('error-internal-expected-attendees-conference', 'Expected attendees cannot exceed 200');
+        hasError = true;
+      }
+      
+      // Validate purpose
+      if (!purpose) {
+        setInternalError('error-internal-purpose-conference', 'Purpose is required');
+        hasError = true;
+      } else if (purpose.length < 10) {
+        setInternalError('error-internal-purpose-conference', 'Purpose must be at least 10 characters');
+        hasError = true;
+      }
+      
+      // Validate contact person
+      if (!contactPerson) {
+        setInternalError('error-internal-contact-person-conference', 'Contact person is required');
+        hasError = true;
+      }
+      
+      // Validate contact number
+      if (!contactNumber) {
+        setInternalError('error-internal-contact-number-conference', 'Contact number is required');
+        hasError = true;
+      } else if (!validateInternalContact(contactNumber)) {
+        setInternalError('error-internal-contact-number-conference', 'Invalid format. Use: 09XXXXXXXXX (11 digits)');
+        hasError = true;
+      }
+      
+      if (hasError) {
+        return;
+      }
+      
+      // Check for overlapping reservations
+      try {
+        const bookingsRef = collection(db, 'conferenceRoomBookings');
+        const q = query(
+          bookingsRef,
+          where('eventDate', '==', eventDate),
+          where('status', 'in', ['pending', 'approved', 'in-progress'])
+        );
+        const snapshot = await getDocs(q);
+        
+        let hasOverlap = false;
+        snapshot.forEach(doc => {
+          const booking = doc.data();
+          // Check if time ranges overlap
+          if (timeRangesOverlap(startTime, endTime, booking.startTime, booking.endTime)) {
+            hasOverlap = true;
+          }
+        });
+        
+        if (hasOverlap) {
+          setInternalError('error-internal-start-time-conference', 'This time slot overlaps with an existing reservation');
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking for overlaps:', error);
+      }
+      
+      // Show loading state
+      const submitBtn = this.querySelector('.internal-booking-submit-btn');
+      const btnText = submitBtn.querySelector('.btn-text');
+      const btnSpinner = submitBtn.querySelector('.btn-spinner');
+      
+      btnText.style.display = 'none';
+      btnSpinner.style.display = 'inline-flex';
+      submitBtn.disabled = true;
+      
+      try {
+        // Get current admin user
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('No authenticated user');
+        }
+        
+        // Split contact person name into first and last name
+        const nameParts = contactPerson.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || ''; // Join remaining parts as last name
+        
+        // Create booking document
+        const bookingData = {
+          eventDate: eventDate,
+          startTime: startTime,
+          endTime: endTime,
+          expectedAttendees: expectedAttendees,
+          purpose: sanitizeInput(purpose),
+          department: department ? sanitizeInput(department) : null,
+          firstName: sanitizeInput(firstName),
+          lastName: sanitizeInput(lastName),
+          fullName: sanitizeInput(contactPerson), // Keep fullName for backwards compatibility
+          contactNumber: contactNumber,
+          address: 'Internal Booking', // Can be modified if needed
+          status: 'approved', // Auto-approved for internal bookings
+          userId: currentUser.uid,
+          userEmail: currentUser.email,
+          createdAt: new Date(),
+          approvedAt: new Date(),
+          isInternalBooking: true
+        };
+        
+        // Add to Firestore
+        await addDoc(collection(db, 'conferenceRoomBookings'), bookingData);
+        
+        // Success!
+        showToast('Internal reservation added successfully!', true);
+        closeInternalBookingModalFunc();
+        
+        // Reload data
+        await loadAllRequests();
+        
+      } catch (error) {
+        console.error('Error creating internal booking:', error);
+        showToast('Failed to create internal reservation. Please try again.', false);
+      } finally {
+        btnText.style.display = 'inline';
+        btnSpinner.style.display = 'none';
+        submitBtn.disabled = false;
+      }
+    });
+  }
+
+  // Helper function to check if time ranges overlap
+  function timeRangesOverlap(start1, end1, start2, end2) {
+    const [start1Hour, start1Min] = start1.split(':').map(Number);
+    const [end1Hour, end1Min] = end1.split(':').map(Number);
+    const [start2Hour, start2Min] = start2.split(':').map(Number);
+    const [end2Hour, end2Min] = end2.split(':').map(Number);
+    
+    const start1Minutes = start1Hour * 60 + start1Min;
+    const end1Minutes = end1Hour * 60 + end1Min;
+    const start2Minutes = start2Hour * 60 + start2Min;
+    const end2Minutes = end2Hour * 60 + end2Min;
+    
+    // Ranges overlap if: start1 < end2 AND end1 > start2
+    return start1Minutes < end2Minutes && end1Minutes > start2Minutes;
+  }
+
+  // ========================================
+  // EVENT LISTENERS
+  // ========================================
+
+  // Tab switching - both inline onclick and addEventListener for redundancy
+  document.getElementById('allRequestsTab')?.addEventListener('click', () => switchTab('all'));
+  document.getElementById('historyTab')?.addEventListener('click', () => switchTab('history'));
+  document.getElementById('archivesTab')?.addEventListener('click', () => switchTab('archives'));
+
+  // View switching
+  document.getElementById('tableViewBtn')?.addEventListener('click', () => switchView('table'));
+  document.getElementById('calendarViewBtn')?.addEventListener('click', () => switchView('calendar'));
+
+  // Filter changes - re-render on any filter change
+  document.getElementById('searchInput')?.addEventListener('input', renderContent);
+  document.getElementById('statusFilter')?.addEventListener('change', renderContent);
+  document.getElementById('dateFilter')?.addEventListener('change', renderContent);
+  document.getElementById('sortByFilter')?.addEventListener('change', renderContent);
+
+  // ========================================
+  // MODAL & HELPER FUNCTIONS
+  // ========================================
+
+  /**
+   * Close conference modal (for calendar date clicks)
+   */
+  window.closeConferenceModal = function() {
+    const modal = document.getElementById('conferenceModalOverlay');
+    if (modal) {
+      modal.classList.remove('active');
+    }
+  };
+
+  /**
+   * Close modal when clicking on overlay
+   */
+  window.closeModalOnOverlay = function(event) {
+    if (event.target.id === 'conferenceModalOverlay') {
+      closeConferenceModal();
+    }
+  };
+
+  // ========================================
+  // SIDEBAR FUNCTIONALITY
+  // ========================================
+
+  /**
+   * Setup sidebar dropdown toggles
+   */
+  function setupSidebarDropdowns() {
+    const reviewRequestsToggle = document.getElementById('reviewRequestsToggle');
+
+    if (reviewRequestsToggle) {
+      reviewRequestsToggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        const dropdown = document.getElementById('reviewRequestsDropdown');
+        if (dropdown) {
+          dropdown.classList.toggle('open');
+          this.classList.toggle('open');
+        }
+      });
+    }
+  }
+
+  /**
+   * Setup mobile menu toggle
+   */
+  function setupMobileMenu() {
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.admin-sidebar');
+
+    if (menuToggle && sidebar) {
+      menuToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('active');
+      });
+
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener('click', function(e) {
+        if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+          sidebar.classList.remove('active');
+        }
+      });
+    }
+  }
+
+  // ========================================
+  // INITIALIZATION
+  // ========================================
+
+  // Setup sidebar and mobile menu
+  setupSidebarDropdowns();
+  setupMobileMenu();
+
+  // Initialize filter options based on current tab
+  updateStatusFilterOptions();
+  updateSortByOptions();
+
+  // Load data when page loads
+  loadAllRequests();
+
+  console.log('✅ Conference Room Admin initialized');
+}
+
+/* ========================================================================================================
+   END OF CONFERENCE ROOM ADMIN MANAGEMENT SYSTEM
+   ======================================================================================================== */
