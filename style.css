@@ -6276,6 +6276,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .tents-btn-approve,
 .tents-btn-deny,
 .tents-btn-complete,
+.tents-btn-cancel,
 .tents-btn-archive,
 .tents-btn-delete,
 .tents-btn-unarchive {
@@ -6287,7 +6288,9 @@ input[type="number"]::-webkit-outer-spin-button {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  display: inline-block;
+  display: block;
+  width: 100%;
+  margin-bottom: 4px;
   white-space: nowrap;
 }
 
@@ -6316,6 +6319,23 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .tents-btn-complete:hover {
   background: #4338ca;
+}
+
+/* Cancel button for internal bookings - distinct red/orange color */
+.tents-btn-cancel {
+  background: #f97316; /* Orange-500 */
+  color: white;
+}
+
+.tents-btn-cancel:hover {
+  background: #ea580c; /* Orange-600 */
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+}
+
+.tents-btn-cancel:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(249, 115, 22, 0.2);
 }
 
 .tents-btn-archive {
