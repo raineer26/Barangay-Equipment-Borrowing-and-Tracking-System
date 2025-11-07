@@ -4053,6 +4053,13 @@ input[type="number"]::-webkit-outer-spin-button {
   text-align: center;
 }
 
+/* Icon images sizing */
+.nav-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
 /* Default (white icons) */
 .sidebar-link .nav-icon {
   filter: brightness(0) invert(1);
