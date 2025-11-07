@@ -267,12 +267,6 @@ nav a {
   color: #222;
 }
 
-/* small responsive tweak */
-@media (max-width: 720px) {
-  .floating-card { flex-direction: row; gap: 18px; padding: 14px; }
-  .hero img { height: 220px; }
-}
-
 /* LOGIN FORM */
 .login-section {
   display: flex;
@@ -2164,17 +2158,6 @@ footer a:hover {
 
 .time-errors .error-message {
   flex: 1;
-}
-
-@media (max-width: 768px) {
-  .time-inputs {
-    flex-direction: column;
-    gap: 15px;
-  }
-  
-  .time-separator {
-    display: none;
-  }
 }
 
 /* Media query for larger screens */
@@ -6553,330 +6536,11 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 /* ===================================
-   MEDIA QUERY: MOBILE (425px and below)
+   MOBILE RESPONSIVE STYLES MOVED
+   All @media (max-width: 425px) styles have been consolidated
+   to the end of this file for better organization.
+   Search for: "CONSOLIDATED RESPONSIVE STYLES"
    =================================== */
-
-@media screen and (max-width: 425px) {
-  /* Show burger menu, hide desktop nav */
-  .burger-menu {
-    display: flex;
-  }
-
-  nav {
-    display: none;
-  }
-
-  .mobile-nav {
-    display: block;
-  }
-
-  /* Adjust header padding and layout */
-  header {
-    padding: 12px 15px;
-  }
-
-  .nav-container {
-    justify-content: space-between;
-  }
-
-  /* Logo adjustments */
-  .logo {
-    gap: 8px;
-  }
-
-  .logo img {
-    width: 35px;
-    height: 35px;
-  }
-
-  .logo span {
-    font-size: 11px;
-    line-height: 1.2;
-  }
-
-  /* Hero Section Mobile */
-  .hero-landing img {
-    height: 250px;
-  }
-
-  .hero-landingtext {
-    margin-left: 20px;
-    font-size: 30px;
-  }
-
-  .hero-landingtext h1 {
-    font-size: 32px;
-    margin-top: -180px;
-  }
-
-  .hero-landingtext h2 {
-    font-size: 32px;
-  }
-
-  .hero-landingtext p {
-    font-size: 12px;
-    margin-top: 8px;
-  }
-
-  /* Floating Card Mobile */
-  .floating-card-wrap {
-    margin-top: 40px;
-    height: auto;
-  }
-
-  .floating-card {
-    flex-direction: row;
-    width: 300px;
-    padding: 20px 15px;
-    gap: 10px;
-  }
-
-  .floating-card .quick-item img {
-    width: 50px;
-    height: 50px;
-  }
-
-  .floating-card .quick-label {
-    font-size: 12px;
-  }
-
-  /* Calendar Section Mobile */
-  .calendar-section {
-    padding: 30px 15px 40px 15px;
-  }
-
-  .calendar-Title {
-    font-size: 1.8rem;
-    padding: 0 10px;
-  }
-
-  .calendar-desc {
-    font-size: 0.9rem;
-    padding: 0 15px;
-  }
-
-  .calendar-cards {
-    gap: 20px;
-    padding: 0 15px;
-  }
-
-  .calendar-card {
-    width: 340px;
-    height: 220px;
-  }
-
-  .calendar-img {
-    width: 140px;
-    height: 140px;
-  }
-
-  .calendar-label-main {
-    font-size: 24px;
-  }
-
-  .calendar-label-sub {
-    font-size: 16px;
-  }
-
-  /* Services Section Mobile */
-  .services-section {
-    padding: 30px 15px 40px 15px;
-  }
-
-  .services-title {
-    font-size: 1.8rem;
-    padding: 0 10px;
-  }
-
-  .services-desc {
-    font-size: 0.85rem;
-    padding: 0 15px;
-  }
-
-  .services-cards {
-    gap: 25px;
-    padding: 0 15px;
-  }
-
-  .service-card {
-    width: 100%;
-    max-width: 340px;
-    height: auto;
-    padding-bottom: 20px;
-  }
-
-  .service-img {
-    width: 100%;
-    max-width: 280px;
-    height: 160px;
-    margin-top: 15px;
-  }
-
-  .service-info {
-    padding: 15px 20px 0 20px;
-  }
-
-  .service-label-main {
-    font-size: 1rem;
-  }
-
-  .service-label-desc {
-    font-size: 0.9rem;
-  }
-
-  .service-btn {
-    font-size: 0.9rem;
-    padding: 9px 24px;
-  }
-
-  /* About Section Mobile */
-  .about-section {
-    padding: 30px 15px;
-  }
-
-  .about-title {
-    font-size: 1.8rem;
-    padding: 0 10px;
-  }
-
-  .about-content {
-    flex-direction: column;
-    gap: 20px;
-    padding: 0 15px;
-  }
-
-  .about-img {
-    width: 100%;
-    max-width: 340px;
-    height: 220px;
-  }
-
-  .about-text p {
-    font-size: 0.9rem;
-    text-align: justify;
-  }
-
-  .about-btn {
-    font-size: 0.9rem;
-    padding: 9px 24px;
-    display: inline-block;
-    width: fit-content;
-  }
-
-  /* Contact Section Mobile */
-  .contact-section {
-    padding: 30px 15px;
-  }
-
-  .contact-title {
-    font-size: 1.8rem;
-    padding: 0 10px;
-  }
-
-  .contact-content {
-    flex-direction: column;
-    max-width: 340px;
-    gap: 0;
-    padding: 0 15px;
-    align-items: center;
-  }
-
-  .contact-box {
-    width: 100%;
-    height: auto;
-    padding: 20px;
-    font-size: 0.85rem;
-  }
-
-  .contact-box-left {
-    border-radius: 12px 12px 0 0;
-    border-right: none;
-    border-bottom: 2px solid #f3ecfa;
-  }
-
-  .contact-box-right {
-    border-radius: 0 0 12px 12px;
-  }
-
-  .contact-btn {
-    font-size: 0.9rem;
-    padding: 9px 24px;
-  }
-
-  /* Footer Mobile */
-  footer {
-    padding: 20px 15px;
-    min-height: auto;
-    text-align: left;
-  }
-
-  .footer-logo {
-    margin-left: 0;
-    max-width: 100%;
-    flex-direction: column;
-    text-align: center;
-    gap: 5px;
-  }
-
-  .footer-logo img {
-    width: 60px;
-  }
-
-  .footer-logo p {
-    font-size: 16px;
-  }
-
-  .footer-container {
-    flex-direction: column;
-    gap: 25px;
-    margin-left: 0;
-    margin-top: 25px;
-  }
-
-  .footer-links {
-    text-align: center;
-  }
-
-  .footer-links h3 {
-    font-size: 20px;
-    margin-bottom: 8px;
-  }
-
-  .footer-links li,
-  .footer-links p {
-    font-size: 14px;
-    text-align: center;
-  }
-
-  .footer-links ul {
-    padding: 0;
-  }
-
-  .footer-bottom {
-    font-size: 12px;
-    margin-top: 20px;
-  }
-}
-
-/* Burger menu animation when active */
-.burger-menu.active span:nth-child(1) {
-  transform: rotate(45deg) translate(7px, 7px);
-}
-
-.burger-menu.active span:nth-child(2) {
-  opacity: 0;
-}
-
-.burger-menu.active span:nth-child(3) {
-  transform: rotate(-45deg) translate(7px, -7px);
-}
-
-/* ===================================
-   ABOUT PAGE MOBILE RESPONSIVE STYLES
-   Add these to your existing media query section
-   =================================== */
-
-@media screen and (max-width: 425px) {
   
   /* About Hero Section */
   .about-hero {
@@ -7761,3 +7425,1344 @@ input[type="number"]::-webkit-outer-spin-button {
     font-size: 0.9rem;
   }
 }
+
+/* ============================================================================
+   CONSOLIDATED RESPONSIVE STYLES - ORGANIZED BY BREAKPOINT
+   All media queries consolidated here for easier maintenance
+   Search keywords: @media, responsive, mobile, tablet, desktop
+   ============================================================================ */
+
+/* ===================================
+   DESKTOP LARGE: 1200px and below
+   Target: Large tablets and small desktops
+   =================================== */
+@media (max-width: 1200px) {
+  /* Calendar Grid - Responsive */
+  .calendar-grid {
+    width: 94%;
+  }
+}
+
+/* ===================================
+   TABLET & LARGER SCREENS: 768px and up
+   Target: iPads and larger devices (min-width approach)
+   =================================== */
+@media (min-width: 768px) {
+  /* History Section - Desktop Layout */
+  .history-section .about-content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    gap: 30px;
+  }
+
+  .about-section history-section .about-content.reverse {
+    flex-direction: row-reverse;
+  }
+
+  .history-image {
+    flex: 1;
+    max-width: 50%;
+  }
+
+  .history-text {
+    flex: 1;
+    padding-top: 20px;
+  }
+
+  .history-text h1 {
+    font-size: 1.4rem;
+    margin-bottom: 15px;
+  }
+}
+
+/* ===================================
+   TABLET: 768px and below
+   Target: iPads, tablets, and smaller
+   Search: tablet, 768px
+   =================================== */
+@media (max-width: 768px) {
+  /* Time Inputs - Stack Vertically */
+  .time-inputs {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .time-separator {
+    display: none;
+  }
+
+  /* Mission/Vision - Stack Vertically */
+  .mission-vision-container {
+    flex-direction: column;
+  }
+  
+  .mission-box, .vision-box {
+    max-width: 100%;
+  }
+  
+  /* Officials Grid - Adjust Columns */
+  .officials-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+  
+  .about-hero-text h1 {
+    font-size: 2.5rem;
+  }
+
+  /* Request Form - Stack Sidebar */
+  .request-form-section {
+    flex-direction: column;
+    padding: 30px 15px;
+    gap: 20px;
+  }
+
+  .request-form-sidebar {
+    width: 100%;
+    padding-top: 0;
+  }
+
+  .back-to-calendar-btn {
+    width: fit-content;
+  }
+
+  .request-form-container {
+    padding: 0 10px;
+  }
+
+  .form-title {
+    font-size: 1.6rem;
+  }
+
+  .form-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 25px;
+  }
+
+  .form-row-2col {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .request-hero-content h1 {
+    font-size: 2rem;
+  }
+
+  .breadcrumb {
+    font-size: 0.8rem;
+  }
+
+  .submit-request-btn {
+    width: 100%;
+    padding: 14px 30px;
+  }
+
+  /* Calendar Page - Responsive Layout */
+  .calendar-hero-content h1 {
+    font-size: 2rem;
+  }
+
+  .calendar-hero-content p {
+    font-size: 0.95rem;
+  }
+
+  .calendar-top-bar {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 20px;
+  }
+
+  .calendar-back-section {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .calendar-center-section,
+  .calendar-right-section {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .calendar-month-display {
+    font-size: 1.8rem;
+    min-width: 180px;
+  }
+
+  .calendar-grid {
+    border: 2px solid #000;
+    width: 98%;
+    margin: 10px auto 20px auto;
+  }
+
+  .calendar-date {
+    min-height: 80px;
+    padding: 10px 8px;
+  }
+
+  .calendar-date .date-number {
+    font-size: 1.1rem;
+  }
+
+  .booking-label {
+    font-size: 0.7rem;
+  }
+
+  .form-row {
+    flex-direction: column;
+  }
+
+  .modal-content {
+    width: 95%;
+    padding: 25px 20px;
+  }
+  
+  .month-nav-btn {
+    width: 64px;
+    height: 64px;
+    font-size: 1.6rem;
+    padding: 10px;
+  }
+  
+  .legend-color {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* User Profile - Filter and Requests */
+  .request-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+
+  .request-filters-inline {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .filter-select {
+    flex: 1;
+    min-width: auto;
+  }
+
+  .custom-dropdown {
+    width: 100%;
+  }
+
+  /* Admin Internal Booking Form */
+  .internal-booking-form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .internal-booking-modal {
+    max-width: 95%;
+  }
+}
+
+/* ===================================
+   SMALL TABLET: 720px and below
+   Target: Small tablets
+   Search: 720px, small tablet
+   =================================== */
+@media (max-width: 720px) {
+  /* Floating Card - Horizontal Layout */
+  .floating-card { 
+    flex-direction: row; 
+    gap: 18px; 
+    padding: 14px; 
+  }
+  
+  /* Hero Image - Reduce Height */
+  .hero img { 
+    height: 220px; 
+  }
+}
+
+/* ===================================
+   LARGE MOBILE: 600px and below
+   Target: Large phones in landscape
+   Search: 600px, large mobile
+   =================================== */
+@media (max-width: 600px) {
+  /* Officials Bottom - Center Stack */
+  .officials-bottom {
+    justify-content: center;
+    gap: 18px;
+  }
+  
+  .officials-bottom .official-card {
+    max-width: 360px;
+    width: calc(100% - 40px);
+    margin: 0 auto;
+  }
+}
+
+/* ===================================
+   MODAL ALERTS: 500px and below
+   Target: Better modal display on phones
+   Search: 500px, modal, alert
+   =================================== */
+@media (max-width: 500px) {
+  /* Custom Alerts - Responsive */
+  #customAlert,
+  #formAlertBox {
+    width: 85%;
+    padding: 20px;
+  }
+  
+  #customConfirm {
+    width: 85%;
+    padding: 20px;
+  }
+  
+  #customConfirm .confirm-buttons {
+    flex-direction: column;
+  }
+  
+  #customConfirm .confirm-cancel-btn,
+  #customConfirm .confirm-ok-btn {
+    width: 100%;
+  }
+}
+
+/* ===================================
+   MOBILE: 480px and below
+   Target: Standard mobile phones
+   Search: 480px, mobile, phone
+   =================================== */
+@media (max-width: 480px) {
+  /* Request Form - Mobile Adjustments */
+  .request-hero {
+    height: 150px;
+  }
+
+  .request-hero-content h1 {
+    font-size: 1.6rem;
+  }
+
+  .form-title {
+    font-size: 1.4rem;
+  }
+
+  .form-group label {
+    font-size: 0.85rem;
+  }
+
+  .form-group input,
+  .form-group select {
+    padding: 10px 12px;
+    font-size: 0.9rem;
+  }
+
+  .back-to-calendar-btn {
+    font-size: 0.75rem;
+    padding: 8px 12px;
+  }
+
+  /* Calendar - Mobile Adjustments */
+  .back-to-dashboard-btn {
+    font-size: 0.7rem;
+    padding: 8px 12px;
+  }
+
+  .calendar-month-display {
+    font-size: 1.5rem;
+    min-width: 150px;
+  }
+
+  .calendar-day-header {
+    font-size: 0.8rem;
+    padding: 12px 2px;
+  }
+
+  .calendar-date {
+    min-height: 70px;
+    padding: 8px 5px;
+  }
+
+  .calendar-date .date-number {
+    font-size: 1rem;
+  }
+
+  .booking-label {
+    font-size: 0.65rem;
+  }
+
+  .month-nav-btn {
+    width: 56px;
+    height: 56px;
+    font-size: 1.4rem;
+  }
+}
+
+/* ===================================
+   MOBILE SMALL: 425px and below
+   Target: Standard iPhone/Android phones
+   Search: 425px, mobile, smartphone
+   NOTE: This is the PRIMARY mobile breakpoint - most styles consolidated here
+   =================================== */
+@media screen and (max-width: 425px) {
+  
+  /* ========== NAVIGATION ========== */
+  /* Show burger menu, hide desktop nav */
+  .burger-menu {
+    display: flex;
+  }
+
+  nav {
+    display: none;
+  }
+
+  .mobile-nav {
+    display: block;
+  }
+
+  /* Adjust header padding and layout */
+  header {
+    padding: 12px 15px;
+  }
+
+  .nav-container {
+    justify-content: space-between;
+  }
+
+  /* Logo adjustments */
+  .logo {
+    gap: 8px;
+  }
+
+  .logo img {
+    width: 35px;
+    height: 35px;
+  }
+
+  .logo span {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  /* ========== HERO SECTIONS ========== */
+  /* Landing Page Hero */
+  .hero-landing img {
+    height: 250px;
+  }
+
+  .hero-landingtext {
+    margin-left: 20px;
+    font-size: 30px;
+  }
+
+  .hero-landingtext h1 {
+    font-size: 32px;
+    margin-top: -180px;
+  }
+
+  .hero-landingtext h2 {
+    font-size: 32px;
+  }
+
+  .hero-landingtext p {
+    font-size: 12px;
+    margin-top: 8px;
+  }
+
+  /* Generic Hero (Signup) */
+  .hero {
+    height: 150px;
+  }
+
+  .hero img {
+    height: 150px;
+  }
+
+  .hero-text h1 {
+    font-size: 42px;
+  }
+
+  .hero-text p {
+    font-size: 12px;
+    margin-top: -5px;
+  }
+
+  /* Profile Hero */
+  .profile-hero {
+    height: 150px;
+  }
+
+  .profile-hero-text h1 {
+    font-size: 42px;
+  }
+
+  .profile-hero-text p {
+    font-size: 12px;
+  }
+
+  /* About Hero */
+  .about-hero {
+    height: 200px;
+  }
+
+  .about-hero-text h1 {
+    font-size: 36px;
+  }
+
+  .about-hero-text p {
+    font-size: 12px;
+  }
+
+  /* Contact Hero */
+  .contact-hero {
+    height: 200px;
+  }
+
+  .contact-hero-text h1 {
+    font-size: 36px;
+  }
+
+  .contact-hero-text p {
+    font-size: 12px;
+  }
+
+  /* ========== FLOATING CARD ========== */
+  .floating-card-wrap {
+    margin-top: 40px;
+    height: auto;
+  }
+
+  .floating-card {
+    flex-direction: row;
+    width: 300px;
+    padding: 20px 15px;
+    gap: 10px;
+  }
+
+  .floating-card .quick-item img {
+    width: 50px;
+    height: 50px;
+  }
+
+  .floating-card .quick-label {
+    font-size: 12px;
+  }
+
+  /* ========== CALENDAR SECTION (Landing) ========== */
+  .calendar-section {
+    padding: 30px 15px 40px 15px;
+  }
+
+  .calendar-Title {
+    font-size: 1.8rem;
+    padding: 0 10px;
+  }
+
+  .calendar-desc {
+    font-size: 0.9rem;
+    padding: 0 15px;
+  }
+
+  .calendar-cards {
+    gap: 20px;
+    padding: 0 15px;
+  }
+
+  .calendar-card {
+    width: 340px;
+    height: 220px;
+  }
+
+  .calendar-img {
+    width: 140px;
+    height: 140px;
+  }
+
+  .calendar-label-main {
+    font-size: 24px;
+  }
+
+  .calendar-label-sub {
+    font-size: 16px;
+  }
+
+  /* ========== SERVICES SECTION ========== */
+  .services-section {
+    padding: 30px 15px 40px 15px;
+  }
+
+  .services-title {
+    font-size: 1.8rem;
+    padding: 0 10px;
+  }
+
+  .services-desc {
+    font-size: 0.85rem;
+    padding: 0 15px;
+  }
+
+  .services-cards {
+    gap: 25px;
+    padding: 0 15px;
+  }
+
+  .service-card {
+    width: 100%;
+    max-width: 340px;
+    height: auto;
+    padding-bottom: 20px;
+  }
+
+  .service-img {
+    width: 100%;
+    max-width: 280px;
+    height: 160px;
+    margin-top: 15px;
+  }
+
+  .service-info {
+    padding: 15px 20px 0 20px;
+  }
+
+  .service-label-main {
+    font-size: 1rem;
+  }
+
+  .service-label-desc {
+    font-size: 0.9rem;
+  }
+
+  .service-btn {
+    font-size: 0.9rem;
+    padding: 9px 24px;
+  }
+
+  /* ========== ABOUT SECTION (Landing) ========== */
+  .about-section {
+    padding: 30px 15px;
+  }
+
+  .about-title {
+    font-size: 1.8rem;
+    padding: 0 10px;
+  }
+
+  .about-content {
+    flex-direction: column;
+    gap: 20px;
+    padding: 0 15px;
+  }
+
+  .about-content.reverse {
+    flex-direction: column;
+  }
+
+  .about-img {
+    width: 100%;
+    max-width: 340px;
+    height: 220px;
+  }
+
+  .about-text p {
+    font-size: 0.9rem;
+    text-align: justify;
+  }
+
+  .about-btn {
+    font-size: 0.9rem;
+    padding: 9px 24px;
+    display: inline-block;
+    width: fit-content;
+  }
+
+  /* ========== ABOUT PAGE - HISTORY SECTION ========== */
+  .history-section {
+    padding: 30px 15px;
+  }
+
+  .history-image {
+    width: 100%;
+  }
+
+  .history-image img {
+    width: 100%;
+    max-width: 340px;
+    height: 220px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+
+  .history-text {
+    width: 100%;
+    padding: 0;
+  }
+
+  .history-text h1 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+    text-align: center;
+  }
+
+  .history-text p {
+    font-size: 0.9rem;
+    text-align: justify;
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+
+  /* ========== MISSION/VISION SECTION ========== */
+  .mission-vision-section {
+    padding: 30px 15px;
+  }
+
+  .mission-vision-container {
+    flex-direction: column;
+    gap: 20px;
+    max-width: 340px;
+    margin: 0 auto;
+    align-items: center;
+  }
+
+  .mission-box,
+  .vision-box {
+    width: 100%;
+    min-height: 180px;
+    padding: 25px 20px;
+  }
+
+  .mv-header {
+    font-size: 1.5rem;
+    margin-bottom: 12px;
+  }
+
+  .mv-text {
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+
+  /* ========== OFFICIALS SECTION ========== */
+  .officials-section {
+    padding: 30px 15px 40px 15px;
+  }
+
+  .officials-section h2 {
+    font-size: 1.8rem;
+    margin-bottom: 25px;
+  }
+
+  .officials-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .official-card {
+    width: 280px;
+    padding: 20px;
+  }
+
+  .official-card.main-official {
+    width: 300px;
+  }
+
+  .official-info img {
+    width: 120px;
+    height: 120px;
+    margin-bottom: 12px;
+  }
+
+  .official-card.main-official .official-info img {
+    width: 150px;
+    height: 150px;
+  }
+
+  .official-info h3 {
+    font-size: 1rem;
+    margin-bottom: 6px;
+  }
+
+  .official-card.main-official .official-info h3 {
+    font-size: 1.2rem;
+  }
+
+  .official-info p {
+    font-size: 0.85rem;
+  }
+
+  .officials-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+    align-items: center;
+  }
+
+  .officials-bottom .official-card {
+    width: 280px;
+  }
+
+  /* ========== CONTACT SECTION (Landing) ========== */
+  .contact-section {
+    padding: 30px 15px;
+  }
+
+  .contact-title {
+    font-size: 1.8rem;
+    padding: 0 10px;
+  }
+
+  .contact-content {
+    flex-direction: column;
+    max-width: 340px;
+    gap: 0;
+    padding: 0 15px;
+    align-items: center;
+  }
+
+  .contact-box {
+    width: 100%;
+    height: auto;
+    padding: 20px;
+    font-size: 0.85rem;
+  }
+
+  .contact-box-left {
+    border-radius: 12px 12px 0 0;
+    border-right: none;
+    border-bottom: 2px solid #f3ecfa;
+  }
+
+  .contact-box-right {
+    border-radius: 0 0 12px 12px;
+  }
+
+  .contact-btn {
+    font-size: 0.9rem;
+    padding: 9px 24px;
+  }
+
+  /* ========== CONTACT PAGE ========== */
+  .contact-page {
+    padding: 30px 15px;
+  }
+
+  .contact-page-title {
+    font-size: 1.8rem;
+    margin-bottom: 12px;
+    padding: 0 10px;
+  }
+
+  .contact-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 25px;
+    padding: 0 10px;
+  }
+
+  /* Contact Cards Grid */
+  .contact-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-width: 100%;
+    padding: 0 5px;
+  }
+
+  /* Horizontal card layout with icon on the left */
+  .contact-card {
+    width: 90%;
+    max-width: 90%;
+    margin: 0;
+    padding: 15px;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+    gap: 15px;
+    background: #f5f5f5;
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Circular icon on the left */
+  .contact-icon {
+    flex-shrink: 0;
+    margin-bottom: 0;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .contact-icon img {
+    width: 58px;
+    height: 58px;
+    object-fit: contain;
+    align-items: center;
+    border-radius: 50%;
+  }
+
+  /* Contact info takes remaining space */
+  .contact-info {
+    flex: 1;
+    width: auto;
+  }
+
+  .contact-label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #222;
+    font-family: 'League Spartan', sans-serif;
+  }
+
+  .contact-details {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: #444;
+    text-align: left;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  .contact-details ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .contact-details li {
+    margin-bottom: 4px;
+  }
+
+  .contact-details br {
+    display: block;
+    margin: 2px 0;
+  }
+
+  /* ========== FOOTER ========== */
+  footer {
+    padding: 20px 15px;
+    min-height: auto;
+    text-align: left;
+  }
+
+  .footer-logo {
+    margin-left: 0;
+    max-width: 100%;
+    flex-direction: column;
+    text-align: center;
+    gap: 5px;
+  }
+
+  .footer-logo img {
+    width: 60px;
+  }
+
+  .footer-logo p {
+    font-size: 16px;
+  }
+
+  .footer-container {
+    flex-direction: column;
+    gap: 25px;
+    margin-left: 0;
+    margin-top: 25px;
+  }
+
+  .footer-links {
+    text-align: center;
+  }
+
+  .footer-links h3 {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+
+  .footer-links li,
+  .footer-links p {
+    font-size: 14px;
+    text-align: center;
+  }
+
+  .footer-links ul {
+    padding: 0;
+  }
+
+  .footer-bottom {
+    font-size: 12px;
+    margin-top: 20px;
+  }
+
+  /* ========== LOGIN PAGE ========== */
+  .login-section {
+    padding: 30px 15px;
+    min-height: auto;
+  }
+
+  .login-form {
+    width: 100%;
+    max-width: 340px;
+    padding: 25px 20px;
+    margin: 0 auto;
+  }
+
+  .login-form label {
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+  }
+
+  .login-form input[type="email"],
+  .login-form input[type="password"],
+  .login-form input[type="text"] {
+    font-size: 0.9rem;
+    padding: 10px 12px;
+  }
+
+  .error-message {
+    font-size: 0.75rem;
+    margin-bottom: 10px;
+  }
+
+  .forgot-password-link {
+    text-align: right;
+    margin-bottom: 20px;
+  }
+
+  .forgot-password-link a {
+    font-size: 0.85rem;
+  }
+
+  .form-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    border-radius: 6px;
+  }
+
+  .btn.primary {
+    width: 100%;
+  }
+  
+  .btn.secondary {
+    width: 88%;
+  }
+
+  /* Modal Responsive */
+  .modal-content {
+    width: 90%;
+    max-width: 340px;
+    padding: 25px 20px;
+    margin: 0 auto;
+  }
+
+  .modal-content h2 {
+    font-size: 1.5rem;
+    margin-bottom: 12px;
+  }
+
+  .modal-content p {
+    font-size: 0.85rem !important;
+    margin-bottom: 15px !important;
+  }
+
+  .form-group label {
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+  }
+
+  .form-group input {
+    font-size: 0.9rem;
+    padding: 10px 12px;
+  }
+
+  .modal-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .modal-buttons button {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 0.95rem;
+  }
+
+  .close-modal,
+  .save-changes {
+    width: 100%;
+  }
+
+  /* ========== SIGNUP PAGE ========== */
+  .signup-section {
+    padding: 30px 15px;
+  }
+
+  .signup-container {
+    max-width: 100%;
+    padding: 0 10px;
+  }
+
+  .signup-title {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+
+  .signup-subtitle {
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .signup-row,
+  .signup-row-3col {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+
+  .signup-group {
+    width: 100%;
+  }
+
+  .signup-group label {
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+
+  .signup-group input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .signup-buttons {
+    margin-top: 25px;
+  }
+
+  .signup-btn {
+    width: 100%;
+    padding: 12px 30px;
+    font-size: 0.9rem;
+  }
+
+  .signup-login-link p {
+    font-size: 0.85rem;
+  }
+
+  .custom-alert {
+    min-width: 280px;
+    max-width: 90%;
+    padding: 20px;
+  }
+
+  .alert-message {
+    font-size: 15px;
+    margin: 10px 0 15px;
+  }
+
+  .alert-button {
+    padding: 8px 20px;
+    font-size: 14px;
+  }
+
+  /* ========== USER PROFILE PAGE ========== */
+  .profile-main-content {
+    padding: 30px 15px;
+  }
+
+  .user-profile-layout {
+    margin-top: 20px;
+    padding: 0 10px;
+  }
+
+  .user-profile-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .user-profile-name {
+    font-size: 1.6rem;
+    width: 100%;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .logout-btn {
+    width: 100%;
+    padding: 12px 20px;
+    justify-content: center;
+    font-size: 0.95rem;
+    border: #000 1px solid;
+    border-radius: 8px;
+  }
+
+  .user-profile-content {
+    grid-template-columns: 1fr;
+    gap: 25px;
+  }
+
+  .user-info-card {
+    padding: 20px 18px;
+    min-width: auto;
+  }
+
+  .user-info-card h2 {
+    font-size: 1.15rem;
+    margin-bottom: 15px;
+  }
+
+  .info-item {
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .info-label {
+    font-size: 0.85rem;
+    color: #666;
+  }
+
+  .info-value {
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+
+  .user-profile-actions {
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 18px;
+  }
+
+  .edit-profile-btn,
+  .change-password-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 18px;
+    font-size: 0.9rem;
+  }
+
+  .user-request-status {
+    padding: 0;
+  }
+
+  .request-status-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 15px;
+  }
+
+  .request-status-header h2 {
+    font-size: 1.15rem;
+  }
+
+  .request-filters-inline {
+    width: 100%;
+  }
+
+  .request-filters-inline label {
+    font-size: 0.85rem;
+  }
+
+  .filter-select {
+    flex: 1;
+    min-width: auto;
+    font-size: 0.85rem;
+    padding: 8px 10px;
+  }
+
+  .request-cards {
+    height: auto;
+    max-height: 350px;
+    padding-right: 5px;
+  }
+
+  .request-card {
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .request-card-header h3 {
+    font-size: 0.95rem;
+  }
+
+  .request-card-body p {
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+  }
+
+  .empty-requests {
+    padding: 30px 20px;
+  }
+
+  .empty-requests p {
+    font-size: 0.95rem;
+  }
+
+  .modal-profile {
+    width: 90%;
+    max-width: 340px;
+    padding: 25px 20px;
+  }
+
+  .modal-profile h2 {
+    font-size: 1.3rem;
+    margin-bottom: 18px;
+  }
+
+  .profile-details-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .info-card {
+    padding: 18px;
+  }
+
+  .info-card h3 {
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+  }
+
+  .personal-info-card .info-label {
+    font-size: 0.8rem;
+  }
+
+  .personal-info-card .info-value {
+    font-size: 0.9rem;
+  }
+}
+
+/* Burger menu animation when active */
+.burger-menu.active span:nth-child(1) {
+  transform: rotate(45deg) translate(7px, 7px);
+}
+
+.burger-menu.active span:nth-child(2) {
+  opacity: 0;
+}
+
+.burger-menu.active span:nth-child(3) {
+  transform: rotate(-45deg) translate(7px, -7px);
+}
+
+/* ============================================================================
+   END OF CONSOLIDATED RESPONSIVE STYLES
+   All media queries above this point are organized by breakpoint
+   ============================================================================ */
