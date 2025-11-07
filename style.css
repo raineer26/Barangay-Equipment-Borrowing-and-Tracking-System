@@ -4083,14 +4083,15 @@ input[type="number"]::-webkit-outer-spin-button {
   background: #f5f5f5;
   min-height: 100vh;
   overflow-x: hidden;
+  overflow-y: auto; /* Allow vertical scrolling when content overflows */
   max-width: calc(100vw - 280px);
 }
 
-/* Dashboard Page Specific - Non-scrollable */
-.admin-main.admin-dashboard-page {
+/* Dashboard Page Specific - Removed non-scrollable restriction */
+/* .admin-main.admin-dashboard-page {
   height: 100vh;
   overflow: hidden;
-}
+} */
 
 /* Admin Hero Section */
 .admin-hero {
@@ -4153,8 +4154,8 @@ input[type="number"]::-webkit-outer-spin-button {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 30px;
-  height: calc(100vh - 180px);
-  overflow: hidden;
+  /* height: calc(100vh - 180px); */ /* Removed fixed height to allow scrolling */
+  /* overflow: hidden; */ /* Removed to allow scrolling */
   box-sizing: border-box;
 }
 
@@ -4163,7 +4164,7 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  overflow: hidden;
+  /* overflow: hidden; */ /* Removed to allow content to flow naturally */
   min-height: 0;
 }
 
