@@ -9699,11 +9699,13 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     if (reviewRequestsToggle) {
       reviewRequestsToggle.addEventListener('click', function(e) {
         e.preventDefault();
-        const dropdown = document.getElementById('reviewRequestsDropdown');
-        if (dropdown) {
-          dropdown.classList.toggle('open');
-          this.classList.toggle('open');
+        // Get the parent .sidebar-dropdown container
+        const parentDropdown = this.closest('.sidebar-dropdown');
+        if (parentDropdown) {
+          parentDropdown.classList.toggle('open');
         }
+        // Toggle arrow rotation on the toggle button
+        this.classList.toggle('open');
       });
     }
   }
@@ -9717,13 +9719,15 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
 
     if (menuToggle && sidebar) {
       menuToggle.addEventListener('click', function() {
-        sidebar.classList.toggle('active');
+        sidebar.classList.toggle('open');
       });
 
       // Close sidebar when clicking outside on mobile
       document.addEventListener('click', function(e) {
-        if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
-          sidebar.classList.remove('active');
+        if (window.innerWidth <= 768) {
+          if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+            sidebar.classList.remove('open');
+          }
         }
       });
     }
