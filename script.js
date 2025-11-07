@@ -4649,7 +4649,7 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     });
     
     showAlert(
-      `${formattedDate} is fully booked. No continuous 4-hour slots available. Please select another date.`,
+      `${formattedDate} is fully booked. No continuous 2-hour slots available. Please select another date.`,
       false
     );
   }
@@ -6258,10 +6258,10 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
   datesWithReservations.clear();
   dateCounts = {};
 
-      // Load conference room bookings
+      // Load conference room bookings (only approved and in-progress)
       const conferenceQuery = query(
         collection(db, 'conferenceRoomBookings'),
-        where('status', 'in', ['pending', 'approved', 'in-progress'])
+        where('status', 'in', ['approved', 'in-progress'])
       );
       const conferenceSnapshot = await getDocs(conferenceQuery);
       
@@ -6288,10 +6288,10 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
         }
       });
 
-      // Load tents & chairs bookings
+      // Load tents & chairs bookings (only approved and in-progress)
       const tentsQuery = query(
         collection(db, 'tentsChairsBookings'),
-        where('status', 'in', ['pending', 'approved', 'in-progress'])
+        where('status', 'in', ['approved', 'in-progress'])
       );
       const tentsSnapshot = await getDocs(tentsQuery);
       
@@ -6456,7 +6456,8 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
         loadReservations(); // Load reservations for selected date
       });
 
-      // Add hover tooltip to show number of reservations for that ISO date
+      // Hover tooltip commented out - was showing reservation count on hover (confusing)
+      /*
       (function(dayEl, key) {
         const tooltip = ensureCalendarTooltip();
         const show = () => {
@@ -6490,6 +6491,7 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
           hide();
         });
       })(dayCell, dateKey);
+      */
 
       weekCalendarGrid.appendChild(dayCell);
     }
@@ -6575,7 +6577,8 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
         dayCell.classList.add('has-reservation');
       }
 
-      // Tooltip handlers for mini calendar
+      // Tooltip handlers for mini calendar - commented out (confusing)
+      /*
       (function(el, key) {
         const tooltip = ensureCalendarTooltip();
         const showMini = () => {
@@ -6595,6 +6598,7 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
         el.addEventListener('focus', showMini);
         el.addEventListener('blur', hideMini);
       })(dayCell, thisKey);
+      */
 
       calendarDays.appendChild(dayCell);
     }
@@ -7512,6 +7516,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
   function getActionButtons(req) {
     const status = req.status;
     const id = req.id;
+    const isInternal = req.isInternalBooking || false;
 
     if (currentTab === 'history') {
       // History tab: show archive/delete
@@ -7532,15 +7537,25 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
         </div>
       `;
     } else if (status === 'approved') {
+      // Add Cancel button for internal bookings
+      const cancelBtn = isInternal ? 
+        `<button class="tents-btn tents-btn-cancel" onclick="window.cancelInternalBooking('${id}')">Cancel</button>` : 
+        '';
       return `
         <div class="tents-action-buttons">
           <button class="tents-btn tents-btn-complete" onclick="window.completeRequest('${id}')">Mark Complete</button>
+          ${cancelBtn}
         </div>
       `;
     } else if (status === 'in-progress') {
+      // Add Cancel button for internal bookings
+      const cancelBtn = isInternal ? 
+        `<button class="tents-btn tents-btn-cancel" onclick="window.cancelInternalBooking('${id}')">Cancel</button>` : 
+        '';
       return `
         <div class="tents-action-buttons">
           <button class="tents-btn tents-btn-complete" onclick="window.completeRequest('${id}')">Mark Complete</button>
+          ${cancelBtn}
         </div>
       `;
     }
@@ -7929,6 +7944,134 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
     } catch (error) {
       console.error('❌ [Admin Complete Tents/Chairs] Error completing request:', error);
       await showConfirmModal('Error', 'Failed to complete request. Please try again.', null, true);
+    }
+  };
+
+  // Cancel internal booking (admin-created booking)
+  window.cancelInternalBooking = async function(requestId) {
+    console.log('🚫 [Cancel Internal Booking] Starting cancellation for:', requestId);
+    
+    try {
+      // Get request data first
+      const request = allRequests.find(r => r.id === requestId);
+      if (!request) {
+        await showConfirmModal('Error', 'Request not found.', null, true);
+        return;
+      }
+      
+      // Verify it's an internal booking
+      if (!request.isInternalBooking) {
+        await showConfirmModal(
+          'Not Allowed', 
+          'Only internal bookings can be cancelled this way. Regular user requests must be rejected instead.',
+          null,
+          true
+        );
+        return;
+      }
+      
+      // Show confirmation
+      const confirmed = await showConfirmModal(
+        'Cancel Internal Booking',
+        `Are you sure you want to cancel this internal booking?<br><br>` +
+        `<strong>Event:</strong> ${request.startDate} to ${request.endDate}<br>` +
+        `<strong>Tents:</strong> ${request.quantityTents}<br>` +
+        `<strong>Chairs:</strong> ${request.quantityChairs}<br><br>` +
+        `⚠️ This will return the equipment to available inventory.`,
+        null,
+        false
+      );
+      
+      if (!confirmed) {
+        console.log('❌ [Cancel Internal Booking] Cancelled by user');
+        return;
+      }
+      
+      // Get inventory document
+      const inventoryRef = doc(db, 'inventory', 'equipment');
+      const inventorySnap = await getDoc(inventoryRef);
+      
+      if (!inventorySnap.exists()) {
+        await showConfirmModal('Error', 'Inventory document not found. Cannot update inventory.', null, true);
+        return;
+      }
+      
+      const currentInventory = inventorySnap.data();
+      const tentsToReturn = parseInt(request.quantityTents) || 0;
+      const chairsToReturn = parseInt(request.quantityChairs) || 0;
+      
+      // Calculate new inventory
+      const newAvailableTents = (currentInventory.availableTents || 0) + tentsToReturn;
+      const newAvailableChairs = (currentInventory.availableChairs || 0) + chairsToReturn;
+      const newTentsInUse = Math.max(0, (currentInventory.tentsInUse || 0) - tentsToReturn);
+      const newChairsInUse = Math.max(0, (currentInventory.chairsInUse || 0) - chairsToReturn);
+      
+      console.log('📦 [Cancel Internal Booking] Inventory changes:', {
+        tentsReturned: tentsToReturn,
+        chairsReturned: chairsToReturn,
+        newAvailableTents,
+        newAvailableChairs,
+        newTentsInUse,
+        newChairsInUse
+      });
+      
+      // Update request status
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+        cancelledBy: 'admin',
+        cancellationReason: 'Internal booking cancelled by admin'
+      });
+      
+      console.log('✅ [Cancel Internal Booking] Request status updated to cancelled');
+      
+      // Update inventory
+      await updateDoc(inventoryRef, {
+        availableTents: newAvailableTents,
+        availableChairs: newAvailableChairs,
+        tentsInUse: newTentsInUse,
+        chairsInUse: newChairsInUse,
+        lastUpdated: new Date()
+      });
+      
+      console.log('✅ [Cancel Internal Booking] Inventory updated successfully');
+      
+      // Create notification if notification function exists
+      if (request.userId && typeof createStatusChangeNotification === 'function') {
+        try {
+          await createStatusChangeNotification(
+            requestId,
+            'tents-chairs',
+            request.userId,
+            request.status, // previous status
+            'cancelled',
+            request
+          );
+          console.log('✅ [Cancel Internal Booking] Notification created');
+        } catch (notifError) {
+          console.warn('⚠️ [Cancel Internal Booking] Failed to create notification:', notifError);
+        }
+      }
+      
+      // Show success message
+      await showConfirmModal(
+        'Booking Cancelled',
+        `Internal booking cancelled successfully.<br><br>` +
+        `<strong>Equipment Returned:</strong><br>` +
+        `Tents: ${tentsToReturn}<br>` +
+        `Chairs: ${chairsToReturn}<br><br>` +
+        `Inventory has been updated.`,
+        null,
+        true
+      );
+      
+      // Reload data
+      await loadTentsRequests();
+      
+    } catch (error) {
+      console.error('❌ [Cancel Internal Booking] Error:', error);
+      await showConfirmModal('Error', `Failed to cancel booking: ${error.message}`, null, true);
     }
   };
 
@@ -8822,7 +8965,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
               <th>Status</th>
               <th>Actions</th>
               ${currentTab === 'history' || currentTab === 'archives' ? '<th>Remarks</th>' : ''}
-              ${currentTab === 'history' ? '<th>Completed on</th>' : (currentTab === 'archives' ? '<th>Archived on</th>' : '<th>Notify User</th>')}
+              ${currentTab === 'history' ? '<th>Completed on</th>' : (currentTab === 'archives' ? '<th>Archived on</th>' : ''/* '<th>Notify User</th>' */)}
             </tr>
           </thead>
           <tbody>
@@ -8870,7 +9013,9 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           <td>${renderStatusBadge(req.status)}</td>
           <td>${renderActionButtons(req)}</td>
           ${currentTab === 'history' || currentTab === 'archives' ? `<td>${renderRemarks(req)}</td>` : ''}
-          <td>${currentTab === 'history' ? renderCompletedOn(req) : (currentTab === 'archives' ? renderArchivedOn(req) : renderNotifyButtons(req))}</td>
+          ${/* currentTab === 'history' ? renderCompletedOn(req) : (currentTab === 'archives' ? renderArchivedOn(req) : renderNotifyButtons(req)) */''}
+          ${currentTab === 'history' ? `<td>${renderCompletedOn(req)}</td>` : ''}
+          ${currentTab === 'archives' ? `<td>${renderArchivedOn(req)}</td>` : ''}
         </tr>
       `;
     });
@@ -9007,6 +9152,8 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Render action buttons based on status and tab
    */
   function renderActionButtons(req) {
+    const isInternal = req.isInternalBooking || false;
+    
     if (currentTab === 'all') {
       // All Requests tab
       if (req.status === 'pending') {
@@ -9015,12 +9162,22 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           <button class="tents-btn-deny" onclick="window.tentsAdmin.handleDeny('${req.id}')">Deny</button>
         `;
       } else if (req.status === 'approved') {
+        // Add Cancel button for internal bookings
+        const cancelBtn = isInternal ? 
+          `<button class="tents-btn-cancel" onclick="window.tentsAdmin.handleCancelInternal('${req.id}')">Cancel</button>` : 
+          '';
         return `
           <button class="tents-btn-complete" onclick="window.tentsAdmin.handleComplete('${req.id}')">Mark as Completed</button>
+          ${cancelBtn}
         `;
       } else if (req.status === 'in-progress') {
+        // Add Cancel button for internal bookings
+        const cancelBtn = isInternal ? 
+          `<button class="tents-btn-cancel" onclick="window.tentsAdmin.handleCancelInternal('${req.id}')">Cancel</button>` : 
+          '';
         return `
           <button class="tents-btn-complete" onclick="window.tentsAdmin.handleComplete('${req.id}')">Mark as Completed</button>
+          ${cancelBtn}
         `;
       }
     } else if (currentTab === 'history') {
@@ -9667,6 +9824,127 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   }
 
   /**
+   * Handle cancel internal booking action
+   */
+  async function handleCancelInternal(requestId) {
+    console.log('🚫 [Cancel Internal Booking v2] Starting cancellation for:', requestId);
+    
+    try {
+      // Get request data first
+      const request = allRequests.find(r => r.id === requestId);
+      if (!request) {
+        await showConfirmModal('Error', 'Request not found.', null, true);
+        return;
+      }
+      
+      // Verify it's an internal booking
+      if (!request.isInternalBooking) {
+        await showConfirmModal(
+          'Not Allowed', 
+          'Only internal bookings can be cancelled this way. Regular user requests must be rejected instead.',
+          null,
+          true
+        );
+        return;
+      }
+      
+      // Show confirmation
+      const confirmed = await showConfirmModal(
+        'Cancel Internal Booking',
+        `Are you sure you want to cancel this internal booking?<br><br>` +
+        `<strong>Event:</strong> ${request.startDate} to ${request.endDate}<br>` +
+        `<strong>Tents:</strong> ${request.quantityTents}<br>` +
+        `<strong>Chairs:</strong> ${request.quantityChairs}<br><br>` +
+        `⚠️ This will return the equipment to available inventory.`
+      );
+      
+      if (!confirmed) {
+        console.log('❌ [Cancel Internal Booking v2] Cancelled by user');
+        return;
+      }
+      
+      // Get inventory document
+      const inventoryRef = doc(db, 'inventory', 'equipment');
+      const inventorySnap = await getDoc(inventoryRef);
+      
+      if (!inventorySnap.exists()) {
+        await showConfirmModal('Error', 'Inventory document not found. Cannot update inventory.', null, true);
+        return;
+      }
+      
+      const currentInventory = inventorySnap.data();
+      const tentsToReturn = parseInt(request.quantityTents) || 0;
+      const chairsToReturn = parseInt(request.quantityChairs) || 0;
+      
+      // Calculate new inventory
+      const newAvailableTents = (currentInventory.availableTents || 0) + tentsToReturn;
+      const newAvailableChairs = (currentInventory.availableChairs || 0) + chairsToReturn;
+      const newTentsInUse = Math.max(0, (currentInventory.tentsInUse || 0) - tentsToReturn);
+      const newChairsInUse = Math.max(0, (currentInventory.chairsInUse || 0) - chairsToReturn);
+      
+      console.log('📦 [Cancel Internal Booking v2] Inventory changes:', {
+        tentsReturned: tentsToReturn,
+        chairsReturned: chairsToReturn,
+        newAvailableTents,
+        newAvailableChairs,
+        newTentsInUse,
+        newChairsInUse
+      });
+      
+      // Update request status
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+        cancelledBy: 'admin',
+        cancellationReason: 'Internal booking cancelled by admin'
+      });
+      
+      console.log('✅ [Cancel Internal Booking v2] Request status updated to cancelled');
+      
+      // Update inventory
+      await updateDoc(inventoryRef, {
+        availableTents: newAvailableTents,
+        availableChairs: newAvailableChairs,
+        tentsInUse: newTentsInUse,
+        chairsInUse: newChairsInUse,
+        lastUpdated: new Date()
+      });
+      
+      console.log('✅ [Cancel Internal Booking v2] Inventory updated successfully');
+      
+      // Create notification if notification function exists
+      if (request.userId && typeof createStatusChangeNotification === 'function') {
+        try {
+          console.log('🔔 [Cancel Internal Booking v2] Creating notification...');
+          await createStatusChangeNotification(
+            requestId,
+            'tents-chairs',
+            request.userId,
+            request.status, // previous status
+            'cancelled',
+            request
+          );
+          console.log('✅ [Cancel Internal Booking v2] Notification created');
+        } catch (notifError) {
+          console.warn('⚠️ [Cancel Internal Booking v2] Failed to create notification:', notifError);
+        }
+      }
+      
+      // Show success message
+      showToast(`Internal booking cancelled. Equipment returned to inventory.`, true);
+      
+      // Reload data
+      await loadAllRequests();
+      await updateInventoryInUse();
+      
+    } catch (error) {
+      console.error('❌ [Cancel Internal Booking v2] Error:', error);
+      await showConfirmModal('Error', `Failed to cancel booking: ${error.message}`, null, true);
+    }
+  }
+
+  /**
    * Handle archive action
    */
   async function handleArchive(requestId) {
@@ -9891,7 +10169,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
 
       // Set content
       titleEl.textContent = title;
-      messageEl.textContent = message;
+      messageEl.innerHTML = message;
       messageEl.style.whiteSpace = 'pre-line'; // Preserve line breaks
 
       // Handle alert mode (only OK button)
@@ -10675,6 +10953,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     handleApprove,
     handleDeny,
     handleComplete,
+    handleCancelInternal,
     handleArchive,
     handleDelete,
     handleUnarchive,
@@ -11844,7 +12123,8 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     }
 
     // Prepare header labels depending on tab
-    const notifyOrRemarksHeader = currentTab === 'all' ? 'Notify User' : 'Remarks';
+    // const notifyOrRemarksHeader = currentTab === 'all' ? 'Notify User' : 'Remarks';
+    const notifyOrRemarksHeader = 'Remarks'; // Notify User column removed
     const trailingHeader = currentTab === 'history' ? '<th>Completed On</th>' : (currentTab === 'archives' ? '<th>Archived On</th>' : '');
 
     // Build table HTML
@@ -11863,7 +12143,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
               <th>End Time</th>
               <th>Status</th>
               <th>Actions</th>
-              <th>${notifyOrRemarksHeader}</th>
+              ${currentTab !== 'all' ? `<th>${notifyOrRemarksHeader}</th>` : ''}
               ${trailingHeader}
             </tr>
           </thead>
@@ -11959,7 +12239,8 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
           <td>${endTime}</td>
           <td>${renderStatusBadge(req.status)}</td>
           <td>${renderActionButtons(req)}</td>
-          <td>${currentTab === 'all' ? renderNotifyButtons(req) : remarks}</td>
+          ${/* currentTab === 'all' ? renderNotifyButtons(req) : remarks */ ''}
+          ${currentTab !== 'all' ? `<td>${remarks}</td>` : ''}
           ${currentTab !== 'all' ? `<td style="text-align: right;">${completedDate}${completedTime ? `<br><span style="font-size:11px;color:#6b7280;font-style:italic;">${completedTime}</span>` : ''}</td>` : ''}
         </tr>
       `;
@@ -11987,27 +12268,34 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
    * Render action buttons based on request status and current tab
    */
   function renderActionButtons(req) {
-    const buttons = [];
+    const isInternal = req.isInternalBooking || false;
 
     if (currentTab === 'all') {
       // All Requests tab
       if (req.status === 'pending') {
-        buttons.push(`<button class="tents-btn-approve" onclick="handleApprove('${req.id}')">Approve</button>`);
-        buttons.push(`<button class="tents-btn-deny" onclick="handleDeny('${req.id}')">Deny</button>`);
+        return `
+          <button class="tents-btn-approve" onclick="handleApprove('${req.id}')">Approve</button>
+          <button class="tents-btn-deny" onclick="handleDeny('${req.id}')">Deny</button>
+        `;
       } else if (req.status === 'approved' || req.status === 'in-progress') {
-        buttons.push(`<button class="tents-btn-complete" onclick="handleComplete('${req.id}')">Mark as Completed</button>`);
+        // Add Cancel button for internal bookings
+        const cancelBtn = isInternal ? 
+          `<button class="tents-btn-cancel" onclick="handleCancelInternal('${req.id}')">Cancel</button>` : 
+          '';
+        return `
+          <button class="tents-btn-complete" onclick="handleComplete('${req.id}')">Mark as Completed</button>
+          ${cancelBtn}
+        `;
       }
     } else if (currentTab === 'history') {
       // History tab - only archive (no delete)
-      buttons.push(`<button class="tents-btn-archive" onclick="handleArchive('${req.id}')">Archive</button>`);
+      return `<button class="tents-btn-archive" onclick="handleArchive('${req.id}')">Archive</button>`;
     } else if (currentTab === 'archives') {
       // Archives tab - only unarchive (no delete)
-      buttons.push(`<button class="tents-btn-unarchive" onclick="handleUnarchive('${req.id}')">Unarchive</button>`);
+      return `<button class="tents-btn-unarchive" onclick="handleUnarchive('${req.id}')">Unarchive</button>`;
     }
 
-    return buttons.length > 0 ? 
-      `<div class="tents-action-buttons">${buttons.join('')}</div>` : 
-      '—';
+    return '—';
   }
 
   /**
@@ -12518,6 +12806,94 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     } catch (error) {
       console.error('❌ Error completing request:', error);
       showToast('Error updating request. Please try again.', false);
+    }
+  };
+
+  /**
+   * Cancel an internal conference room booking
+   */
+  window.handleCancelInternal = async function(requestId) {
+    console.log('🚫 [Cancel Internal Conference] Starting cancellation for:', requestId);
+    
+    try {
+      // Get request data
+      const request = allRequests.find(r => r.id === requestId);
+      if (!request) {
+        await showConfirmModal('Error', 'Request not found.', null, true);
+        return;
+      }
+      
+      // Verify it's an internal booking
+      if (!request.isInternalBooking) {
+        await showConfirmModal(
+          'Not Allowed', 
+          'Only internal bookings can be cancelled this way. Regular user requests must be rejected instead.',
+          null,
+          true
+        );
+        return;
+      }
+      
+      // Build display name
+      const np = getNameParts(request);
+      const nameDisplay = (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.userEmail || 'Internal');
+      
+      // Show confirmation
+      const confirmed = await showConfirmModal(
+        'Cancel Internal Booking',
+        `Are you sure you want to cancel this internal conference room booking?<br><br>` +
+        `<strong>Contact:</strong> ${nameDisplay}<br>` +
+        `<strong>Event:</strong> ${request.eventDate}<br>` +
+        `<strong>Time:</strong> ${request.startTime} - ${request.endTime}<br>` +
+        `<strong>Purpose:</strong> ${sanitizeInput(request.purpose || 'N/A')}<br><br>` +
+        `⚠️ This will free up the conference room for that time slot.`,
+        null,
+        false
+      );
+      
+      if (!confirmed) {
+        console.log('❌ [Cancel Internal Conference] Cancelled by user');
+        return;
+      }
+      
+      // Update request status
+      const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+        cancelledBy: 'admin',
+        cancellationReason: 'Internal booking cancelled by admin'
+      });
+      
+      console.log('✅ [Cancel Internal Conference] Request status updated to cancelled');
+      
+      // Create notification if notification function exists
+      if (request.userId && typeof createStatusChangeNotification === 'function') {
+        try {
+          console.log('🔔 [Cancel Internal Conference] Creating notification...');
+          await createStatusChangeNotification(
+            requestId,
+            'conference-room',
+            request.userId,
+            request.status, // previous status
+            'cancelled',
+            request
+          );
+          console.log('✅ [Cancel Internal Conference] Notification created');
+        } catch (notifError) {
+          console.warn('⚠️ [Cancel Internal Conference] Failed to create notification:', notifError);
+        }
+      }
+      
+      // Show success message
+      showToast('Internal conference booking cancelled successfully.', true);
+      
+      // Reload data
+      await loadAllRequests();
+      
+    } catch (error) {
+      console.error('❌ [Cancel Internal Conference] Error:', error);
+      await showConfirmModal('Error', `Failed to cancel booking: ${error.message}`, null, true);
     }
   };
 
