@@ -2425,10 +2425,11 @@ async function loadNotifications() {
   
   try {
     // Query notifications for current user
+    // NOTE: Removed orderBy to avoid requiring composite index
+    // We'll sort in JavaScript instead
     const q = query(
       collection(db, "notifications"),
       where("userId", "==", user.uid),
-      orderBy("createdAt", "desc"),
       limit(100) // Limit to last 100 notifications
     );
     
@@ -2444,6 +2445,14 @@ async function loadNotifications() {
         ...doc.data()
       });
     });
+    
+    // Sort by createdAt in JavaScript (newest first)
+    allNotifications.sort((a, b) => {
+      const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return bTime - aTime; // Descending order (newest first)
+    });
+    console.log('[Notifications] 🔄 Sorted notifications by date (newest first)');
     
     console.log('[Notifications] 📋 Notification breakdown:');
     const unreadCount = allNotifications.filter(n => !n.read).length;
