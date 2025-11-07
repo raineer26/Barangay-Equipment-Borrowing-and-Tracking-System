@@ -837,8 +837,9 @@ function showAlert(message, isSuccess = false, callback = null) {
     if (alertBox.classList) alertBox.classList.remove('success');
   }
 
-  // Set message text
-  alertMessage.textContent = message;
+  // Set message text - convert \n to <br> for proper line breaks
+  const formattedMessage = message.replace(/\n/g, '<br>');
+  alertMessage.innerHTML = formattedMessage;
 
   // Show overlay and alert
   overlay.style.display = 'block';
@@ -2433,8 +2434,8 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
     
-    console.log(`📅 Conference Calendar: Loading bookings for ${monthNames[month]} ${year}`);
-    console.log(`   Date range: ${startDate} to ${endDate}`);
+    console.log(`📅 [Calendar Load] Loading bookings for ${monthNames[month]} ${year}`);
+    console.log(`📅 [Calendar Load] Date range: ${startDate} to ${endDate}`);
     
     try {
       const bookingsRef = collection(db, 'conferenceRoomBookings');
@@ -2446,7 +2447,7 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
       );
       const querySnapshot = await getDocs(q);
       
-      console.log(`   📊 Total approved/in-progress bookings: ${querySnapshot.size}`);
+      console.log(`📊 [Calendar Load] Total approved/in-progress bookings in database: ${querySnapshot.size}`);
       
       bookedDates = {};
       let foundCount = 0;
@@ -2467,14 +2468,17 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
             purpose: data.purpose,
             status: data.status
           });
-          console.log(`   ✅ Found booking on ${eventDate}: ${data.startTime}-${data.endTime} - ${data.purpose || 'No purpose'}`);
+          console.log(`   ✅ [Calendar Load] Found booking on ${eventDate}: ${data.startTime}-${data.endTime} (${data.status}) - ${data.purpose || 'No purpose'}`);
           foundCount++;
+        } else {
+          console.log(`   ⏭️ [Calendar Load] Skipping booking on ${eventDate} (outside current month)`);
         }
       });
       
-      console.log(`   ✅ ${foundCount} bookings in ${monthNames[month]} ${year}`);
+      console.log(`✅ [Calendar Load] Successfully loaded ${foundCount} booking(s) for ${monthNames[month]} ${year}`);
+      console.log(`📋 [Calendar Load] Booked dates:`, Object.keys(bookedDates).sort());
     } catch (error) {
-      console.error('❌ Error loading booked dates:', error);
+      console.error('❌ [Calendar Load] Error loading booked dates:', error);
       bookedDates = {};
     }
   }
@@ -2638,13 +2642,16 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
       const dateBookings = bookedDates[currentDateStr];
       const hasBookings = dateBookings && dateBookings.length > 0;
       
-      console.log(`   Date ${currentDateStr}: bookings=${hasBookings ? dateBookings.length : 0}, isToday=${isToday}, isPast=${isPast}`);
+      if (hasBookings) {
+        console.log(`   📍 [Calendar Render] Date ${currentDateStr}: ${dateBookings.length} booking(s) found - ${dateBookings.map(b => `${b.startTime}-${b.endTime}`).join(', ')}`);
+      }
       
       if (hasBookings) {
         // Check if date is fully booked (no 4-hour gap)
         const fullyBooked = isDateFullyBooked(dateBookings);
         
         if (fullyBooked) {
+          console.log(`   🚫 [Calendar Render] Date ${currentDateStr}: FULLY BOOKED (no 4-hour gap available)`);
           // Fully booked - yellow background, show preview, block clicking
           dateCell.classList.add('booked', 'has-bookings', 'fully-booked');
           
@@ -2665,6 +2672,7 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
           dateCell.style.cursor = 'not-allowed';
           dateCell.addEventListener('click', () => showFullyBookedError(currentDateStr));
         } else {
+          console.log(`   ✅ [Calendar Render] Date ${currentDateStr}: Partially booked (slots still available)`);
           // Partially booked - white background, show preview, allow booking
           dateCell.classList.add('has-bookings');
           
@@ -3664,6 +3672,76 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
         return;
       }
 
+      // 🔍 DUPLICATE/OVERLAP VALIDATION - Check for existing bookings
+      console.log('🔍 [User Submit] Starting duplicate/overlap validation...');
+      console.log('📋 [User Submit] Request details:', {
+        eventDate: formData.eventDate,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        userId: user.uid
+      });
+
+      // Query existing bookings for same user on same date (exclude cancelled/rejected)
+      const bookingsRef = collection(db, 'conferenceRoomBookings');
+      const q = query(
+        bookingsRef,
+        where('userId', '==', user.uid),
+        where('eventDate', '==', formData.eventDate),
+        where('status', 'in', ['pending', 'approved', 'in-progress'])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      console.log(`📊 [User Submit] Found ${querySnapshot.size} existing booking(s) for this user on ${formData.eventDate}`);
+
+      // Check for time overlaps with existing bookings
+      let hasConflict = false;
+      let conflictingBooking = null;
+
+      querySnapshot.forEach(doc => {
+        const existingBooking = doc.data();
+        console.log('🔍 [User Submit] Checking against existing booking:', {
+          id: doc.id,
+          time: `${existingBooking.startTime} - ${existingBooking.endTime}`,
+          status: existingBooking.status
+        });
+
+        // Check if times overlap using helper function
+        if (timeRangesOverlap(formData.startTime, formData.endTime, existingBooking.startTime, existingBooking.endTime)) {
+          hasConflict = true;
+          conflictingBooking = {
+            id: doc.id,
+            startTime: existingBooking.startTime,
+            endTime: existingBooking.endTime,
+            status: existingBooking.status,
+            purpose: existingBooking.purpose || 'Conference room reservation'
+          };
+          console.log('🚫 [User Submit] CONFLICT DETECTED - Times overlap!');
+        }
+      });
+
+      // 🚫 BLOCK submission if conflict found
+      if (hasConflict) {
+        console.error('❌ [User Submit] Submission BLOCKED due to duplicate/overlapping booking');
+        
+        // Format times for display
+        const newTimeRange = `${formatTime12Hour(formData.startTime)} - ${formatTime12Hour(formData.endTime)}`;
+        const existingTimeRange = `${formatTime12Hour(conflictingBooking.startTime)} - ${formatTime12Hour(conflictingBooking.endTime)}`;
+        
+        // Show error alert with conflict details (using \n which will be converted to <br>)
+        showAlert(
+          `⚠️ Duplicate Booking Detected\n\n` +
+          `You already have a ${conflictingBooking.status} reservation on ${formData.eventDate}:\n\n` +
+          `Existing: ${existingTimeRange}\n` +
+          `New request: ${newTimeRange}\n\n` +
+          `Cannot submit duplicate or overlapping reservations. Please choose a different time or cancel your existing booking first.`,
+          false
+        );
+        return; // Stop submission
+      }
+
+      console.log('✅ [User Submit] No conflicts found - proceeding with submission');
+
+      // ✅ NO CONFLICTS - Proceed with submission
       await addDoc(collection(db, 'conferenceRoomBookings'), {
         ...formData,
         userId: user.uid,
@@ -3672,12 +3750,13 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
         createdAt: serverTimestamp(),
       });
 
+      console.log('✅ [User Submit] Booking submitted successfully!');
       showAlert('Your conference room reservation has been submitted successfully!', true, () => {
         window.location.href = 'UserProfile.html';
       });
     } catch (error) {
-      console.error('Error submitting request:', error);
-      showAlert('Something went wrong while submitting your request.');
+      console.error('❌ [User Submit] Error submitting request:', error);
+      showAlert('Something went wrong while submitting your request. Please try again.', false);
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = originalText;
@@ -9368,10 +9447,10 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
 
   /**
    * Approve a pending request
-   * Simpler than tents - no inventory validation needed
+   * Validates for time conflicts with existing approved bookings
    */
   window.handleApprove = async function(requestId) {
-    console.log('✅ Approving request:', requestId);
+    console.log('🔍 [Admin Approve] Starting approval process for request:', requestId);
 
     const request = allRequests.find(r => r.id === requestId);
     if (!request) {
@@ -9379,21 +9458,117 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       return;
     }
 
+    console.log('📋 [Admin Approve] Request details:', {
+      eventDate: request.eventDate,
+      startTime: request.startTime,
+      endTime: request.endTime,
+      status: request.status
+    });
+
     // Build display name from available fields
     const np = getNameParts(request);
     const nameDisplay = (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.userEmail || 'user');
 
-    // Show confirmation modal
-    const confirmed = await showConfirmModal(
-      'Approve Reservation',
-      `Approve conference room reservation for ${nameDisplay}?\n\nDate: ${request.eventDate}\nTime: ${request.startTime} - ${request.endTime}`,
-      null,
-      false
-    );
-
-    if (!confirmed) return;
+    // 🔍 OVERLAP VALIDATION - Check for conflicts with approved bookings
+    console.log('🔍 [Admin Approve] Checking for time conflicts on', request.eventDate);
 
     try {
+      // Query all approved/in-progress bookings on the same date (excluding this request)
+      const bookingsRef = collection(db, 'conferenceRoomBookings');
+      const q = query(
+        bookingsRef,
+        where('eventDate', '==', request.eventDate),
+        where('status', 'in', ['approved', 'in-progress'])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      console.log(`📊 [Admin Approve] Found ${querySnapshot.size} approved/in-progress booking(s) on ${request.eventDate}`);
+
+      // Check for time overlaps with existing approved bookings
+      let hasConflict = false;
+      let conflictingBooking = null;
+
+      querySnapshot.forEach(doc => {
+        // Skip if this is the same request being approved
+        if (doc.id === requestId) {
+          console.log('⏭️ [Admin Approve] Skipping self (request being approved)');
+          return;
+        }
+
+        const existingBooking = doc.data();
+        console.log('🔍 [Admin Approve] Checking against existing booking:', {
+          id: doc.id,
+          time: `${existingBooking.startTime} - ${existingBooking.endTime}`,
+          status: existingBooking.status,
+          user: existingBooking.userEmail || existingBooking.fullName
+        });
+
+        // Check if times overlap using helper function
+        if (timeRangesOverlap(request.startTime, request.endTime, existingBooking.startTime, existingBooking.endTime)) {
+          hasConflict = true;
+          const conflictNp = getNameParts(existingBooking);
+          conflictingBooking = {
+            id: doc.id,
+            userName: (conflictNp.firstName || conflictNp.lastName) 
+              ? (conflictNp.firstName + (conflictNp.lastName ? ' ' + conflictNp.lastName : ''))
+              : (existingBooking.userEmail || 'Unknown user'),
+            startTime: existingBooking.startTime,
+            endTime: existingBooking.endTime,
+            status: existingBooking.status,
+            purpose: existingBooking.purpose || 'Conference room reservation'
+          };
+          console.log('🚫 [Admin Approve] CONFLICT DETECTED - Times overlap!', conflictingBooking);
+        }
+      });
+
+      // 🚫 BLOCK approval if conflict found
+      if (hasConflict) {
+        console.error('❌ [Admin Approve] Approval BLOCKED due to time conflict');
+        
+        // Format times for display
+        const newTimeRange = `${formatTime12Hour(request.startTime)} - ${formatTime12Hour(request.endTime)}`;
+        const existingTimeRange = `${formatTime12Hour(conflictingBooking.startTime)} - ${formatTime12Hour(conflictingBooking.endTime)}`;
+        
+        // Calculate overlap period for detailed message
+        const overlapStart = request.startTime > conflictingBooking.startTime ? request.startTime : conflictingBooking.startTime;
+        const overlapEnd = request.endTime < conflictingBooking.endTime ? request.endTime : conflictingBooking.endTime;
+        const overlapRange = `${formatTime12Hour(overlapStart)} - ${formatTime12Hour(overlapEnd)}`;
+        
+        // Show detailed error modal (using alert mode of confirm modal)
+        await showConfirmModal(
+          '❌ Cannot Approve - Time Conflict',
+          `Another reservation already exists for this time slot:\n\n` +
+          `📋 Existing Reservation:\n` +
+          `   User: ${conflictingBooking.userName}\n` +
+          `   Time: ${existingTimeRange}\n` +
+          `   Status: ${conflictingBooking.status}\n` +
+          `   Purpose: ${conflictingBooking.purpose}\n\n` +
+          `📋 This Request:\n` +
+          `   User: ${nameDisplay}\n` +
+          `   Time: ${newTimeRange}\n\n` +
+          `⚠️ Overlap Period: ${overlapRange}\n\n` +
+          `Please ask the user to choose a different time slot.`,
+          null,
+          true // Alert mode (OK button only)
+        );
+        return; // Stop approval
+      }
+
+      console.log('✅ [Admin Approve] No conflicts found - proceeding with approval');
+
+      // ✅ NO CONFLICTS - Show final confirmation modal
+      const confirmed = await showConfirmModal(
+        'Approve Reservation',
+        `Approve conference room reservation for ${nameDisplay}?\n\nDate: ${request.eventDate}\nTime: ${request.startTime} - ${request.endTime}`,
+        null,
+        false
+      );
+
+      if (!confirmed) {
+        console.log('⏹️ [Admin Approve] Admin cancelled approval');
+        return;
+      }
+
       // Update request status to approved
       const requestRef = doc(db, 'conferenceRoomBookings', requestId);
       await updateDoc(requestRef, {
@@ -9401,7 +9576,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         approvedAt: new Date()
       });
 
-      console.log('✅ Request approved successfully');
+      console.log('✅ [Admin Approve] Request approved successfully!');
       showToast('Reservation approved successfully!', true);
       
       // Reload data
@@ -9678,7 +9853,9 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
 
       // Set title and message
       titleEl.textContent = title;
-      messageEl.textContent = message;
+      // Convert \n to <br> for proper line breaks in message
+      const formattedMessage = message.replace(/\n/g, '<br>');
+      messageEl.innerHTML = formattedMessage;
 
       // Hide inventory preview (not used for conference room)
       if (inventoryEl) inventoryEl.innerHTML = '';
@@ -9740,7 +9917,9 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
 
       // Set content
       titleEl.textContent = title;
-      messageEl.textContent = message;
+      // Convert \n to <br> for proper line breaks in message
+      const formattedMessage = message.replace(/\n/g, '<br>');
+      messageEl.innerHTML = formattedMessage;
       textarea.value = '';
       textarea.placeholder = placeholder;
 
