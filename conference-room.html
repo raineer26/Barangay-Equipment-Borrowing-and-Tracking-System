@@ -53,22 +53,8 @@
             <span class="back-text">BACK TO<br>DASHBOARD</span>
           </a>
           <div class="legend-inline">
-            <div class="tents-legend-item">
-              <div class="tents-legend-box tents-legend-today"></div>
-              <span>Today</span>
-            </div>
-            <div class="tents-legend-item">
-              <div class="tents-legend-box tents-legend-has-bookings"></div>
-              <span>Fully Booked</span>
-            </div>
-            <div class="tents-legend-item">
-              <div class="tents-legend-box tents-legend-empty"></div>
-              <span>Available</span>
-            </div>
-            <div class="tents-legend-item">
-              <div class="tents-legend-event"></div>
-              <span>Event Preview</span>
-            </div>
+            <div class="legend-color legend-booked"></div>
+            <span>Booked</span>
           </div>
         </div>
         
@@ -144,17 +130,6 @@
     <!-- Modal for Booking Form -->
     <div id="bookingModal" class="modal" style="display: none;">
       <!-- Modal removed - redirects to conference-request.html instead -->
-    </div>
-
-    <!-- Booking Details Modal (Shows approved bookings for selected date) -->
-    <div class="tents-modal-overlay" id="conferenceModalOverlay" onclick="closeModalOnOverlay(event)">
-      <div class="tents-modal">
-        <div class="tents-modal-header">
-          <h3 id="conferenceModalTitle">Reservations for Selected Date</h3>
-          <button class="tents-modal-close" onclick="closeConferenceModal()">&times;</button>
-        </div>
-        <div class="tents-modal-body" id="conferenceModalBody"></div>
-      </div>
     </div>
 
     <script src="script.js" type="module"></script>

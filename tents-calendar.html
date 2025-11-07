@@ -53,18 +53,8 @@
             <span class="back-text">BACK TO<br>DASHBOARD</span>
           </a>
           <div class="legend-inline">
-            <div class="tents-legend-item">
-              <div class="tents-legend-box tents-legend-today"></div>
-              <span>Today</span>
-            </div>
-            <div class="tents-legend-item">
-              <div class="tents-legend-box tents-legend-empty"></div>
-              <span>Available</span>
-            </div>
-            <div class="tents-legend-item">
-              <div class="tents-legend-event"></div>
-              <span>Event Preview</span>
-            </div>
+            <div class="legend-color legend-booked"></div>
+            <span>Booked</span>
           </div>
         </div>
         
@@ -136,19 +126,6 @@
         <p>© 2025 Barangay Mapulang Lupa. Website Design by F5.</p>
       </div>
     </footer>
-
-    <!-- Booking Details Modal -->
-    <div class="tents-modal-overlay" id="tentsModalOverlay" onclick="closeModalOnOverlayTents(event)">
-      <div class="tents-modal">
-        <div class="tents-modal-header">
-          <h3 id="tentsModalTitle">Reservations</h3>
-          <button class="tents-modal-close" onclick="closeTentsModal()">&times;</button>
-        </div>
-        <div class="tents-modal-body" id="tentsModalBody">
-          <!-- Populated dynamically -->
-        </div>
-      </div>
-    </div>
 
     <script src="script.js" type="module"></script>
   </body>
