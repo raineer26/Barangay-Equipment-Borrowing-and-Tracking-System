@@ -2718,21 +2718,37 @@ footer a:hover {
 }
 
 .calendar-date.today {
+  /* Primary today styling: blue background tint + solid blue border */
   background: #dbeafe;
-  border: 2px solid #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  border: 2px solid #3b82f6 !important; /* make this harder to override */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+  position: relative; /* ensure z-index works */
+  z-index: 20; /* lift above neighboring tiles */
 }
 
+/* Strong visual for the date number inside today's tile */
 .calendar-date.today .date-number {
   color: #1d4ed8;
   font-weight: 700;
 }
 
+/* If today happens to also be fully-booked, keep the blue outline but show booked background */
 .calendar-date.today.fully-booked {
   background: #fef08a;
   border: 2px solid #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22);
 }
+
+/* Fallback overlay: draw an outline using a pseudo-element in case other rules strip borders */
+/* .calendar-date.today::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 4px; /* keep a small inset so border doesn't overlap content */
+  /* border: 2px solid rgba(59,130,246,0.95);
+  border-radius: 6px;
+  box-shadow: 0 0 0 4px rgba(59,130,246,0.12);
+} */
 
 .booking-label {
   font-size: 0.8rem;
