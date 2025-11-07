@@ -3556,9 +3556,19 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
     startTimeSelect.innerHTML = '<option value="">Start Time</option>';
     endTimeSelect.innerHTML = '<option value="">End Time</option>';
 
-    for (let hour = 8; hour <= 17; hour++) {
-      const value = `${hour.toString().padStart(2, '0')}:00`;
-      const display = hour < 12 ? `${hour}:00 AM` : hour === 12 ? `12:00 PM` : `${hour - 12}:00 PM`;
+    // Generate 30-minute interval options from 08:00 through 17:00
+    const startMinutes = 8 * 60; // 08:00 in minutes
+    const endMinutes = 17 * 60;  // 17:00 in minutes
+    for (let mins = startMinutes; mins <= endMinutes; mins += 30) {
+      const hh = Math.floor(mins / 60);
+      const mm = mins % 60;
+      const value = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+
+      // Format display as 12-hour with minutes (e.g., 8:00 AM, 8:30 AM)
+      const hour12 = hh % 12 === 0 ? 12 : hh % 12;
+      const ampm = hh >= 12 ? 'PM' : 'AM';
+      const display = `${hour12}:${String(mm).padStart(2, '0')} ${ampm}`;
+
       startTimeSelect.add(new Option(display, value));
       endTimeSelect.add(new Option(display, value));
     }
@@ -10241,9 +10251,16 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     startTimeSelect.innerHTML = '<option value="">Start Time</option>';
     endTimeSelect.innerHTML = '<option value="">End Time</option>';
 
-    for (let hour = 8; hour <= 17; hour++) {
-      const value = `${hour.toString().padStart(2, '0')}:00`;
-      const display = hour < 12 ? `${hour}:00 AM` : hour === 12 ? `12:00 PM` : `${hour - 12}:00 PM`;
+    // Generate 30-minute interval options from 08:00 through 17:00
+    const startMinutes = 8 * 60; // 08:00 in minutes
+    const endMinutes = 17 * 60;  // 17:00 in minutes
+    for (let mins = startMinutes; mins <= endMinutes; mins += 30) {
+      const hh = Math.floor(mins / 60);
+      const mm = mins % 60;
+      const value = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+      const hour12 = hh % 12 === 0 ? 12 : hh % 12;
+      const ampm = hh >= 12 ? 'PM' : 'AM';
+      const display = `${hour12}:${String(mm).padStart(2, '0')} ${ampm}`;
       startTimeSelect.add(new Option(display, value));
       endTimeSelect.add(new Option(display, value));
     }
