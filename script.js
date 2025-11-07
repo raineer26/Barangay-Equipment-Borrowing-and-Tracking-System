@@ -4649,7 +4649,7 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     });
     
     showAlert(
-      `${formattedDate} is fully booked. No continuous 4-hour slots available. Please select another date.`,
+      `${formattedDate} is fully booked. No continuous 2-hour slots available. Please select another date.`,
       false
     );
   }
@@ -6258,10 +6258,10 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
   datesWithReservations.clear();
   dateCounts = {};
 
-      // Load conference room bookings
+      // Load conference room bookings (only approved and in-progress)
       const conferenceQuery = query(
         collection(db, 'conferenceRoomBookings'),
-        where('status', 'in', ['pending', 'approved', 'in-progress'])
+        where('status', 'in', ['approved', 'in-progress'])
       );
       const conferenceSnapshot = await getDocs(conferenceQuery);
       
@@ -6288,10 +6288,10 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
         }
       });
 
-      // Load tents & chairs bookings
+      // Load tents & chairs bookings (only approved and in-progress)
       const tentsQuery = query(
         collection(db, 'tentsChairsBookings'),
-        where('status', 'in', ['pending', 'approved', 'in-progress'])
+        where('status', 'in', ['approved', 'in-progress'])
       );
       const tentsSnapshot = await getDocs(tentsQuery);
       
@@ -6456,7 +6456,8 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
         loadReservations(); // Load reservations for selected date
       });
 
-      // Add hover tooltip to show number of reservations for that ISO date
+      // Hover tooltip commented out - was showing reservation count on hover (confusing)
+      /*
       (function(dayEl, key) {
         const tooltip = ensureCalendarTooltip();
         const show = () => {
@@ -6490,6 +6491,7 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
           hide();
         });
       })(dayCell, dateKey);
+      */
 
       weekCalendarGrid.appendChild(dayCell);
     }
@@ -6575,7 +6577,8 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
         dayCell.classList.add('has-reservation');
       }
 
-      // Tooltip handlers for mini calendar
+      // Tooltip handlers for mini calendar - commented out (confusing)
+      /*
       (function(el, key) {
         const tooltip = ensureCalendarTooltip();
         const showMini = () => {
@@ -6595,6 +6598,7 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
         el.addEventListener('focus', showMini);
         el.addEventListener('blur', hideMini);
       })(dayCell, thisKey);
+      */
 
       calendarDays.appendChild(dayCell);
     }
