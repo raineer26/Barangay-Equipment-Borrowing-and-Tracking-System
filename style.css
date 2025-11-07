@@ -1445,7 +1445,10 @@ footer {
   border: 2px solid #d9d9d9;
   border-radius: 12px;
   padding: 24px;
-  min-height: 500px;
+  box-shadow: 0 2px 8px rgba(44,44,255,0.08);
+  display: flex;
+  flex-direction: column;
+  /* Match the fixed container pattern from requests tab */
 }
 
 .notifications-header {
@@ -1555,6 +1558,11 @@ footer {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* Match the fixed height pattern from request-cards */
+  height: 400px;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-bottom: 16px;
 }
 
 .notifications-list:empty::after {
