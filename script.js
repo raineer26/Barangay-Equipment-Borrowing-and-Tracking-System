@@ -202,6 +202,19 @@ function clearSensitiveLoginFields() {
   }
 }
 
+/**
+ * Return the finalized timestamp (ms) for a request.
+ * Prefers completedAt, then rejectedAt, then cancelledAt. Returns 0 when none.
+ */
+function getFinalizedTimestampMillis(req) {
+  if (!req) return 0;
+  const ts = req.completedAt || req.rejectedAt || req.cancelledAt;
+  if (!ts) return 0;
+  if (typeof ts.toMillis === 'function') return ts.toMillis();
+  if (typeof ts === 'number') return ts;
+  try { return new Date(ts).getTime(); } catch (e) { return 0; }
+}
+
 // Ensure login inputs are cleared on pageshow (handles back/forward cache restoring the page)
 window.addEventListener('pageshow', (event) => {
   // If this page is the login page (index.html) and there is no authenticated user, clear fields
@@ -209,29 +222,10 @@ window.addEventListener('pageshow', (event) => {
   if (path.endsWith('index.html') || path === '/' || path === '') {
     // If auth.currentUser is falsy, clear fields to avoid restored values from previous sessions
     if (!auth.currentUser) clearSensitiveLoginFields();
-    
-    // Check for error message from disabled account redirect
-    const loginError = sessionStorage.getItem('loginError');
-    if (loginError) {
-      const errorLoginEmail = document.getElementById('error-login-email');
-      if (errorLoginEmail) {
-        setError(errorLoginEmail, loginError);
-      }
-      // Clear the error from sessionStorage
-      sessionStorage.removeItem('loginError');
-    }
   }
   // For protected pages, if the page was restored from bfcache and the user is no longer signed in, force redirect
   if (event.persisted) {
-    const protectedPaths = [
-      "/admin.html", "admin.html", 
-      "/UserProfile.html", "UserProfile.html", 
-      "/user.html", "user.html",
-      "/conference-room.html", "conference-room.html",
-      "/conference-request.html", "conference-request.html",
-      "/tents-calendar.html", "tents-calendar.html",
-      "/tents-chairs-request.html", "tents-chairs-request.html"
-    ];
+    const protectedPaths = ["/admin.html", "admin.html", "/UserProfile.html", "UserProfile.html"];
     if (protectedPaths.some(p => window.location.pathname.endsWith(p)) && !auth.currentUser) {
       // Force a redirect to login (replace so back doesn't loop)
       try { location.replace('index.html'); } catch (e) { window.location.href = 'index.html'; }
@@ -256,6 +250,18 @@ function setError(element, message) {
 function clearError(element) {
   element.innerHTML = "";
   element.previousElementSibling.style.border = "";
+}
+
+// Function to check if email exists
+async function checkEmailExists(email) {
+  try {
+    const methods = await fetchSignInMethodsForEmail(auth, email);
+    return methods.length > 0;
+  } catch (error) {
+    console.error("Error checking email:", error);
+    // Don't return false on error, let the login attempt proceed
+    return true;
+  }
 }
 
 loginForm?.addEventListener("submit", async (e) => {
@@ -296,14 +302,6 @@ loginForm?.addEventListener("submit", async (e) => {
       if (docSnap.exists()) {
         const userData = docSnap.data();
         
-        // Check if account is disabled
-        if (userData.status === 'inactive') {
-          // Sign out the user immediately
-          await signOut(auth);
-          setError(errorLoginEmail, "Your account has been disabled. Please contact the administrator.");
-          return;
-        }
-        
         // Check if there's a redirect parameter
         const urlParams = new URLSearchParams(window.location.search);
         const redirectTo = urlParams.get('redirect');
@@ -334,32 +332,28 @@ loginForm?.addEventListener("submit", async (e) => {
 
     switch(error.code) {
       case "auth/user-not-found":
-        setError(errorLoginEmail, "No account found with this email. Please check your email or sign up.");
+        setError(errorLoginEmail, "Account not found. Please check your email or sign up.");
         break;
       case "auth/wrong-password":
+      case "auth/invalid-credential":  // Firebase 9+ uses this for wrong password
         setError(errorLoginPassword, "Incorrect password. Please try again.");
-        break;
-      case "auth/invalid-credential":  
-        // Firebase 9+ uses this for both wrong email and wrong password (security feature)
-        // Show a generic message that covers both cases
-        setError(errorLoginEmail, "Invalid email or password. Please check your credentials.");
         break;
       case "auth/invalid-email":
         setError(errorLoginEmail, "Invalid email format.");
         break;
       case "auth/too-many-requests":
-        setError(errorLoginEmail, "Too many failed login attempts. Please try again later or reset your password.");
+        setError(errorLoginPassword, "Too many failed attempts. Please try again later.");
         break;
       case "auth/network-request-failed":
-        setError(errorLoginEmail, "Network error. Please check your internet connection.");
+        setError(errorLoginEmail, "Network error. Please check your connection.");
         break;
       case "auth/user-disabled":
-        setError(errorLoginEmail, "This account has been disabled. Please contact the administrator.");
+        setError(errorLoginEmail, "This account has been disabled. Please contact support.");
         break;
       default:
         // Log the exact error for debugging
         console.error('Unhandled Firebase error:', error);
-        setError(errorLoginEmail, "Login failed. Please check your credentials and try again.");
+        setError(errorLoginEmail, "Login failed. Please try again.");
     }
   }
 });
@@ -843,8 +837,9 @@ function showAlert(message, isSuccess = false, callback = null) {
     if (alertBox.classList) alertBox.classList.remove('success');
   }
 
-  // Set message text
-  alertMessage.textContent = message;
+  // Set message text - convert \n to <br> for proper line breaks
+  const formattedMessage = message.replace(/\n/g, '<br>');
+  alertMessage.innerHTML = formattedMessage;
 
   // Show overlay and alert
   overlay.style.display = 'block';
@@ -1083,42 +1078,12 @@ function showConfirm(message, onConfirm, onCancel = null) {
 ====================== */
 // Protect specific pages by pathname
 // Only admin.html and UserProfile.html are protected (user.html is now public)
-const protectedPaths = [
-  "/admin.html", "admin.html", 
-  "/UserProfile.html", "UserProfile.html", 
-  "/user.html", "user.html",
-  "/conference-room.html", "conference-room.html",
-  "/conference-request.html", "conference-request.html",
-  "/tents-calendar.html", "tents-calendar.html",
-  "/tents-chairs-request.html", "tents-chairs-request.html"
-];
+const protectedPaths = ["/admin.html", "admin.html", "/UserProfile.html", "UserProfile.html"];
 if (protectedPaths.some(p => window.location.pathname.endsWith(p))) {
-  onAuthStateChanged(auth, async (user) => {
+  onAuthStateChanged(auth, (user) => {
     if (!user) {
       // Not signed in -> go to login
       window.location.href = "index.html";
-    } else {
-      // Check if user account is disabled
-      try {
-        const docRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          const userData = docSnap.data();
-          
-          // If account is disabled, sign out and redirect to login
-          if (userData.status === 'inactive') {
-            console.log('Account is disabled, signing out...');
-            await signOut(auth);
-            
-            // Store error message in sessionStorage to display on login page
-            sessionStorage.setItem('loginError', 'Your account has been disabled. Please contact the administrator.');
-            window.location.href = "index.html";
-          }
-        }
-      } catch (error) {
-        console.error('Error checking user status:', error);
-      }
     }
   });
 }
@@ -2459,7 +2424,64 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     return booked;
   }
   */
-  const bookedDates = {};  // Empty for now, will be populated from Firebase
+  
+  // Booked dates object - populated from Firestore
+  let bookedDates = {};
+
+  // Load booked dates from Firestore for the current month
+  async function loadBookedDates(month, year) {
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+    
+    console.log(`📅 [Calendar Load] Loading bookings for ${monthNames[month]} ${year}`);
+    console.log(`📅 [Calendar Load] Date range: ${startDate} to ${endDate}`);
+    
+    try {
+      const bookingsRef = collection(db, 'conferenceRoomBookings');
+      
+      // Get all approved/in-progress bookings, filter by date client-side
+      const q = query(
+        bookingsRef,
+        where('status', 'in', ['approved', 'in-progress'])
+      );
+      const querySnapshot = await getDocs(q);
+      
+      console.log(`📊 [Calendar Load] Total approved/in-progress bookings in database: ${querySnapshot.size}`);
+      
+      bookedDates = {};
+      let foundCount = 0;
+      
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        const eventDate = data.eventDate;
+        
+        // Client-side date filtering for current month
+        if (eventDate >= startDate && eventDate <= endDate) {
+          // Store array of bookings per date (multiple bookings per day possible)
+          if (!bookedDates[eventDate]) {
+            bookedDates[eventDate] = [];
+          }
+          bookedDates[eventDate].push({
+            startTime: data.startTime,
+            endTime: data.endTime,
+            purpose: data.purpose,
+            status: data.status
+          });
+          console.log(`   ✅ [Calendar Load] Found booking on ${eventDate}: ${data.startTime}-${data.endTime} (${data.status}) - ${data.purpose || 'No purpose'}`);
+          foundCount++;
+        } else {
+          console.log(`   ⏭️ [Calendar Load] Skipping booking on ${eventDate} (outside current month)`);
+        }
+      });
+      
+      console.log(`✅ [Calendar Load] Successfully loaded ${foundCount} booking(s) for ${monthNames[month]} ${year}`);
+      console.log(`📋 [Calendar Load] Booked dates:`, Object.keys(bookedDates).sort());
+    } catch (error) {
+      console.error('❌ [Calendar Load] Error loading booked dates:', error);
+      bookedDates = {};
+    }
+  }
 
   let currentDate = new Date();
   let currentMonth = currentDate.getMonth();
@@ -2470,21 +2492,121 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     "July", "August", "September", "October", "November", "December"
   ];
 
+  /**
+   * Check if a date is fully booked (no 2-hour continuous gap available)
+   * Operating hours: 8:00 AM - 5:00 PM (9 hours total)
+   * @param {Array} bookings - Array of booking objects with startTime and endTime
+   * @returns {boolean} - True if fully booked, false if has available slot
+   */
+  function isDateFullyBooked(bookings) {
+    if (!bookings || bookings.length === 0) return false;
+    
+    const OPERATING_START = '08:00';
+    const OPERATING_END = '17:00';
+    const MIN_REQUIRED_HOURS = 2; // Changed from 4 to 2 hours
+    
+    // Convert time string to minutes since midnight
+    function timeToMinutes(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+    
+    // Sort bookings by start time
+    const sortedBookings = [...bookings].sort((a, b) => 
+      timeToMinutes(a.startTime) - timeToMinutes(b.startTime)
+    );
+    
+    const operatingStartMinutes = timeToMinutes(OPERATING_START);
+    const operatingEndMinutes = timeToMinutes(OPERATING_END);
+    const minRequiredMinutes = MIN_REQUIRED_HOURS * 60;
+    
+    // Check gap before first booking
+    const firstBookingStart = timeToMinutes(sortedBookings[0].startTime);
+    const gapBeforeFirst = firstBookingStart - operatingStartMinutes;
+    if (gapBeforeFirst >= minRequiredMinutes) {
+      console.log(`   ⏰ Available slot: ${OPERATING_START} - ${sortedBookings[0].startTime} (${gapBeforeFirst / 60} hours)`);
+      return false;
+    }
+    
+    // Check gaps between bookings
+    for (let i = 0; i < sortedBookings.length - 1; i++) {
+      const currentEnd = timeToMinutes(sortedBookings[i].endTime);
+      const nextStart = timeToMinutes(sortedBookings[i + 1].startTime);
+      const gap = nextStart - currentEnd;
+      
+      if (gap >= minRequiredMinutes) {
+        console.log(`   ⏰ Available slot: ${sortedBookings[i].endTime} - ${sortedBookings[i + 1].startTime} (${gap / 60} hours)`);
+        return false;
+      }
+    }
+    
+    // Check gap after last booking
+    const lastBookingEnd = timeToMinutes(sortedBookings[sortedBookings.length - 1].endTime);
+    const gapAfterLast = operatingEndMinutes - lastBookingEnd;
+    if (gapAfterLast >= minRequiredMinutes) {
+      console.log(`   ⏰ Available slot: ${sortedBookings[sortedBookings.length - 1].endTime} - ${OPERATING_END} (${gapAfterLast / 60} hours)`);
+      return false;
+    }
+    
+    console.log(`   🚫 Date is fully booked - no 4-hour continuous slot available`);
+    return true;
+  }
+
+  // Fetch booking preview for a specific date (Purpose + Time)
+  async function fetchBookingPreview(date) {
+    try {
+      const bookingsRef = collection(db, 'conferenceRoomBookings');
+      const q = query(
+        bookingsRef,
+        where('eventDate', '==', date),
+        where('status', 'in', ['approved', 'in-progress'])
+      );
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) return null;
+      
+      // Get first booking for preview (if multiple bookings, show first one)
+      const firstBooking = querySnapshot.docs[0].data();
+      const timeRange = `${formatTime12Hour(firstBooking.startTime)} - ${formatTime12Hour(firstBooking.endTime)}`;
+      
+      // Truncate purpose if too long
+      let purpose = firstBooking.purpose || 'Event';
+      if (purpose.length > 20) {
+        purpose = purpose.substring(0, 20) + '...';
+      }
+      
+      return {
+        purpose: purpose,
+        time: timeRange,
+        count: querySnapshot.size
+      };
+    } catch (error) {
+      console.error('Error fetching booking preview:', error);
+      return null;
+    }
+  }
+
   // Initialize calendar on page load
   document.addEventListener('DOMContentLoaded', function() {
     renderCalendar(currentMonth, currentYear);
     setupEventListeners();
   });
 
-  function renderCalendar(month, year) {
+  async function renderCalendar(month, year) {
+    // Load booked dates first
+    await loadBookedDates(month, year);
+    
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const today = new Date();
+    const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     
     // Update month/year display
     document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
     
     const calendarDates = document.getElementById('calendarDates');
+    if (!calendarDates) return;
+    
     calendarDates.innerHTML = '';
 
     // Add empty cells for days before the first day of the month
@@ -2511,17 +2633,66 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
       const isPast = cellDate < new Date(today.getFullYear(), today.getMonth(), today.getDate());
       
       // Check if it's today
-      if (cellDate.toDateString() === today.toDateString()) {
+      const isToday = currentDateStr === todayDateStr;
+      if (isToday) {
         dateCell.classList.add('today');
       }
       
-      // Check if date is booked
-      if (bookedDates[currentDateStr]) {
-        dateCell.classList.add('booked');
-        const label = document.createElement('div');
-        label.classList.add('booking-label');
-        label.textContent = 'Booked';
-        dateCell.appendChild(label);
+      // Check if date has bookings
+      const dateBookings = bookedDates[currentDateStr];
+      const hasBookings = dateBookings && dateBookings.length > 0;
+      
+      if (hasBookings) {
+        console.log(`   📍 [Calendar Render] Date ${currentDateStr}: ${dateBookings.length} booking(s) found - ${dateBookings.map(b => `${b.startTime}-${b.endTime}`).join(', ')}`);
+      }
+      
+      if (hasBookings) {
+        // Check if date is fully booked (no 4-hour gap)
+        const fullyBooked = isDateFullyBooked(dateBookings);
+        
+        if (fullyBooked) {
+          console.log(`   🚫 [Calendar Render] Date ${currentDateStr}: FULLY BOOKED (no 4-hour gap available)`);
+          // Fully booked - yellow background, show preview, block clicking
+          dateCell.classList.add('booked', 'has-bookings', 'fully-booked');
+          
+          // Fetch booking details for preview banner
+          fetchBookingPreview(currentDateStr).then(preview => {
+            if (preview) {
+              const previewDiv = document.createElement('div');
+              previewDiv.classList.add('tents-booking-preview');
+              previewDiv.innerHTML = `
+                <div class="tents-preview-purpose">${sanitizeInput(preview.purpose)}</div>
+                <div class="tents-preview-time">${preview.time}</div>
+              `;
+              dateCell.appendChild(previewDiv);
+            }
+          });
+          
+          // Show error modal when clicked
+          dateCell.style.cursor = 'not-allowed';
+          dateCell.addEventListener('click', () => showFullyBookedError(currentDateStr));
+        } else {
+          console.log(`   ✅ [Calendar Render] Date ${currentDateStr}: Partially booked (slots still available)`);
+          // Partially booked - white background, show preview, allow booking
+          dateCell.classList.add('has-bookings');
+          
+          // Fetch booking details for preview banner
+          fetchBookingPreview(currentDateStr).then(preview => {
+            if (preview) {
+              const previewDiv = document.createElement('div');
+              previewDiv.classList.add('tents-booking-preview');
+              previewDiv.innerHTML = `
+                <div class="tents-preview-purpose">${sanitizeInput(preview.purpose)}</div>
+                <div class="tents-preview-time">${preview.time}</div>
+              `;
+              dateCell.appendChild(previewDiv);
+            }
+          });
+          
+          // Allow clicking to make new booking (redirect to form)
+          dateCell.style.cursor = 'pointer';
+          dateCell.addEventListener('click', () => openBookingModal(currentDateStr));
+        }
       } else if (isPast) {
         dateCell.classList.add('past');
       } else {
@@ -2569,6 +2740,24 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     window.location.href = `conference-request.html?date=${dateStr}`;
   }
 
+  /**
+   * Show error modal when user clicks a fully booked date
+   */
+  function showFullyBookedError(date) {
+    const dateObj = new Date(date + 'T00:00:00');
+    const formattedDate = dateObj.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+    
+    showAlert(
+      `${formattedDate} is fully booked. No continuous 4-hour slots available. Please select another date.`,
+      false
+    );
+  }
+
   function closeBookingModal() {
     // No longer needed - keeping for compatibility
   }
@@ -2592,6 +2781,109 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     */
     return true; // Always return available until Firebase is integrated
   }
+
+  // =====================================================
+  // MODAL FUNCTIONS FOR VIEWING BOOKING DETAILS
+  // =====================================================
+
+  /**
+   * Show booking details modal for a specific date
+   * Displays: Purpose and Scheduled Time only
+   */
+  function showDateBookingsModalConference(date) {
+    const modal = document.getElementById('conferenceModalOverlay');
+    const titleEl = document.getElementById('conferenceModalTitle');
+    const bodyEl = document.getElementById('conferenceModalBody');
+    
+    if (!modal || !titleEl || !bodyEl) {
+      console.error('Conference modal elements not found');
+      return;
+    }
+
+    // Format date for display
+    const dateObj = new Date(date + 'T00:00:00');
+    const formattedDate = dateObj.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+    
+    titleEl.textContent = `Reservations for ${formattedDate}`;
+    bodyEl.innerHTML = '<p style="text-align:center;color:#6b7280;padding:20px;">Loading...</p>';
+    
+    // Show modal
+    modal.style.display = 'flex';
+
+    // Fetch bookings for this date
+    const bookingsRef = collection(db, 'conferenceRoomBookings');
+    const q = query(
+      bookingsRef,
+      where('eventDate', '==', date),
+      where('status', 'in', ['approved', 'in-progress'])
+    );
+    
+    getDocs(q).then(querySnapshot => {
+      if (querySnapshot.empty) {
+        bodyEl.innerHTML = '<div style="text-align:center;color:#6b7280;padding:20px;">No reservations on this date.</div>';
+        return;
+      }
+
+      let bodyHTML = '<div class="tents-modal-bookings-list">';
+      querySnapshot.forEach((doc, idx) => {
+        const b = doc.data();
+        const timeRange = `${formatTime12Hour(b.startTime)} - ${formatTime12Hour(b.endTime)}`;
+        
+        bodyHTML += `
+          <div class="tents-booking-item ${idx > 0 ? 'with-divider' : ''}">
+            <div class="tents-booking-item-details">
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                <span><strong>Purpose:</strong> ${sanitizeInput(b.purpose || 'N/A')}</span>
+              </div>
+              <div class="tents-booking-detail-row">
+                <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span><strong>Scheduled Time:</strong> ${timeRange}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      bodyHTML += '</div>';
+      bodyEl.innerHTML = bodyHTML;
+    }).catch(error => {
+      console.error('Error fetching bookings:', error);
+      bodyEl.innerHTML = '<div style="text-align:center;color:#dc2626;padding:20px;">Error loading reservations. Please try again.</div>';
+    });
+  }
+
+  /**
+   * Close modal when clicking on overlay background
+   */
+  function closeModalOnOverlay(event) {
+    if (event.target.classList.contains('tents-modal-overlay')) {
+      event.target.style.display = 'none';
+    }
+  }
+
+  /**
+   * Close conference modal by ID
+   */
+  function closeConferenceModal() {
+    const modal = document.getElementById('conferenceModalOverlay');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  // Make functions globally accessible
+  window.showDateBookingsModalConference = showDateBookingsModalConference;
+  window.closeModalOnOverlay = closeModalOnOverlay;
+  window.closeConferenceModal = closeConferenceModal;
 }
 
 /* =====================================================
@@ -2619,25 +2911,101 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
     }
   });
 
-  // TODO: In production, fetch booked dates from Firebase
-  // Example of how to fetch booked dates:
-  /*
-  async function getBookedDates() {
-    const bookingsRef = collection(db, "bookings");
-    const q = query(bookingsRef, 
-      where("type", "==", "tents-and-chairs"),
-      where("status", "in", ["pending", "approved"])
-    );
-    const querySnapshot = await getDocs(q);
-    const booked = {};
-    querySnapshot.forEach(doc => {
-      const data = doc.data();
-      booked[data.date] = data.status;
-    });
-    return booked;
+  // Store booked dates (date ranges for tents/chairs)
+  let bookedDates = {};
+
+  // Load booked dates from Firestore for the current month
+  async function loadBookedDates(month, year) {
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+    
+    console.log(`🪑 Tents Calendar: Loading bookings for ${monthNames[month]} ${year}`);
+    console.log(`   Date range: ${startDate} to ${endDate}`);
+    
+    try {
+      const bookingsRef = collection(db, 'tentsChairsBookings');
+      
+      // Get all approved/in-progress bookings, filter by date client-side
+      const q = query(
+        bookingsRef,
+        where('status', 'in', ['approved', 'in-progress'])
+      );
+      const querySnapshot = await getDocs(q);
+      
+      console.log(`   📊 Total approved/in-progress bookings: ${querySnapshot.size}`);
+      
+      bookedDates = {};
+      let foundCount = 0;
+      
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        const bookingStart = data.startDate; // Format: "YYYY-MM-DD"
+        const bookingEnd = data.endDate;     // Format: "YYYY-MM-DD"
+        
+        // Check if booking overlaps with current month
+        if (bookingEnd >= startDate && bookingStart <= endDate) {
+          // Mark all dates in the booking range
+          const start = new Date(bookingStart);
+          const end = new Date(bookingEnd);
+          const current = new Date(start);
+          
+          while (current <= end) {
+            const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+            
+            // Only mark dates within current month
+            if (dateStr >= startDate && dateStr <= endDate) {
+              if (!bookedDates[dateStr]) {
+                bookedDates[dateStr] = [];
+              }
+              bookedDates[dateStr].push(data);
+              foundCount++;
+            }
+            
+            current.setDate(current.getDate() + 1);
+          }
+          
+          console.log(`   ✅ Booking: ${bookingStart} to ${bookingEnd} (${data.quantityTents || 0} tents, ${data.quantityChairs || 0} chairs)`);
+        }
+      });
+      
+      console.log(`   ✅ ${foundCount} booking dates in ${monthNames[month]} ${year}`);
+    } catch (error) {
+      console.error('❌ Error loading booked dates:', error);
+      bookedDates = {};
+    }
   }
-  */
-  const bookedDates = {};  // Empty for now, will be populated from Firebase
+
+  // Fetch booking preview for a specific date
+  async function fetchBookingPreview(date) {
+    try {
+      if (!bookedDates[date] || bookedDates[date].length === 0) {
+        return null;
+      }
+      
+      // Get first booking for preview
+      const firstBooking = bookedDates[date][0];
+      
+      // Create preview text
+      let purpose = firstBooking.purpose || 'Event';
+      if (purpose.length > 18) {
+        purpose = purpose.substring(0, 18) + '...';
+      }
+      
+      const tents = firstBooking.quantityTents || 0;
+      const chairs = firstBooking.quantityChairs || 0;
+      const quantities = `${tents} tent${tents !== 1 ? 's' : ''}, ${chairs} chair${chairs !== 1 ? 's' : ''}`;
+      
+      return {
+        purpose: purpose,
+        quantities: quantities,
+        count: bookedDates[date].length
+      };
+    } catch (error) {
+      console.error('Error fetching booking preview:', error);
+      return null;
+    }
+  }
 
   let currentDate = new Date();
   let currentMonth = currentDate.getMonth();
@@ -2654,15 +3022,21 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
     setupEventListeners();
   });
 
-  function renderCalendar(month, year) {
+  async function renderCalendar(month, year) {
+    // Load booked dates first
+    await loadBookedDates(month, year);
+    
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const today = new Date();
+    const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     
     // Update month/year display
     document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
     
     const calendarDates = document.getElementById('calendarDates');
+    if (!calendarDates) return;
+    
     calendarDates.innerHTML = '';
 
     // Add empty cells for days before the first day of the month
@@ -2689,20 +3063,43 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
       const isPast = cellDate < new Date(today.getFullYear(), today.getMonth(), today.getDate());
       
       // Check if it's today
-      if (cellDate.toDateString() === today.toDateString()) {
+      const isToday = currentDateStr === todayDateStr;
+      if (isToday) {
         dateCell.classList.add('today');
       }
       
-      // Check if date is booked
-      if (bookedDates[currentDateStr]) {
-        dateCell.classList.add('booked');
-        const label = document.createElement('div');
-        label.classList.add('booking-label');
-        label.textContent = 'Booked';
-        dateCell.appendChild(label);
-      } else if (isPast) {
+      // Check if date has bookings
+      const hasBookings = bookedDates[currentDateStr] && bookedDates[currentDateStr].length > 0;
+      
+      console.log(`   Date ${currentDateStr}: bookings=${hasBookings ? bookedDates[currentDateStr].length : 0}, isToday=${isToday}, isPast=${isPast}`);
+      
+      if (isPast) {
+        // Past dates - grayed out, not clickable
         dateCell.classList.add('past');
+      } else if (hasBookings) {
+        // Has bookings but still available (Option A)
+        // Show purple preview banner, white background, clickable for new requests
+        dateCell.classList.add('has-bookings-info');
+        
+        // Fetch booking details for preview banner (informational only)
+        fetchBookingPreview(currentDateStr).then(preview => {
+          if (preview) {
+            const previewDiv = document.createElement('div');
+            previewDiv.classList.add('tents-booking-preview');
+            previewDiv.innerHTML = `
+              <div class="tents-preview-purpose">${sanitizeInput(preview.purpose)}</div>
+              <div class="tents-preview-time">${preview.quantities}</div>
+            `;
+            dateCell.appendChild(previewDiv);
+          }
+        });
+        
+        // Still allow clicking to make new booking (inventory checked at form level)
+        dateCell.classList.add('available');
+        dateCell.style.cursor = 'pointer';
+        dateCell.addEventListener('click', () => openBookingModal(currentDateStr));
       } else {
+        // No bookings - completely available
         dateCell.classList.add('available');
         dateCell.addEventListener('click', () => openBookingModal(currentDateStr));
       }
@@ -2744,20 +3141,119 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
     window.location.href = `tents-chairs-request.html?date=${dateStr}`;
   }
 
-  async function checkDateAvailability(dateStr) {
-    // TODO: Implement Firebase integration
-    /*
-    const bookingsRef = collection(db, "bookings");
-    const q = query(bookingsRef, 
-      where("date", "==", dateStr),
-      where("type", "==", "tents-and-chairs"),
-      where("status", "in", ["pending", "approved"])
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.empty;
-    */
-    return true; // Always return available until Firebase is integrated
+  // =====================================================
+  // MODAL FUNCTIONS FOR VIEWING BOOKING DETAILS
+  // =====================================================
+
+  /**
+   * Show booking details modal for a specific date
+   * Displays: Purpose, Quantity of Tents, Quantity of Chairs
+   */
+  function showDateBookingsModalTents(date) {
+    const modal = document.getElementById('tentsModalOverlay');
+    const titleEl = document.getElementById('tentsModalTitle');
+    const bodyEl = document.getElementById('tentsModalBody');
+    
+    if (!modal || !titleEl || !bodyEl) {
+      console.error('Tents modal elements not found');
+      return;
+    }
+
+    // Format date for display
+    const dateObj = new Date(date + 'T00:00:00');
+    const formattedDate = dateObj.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+    
+    titleEl.textContent = `Reservations for ${formattedDate}`;
+    bodyEl.innerHTML = '<p style="text-align:center;color:#6b7280;padding:20px;">Loading...</p>';
+    
+    // Show modal
+    modal.style.display = 'flex';
+
+    // Get bookings for this date from already loaded data
+    const bookings = bookedDates[date] || [];
+    
+    if (bookings.length === 0) {
+      bodyEl.innerHTML = '<div style="text-align:center;color:#6b7280;padding:20px;">No reservations on this date.</div>';
+      return;
+    }
+
+    let bodyHTML = '<div class="tents-modal-bookings-list">';
+    bookings.forEach((b, idx) => {
+      const dateRange = b.startDate === b.endDate 
+        ? `${formatDateShort(b.startDate)}`
+        : `${formatDateShort(b.startDate)} - ${formatDateShort(b.endDate)}`;
+      
+      bodyHTML += `
+        <div class="tents-booking-item ${idx > 0 ? 'with-divider' : ''}">
+          <div class="tents-booking-item-details">
+            <div class="tents-booking-detail-row">
+              <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+              <span><strong>Purpose:</strong> ${sanitizeInput(b.purpose || 'N/A')}</span>
+            </div>
+            <div class="tents-booking-detail-row">
+              <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span><strong>Duration:</strong> ${dateRange}</span>
+            </div>
+            <div class="tents-booking-detail-row">
+              <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+              </svg>
+              <span><strong>Tents:</strong> ${b.quantityTents || 0}</span>
+            </div>
+            <div class="tents-booking-detail-row">
+              <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+              </svg>
+              <span><strong>Chairs:</strong> ${b.quantityChairs || 0}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    bodyHTML += '</div>';
+    bodyEl.innerHTML = bodyHTML;
   }
+
+  /**
+   * Format date as "Mon DD, YYYY"
+   */
+  function formatDateShort(dateStr) {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  /**
+   * Close modal when clicking on overlay background
+   */
+  function closeModalOnOverlayTents(event) {
+    if (event.target.classList.contains('tents-modal-overlay')) {
+      event.target.style.display = 'none';
+    }
+  }
+
+  /**
+   * Close tents modal by ID
+   */
+  function closeTentsModal() {
+    const modal = document.getElementById('tentsModalOverlay');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  // Make functions globally accessible
+  window.showDateBookingsModalTents = showDateBookingsModalTents;
+  window.closeModalOnOverlayTents = closeModalOnOverlayTents;
+  window.closeTentsModal = closeTentsModal;
 }
 
 /* =====================================================
@@ -2883,6 +3379,18 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     else if (start < today) setFieldError('startDate', 'Cannot be in the past'), valid = false;
     if (!d.endDate) setFieldError('endDate', 'End date required'), valid = false;
     else if (end < start) setFieldError('endDate', 'End date must be after start'), valid = false;
+    
+    // CRITICAL: Enforce 2-week (14 days) maximum duration
+    if (d.startDate && d.endDate && end >= start) {
+      const timeDiff = end.getTime() - start.getTime();
+      const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+      const MAX_DURATION_DAYS = 14; // 2 weeks
+      
+      if (daysDiff > MAX_DURATION_DAYS) {
+        setFieldError('endDate', `Maximum borrowing period is ${MAX_DURATION_DAYS} days (2 weeks). Current duration: ${daysDiff} day${daysDiff !== 1 ? 's' : ''}`);
+        valid = false;
+      }
+    }
 
     return valid;
   }
@@ -2909,7 +3417,87 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
         return;
       }
 
-      // ✅ Save to Firebase (correct collection)
+      // 🔍 IDENTICAL REQUEST VALIDATION - Check for exact duplicates
+      console.log('🔍 [Tents/Chairs Submit] Starting identical request validation...');
+      console.log('📋 [Tents/Chairs Submit] Request details:', {
+        startDate: data.startDate,
+        endDate: data.endDate,
+        quantityTents: data.quantityTents,
+        quantityChairs: data.quantityChairs,
+        userId: user.uid
+      });
+
+      // Query existing bookings for same user with IDENTICAL dates (exclude cancelled/rejected)
+      const bookingsRef = collection(db, 'tentsChairsBookings');
+      const q = query(
+        bookingsRef,
+        where('userId', '==', user.uid),
+        where('startDate', '==', data.startDate),
+        where('endDate', '==', data.endDate),
+        where('status', 'in', ['pending', 'approved', 'in-progress'])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      console.log(`📊 [Tents/Chairs Submit] Found ${querySnapshot.size} existing booking(s) with same dates`);
+
+      // Check if any booking has IDENTICAL quantities
+      let hasIdenticalRequest = false;
+      let identicalBooking = null;
+
+      querySnapshot.forEach(doc => {
+        const existingBooking = doc.data();
+        console.log('🔍 [Tents/Chairs Submit] Checking against existing booking:', {
+          id: doc.id,
+          dates: `${existingBooking.startDate} to ${existingBooking.endDate}`,
+          tents: existingBooking.quantityTents,
+          chairs: existingBooking.quantityChairs,
+          status: existingBooking.status
+        });
+
+        // Check if quantities are IDENTICAL
+        if (existingBooking.quantityTents === data.quantityTents && 
+            existingBooking.quantityChairs === data.quantityChairs) {
+          hasIdenticalRequest = true;
+          identicalBooking = {
+            id: doc.id,
+            startDate: existingBooking.startDate,
+            endDate: existingBooking.endDate,
+            quantityTents: existingBooking.quantityTents,
+            quantityChairs: existingBooking.quantityChairs,
+            status: existingBooking.status
+          };
+          console.log('🚫 [Tents/Chairs Submit] IDENTICAL REQUEST DETECTED!');
+        }
+      });
+
+      // 🚫 BLOCK submission if identical request found
+      if (hasIdenticalRequest) {
+        console.error('❌ [Tents/Chairs Submit] Submission BLOCKED due to identical request');
+        
+        // Format dates for display
+        const formatDate = (dateStr) => {
+          const date = new Date(dateStr + 'T00:00:00');
+          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        };
+
+        const existingDateRange = `${formatDate(identicalBooking.startDate)} - ${formatDate(identicalBooking.endDate)}`;
+        
+        // Show error alert with conflict details
+        showAlert(
+          `⚠️ Identical Request Detected<br><br>` +
+          `You already have a ${identicalBooking.status} request with the exact same details:<br><br>` +
+          `<strong>Dates:</strong> ${existingDateRange}<br>` +
+          `<strong>Tents:</strong> ${identicalBooking.quantityTents}<br>` +
+          `<strong>Chairs:</strong> ${identicalBooking.quantityChairs}<br><br>` +
+          `Cannot submit identical requests. Please choose different dates or quantities, or cancel your existing request first.`,
+          false
+        );
+        return; // Stop submission
+      }
+
+      console.log('✅ [Tents/Chairs Submit] No identical requests found - proceeding with submission');
+
+      // ✅ NO IDENTICAL REQUESTS - Proceed with submission
       await addDoc(collection(db, 'tentsChairsBookings'), {
         ...data,
         userId: user.uid,
@@ -2918,13 +3506,14 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
         createdAt: serverTimestamp()
       });
 
+      console.log('✅ [Tents/Chairs Submit] Request submitted successfully!');
       showAlert('Your tents & chairs request has been submitted successfully!', true, () => {
         window.location.href = 'UserProfile.html';
       });
 
     } catch (err) {
-      console.error('Error submitting tents & chairs request:', err);
-      showAlert('Failed to submit request. Please try again.');
+      console.error('❌ [Tents/Chairs Submit] Error submitting request:', err);
+      showAlert('Failed to submit request. Please try again.', false);
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = originalText;
@@ -3022,21 +3611,45 @@ async function autofillUserData(fieldMappings) {
 
 if (window.location.pathname.endsWith('conference-request.html') || window.location.pathname.endsWith('/conference-request')) {
 
-  document.addEventListener('DOMContentLoaded', function () {
+  // Store bookings for the selected date
+  let dateBookings = [];
+
+  document.addEventListener('DOMContentLoaded', async function () {
     const form = document.getElementById('conferenceRoomForm');
     if (!form) return;
 
     // Prefill date if redirected from calendar
     const urlParams = new URLSearchParams(window.location.search);
     const preselectedDate = urlParams.get('date');
-    if (preselectedDate) document.getElementById('eventDate').value = preselectedDate;
+    if (preselectedDate) {
+      document.getElementById('eventDate').value = preselectedDate;
+      // Load bookings for preselected date
+      await loadBookingsForDate(preselectedDate);
+    }
 
     // Set minimum date to today
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('eventDate').min = today;
 
-    // Populate time dropdowns
+    // Populate time dropdowns (will be filtered if bookings exist)
     populateTimeDropdowns();
+
+    // Listen for date changes to reload available time slots
+    const eventDateInput = document.getElementById('eventDate');
+    eventDateInput.addEventListener('change', async function() {
+      const selectedDate = this.value;
+      if (selectedDate) {
+        console.log(`📅 [Conference Form] Date changed to: ${selectedDate}`);
+        await loadBookingsForDate(selectedDate);
+        populateTimeDropdowns(); // Repopulate with new availability
+      }
+    });
+
+    // Listen for start time changes to filter end time options
+    const startTimeSelect = document.getElementById('startTime');
+    startTimeSelect.addEventListener('change', function() {
+      updateEndTimeOptions();
+    });
 
     // Auto-fill user data
     onAuthStateChanged(auth, (user) => {
@@ -3060,20 +3673,282 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
     form.addEventListener('submit', handleConferenceRoomSubmit);
   });
 
+  /**
+   * Fetch all approved/in-progress bookings for a specific date
+   */
+  async function loadBookingsForDate(date) {
+    console.log(`🔍 [Conference Form] Loading bookings for date: ${date}`);
+    
+    try {
+      const bookingsRef = collection(db, 'conferenceRoomBookings');
+      const q = query(
+        bookingsRef,
+        where('eventDate', '==', date),
+        where('status', 'in', ['approved', 'in-progress'])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      dateBookings = [];
+      
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        dateBookings.push({
+          startTime: data.startTime,
+          endTime: data.endTime,
+          purpose: data.purpose || 'Reserved'
+        });
+      });
+      
+      console.log(`📊 [Conference Form] Found ${dateBookings.length} booking(s) for ${date}:`, dateBookings);
+      
+      // Show message if date is fully booked
+      if (dateBookings.length > 0) {
+        const fullyBooked = isDateFullyBooked(dateBookings);
+        if (fullyBooked) {
+          console.warn(`⚠️ [Conference Form] Date ${date} is fully booked!`);
+          showToast('This date is fully booked. Please select another date.', false, 3000);
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ [Conference Form] Error loading bookings:', error);
+      dateBookings = [];
+    }
+  }
+
+  /**
+   * Check if a time slot conflicts with any existing booking
+   * IMPORTANT: Requires 30-minute gap between bookings
+   * Example: If booking ends at 10:00, next available start is 10:30
+   */
+  function isTimeSlotUnavailable(timeSlot, existingBookings) {
+    if (!existingBookings || existingBookings.length === 0) return false;
+    
+    // Helper: Convert time string (HH:mm) to minutes
+    function timeToMinutes(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+    
+    const slotMinutes = timeToMinutes(timeSlot);
+    
+    for (const booking of existingBookings) {
+      const bookingStartMinutes = timeToMinutes(booking.startTime);
+      const bookingEndMinutes = timeToMinutes(booking.endTime);
+      
+      // A time slot is unavailable if:
+      // 1. It falls within the booking range (slot >= start AND slot < end)
+      // 2. It's within 30 minutes AFTER the booking ends (requires gap)
+      //    Example: Booking ends 10:00, slot 10:00 is unavailable (need 10:30)
+      
+      // Check if slot is during the booking
+      if (slotMinutes >= bookingStartMinutes && slotMinutes < bookingEndMinutes) {
+        return true;
+      }
+      
+      // Check if slot is within 30 minutes after booking ends
+      // Booking ends at bookingEndMinutes, need gap until bookingEndMinutes + 30
+      if (slotMinutes >= bookingEndMinutes && slotMinutes < bookingEndMinutes + 30) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Populate time dropdowns with availability filtering
+   */
   function populateTimeDropdowns() {
     const startTimeSelect = document.getElementById('startTime');
     const endTimeSelect = document.getElementById('endTime');
     if (!startTimeSelect || !endTimeSelect) return;
 
+    // Save current selections
+    const currentStart = startTimeSelect.value;
+    const currentEnd = endTimeSelect.value;
+
     startTimeSelect.innerHTML = '<option value="">Start Time</option>';
     endTimeSelect.innerHTML = '<option value="">End Time</option>';
 
-    for (let hour = 8; hour <= 17; hour++) {
-      const value = `${hour.toString().padStart(2, '0')}:00`;
-      const display = hour < 12 ? `${hour}:00 AM` : hour === 12 ? `12:00 PM` : `${hour - 12}:00 PM`;
-      startTimeSelect.add(new Option(display, value));
-      endTimeSelect.add(new Option(display, value));
+    // Generate 30-minute interval options from 08:00 through 17:00
+    const startMinutes = 8 * 60; // 08:00 in minutes
+    const endMinutes = 17 * 60;  // 17:00 in minutes
+    
+    for (let mins = startMinutes; mins <= endMinutes; mins += 30) {
+      const hh = Math.floor(mins / 60);
+      const mm = mins % 60;
+      const value = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+
+      // Format display as 12-hour with minutes (e.g., 8:00 AM, 8:30 AM)
+      const hour12 = hh % 12 === 0 ? 12 : hh % 12;
+      const ampm = hh >= 12 ? 'PM' : 'AM';
+      const display = `${hour12}:${String(mm).padStart(2, '0')} ${ampm}`;
+
+      // Check if this time slot is unavailable for START time
+      const isUnavailableStart = isTimeSlotUnavailable(value, dateBookings);
+      
+      const startOption = new Option(display, value);
+      if (isUnavailableStart) {
+        startOption.disabled = true;
+        startOption.text = `${display} (Booked)`;
+        startOption.style.color = '#999';
+      }
+      startTimeSelect.add(startOption);
+
+      // For END time, add all options (will be filtered based on START selection)
+      const endOption = new Option(display, value);
+      endTimeSelect.add(endOption);
     }
+
+    // Restore selections if still valid
+    if (currentStart && !startTimeSelect.querySelector(`option[value="${currentStart}"]`).disabled) {
+      startTimeSelect.value = currentStart;
+    }
+    if (currentEnd) {
+      endTimeSelect.value = currentEnd;
+    }
+
+    // Update end time options based on current start time
+    if (startTimeSelect.value) {
+      updateEndTimeOptions();
+    }
+  }
+
+  /**
+   * Update end time options based on selected start time and existing bookings
+   * IMPORTANT: Enforces 30-minute gap requirement before next booking
+   */
+  function updateEndTimeOptions() {
+    const startTimeSelect = document.getElementById('startTime');
+    const endTimeSelect = document.getElementById('endTime');
+    if (!startTimeSelect || !endTimeSelect) return;
+
+    const selectedStart = startTimeSelect.value;
+    if (!selectedStart) {
+      // No start time selected, reset end time
+      endTimeSelect.querySelectorAll('option').forEach(opt => {
+        if (opt.value) {
+          opt.disabled = false;
+          opt.text = opt.text.replace(' (Unavailable)', '');
+          opt.style.color = '';
+        }
+      });
+      return;
+    }
+
+    console.log(`⏰ [Conference Form] Filtering end times based on start: ${selectedStart}`);
+
+    // Helper: Convert time string to minutes
+    function timeToMinutes(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+
+    const selectedStartMinutes = timeToMinutes(selectedStart);
+
+    // Filter end time options
+    endTimeSelect.querySelectorAll('option').forEach(opt => {
+      if (!opt.value) return; // Skip placeholder
+
+      const endValue = opt.value;
+      const endValueMinutes = timeToMinutes(endValue);
+      
+      // Rule 1: End time must be after start time
+      if (endValue <= selectedStart) {
+        opt.disabled = true;
+        opt.style.color = '#999';
+        return;
+      }
+
+      // Rule 2: Check if this end time would cause overlap OR violate 30-min gap with existing bookings
+      let isInvalid = false;
+      
+      for (const booking of dateBookings) {
+        const bookingStartMinutes = timeToMinutes(booking.startTime);
+        const bookingEndMinutes = timeToMinutes(booking.endTime);
+        
+        // Check if the proposed time range overlaps with booking
+        if (timeRangesOverlap(selectedStart, endValue, booking.startTime, booking.endTime)) {
+          isInvalid = true;
+          break;
+        }
+        
+        // CRITICAL: Check if proposed end time violates 30-minute gap requirement
+        // If our end time is within 30 minutes BEFORE the next booking starts, it's invalid
+        // Example: Booking at 12:00 PM, our end time 11:30 or 11:00 AM is invalid (need gap)
+        // We can only end at 11:30 AM if booking starts at 12:00 PM or later
+        if (endValueMinutes > bookingStartMinutes - 30 && endValueMinutes <= bookingStartMinutes) {
+          isInvalid = true;
+          break;
+        }
+      }
+
+      if (isInvalid) {
+        opt.disabled = true;
+        opt.text = opt.text.replace(' (Unavailable)', '') + ' (Unavailable)';
+        opt.style.color = '#999';
+      } else {
+        opt.disabled = false;
+        opt.text = opt.text.replace(' (Unavailable)', '');
+        opt.style.color = '';
+      }
+    });
+
+    // If current end time selection is now invalid, clear it
+    const currentEnd = endTimeSelect.value;
+    if (currentEnd && endTimeSelect.querySelector(`option[value="${currentEnd}"]`)?.disabled) {
+      endTimeSelect.value = '';
+      console.log(`⚠️ [Conference Form] Current end time ${currentEnd} is invalid, cleared selection`);
+    }
+  }
+
+  /**
+   * Check if a date is fully booked (reuse from calendar logic)
+   * Updated: Minimum required time is now 2 hours (was 4 hours)
+   */
+  function isDateFullyBooked(bookings) {
+    if (!bookings || bookings.length === 0) return false;
+    
+    const OPERATING_START = '08:00';
+    const OPERATING_END = '17:00';
+    const MIN_REQUIRED_HOURS = 2; // Changed from 4 to 2 hours
+    
+    function timeToMinutes(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+    
+    const operatingStartMin = timeToMinutes(OPERATING_START);
+    const operatingEndMin = timeToMinutes(OPERATING_END);
+    const minRequiredMinutes = MIN_REQUIRED_HOURS * 60;
+    
+    // Sort bookings by start time
+    const sortedBookings = [...bookings].sort((a, b) => 
+      timeToMinutes(a.startTime) - timeToMinutes(b.startTime)
+    );
+    
+    // Check gap before first booking
+    const firstBookingStart = timeToMinutes(sortedBookings[0].startTime);
+    if (firstBookingStart - operatingStartMin >= minRequiredMinutes) {
+      return false;
+    }
+    
+    // Check gaps between consecutive bookings
+    for (let i = 0; i < sortedBookings.length - 1; i++) {
+      const currentEnd = timeToMinutes(sortedBookings[i].endTime);
+      const nextStart = timeToMinutes(sortedBookings[i + 1].startTime);
+      if (nextStart - currentEnd >= minRequiredMinutes) {
+        return false;
+      }
+    }
+    
+    // Check gap after last booking
+    const lastBookingEnd = timeToMinutes(sortedBookings[sortedBookings.length - 1].endTime);
+    if (operatingEndMin - lastBookingEnd >= minRequiredMinutes) {
+      return false;
+    }
+    
+    return true;
   }
 
   async function handleConferenceRoomSubmit(e) {
@@ -3119,6 +3994,31 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
     if (!startTime) setFieldError('startTime', 'Start time is required'), isValid = false;
     if (!endTime) setFieldError('endTime', 'End time is required'), isValid = false;
     else if (startTime && endTime <= startTime) setFieldError('endTime', 'End time must be after start time'), isValid = false;
+    
+    // CRITICAL: Enforce 2-hour minimum booking duration
+    if (startTime && endTime && isValid) {
+      const timeToMinutes = (timeStr) => {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return hours * 60 + minutes;
+      };
+      
+      const startMinutes = timeToMinutes(startTime);
+      const endMinutes = timeToMinutes(endTime);
+      const durationMinutes = endMinutes - startMinutes;
+      const MIN_DURATION_HOURS = 2;
+      const minDurationMinutes = MIN_DURATION_HOURS * 60; // 120 minutes
+      
+      if (durationMinutes < minDurationMinutes) {
+        const hours = Math.floor(durationMinutes / 60);
+        const minutes = durationMinutes % 60;
+        const durationText = hours > 0 
+          ? `${hours} hour${hours !== 1 ? 's' : ''}${minutes > 0 ? ` ${minutes} min` : ''}`
+          : `${minutes} minutes`;
+        
+        setFieldError('endTime', `Minimum booking duration is ${MIN_DURATION_HOURS} hours. Current duration: ${durationText}`);
+        isValid = false;
+      }
+    }
 
     if (!isValid) {
       const firstError = document.querySelector('.error-message:not(:empty)');
@@ -3166,6 +4066,76 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
         return;
       }
 
+      // 🔍 DUPLICATE/OVERLAP VALIDATION - Check for existing bookings
+      console.log('🔍 [User Submit] Starting duplicate/overlap validation...');
+      console.log('📋 [User Submit] Request details:', {
+        eventDate: formData.eventDate,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        userId: user.uid
+      });
+
+      // Query existing bookings for same user on same date (exclude cancelled/rejected)
+      const bookingsRef = collection(db, 'conferenceRoomBookings');
+      const q = query(
+        bookingsRef,
+        where('userId', '==', user.uid),
+        where('eventDate', '==', formData.eventDate),
+        where('status', 'in', ['pending', 'approved', 'in-progress'])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      console.log(`📊 [User Submit] Found ${querySnapshot.size} existing booking(s) for this user on ${formData.eventDate}`);
+
+      // Check for time overlaps with existing bookings
+      let hasConflict = false;
+      let conflictingBooking = null;
+
+      querySnapshot.forEach(doc => {
+        const existingBooking = doc.data();
+        console.log('🔍 [User Submit] Checking against existing booking:', {
+          id: doc.id,
+          time: `${existingBooking.startTime} - ${existingBooking.endTime}`,
+          status: existingBooking.status
+        });
+
+        // Check if times overlap using helper function
+        if (timeRangesOverlap(formData.startTime, formData.endTime, existingBooking.startTime, existingBooking.endTime)) {
+          hasConflict = true;
+          conflictingBooking = {
+            id: doc.id,
+            startTime: existingBooking.startTime,
+            endTime: existingBooking.endTime,
+            status: existingBooking.status,
+            purpose: existingBooking.purpose || 'Conference room reservation'
+          };
+          console.log('🚫 [User Submit] CONFLICT DETECTED - Times overlap!');
+        }
+      });
+
+      // 🚫 BLOCK submission if conflict found
+      if (hasConflict) {
+        console.error('❌ [User Submit] Submission BLOCKED due to duplicate/overlapping booking');
+        
+        // Format times for display
+        const newTimeRange = `${formatTime12Hour(formData.startTime)} - ${formatTime12Hour(formData.endTime)}`;
+        const existingTimeRange = `${formatTime12Hour(conflictingBooking.startTime)} - ${formatTime12Hour(conflictingBooking.endTime)}`;
+        
+        // Show error alert with conflict details (using \n which will be converted to <br>)
+        showAlert(
+          `⚠️ Duplicate Booking Detected\n\n` +
+          `You already have a ${conflictingBooking.status} reservation on ${formData.eventDate}:\n\n` +
+          `Existing: ${existingTimeRange}\n` +
+          `New request: ${newTimeRange}\n\n` +
+          `Cannot submit duplicate or overlapping reservations. Please choose a different time or cancel your existing booking first.`,
+          false
+        );
+        return; // Stop submission
+      }
+
+      console.log('✅ [User Submit] No conflicts found - proceeding with submission');
+
+      // ✅ NO CONFLICTS - Proceed with submission
       await addDoc(collection(db, 'conferenceRoomBookings'), {
         ...formData,
         userId: user.uid,
@@ -3174,12 +4144,13 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
         createdAt: serverTimestamp(),
       });
 
+      console.log('✅ [User Submit] Booking submitted successfully!');
       showAlert('Your conference room reservation has been submitted successfully!', true, () => {
         window.location.href = 'UserProfile.html';
       });
     } catch (error) {
-      console.error('Error submitting request:', error);
-      showAlert('Something went wrong while submitting your request.');
+      console.error('❌ [User Submit] Error submitting request:', error);
+      showAlert('Something went wrong while submitting your request. Please try again.', false);
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = originalText;
@@ -3292,11 +4263,8 @@ if (window.location.pathname.endsWith('admin.html')) {
 
 //===================================================== ADMIN DASHBOARD SCRIPT Add this section to your script.js file*/
 
-// Check if we're on the admin dashboard page or manage inventory page
-if (window.location.pathname.endsWith('admin.html') || 
-    window.location.pathname.endsWith('/admin') || 
-    window.location.pathname.endsWith('admin-manage-inventory.html') || 
-    window.location.pathname.endsWith('/admin-manage-inventory')) {
+// Check if we're on the admin dashboard page
+if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.location.pathname.endsWith('/admin-manage-inventory') || window.location.pathname.endsWith('admin.html') || window.location.pathname.endsWith('/admin')) {
   
   // Store all reservations data loaded from Firestore
   let allReservationsData = [];
@@ -3337,12 +4305,8 @@ if (window.location.pathname.endsWith('admin.html') ||
     if (reviewRequestsToggle) {
       reviewRequestsToggle.addEventListener('click', function(e) {
         e.preventDefault();
-        // Get the parent .sidebar-dropdown container
-        const parentDropdown = this.closest('.sidebar-dropdown');
-        if (parentDropdown) {
-          parentDropdown.classList.toggle('open');
-        }
-        // Toggle arrow rotation on the toggle button
+        const dropdown = this.nextElementSibling;
+        dropdown.classList.toggle('open');
         this.classList.toggle('open');
       });
     }
@@ -3921,13 +4885,9 @@ if (window.location.pathname.endsWith('admin.html') ||
 
   // Close modal function
   function closeModal() {
-    if (internalBookingModal) {
-      internalBookingModal.classList.remove('active');
-    }
-    if (internalBookingForm) {
-      internalBookingForm.reset();
-      clearAllInternalErrors();
-    }
+    internalBookingModal.classList.remove('active');
+    internalBookingForm.reset();
+    clearAllInternalErrors();
   }
 
   // Close modal on X button
@@ -3941,11 +4901,13 @@ if (window.location.pathname.endsWith('admin.html') ||
   }
 
   // Close modal when clicking outside
-  internalBookingModal.addEventListener('click', (e) => {
-    if (e.target === internalBookingModal) {
-      closeModal();
-    }
-  });
+  if (internalBookingModal) {
+    internalBookingModal.addEventListener('click', (e) => {
+      if (e.target === internalBookingModal) {
+        closeModal();
+      }
+    });
+  }
 
   // Form validation helpers
   function setInternalError(elementId, message) {
@@ -4489,11 +5451,21 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
         }
       }
 
-      // Search filter
+      // Search filter - Enhanced multi-field search
       if (searchTerm) {
+        const firstName = (req.firstName || '').toLowerCase();
+        const lastName = (req.lastName || '').toLowerCase();
         const fullName = (req.fullName || '').toLowerCase();
+        const purposeOfUse = (req.purposeOfUse || '').toLowerCase();
         const address = (req.completeAddress || '').toLowerCase();
-        if (!fullName.includes(searchTerm) && !address.includes(searchTerm)) {
+        
+        const isMatch = firstName.includes(searchTerm) ||
+                       lastName.includes(searchTerm) ||
+                       fullName.includes(searchTerm) ||
+                       purposeOfUse.includes(searchTerm) ||
+                       address.includes(searchTerm);
+        
+        if (!isMatch) {
           return false;
         }
       }
@@ -4648,26 +5620,225 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
 
   // Approve request
   window.approveRequest = async function(requestId) {
-    const confirmed = await showConfirmModal(
-      'Approve Request',
-      'Are you sure you want to approve this request?'
-    );
-    if (!confirmed) return;
+    console.log('🔍 [Admin Approve Tents/Chairs] Starting approval process for request:', requestId);
+
+    // Find the request in allRequests array
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      await showConfirmModal('Error', 'Request not found.', null, true);
+      return;
+    }
+
+    console.log('📋 [Admin Approve Tents/Chairs] Request details:', {
+      startDate: request.startDate,
+      endDate: request.endDate,
+      quantityTents: request.quantityTents,
+      quantityChairs: request.quantityChairs,
+      status: request.status
+    });
 
     try {
-      console.log(`✅ Approving request ${requestId}...`);
+      // 🔍 STEP 1: Check for IDENTICAL pending requests (same dates + same quantities)
+      console.log('🔍 [Admin Approve Tents/Chairs] Checking for identical pending requests...');
       
-      const requestRef = doc(db, 'tentsChairsBookings', requestId);
-      await updateDoc(requestRef, {
-        status: 'approved'
+      const bookingsRef = collection(db, 'tentsChairsBookings');
+      const identicalQuery = query(
+        bookingsRef,
+        where('startDate', '==', request.startDate),
+        where('endDate', '==', request.endDate),
+        where('status', 'in', ['pending', 'approved', 'in-progress'])
+      );
+      
+      const identicalSnapshot = await getDocs(identicalQuery);
+      console.log(`📊 [Admin Approve Tents/Chairs] Found ${identicalSnapshot.size} booking(s) with same dates`);
+
+      // Check for IDENTICAL quantities (excluding self)
+      let hasIdentical = false;
+      let identicalBooking = null;
+
+      identicalSnapshot.forEach(doc => {
+        // Skip if this is the request being approved
+        if (doc.id === requestId) {
+          console.log('⏭️ [Admin Approve Tents/Chairs] Skipping self (request being approved)');
+          return;
+        }
+
+        const existing = doc.data();
+        console.log('🔍 [Admin Approve Tents/Chairs] Checking against existing booking:', {
+          id: doc.id,
+          dates: `${existing.startDate} to ${existing.endDate}`,
+          tents: existing.quantityTents,
+          chairs: existing.quantityChairs,
+          status: existing.status,
+          user: existing.userEmail || existing.fullName
+        });
+
+        // Check if quantities are IDENTICAL
+        if (existing.quantityTents === request.quantityTents && 
+            existing.quantityChairs === request.quantityChairs) {
+          hasIdentical = true;
+          identicalBooking = {
+            id: doc.id,
+            userName: existing.fullName || existing.userEmail || 'Unknown user',
+            startDate: existing.startDate,
+            endDate: existing.endDate,
+            quantityTents: existing.quantityTents,
+            quantityChairs: existing.quantityChairs,
+            status: existing.status
+          };
+          console.log('🚫 [Admin Approve Tents/Chairs] IDENTICAL REQUEST DETECTED!', identicalBooking);
+        }
       });
 
-      console.log('✅ Request approved');
-      await loadTentsRequests(); // Reload
+      // 🚫 BLOCK if identical request found
+      if (hasIdentical) {
+        console.error('❌ [Admin Approve Tents/Chairs] Approval BLOCKED due to identical request');
+        
+        const formatDate = (dateStr) => {
+          const date = new Date(dateStr + 'T00:00:00');
+          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        };
+
+        const existingDateRange = `${formatDate(identicalBooking.startDate)} - ${formatDate(identicalBooking.endDate)}`;
+        const thisDateRange = `${formatDate(request.startDate)} - ${formatDate(request.endDate)}`;
+        
+        await showConfirmModal(
+          '❌ Cannot Approve - Identical Request',
+          `Another request with identical details already exists:<br><br>` +
+          `<strong>📋 Existing Request:</strong><br>` +
+          `   User: ${identicalBooking.userName}<br>` +
+          `   Dates: ${existingDateRange}<br>` +
+          `   Tents: ${identicalBooking.quantityTents}<br>` +
+          `   Chairs: ${identicalBooking.quantityChairs}<br>` +
+          `   Status: ${identicalBooking.status}<br><br>` +
+          `<strong>📋 This Request:</strong><br>` +
+          `   User: ${request.fullName || request.userEmail || 'Unknown'}<br>` +
+          `   Dates: ${thisDateRange}<br>` +
+          `   Tents: ${request.quantityTents}<br>` +
+          `   Chairs: ${request.quantityChairs}<br><br>` +
+          `Please reject one of the duplicate requests.`,
+          null,
+          true // Alert mode (OK button only)
+        );
+        return; // Stop approval
+      }
+
+      console.log('✅ [Admin Approve Tents/Chairs] No identical requests found');
+
+      // 🔍 STEP 2: Validate inventory availability
+      console.log('🔍 [Admin Approve Tents/Chairs] Validating inventory availability...');
+      
+      const inventoryRef = doc(db, 'inventory', 'equipment');
+      const inventorySnap = await getDoc(inventoryRef);
+      
+      if (!inventorySnap.exists()) {
+        console.error('❌ [Admin Approve Tents/Chairs] Inventory document not found');
+        await showConfirmModal(
+          '❌ Inventory Error',
+          'Inventory data not found. Please initialize the inventory first.',
+          null,
+          true
+        );
+        return;
+      }
+
+      const inventory = inventorySnap.data();
+      const availableTents = inventory.availableTents || 0;
+      const availableChairs = inventory.availableChairs || 0;
+
+      console.log('📦 [Admin Approve Tents/Chairs] Current inventory:', {
+        availableTents,
+        availableChairs,
+        requestedTents: request.quantityTents,
+        requestedChairs: request.quantityChairs
+      });
+
+      // Check if requested quantities exceed available stock
+      const tentsShortage = request.quantityTents - availableTents;
+      const chairsShortage = request.quantityChairs - availableChairs;
+      const hasShortage = tentsShortage > 0 || chairsShortage > 0;
+
+      if (hasShortage) {
+        console.error('❌ [Admin Approve Tents/Chairs] Approval BLOCKED due to insufficient inventory');
+        
+        let shortageMessage = '<strong>📦 Current Inventory:</strong><br>' +
+          `   Available Tents: ${availableTents}<br>` +
+          `   Available Chairs: ${availableChairs}<br><br>` +
+          `<strong>📋 This Request:</strong><br>` +
+          `   Requested Tents: ${request.quantityTents}`;
+        
+        if (tentsShortage > 0) {
+          shortageMessage += ` <span style="color:#dc2626;">(Shortage: ${tentsShortage})</span>`;
+        }
+        
+        shortageMessage += `<br>   Requested Chairs: ${request.quantityChairs}`;
+        
+        if (chairsShortage > 0) {
+          shortageMessage += ` <span style="color:#dc2626;">(Shortage: ${chairsShortage})</span>`;
+        }
+
+        shortageMessage += '<br><br>Cannot approve - insufficient inventory. Please wait for other bookings to complete or ask user to reduce quantities.';
+        
+        await showConfirmModal(
+          '❌ Insufficient Inventory',
+          shortageMessage,
+          null,
+          true // Alert mode
+        );
+        return; // Stop approval
+      }
+
+      console.log('✅ [Admin Approve Tents/Chairs] Inventory sufficient');
+
+      // ✅ ALL VALIDATIONS PASSED - Show final confirmation
+      const confirmed = await showConfirmModal(
+        'Approve Request',
+        `Approve this tents & chairs request?<br><br>` +
+        `<strong>User:</strong> ${request.fullName || request.userEmail || 'Unknown'}<br>` +
+        `<strong>Dates:</strong> ${request.startDate} to ${request.endDate}<br>` +
+        `<strong>Tents:</strong> ${request.quantityTents}<br>` +
+        `<strong>Chairs:</strong> ${request.quantityChairs}<br><br>` +
+        `Inventory will be updated automatically.`
+      );
+
+      if (!confirmed) {
+        console.log('⏹️ [Admin Approve Tents/Chairs] Admin cancelled approval');
+        return;
+      }
+
+      // Update request status to approved
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'approved',
+        approvedAt: new Date()
+      });
+
+      // Update inventory (deduct approved quantities)
+      await updateDoc(inventoryRef, {
+        availableTents: availableTents - request.quantityTents,
+        availableChairs: availableChairs - request.quantityChairs,
+        tentsInUse: (inventory.tentsInUse || 0) + request.quantityTents,
+        chairsInUse: (inventory.chairsInUse || 0) + request.quantityChairs,
+        lastUpdated: new Date()
+      });
+
+      console.log('✅ [Admin Approve Tents/Chairs] Request approved and inventory updated successfully!');
+      await loadTentsRequests(); // Reload data
+      
+      // Show success message
+      await showConfirmModal(
+        '✅ Request Approved',
+        `Request has been approved successfully!<br><br>` +
+        `<strong>Updated Inventory:</strong><br>` +
+        `   Available Tents: ${availableTents - request.quantityTents}<br>` +
+        `   Available Chairs: ${availableChairs - request.quantityChairs}`,
+        null,
+        true
+      );
       
     } catch (error) {
-      console.error('❌ Error approving request:', error);
-      alert('Failed to approve request. Please try again.');
+      console.error('❌ [Admin Approve Tents/Chairs] Error approving request:', error);
+      await showConfirmModal('Error', 'Failed to approve request. Please try again.', null, true);
     }
   };
 
@@ -4708,24 +5879,125 @@ if (window.location.pathname.endsWith('admin-tents-requests.html')) {
   window.completeRequest = async function(requestId) {
     const confirmed = await showConfirmModal(
       'Mark as Completed',
-      'Mark this request as completed?'
+      'Mark this request as completed? Equipment will be returned to available inventory.'
     );
     if (!confirmed) return;
 
     try {
-      console.log(`✓ Completing request ${requestId}...`);
+      console.log(`🔍 [Admin Complete Tents/Chairs] Starting completion for request ${requestId}...`);
       
+      // STEP 1: Get the request details
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      const requestSnap = await getDoc(requestRef);
+      
+      if (!requestSnap.exists()) {
+        console.error('❌ Request not found');
+        await showConfirmModal('Error', 'Request not found.', null, true);
+        return;
+      }
+      
+      const requestData = requestSnap.data();
+      const tentsToReturn = requestData.quantityTents || 0;
+      const chairsToReturn = requestData.quantityChairs || 0;
+      
+      console.log(`📋 Request Details:
+        Tents: ${tentsToReturn}
+        Chairs: ${chairsToReturn}
+        Status: ${requestData.status}`);
+      
+      // STEP 2: Only restore inventory if request was approved/in-progress
+      // (Don't restore for rejected/cancelled requests that never took inventory)
+      if (requestData.status === 'approved' || requestData.status === 'in-progress') {
+        console.log('📦 Restoring inventory for approved/in-progress booking...');
+        
+        // Get current inventory
+        const inventoryRef = doc(db, 'inventory', 'equipment');
+        const inventorySnap = await getDoc(inventoryRef);
+        
+        if (!inventorySnap.exists()) {
+          console.warn('⚠️ Inventory document does not exist. Creating with default values...');
+          await setDoc(inventoryRef, {
+            availableTents: tentsToReturn,
+            availableChairs: chairsToReturn,
+            tentsInUse: 0,
+            chairsInUse: 0,
+            totalTents: tentsToReturn,
+            totalChairs: chairsToReturn,
+            lastUpdated: new Date()
+          });
+        } else {
+          const inventoryData = inventorySnap.data();
+          const currentAvailableTents = inventoryData.availableTents || 0;
+          const currentAvailableChairs = inventoryData.availableChairs || 0;
+          const currentTentsInUse = inventoryData.tentsInUse || 0;
+          const currentChairsInUse = inventoryData.chairsInUse || 0;
+          
+          console.log(`📊 Current Inventory:
+            Available Tents: ${currentAvailableTents}
+            Available Chairs: ${currentAvailableChairs}
+            Tents In Use: ${currentTentsInUse}
+            Chairs In Use: ${currentChairsInUse}`);
+          
+          // Calculate new inventory (return items to available, remove from in-use)
+          const newAvailableTents = currentAvailableTents + tentsToReturn;
+          const newAvailableChairs = currentAvailableChairs + chairsToReturn;
+          const newTentsInUse = Math.max(0, currentTentsInUse - tentsToReturn);
+          const newChairsInUse = Math.max(0, currentChairsInUse - chairsToReturn);
+          
+          console.log(`📦 New Inventory After Return:
+            Available Tents: ${newAvailableTents} (was ${currentAvailableTents})
+            Available Chairs: ${newAvailableChairs} (was ${currentAvailableChairs})
+            Tents In Use: ${newTentsInUse} (was ${currentTentsInUse})
+            Chairs In Use: ${newChairsInUse} (was ${currentChairsInUse})`);
+          
+          // Update inventory
+          await updateDoc(inventoryRef, {
+            availableTents: newAvailableTents,
+            availableChairs: newAvailableChairs,
+            tentsInUse: newTentsInUse,
+            chairsInUse: newChairsInUse,
+            lastUpdated: new Date()
+          });
+          
+          console.log('✅ Inventory restored successfully');
+        }
+      } else {
+        console.log(`ℹ️ Skipping inventory restoration (status: ${requestData.status})`);
+      }
+      
+      // STEP 3: Mark request as completed
       await updateDoc(requestRef, {
         status: 'completed',
         completedAt: new Date()
       });
 
       console.log('✅ Request marked as completed');
+      
+      // Show success confirmation with inventory update info
+      if (requestData.status === 'approved' || requestData.status === 'in-progress') {
+        await showConfirmModal(
+          'Request Completed',
+          `Request has been marked as completed.<br><br>` +
+          `<strong>Equipment Returned:</strong><br>` +
+          `Tents: ${tentsToReturn}<br>` +
+          `Chairs: ${chairsToReturn}<br><br>` +
+          `Inventory has been updated.`,
+          null,
+          true
+        );
+      } else {
+        await showConfirmModal(
+          'Request Completed',
+          'Request has been marked as completed.',
+          null,
+          true
+        );
+      }
+      
       await loadTentsRequests(); // Reload
       
     } catch (error) {
-      console.error('❌ Error completing request:', error);
+      console.error('❌ [Admin Complete Tents/Chairs] Error completing request:', error);
       await showConfirmModal('Error', 'Failed to complete request. Please try again.', null, true);
     }
   };
@@ -5265,6 +6537,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       });
 
       console.log(`✅ Loaded ${allRequests.length} requests`);
+      
+      // Update status filter counts after data is loaded
+      updateStatusFilterOptions();
+      
       renderContent();
     } catch (error) {
       console.error('❌ Error loading requests:', error);
@@ -5353,12 +6629,29 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       filtered = filtered.filter(req => req.status === statusFilter);
     }
 
-    // Filter by search (name)
+    // Filter by search - Enhanced multi-field search
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase();
     if (searchTerm) {
-      filtered = filtered.filter(req => 
-        (req.fullName || '').toLowerCase().includes(searchTerm)
-      );
+      console.log(`🔍 Tents & Chairs - Searching for: "${searchTerm}"`);
+      const beforeCount = filtered.length;
+      
+      filtered = filtered.filter(req => {
+        const firstName = (req.firstName || '').toLowerCase();
+        const lastName = (req.lastName || '').toLowerCase();
+        const fullName = (req.fullName || '').toLowerCase();
+        const purposeOfUse = (req.purposeOfUse || '').toLowerCase();
+        const address = (req.completeAddress || '').toLowerCase();
+        
+        const isMatch = firstName.includes(searchTerm) ||
+                       lastName.includes(searchTerm) ||
+                       fullName.includes(searchTerm) ||
+                       purposeOfUse.includes(searchTerm) ||
+                       address.includes(searchTerm);
+        
+        return isMatch;
+      });
+      
+      console.log(`✅ Found ${filtered.length} matches (from ${beforeCount} requests)`);
     }
 
     // Filter by date
@@ -5391,6 +6684,52 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         case 'event-desc':
           // Event Date (Newest First)
           return new Date(b.startDate) - new Date(a.startDate);
+        case 'completed-asc':
+          // Date Finalized (Oldest First) - include completedAt, rejectedAt, cancelledAt
+          const aFinalizedAsc = getFinalizedTimestampMillis(a);
+          const bFinalizedAsc = getFinalizedTimestampMillis(b);
+          if (!aFinalizedAsc && !bFinalizedAsc) return 0;
+          if (!aFinalizedAsc) return 1;
+          if (!bFinalizedAsc) return -1;
+          return aFinalizedAsc - bFinalizedAsc;
+
+        case 'completed-desc':
+          // Date Finalized (Newest First) - include completedAt, rejectedAt, cancelledAt
+          const aFinalizedDesc = getFinalizedTimestampMillis(a);
+          const bFinalizedDesc = getFinalizedTimestampMillis(b);
+          if (!aFinalizedDesc && !bFinalizedDesc) return 0;
+          if (!aFinalizedDesc) return 1;
+          if (!bFinalizedDesc) return -1;
+          return bFinalizedDesc - aFinalizedDesc;
+          
+        case 'archived-asc':
+          // Date Archived (Oldest First) - requests without archivedAt go to end
+          const aHasArchived = a.archivedAt ? true : false;
+          const bHasArchived = b.archivedAt ? true : false;
+          
+          if (!aHasArchived && !bHasArchived) return 0; // Both without date, keep order
+          if (!aHasArchived) return 1;  // a without date goes after b
+          if (!bHasArchived) return -1; // b without date goes after a
+          
+          // Both have archivedAt, compare dates (oldest first)
+          const aArchivedDate = a.archivedAt.toDate ? a.archivedAt.toDate() : new Date(a.archivedAt);
+          const bArchivedDate = b.archivedAt.toDate ? b.archivedAt.toDate() : new Date(b.archivedAt);
+          return aArchivedDate - bArchivedDate;
+          
+        case 'archived-desc':
+          // Date Archived (Newest First) - requests without archivedAt go to end
+          const aHasArchived2 = a.archivedAt ? true : false;
+          const bHasArchived2 = b.archivedAt ? true : false;
+          
+          if (!aHasArchived2 && !bHasArchived2) return 0; // Both without date, keep order
+          if (!aHasArchived2) return 1;  // a without date goes after b
+          if (!bHasArchived2) return -1; // b without date goes after a
+          
+          // Both have archivedAt, compare dates (newest first)
+          const aArchivedDate2 = a.archivedAt.toDate ? a.archivedAt.toDate() : new Date(a.archivedAt);
+          const bArchivedDate2 = b.archivedAt.toDate ? b.archivedAt.toDate() : new Date(b.archivedAt);
+          return bArchivedDate2 - aArchivedDate2;
+          
         case 'name-asc':
           // Last Name (A-Z)
           const lastNameA = getLastName(a.fullName);
@@ -5427,6 +6766,52 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     const parts = fullName.trim().split(' ');
     if (parts.length === 1) return parts[0];
     return parts.slice(0, -1).join(' '); // Everything except last name
+  }
+
+  /**
+   * Robust name extractor - returns { firstName, lastName }
+   * Tries multiple common fields and falls back to email local-part if needed.
+   */
+  function getNameParts(req) {
+    // Preferred explicit fields (new schema)
+    if (req.firstName || req.lastName) {
+      return {
+        firstName: String(req.firstName || '').trim(),
+        lastName: String(req.lastName || '').trim()
+      };
+    }
+
+    // Some documents may use camelCase without capitals
+    if (req.firstname || req.lastname) {
+      return {
+        firstName: String(req.firstname || '').trim(),
+        lastName: String(req.lastname || '').trim()
+      };
+    }
+
+    // Underscored variant
+    if (req.first_name || req.last_name) {
+      return {
+        firstName: String(req.first_name || '').trim(),
+        lastName: String(req.last_name || '').trim()
+      };
+    }
+
+    // Legacy combined fields
+    const raw = String(req.fullName || req.fullname || req.full_name || req.name || req.applicantName || '').trim();
+    if (raw) {
+      const parts = raw.split(/\s+/);
+      return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '' };
+    }
+
+    // fallback: try to extract from email local part
+    if (req.userEmail) {
+      const local = String(req.userEmail).split('@')[0];
+      const parts = local.split(/[._\-]/).filter(Boolean);
+      return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '' };
+    }
+
+    return { firstName: '', lastName: '' };
   }
 
   // ========================================
@@ -5493,6 +6878,8 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
               <th>Submitted On</th>
               <th>First Name</th>
               <th>Last Name</th>
+              <th>Contact Number</th>
+              <th>Purpose</th>
               <th>Start Date</th>
               <th>End Date</th>
               <th>Chairs</th>
@@ -5531,12 +6918,16 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         : (req.fullName ? getLastName(req.fullName) : '');
       const startDate = formatDateText(req.startDate);
       const endDate = formatDateText(req.endDate);
+      const contactNumber = sanitizeInput(req.contactNumber || 'N/A');
+      const purpose = sanitizeInput(req.purposeOfUse || req.purpose || 'N/A');
 
       tableHTML += `
         <tr>
           <td>${submittedDateTime}</td>
           <td>${sanitizeInput(firstName)}</td>
           <td>${sanitizeInput(lastName)}</td>
+          <td>${contactNumber}</td>
+          <td>${purpose}</td>
           <td>${startDate}</td>
           <td>${endDate}</td>
           <td>${req.quantityChairs || 0}</td>
@@ -6567,20 +7958,22 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   const tabElementId = tabName === 'all' ? 'allRequestsTab' : `${tabName}Tab`;
   document.getElementById(tabElementId)?.classList.add('active');
 
-    // Show/hide view toggle and export based on tab. History does NOT support
-    // calendar view, so always force the table view when switching tabs. We
-    // call switchView('table') to ensure the view button active state and the
-    // table/calendar DOM sections are kept in sync.
+    // View toggle only visible on All Requests tab
     if (tabName === 'all') {
       document.getElementById('viewToggle').style.display = 'flex';
-      document.getElementById('exportDropdown').style.display = 'none';
+      // Export dropdown visibility will be controlled by switchView()
     } else {
+      // History and Archives tabs always show table view (no calendar)
       document.getElementById('viewToggle').style.display = 'none';
+      // Export dropdown visible on history/archives tabs (table view only)
       document.getElementById('exportDropdown').style.display = 'block';
     }
 
     // Update status filter options based on tab
     updateStatusFilterOptions();
+
+    // Update sort by options based on tab
+    updateSortByOptions();
 
     // Ensure we are showing the table view (history has no calendar). Use
     // switchView to update button active classes and the filters/calendar UI.
@@ -6593,22 +7986,113 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   function updateStatusFilterOptions() {
     const statusFilter = document.getElementById('statusFilter');
     if (!statusFilter) return;
+
+    // Calculate counts based on current tab
+    let counts = {};
+    if (currentTab === 'all') {
+      const activeRequests = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+      counts = {
+        all: activeRequests.length,
+        pending: activeRequests.filter(r => r.status === 'pending').length,
+        approved: activeRequests.filter(r => r.status === 'approved').length,
+        'in-progress': activeRequests.filter(r => r.status === 'in-progress').length
+      };
+    } else if (currentTab === 'history') {
+      const historyRequests = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+      counts = {
+        all: historyRequests.length,
+        completed: historyRequests.filter(r => r.status === 'completed').length,
+        rejected: historyRequests.filter(r => r.status === 'rejected').length,
+        cancelled: historyRequests.filter(r => r.status === 'cancelled').length
+      };
+    } else if (currentTab === 'archives') {
+      const archivedRequests = allRequests.filter(r => r.archived === true);
+      counts = {
+        all: archivedRequests.length,
+        completed: archivedRequests.filter(r => r.status === 'completed').length,
+        rejected: archivedRequests.filter(r => r.status === 'rejected').length,
+        cancelled: archivedRequests.filter(r => r.status === 'cancelled').length
+      };
+    }
+
+    // Store current selection
+    const currentValue = statusFilter.value;
+
     if (currentTab === 'all') {
       // All Requests: All, Pending, Approved, In Progress
       statusFilter.innerHTML = `
-        <option value="all">All Statuses</option>
-        <option value="pending">Pending</option>
-        <option value="approved">Approved</option>
-        <option value="in-progress">In Progress</option>
+        <option value="all">All Statuses (${counts.all})</option>
+        <option value="pending">Pending (${counts.pending})</option>
+        <option value="approved">Approved (${counts.approved})</option>
+        <option value="in-progress">In Progress (${counts['in-progress']})</option>
       `;
     } else if (currentTab === 'history' || currentTab === 'archives') {
       // History & Archives: All, Completed, Rejected, Cancelled
       statusFilter.innerHTML = `
-        <option value="all">All Statuses</option>
-        <option value="completed">Completed</option>
-        <option value="rejected">Rejected</option>
-        <option value="cancelled">Cancelled</option>
+        <option value="all">All Statuses (${counts.all})</option>
+        <option value="completed">Completed (${counts.completed})</option>
+        <option value="rejected">Rejected (${counts.rejected})</option>
+        <option value="cancelled">Cancelled (${counts.cancelled})</option>
       `;
+    }
+
+    // Restore selected value
+    statusFilter.value = currentValue;
+  }
+
+  /**
+   * Update sort by options based on current tab
+   */
+  function updateSortByOptions() {
+    const sortByFilter = document.getElementById('sortByFilter');
+    if (!sortByFilter) return;
+
+    // Store current selection to preserve it if possible
+    const currentValue = sortByFilter.value;
+
+    if (currentTab === 'all') {
+      // All Requests Tab: Show base sort options (no completed/archived dates)
+      sortByFilter.innerHTML = `
+        <option value="submitted-desc">Date Submitted (Newest First)</option>
+        <option value="submitted-asc">Date Submitted (Oldest First)</option>
+        <option value="event-desc">Event Date (Newest First)</option>
+        <option value="event-asc">Event Date (Oldest First)</option>
+        <option value="name-asc">Last Name (A-Z)</option>
+        <option value="name-desc">Last Name (Z-A)</option>
+      `;
+    } else if (currentTab === 'history') {
+      // History Tab: Add "Date Completed" options
+      sortByFilter.innerHTML = `
+        <option value="submitted-desc">Date Submitted (Newest First)</option>
+        <option value="submitted-asc">Date Submitted (Oldest First)</option>
+        <option value="event-desc">Event Date (Newest First)</option>
+        <option value="event-asc">Event Date (Oldest First)</option>
+        <option value="completed-desc">Date Completed (Newest First)</option>
+        <option value="completed-asc">Date Completed (Oldest First)</option>
+        <option value="name-asc">Last Name (A-Z)</option>
+        <option value="name-desc">Last Name (Z-A)</option>
+      `;
+    } else if (currentTab === 'archives') {
+      // Archives Tab: Add "Date Archived" options
+      sortByFilter.innerHTML = `
+        <option value="submitted-desc">Date Submitted (Newest First)</option>
+        <option value="submitted-asc">Date Submitted (Oldest First)</option>
+        <option value="event-desc">Event Date (Newest First)</option>
+        <option value="event-asc">Event Date (Oldest First)</option>
+        <option value="archived-desc">Date Archived (Newest First)</option>
+        <option value="archived-asc">Date Archived (Oldest First)</option>
+        <option value="name-asc">Last Name (A-Z)</option>
+        <option value="name-desc">Last Name (Z-A)</option>
+      `;
+    }
+
+    // Try to restore previous selection if it still exists in new options
+    const options = Array.from(sortByFilter.options).map(opt => opt.value);
+    if (options.includes(currentValue)) {
+      sortByFilter.value = currentValue;
+    } else {
+      // If previous selection not available, default to submitted-desc
+      sortByFilter.value = 'submitted-desc';
     }
   }
 
@@ -6625,10 +8109,14 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       document.getElementById('tableViewBtn')?.classList.add('active');
       document.getElementById('tableFilters').style.display = 'grid';
       document.getElementById('calendarButtons').style.display = 'none';
+      // Show export dropdown in table view
+      document.getElementById('exportDropdown').style.display = 'block';
     } else {
       document.getElementById('calendarViewBtn')?.classList.add('active');
       document.getElementById('tableFilters').style.display = 'none';
       document.getElementById('calendarButtons').style.display = 'flex';
+      // Hide export dropdown in calendar view
+      document.getElementById('exportDropdown').style.display = 'none';
     }
 
     // Re-render content
@@ -6640,7 +8128,306 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   // ========================================
 
   /**
-   * Export current filtered data to CSV
+   * Export to Excel with multiple sheets (All Requests, History, Archives)
+   */
+  function exportToExcel() {
+    console.log('📊 Exporting to Excel with multiple sheets...');
+    
+    // Check if XLSX library is loaded
+    if (typeof XLSX === 'undefined') {
+      console.error('❌ XLSX library not loaded');
+      showToast('Excel library not loaded. Please refresh the page and try again.', false);
+      return;
+    }
+    
+    try {
+      // Create a new workbook
+      const wb = XLSX.utils.book_new();
+      
+      // Sheet 1: All Requests (Active)
+      const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+      const allRequestsSheet = createExcelSheet(allRequestsData, 'all');
+      XLSX.utils.book_append_sheet(wb, allRequestsSheet, 'All Requests');
+      
+      // Sheet 2: History
+      const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+      const historySheet = createExcelSheet(historyData, 'history');
+      XLSX.utils.book_append_sheet(wb, historySheet, 'History');
+      
+      // Sheet 3: Archives
+      const archivesData = allRequests.filter(r => r.archived === true);
+      const archivesSheet = createExcelSheet(archivesData, 'archives');
+      XLSX.utils.book_append_sheet(wb, archivesSheet, 'Archives');
+      
+      // Generate filename with timestamp
+      const filename = `tents-chairs-requests-${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      // Write file
+      XLSX.writeFile(wb, filename);
+      
+      console.log('✅ Excel exported successfully');
+      showToast('Excel file exported successfully', true);
+    } catch (error) {
+      console.error('❌ Error exporting to Excel:', error);
+      showToast('Failed to export Excel file', false);
+    }
+  }
+
+  /**
+   * Create Excel sheet from requests data
+   * @param {Array} requests - Array of request objects
+   * @param {string} sheetType - Type of sheet: 'all', 'history', or 'archives'
+   */
+  function createExcelSheet(requests, sheetType) {
+    const data = [];
+    
+    // Headers vary based on sheet type
+    const headers = ['Submitted On', 'First Name', 'Last Name', 'Purpose', 'Start Date', 'End Date', 'Chairs', 'Tents', 'Delivery Mode', 'Address', 'Contact', 'Email', 'Status'];
+    
+    if (sheetType === 'history') {
+      headers.push('Remarks', 'Completed On');
+    } else if (sheetType === 'archives') {
+      headers.push('Remarks', 'Archived On');
+    }
+    // 'all' type has no extra columns
+    
+    data.push(headers);
+    
+    // Rows
+    requests.forEach(req => {
+      // Format submitted date with time
+      let submittedDateTime = 'N/A';
+      if (req.createdAt) {
+        const createdDate = req.createdAt.toDate();
+        submittedDateTime = createdDate.toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      
+      const nameParts = getNameParts(req);
+      const row = [
+        submittedDateTime,
+        nameParts.firstName,
+        nameParts.lastName,
+        req.purposeOfUse || req.purpose || '',
+        formatDateText(req.startDate),
+        formatDateText(req.endDate),
+        req.quantityChairs || 0,
+        req.quantityTents || 0,
+        req.modeOfReceiving || '',
+        req.completeAddress || '',
+        req.contactNumber || '',
+        req.userEmail || '',
+        req.status
+      ];
+      
+      if (sheetType === 'history') {
+        row.push(req.rejectionReason || req.remarks || '');
+        
+        // Completed On (for completed, rejected, cancelled)
+        let completedOn = '';
+        if (req.status === 'completed' && req.completedAt) {
+          completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'rejected' && req.rejectedAt) {
+          completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'cancelled' && req.cancelledAt) {
+          completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        row.push(completedOn);
+      } else if (sheetType === 'archives') {
+        row.push(req.rejectionReason || req.remarks || '');
+        
+        // Archived On
+        let archivedOn = '';
+        if (req.archivedAt) {
+          archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        row.push(archivedOn);
+      }
+      
+      data.push(row);
+    });
+    
+    return XLSX.utils.aoa_to_sheet(data);
+  }
+
+  /**
+   * Export to CSV (All Requests in sections)
+   */
+  function exportToCSVAll() {
+    console.log('💾 Exporting all data to CSV with sections...');
+    
+    let csv = '';
+    
+    // Section 1: All Requests (Active)
+    csv += '=== ALL REQUESTS (ACTIVE) ===\n';
+    const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+    csv += buildCSVSection(allRequestsData, 'all');
+    csv += '\n\n';
+    
+    // Section 2: History
+    csv += '=== HISTORY ===\n';
+    const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+    csv += buildCSVSection(historyData, 'history');
+    csv += '\n\n';
+    
+    // Section 3: Archives
+    csv += '=== ARCHIVES ===\n';
+    const archivesData = allRequests.filter(r => r.archived === true);
+    csv += buildCSVSection(archivesData, 'archives');
+    
+    downloadCSV(csv, `tents-chairs-all-requests-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('CSV exported successfully (All Data)', true);
+  }
+
+  /**
+   * Export History Only to CSV
+   */
+  function exportToCSVHistory() {
+    console.log('💾 Exporting history to CSV...');
+    
+    const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+    
+    if (historyData.length === 0) {
+      showToast('No history data to export', false);
+      return;
+    }
+    
+    const csv = buildCSVSection(historyData, 'history');
+    downloadCSV(csv, `tents-chairs-history-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('CSV exported successfully (History)', true);
+  }
+
+  /**
+   * Export Archives Only to CSV
+   */
+  function exportToCSVArchives() {
+    console.log('💾 Exporting archives to CSV...');
+    
+    const archivesData = allRequests.filter(r => r.archived === true);
+    
+    if (archivesData.length === 0) {
+      showToast('No archives data to export', false);
+      return;
+    }
+    
+    const csv = buildCSVSection(archivesData, 'archives');
+    downloadCSV(csv, `tents-chairs-archives-${new Date().toISOString().split('T')[0]}.csv`);
+    showToast('CSV exported successfully (Archives)', true);
+  }
+
+  /**
+   * Build CSV section from requests data
+   * @param {Array} requests - Array of request objects
+   * @param {string} sheetType - Type of section: 'all', 'history', or 'archives'
+   */
+  function buildCSVSection(requests, sheetType) {
+    let csv = '';
+    
+    // Headers vary based on sheet type
+    csv += 'Submitted On,First Name,Last Name,Purpose,Start Date,End Date,Chairs,Tents,Delivery Mode,Address,Contact,Email,Status';
+    if (sheetType === 'history') {
+      csv += ',Remarks,Completed On';
+    } else if (sheetType === 'archives') {
+      csv += ',Remarks,Archived On';
+    }
+    // 'all' type has no extra columns
+    csv += '\n';
+    
+    // Rows
+    requests.forEach(req => {
+      // Format submitted date with time
+      let submittedDateTime = 'N/A';
+      if (req.createdAt) {
+        const createdDate = req.createdAt.toDate();
+        submittedDateTime = createdDate.toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      
+      const nameParts = getNameParts(req);
+      const startDate = formatDateText(req.startDate);
+      const endDate = formatDateText(req.endDate);
+      const remarkRaw = (req.rejectionReason || req.remarks || '');
+      const remarkEsc = remarkRaw.replace(/"/g, '""');
+      const purposeEsc = (req.purposeOfUse || req.purpose || '').replace(/"/g, '""');
+      
+      csv += `"${submittedDateTime}","${nameParts.firstName}","${nameParts.lastName}","${purposeEsc}","${startDate}","${endDate}",${req.quantityChairs || 0},${req.quantityTents || 0},"${req.modeOfReceiving || ''}","${req.completeAddress || ''}","${req.contactNumber || ''}","${req.userEmail || ''}","${req.status}"`;
+      
+      if (sheetType === 'history') {
+        csv += `,"${remarkEsc}"`;
+        
+        // Completed On (for completed, rejected, cancelled)
+        let completedOn = '';
+        if (req.status === 'completed' && req.completedAt) {
+          completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'rejected' && req.rejectedAt) {
+          completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        } else if (req.status === 'cancelled' && req.cancelledAt) {
+          completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        csv += `,"${completedOn}"`;
+      } else if (sheetType === 'archives') {
+        csv += `,"${remarkEsc}"`;
+        
+        // Archived On
+        let archivedOn = '';
+        if (req.archivedAt) {
+          archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          });
+        }
+        csv += `,"${archivedOn}"`;
+      }
+      
+      csv += '\n';
+    });
+    
+    return csv;
+  }
+
+  /**
+   * Download CSV file
+   */
+  function downloadCSV(csvContent, filename) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Legacy export function (kept for compatibility)
+   * @deprecated Use exportToCSVAll, exportToCSVHistory, or exportToCSVArchives instead
    */
   function exportToCSV() {
     console.log('💾 Exporting to CSV...');
@@ -6651,25 +8438,74 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       return;
     }
 
-  // CSV headers
-  let csv = 'Submitted On,First Name,Last Name,Start Date,End Date,Chairs,Tents,Delivery Mode,Address,Contact,Email,Status';
-  // Include Remarks column for history/archives
-  if (currentTab === 'history' || currentTab === 'archives') csv += ',Remarks';
+  // CSV headers vary based on current tab
+  let csv = 'Submitted On,First Name,Last Name,Purpose,Start Date,End Date,Chairs,Tents,Delivery Mode,Address,Contact,Email,Status';
+  if (currentTab === 'history') {
+    csv += ',Remarks,Completed On';
+  } else if (currentTab === 'archives') {
+    csv += ',Remarks,Archived On';
+  }
+  // 'all' tab has no extra columns
   csv += '\n';
 
     // CSV rows
     requests.forEach(req => {
-      const submittedDate = req.createdAt ? req.createdAt.toDate().toLocaleDateString() : 'N/A';
-      const firstName = getFirstName(req.fullName);
-      const lastName = getLastName(req.fullName);
+      // Format submitted date with time
+      let submittedDateTime = 'N/A';
+      if (req.createdAt) {
+        const createdDate = req.createdAt.toDate();
+        submittedDateTime = createdDate.toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      
+      const nameParts = getNameParts(req);
       const startDate = formatDateText(req.startDate);
       const endDate = formatDateText(req.endDate);
 
-  // Escape double quotes in remarks for CSV
+  // Escape double quotes in remarks and purpose for CSV
   const remarkRaw = (req.rejectionReason || req.remarks || '');
   const remarkEsc = remarkRaw.replace(/"/g, '""');
-  csv += `"${submittedDate}","${firstName}","${lastName}","${startDate}","${endDate}",${req.quantityChairs || 0},${req.quantityTents || 0},"${req.modeOfReceiving || ''}","${req.completeAddress || ''}","${req.contactNumber || ''}","${req.userEmail || ''}","${req.status}"`;
-  if (currentTab === 'history' || currentTab === 'archives') csv += `,"${remarkEsc}"`;
+  const purposeEsc = (req.purposeOfUse || req.purpose || '').replace(/"/g, '""');
+  csv += `"${submittedDateTime}","${nameParts.firstName}","${nameParts.lastName}","${purposeEsc}","${startDate}","${endDate}",${req.quantityChairs || 0},${req.quantityTents || 0},"${req.modeOfReceiving || ''}","${req.completeAddress || ''}","${req.contactNumber || ''}","${req.userEmail || ''}","${req.status}"`;
+  
+  if (currentTab === 'history') {
+    csv += `,"${remarkEsc}"`;
+    
+    // Completed On (for completed, rejected, cancelled)
+    let completedOn = '';
+    if (req.status === 'completed' && req.completedAt) {
+      completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
+        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+      });
+    } else if (req.status === 'rejected' && req.rejectedAt) {
+      completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
+        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+      });
+    } else if (req.status === 'cancelled' && req.cancelledAt) {
+      completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
+        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+      });
+    }
+    csv += `,"${completedOn}"`;
+  } else if (currentTab === 'archives') {
+    csv += `,"${remarkEsc}"`;
+    
+    // Archived On
+    let archivedOn = '';
+    if (req.archivedAt) {
+      archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
+        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+      });
+    }
+    csv += `,"${archivedOn}"`;
+  }
+  
   csv += '\n';
     });
 
@@ -6700,9 +8536,29 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Handle export button click
    */
   function exportData(format) {
-    if (format === 'csv') {
-      exportToCSV();
+    console.log('📤 Export format selected:', format);
+    
+    switch(format) {
+      case 'excel-all':
+        exportToExcel();
+        break;
+      case 'csv-all':
+        exportToCSVAll();
+        break;
+      case 'csv-history':
+        exportToCSVHistory();
+        break;
+      case 'csv-archives':
+        exportToCSVArchives();
+        break;
+      case 'csv':
+        // Legacy support
+        exportToCSV();
+        break;
+      default:
+        console.warn('Unknown export format:', format);
     }
+    
     // Close dropdown
     document.getElementById('exportMenu')?.classList.remove('active');
   }
@@ -6970,15 +8826,23 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           throw new Error('No authenticated user');
         }
         
+        // Split contact person name into first and last name
+        const nameParts = contactPerson.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || ''; // Join remaining parts as last name
+        
         // Create booking
         const bookingData = {
           startDate: startDate,
           endDate: endDate,
           quantityTents: tents,
           quantityChairs: chairs,
-          purpose: sanitizeInput(purpose),
+          purposeOfUse: sanitizeInput(purpose), // Use purposeOfUse to match other requests
+          purpose: sanitizeInput(purpose), // Also keep purpose for consistency
           completeAddress: sanitizeInput(location),
-          fullName: sanitizeInput(contactPerson),
+          firstName: sanitizeInput(firstName),
+          lastName: sanitizeInput(lastName),
+          fullName: sanitizeInput(contactPerson), // Keep fullName for backwards compatibility
           contactNumber: contactNumber,
           modeOfReceiving: 'Internal',
           status: 'approved',
@@ -7051,53 +8915,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   // ========================================
 
   /**
-   * Setup sidebar dropdown toggles
-   */
-  function setupSidebarDropdowns() {
-    const reviewRequestsToggle = document.getElementById('reviewRequestsToggle');
-
-    if (reviewRequestsToggle) {
-      reviewRequestsToggle.addEventListener('click', function(e) {
-        e.preventDefault();
-        const dropdown = this.nextElementSibling;
-        dropdown.classList.toggle('open');
-        this.classList.toggle('open');
-      });
-    }
-  }
-
-  /**
-   * Setup mobile menu toggle
-   */
-  function setupMobileMenu() {
-    const menuToggle = document.getElementById('mobileMenuToggle');
-    const sidebar = document.querySelector('.admin-sidebar');
-
-    if (menuToggle && sidebar) {
-      menuToggle.addEventListener('click', function() {
-        sidebar.classList.toggle('open');
-      });
-
-      // Close sidebar when clicking outside on mobile
-      document.addEventListener('click', function(e) {
-        if (window.innerWidth <= 768) {
-          if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
-            sidebar.classList.remove('open');
-          }
-        }
-      });
-    }
-  }
-
-  /**
    * Initialize the page
    */
   async function initPage() {
     console.log('🚀 Initializing Tents & Chairs Admin page...');
-    
-    // Setup sidebar dropdowns and mobile menu
-    setupSidebarDropdowns();
-    setupMobileMenu();
     
     // Check authentication
     onAuthStateChanged(auth, async (user) => {
@@ -7111,6 +8932,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
 
       // Setup event listeners
       setupEventListeners();
+
+      // Initialize filter options based on current tab
+      updateStatusFilterOptions();
+      updateSortByOptions();
 
       // Load data
       await loadInventoryStats();
@@ -7132,17 +8957,20 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
 ===================================================== */
 
 /* =====================================================
-   ADMIN MANAGE INVENTORY PAGE
+   INVENTORY MANAGER - ADMIN-MANAGE-INVENTORY.HTML ONLY
+   This code only runs on admin-manage-inventory.html to prevent errors on other pages
 ===================================================== */
 if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.location.pathname.endsWith('/admin-manage-inventory')) {
+  console.log('📦 Inventory Manager loaded');
   
-// ===== Inventory Manager with Real-Time Firestore Sync =====
-// --- DOM Elements ---
-const editBtn = document.getElementById("editInventory");
-const saveBtn = document.getElementById("saveInventory");
-const confirmModal = document.getElementById("saveConfirmModal");
-const confirmYes = document.getElementById("confirmSaveYes");
-const confirmNo = document.getElementById("confirmSaveNo");
+  // ===== Inventory Manager with Real-Time Firestore Sync =====
+  // --- DOM Elements ---
+  const editBtn = document.getElementById("editInventory");
+  const saveBtn = document.getElementById("saveInventory");
+  const cancelBtn = document.getElementById("cancelInventory");
+  const confirmModal = document.getElementById("saveConfirmModal");
+  const confirmYes = document.getElementById("confirmSaveYes");
+  const confirmNo = document.getElementById("confirmSaveNo");
 
 const fields = {
   tents: {
@@ -7215,14 +9043,54 @@ async function initializeInventory() {
 }
 
 // --- Enable Editing ---
-editBtn.addEventListener("click", () => {
-  Object.values(fields).forEach(item => {
-    item.total.disabled = false;
-    item.inuse.disabled = false;
+if (editBtn) {
+  editBtn.addEventListener("click", () => {
+    Object.values(fields).forEach(item => {
+      if (item && item.total) item.total.disabled = false;
+      if (item && item.inuse) item.inuse.disabled = false;
+    });
+    if (saveBtn) saveBtn.disabled = false;
+    if (cancelBtn) cancelBtn.style.display = 'inline-block'; // Show cancel button
+    editBtn.disabled = true;
   });
-  saveBtn.disabled = false;
-  editBtn.disabled = true;
-});
+}
+
+// --- Cancel Editing ---
+if (cancelBtn) {
+  cancelBtn.addEventListener("click", () => {
+    // Restore original values
+    fields.tents.total.value = originalValues.tents.total;
+    fields.tents.inuse.value = originalValues.tents.inuse;
+    fields.tents.available.value = originalValues.tents.total - originalValues.tents.inuse;
+    
+    fields.chairs.total.value = originalValues.chairs.total;
+    fields.chairs.inuse.value = originalValues.chairs.inuse;
+    fields.chairs.available.value = originalValues.chairs.total - originalValues.chairs.inuse;
+    
+    // Disable all fields
+    Object.values(fields).forEach(item => {
+      if (item && item.total) item.total.disabled = true;
+      if (item && item.inuse) item.inuse.disabled = true;
+    });
+    
+    // Clear any error messages
+    ['tents', 'chairs'].forEach(itemType => {
+      const errorElement = document.getElementById(`${itemType}-error`);
+      if (errorElement) {
+        errorElement.textContent = '';
+      }
+      if (fields[itemType]) {
+        if (fields[itemType].available) fields[itemType].available.style.color = '';
+        if (fields[itemType].inuse) fields[itemType].inuse.style.borderColor = '';
+      }
+    });
+    
+    // Reset buttons
+    if (saveBtn) saveBtn.disabled = true;
+    if (editBtn) editBtn.disabled = false;
+    if (cancelBtn) cancelBtn.style.display = 'none'; // Hide cancel button
+  });
+}
 
 // --- Auto Update Available Values ---
 function updateAvailable(itemType) {
@@ -7279,16 +9147,25 @@ function updateAvailable(itemType) {
   }
 }
 
-// Add input listeners for tents and chairs in-use fields
-fields.tents.inuse.addEventListener("input", () => updateAvailable("tents"));
-fields.chairs.inuse.addEventListener("input", () => updateAvailable("chairs"));
+// Add input listeners for tents and chairs in-use fields (guarded)
+if (fields.tents && fields.tents.inuse) {
+  fields.tents.inuse.addEventListener("input", () => updateAvailable("tents"));
+}
+if (fields.chairs && fields.chairs.inuse) {
+  fields.chairs.inuse.addEventListener("input", () => updateAvailable("chairs"));
+}
 
-// Add input listeners for total fields as well to keep available updated
-fields.tents.total.addEventListener("input", () => updateAvailable("tents"));
-fields.chairs.total.addEventListener("input", () => updateAvailable("chairs"));
+// Add input listeners for total fields as well to keep available updated (guarded)
+if (fields.tents && fields.tents.total) {
+  fields.tents.total.addEventListener("input", () => updateAvailable("tents"));
+}
+if (fields.chairs && fields.chairs.total) {
+  fields.chairs.total.addEventListener("input", () => updateAvailable("chairs"));
+}
 
 // --- Save Changes (Modal Confirmation) ---
-saveBtn.addEventListener("click", () => {
+if (saveBtn) {
+  saveBtn.addEventListener("click", () => {
   // Get current and new values
   const tentsTotal = Number(fields.tents.total.value);
   const tentsInuse = Number(fields.tents.inuse.value);
@@ -7302,6 +9179,27 @@ saveBtn.addEventListener("click", () => {
     chairsTotal !== originalValues.chairs.total ||
     chairsInuse !== originalValues.chairs.inuse;
 
+  // If no changes, show message below buttons instead of modal
+  if (!hasChanges) {
+    const noChangesMsg = document.getElementById('noChangesMessage');
+    if (noChangesMsg) {
+      noChangesMsg.textContent = 'No changes made with the inventory.';
+      noChangesMsg.style.display = 'block';
+      
+      // Hide message after 3 seconds
+      setTimeout(() => {
+        noChangesMsg.style.display = 'none';
+      }, 3000);
+    }
+    return;
+  }
+
+  // Clear any previous "no changes" message
+  const noChangesMsg = document.getElementById('noChangesMessage');
+  if (noChangesMsg) {
+    noChangesMsg.style.display = 'none';
+  }
+
   // Get or create confirmation message element
   let confirmMessage = document.querySelector('.confirm-message');
   if (!confirmMessage) {
@@ -7313,109 +9211,104 @@ saveBtn.addEventListener("click", () => {
   }
   
   // Style the confirmation message
-  confirmMessage.style.padding = '30px 20px';
+  confirmMessage.style.padding = '20px';
   confirmMessage.style.maxHeight = '80vh';
   confirmMessage.style.overflowY = 'auto';
   confirmMessage.style.display = 'flex';
   confirmMessage.style.flexDirection = 'column';
   confirmMessage.style.alignItems = 'center';
-  confirmMessage.style.justifyContent = 'center';
-  confirmMessage.style.minHeight = '300px';
+  confirmMessage.style.justifyContent = 'flex-start';
+  confirmMessage.style.paddingBottom = '20px';
   
-  if (!hasChanges) {
-    // Show no changes message
-    confirmMessage.innerHTML = `
-      <div style="text-align: center; padding: 40px;">
-        <h3 style="margin: 0 0 20px 0; color: #1a237e; font-size: 24px; font-weight: 600;">No Changes Detected</h3>
-        <p style="color: #666; font-size: 16px; margin: 0;">No modifications have been made to the inventory values.</p>
-        <p style="color: #666; font-size: 16px; margin: 10px 0 0 0;">Edit the values first before saving.</p>
-      </div>
-    `;
-    // Disable the Yes button
-    confirmYes.disabled = true;
-    confirmYes.style.opacity = '0.5';
-    confirmYes.style.cursor = 'not-allowed';
-    return;
-  }
-
-  // Reset Yes button state if there are changes
-  confirmYes.disabled = false;
-  confirmYes.style.opacity = '';
-  confirmYes.style.cursor = '';
-  
+  // Fancy two-column design
   confirmMessage.innerHTML = `
-    <h3 style="margin: 0 0 30px 0; color: #1a237e; font-size: 28px; text-align: center; font-weight: 600; text-transform: uppercase;">Review Your Changes</h3>
-    <div class="changes-list" style="display: flex; gap: 30px; justify-content: center; width: 100%; max-width: 700px;">
-      <div class="change-section" style="background: #f5f5f5; padding: 24px; border-radius: 8px; flex: 1; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
-        <h4 style="margin: 0 0 20px 0; color: #303f9f; font-size: 22px; text-align: center;">Tents</h4>
-        <div style="display: grid; gap: 12px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 18px;">Total:</span>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 18px;">${originalValues.tents.total}</span>
-              <span style="color: #666; font-size: 20px;">→</span>
-              <strong style="color: ${tentsTotal !== originalValues.tents.total ? (tentsTotal > originalValues.tents.total ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsTotal}</strong>
-            </div>
+    <h3 style="color: #3949AB; font-size: 20px; font-weight: 700; margin: 0 0 30px 0; text-align: center;">REVIEW YOUR CHANGES</h3>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; max-width: 700px;">
+      <!-- Tents Column -->
+      <div style="background: #f5f5f5; padding: 25px; border-radius: 12px;">
+        <h4 style="color: #3949AB; font-size: 18px; font-weight: 600; margin: 0 0 20px 0; text-align: center;">Tents</h4>
+        
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 14px; font-weight: 500; color: #666; margin-bottom: 8px;">Total:</div>
+          <div style="text-align: center; font-size: 18px;">
+            <span style="color: #999;">${originalValues.tents.total}</span>
+            <span style="margin: 0 8px; color: #666;">→</span>
+            <span style="font-weight: 700; color: ${tentsTotal > originalValues.tents.total ? '#4CAF50' : tentsTotal < originalValues.tents.total ? '#f44336' : '#666'};">${tentsTotal}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 18px;">In Use:</span>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 18px;">${originalValues.tents.inuse}</span>
-              <span style="color: #666; font-size: 20px;">→</span>
-              <strong style="color: ${tentsInuse !== originalValues.tents.inuse ? (tentsInuse > originalValues.tents.inuse ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsInuse}</strong>
-            </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 14px; font-weight: 500; color: #666; margin-bottom: 8px;">In Use:</div>
+          <div style="text-align: center; font-size: 18px;">
+            <span style="color: #999;">${originalValues.tents.inuse}</span>
+            <span style="margin: 0 8px; color: #666;">→</span>
+            <span style="font-weight: 700; color: ${tentsInuse > originalValues.tents.inuse ? '#4CAF50' : tentsInuse < originalValues.tents.inuse ? '#f44336' : '#666'};">${tentsInuse}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e0e0e0; padding-top: 16px; margin-top: 8px;">
-            <span style="font-weight: 600; font-size: 18px;">Available:</span>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 18px;">${originalValues.tents.total - originalValues.tents.inuse}</span>
-              <span style="color: #666; font-size: 20px;">→</span>
-              <strong style="color: ${(tentsTotal - tentsInuse) !== (originalValues.tents.total - originalValues.tents.inuse) ? ((tentsTotal - tentsInuse) > (originalValues.tents.total - originalValues.tents.inuse) ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${tentsTotal - tentsInuse}</strong>
-            </div>
+        </div>
+        
+        <div>
+          <div style="font-size: 14px; font-weight: 500; color: #666; margin-bottom: 8px;">Available:</div>
+          <div style="text-align: center; font-size: 18px;">
+            <span style="color: #999;">${originalValues.tents.total - originalValues.tents.inuse}</span>
+            <span style="margin: 0 8px; color: #666;">→</span>
+            <span style="font-weight: 700; color: ${(tentsTotal - tentsInuse) > (originalValues.tents.total - originalValues.tents.inuse) ? '#4CAF50' : (tentsTotal - tentsInuse) < (originalValues.tents.total - originalValues.tents.inuse) ? '#f44336' : '#666'};">${tentsTotal - tentsInuse}</span>
           </div>
         </div>
       </div>
-      <div class="change-section" style="background: #f5f5f5; padding: 20px; border-radius: 8px; flex: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <h4 style="margin: 0 0 20px 0; color: #303f9f; font-size: 22px; text-align: center;">Chairs</h4>
-        <div style="display: grid; gap: 12px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 18px;">Total:</span>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 18px;">${originalValues.chairs.total}</span>
-              <span style="color: #666; font-size: 20px;">→</span>
-              <strong style="color: ${chairsTotal !== originalValues.chairs.total ? (chairsTotal > originalValues.chairs.total ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${chairsTotal}</strong>
-            </div>
+      
+      <!-- Chairs Column -->
+      <div style="background: #f5f5f5; padding: 25px; border-radius: 12px;">
+        <h4 style="color: #3949AB; font-size: 18px; font-weight: 600; margin: 0 0 20px 0; text-align: center;">Chairs</h4>
+        
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 14px; font-weight: 500; color: #666; margin-bottom: 8px;">Total:</div>
+          <div style="text-align: center; font-size: 18px;">
+            <span style="color: #999;">${originalValues.chairs.total}</span>
+            <span style="margin: 0 8px; color: #666;">→</span>
+            <span style="font-weight: 700; color: ${chairsTotal > originalValues.chairs.total ? '#4CAF50' : chairsTotal < originalValues.chairs.total ? '#f44336' : '#666'};">${chairsTotal}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 18px;">In Use:</span>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 18px;">${originalValues.chairs.inuse}</span>
-              <span style="color: #666; font-size: 20px;">→</span>
-              <strong style="color: ${chairsInuse !== originalValues.chairs.inuse ? (chairsInuse > originalValues.chairs.inuse ? '#4caf50' : '#f44336') : '#1a237e'}; font-size: 20px;">${chairsInuse}</strong>
-            </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 14px; font-weight: 500; color: #666; margin-bottom: 8px;">In Use:</div>
+          <div style="text-align: center; font-size: 18px;">
+            <span style="color: #999;">${originalValues.chairs.inuse}</span>
+            <span style="margin: 0 8px; color: #666;">→</span>
+            <span style="font-weight: 700; color: ${chairsInuse > originalValues.chairs.inuse ? '#4CAF50' : chairsInuse < originalValues.chairs.inuse ? '#f44336' : '#666'};">${chairsInuse}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e0e0e0; padding-top: 16px; margin-top: 8px;">
-            <span style="font-weight: 600; font-size: 18px;">Available:</span>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span>${originalValues.chairs.total - originalValues.chairs.inuse}</span>
-              <span style="color: #666;">→</span>
-              <strong style="color: ${(chairsTotal - chairsInuse) > (originalValues.chairs.total - originalValues.chairs.inuse) ? '#4caf50' : '#f44336'}">${chairsTotal - chairsInuse}</strong>
-            </div>
+        </div>
+        
+        <div>
+          <div style="font-size: 14px; font-weight: 500; color: #666; margin-bottom: 8px;">Available:</div>
+          <div style="text-align: center; font-size: 18px;">
+            <span style="color: #999;">${originalValues.chairs.total - originalValues.chairs.inuse}</span>
+            <span style="margin: 0 8px; color: #666;">→</span>
+            <span style="font-weight: 700; color: ${(chairsTotal - chairsInuse) > (originalValues.chairs.total - originalValues.chairs.inuse) ? '#4CAF50' : (chairsTotal - chairsInuse) < (originalValues.chairs.total - originalValues.chairs.inuse) ? '#f44336' : '#666'};">${chairsTotal - chairsInuse}</span>
           </div>
         </div>
       </div>
     </div>
+    
+    <p style="text-align: center; color: #666; font-size: 14px; margin-top: 25px; margin-bottom: 0;">
+      <span style="color: #4CAF50; font-weight: 600;">Green</span> numbers indicate increases, 
+      <span style="color: #f44336; font-weight: 600;">red</span> numbers indicate decreases
+    </p>
   `;
   
   confirmModal.style.display = "flex";
-});
+  });
+}
 
-confirmNo.addEventListener("click", () => {
-  confirmModal.style.display = "none";
-});
+if (confirmNo) {
+  confirmNo.addEventListener("click", () => {
+    confirmModal.style.display = "none";
+  });
+}
 
 // --- Confirm and Save ---
-confirmYes.addEventListener("click", async () => {
+if (confirmYes) {
+  confirmYes.addEventListener("click", async () => {
   const inventoryRef = doc(db, "inventory", "equipment");
 
   const tentsTotal = Number(fields.tents.total.value);
@@ -7436,88 +9329,33 @@ confirmYes.addEventListener("click", async () => {
     confirmModal.style.display = "none";
     saveBtn.disabled = true;
     editBtn.disabled = false;
+    if (cancelBtn) cancelBtn.style.display = 'none'; // Hide cancel button after save
 
     Object.values(fields).forEach(item => {
       item.total.disabled = true;
       item.inuse.disabled = true;
     });
 
-    // Show success message
-    const successToast = document.createElement('div');
-    successToast.className = 'success-toast';
-    successToast.innerHTML = `
-      <div class="success-icon"></div>
-      <div class="success-message">
-        <h4>Changes Saved Successfully!</h4>
-        <p>Inventory has been updated.</p>
-      </div>
-    `;
-    document.body.appendChild(successToast);
-
-    // Add styles for the success toast
-    successToast.style.position = 'fixed';
-    successToast.style.top = '20px';
-    successToast.style.right = '20px';
-    successToast.style.background = '#4CAF50';
-    successToast.style.color = 'white';
-    successToast.style.padding = '15px 25px';
-    successToast.style.borderRadius = '4px';
-    successToast.style.display = 'flex';
-    successToast.style.alignItems = 'center';
-    successToast.style.gap = '10px';
-    successToast.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-    successToast.style.zIndex = '1000';
-    
-    // Remove the toast after 3 seconds
-    setTimeout(() => {
-      successToast.style.opacity = '0';
-      successToast.style.transition = 'opacity 0.5s ease';
-      setTimeout(() => document.body.removeChild(successToast), 500);
-    }, 3000);
+    // Show success message using the global showToast function
+    showToast('Changes Saved Successfully!', true);
 
     console.log("Inventory updated successfully:", updatedData);
   } catch (error) {
-    // Show error message if save fails
-    const errorToast = document.createElement('div');
-    errorToast.className = 'error-toast';
-    errorToast.innerHTML = `
-      <div class="error-icon">✕</div>
-      <div class="error-message">
-        <h4>Error Saving Changes</h4>
-        <p>${error.message}</p>
-      </div>
-    `;
-    document.body.appendChild(errorToast);
-    
-    // Style the error toast similarly but in red
-    errorToast.style.position = 'fixed';
-    errorToast.style.top = '20px';
-    errorToast.style.right = '20px';
-    errorToast.style.background = '#f44336';
-    errorToast.style.color = 'white';
-    errorToast.style.padding = '15px 25px';
-    errorToast.style.borderRadius = '4px';
-    errorToast.style.display = 'flex';
-    errorToast.style.alignItems = 'center';
-    errorToast.style.gap = '10px';
-    errorToast.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-    errorToast.style.zIndex = '1000';
-    
-    // Remove the error toast after 5 seconds
-    setTimeout(() => {
-      errorToast.style.opacity = '0';
-      errorToast.style.transition = 'opacity 0.5s ease';
-      setTimeout(() => document.body.removeChild(errorToast), 500);
-    }, 5000);
+    // Show error message using the global showToast function
+    showToast(`Error saving changes: ${error.message}`, false);
 
     console.error("Error updating inventory:", error);
   }
-});
+  });
+}
 
   // --- Start ---
   loadInventoryRealtime();
+}
 
-} // End of admin-manage-inventory.html conditional
+/* =====================================================
+   END OF INVENTORY MANAGER
+===================================================== */
 
 /* ========================================================================================================
    🏛️ CONFERENCE ROOM ADMIN MANAGEMENT SYSTEM
@@ -9703,13 +11541,11 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     if (reviewRequestsToggle) {
       reviewRequestsToggle.addEventListener('click', function(e) {
         e.preventDefault();
-        // Get the parent .sidebar-dropdown container
-        const parentDropdown = this.closest('.sidebar-dropdown');
-        if (parentDropdown) {
-          parentDropdown.classList.toggle('open');
+        const dropdown = document.getElementById('reviewRequestsDropdown');
+        if (dropdown) {
+          dropdown.classList.toggle('open');
+          this.classList.toggle('open');
         }
-        // Toggle arrow rotation on the toggle button
-        this.classList.toggle('open');
       });
     }
   }
@@ -9723,15 +11559,13 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
 
     if (menuToggle && sidebar) {
       menuToggle.addEventListener('click', function() {
-        sidebar.classList.toggle('open');
+        sidebar.classList.toggle('active');
       });
 
       // Close sidebar when clicking outside on mobile
       document.addEventListener('click', function(e) {
-        if (window.innerWidth <= 768) {
-          if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
-            sidebar.classList.remove('open');
-          }
+        if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+          sidebar.classList.remove('active');
         }
       });
     }
