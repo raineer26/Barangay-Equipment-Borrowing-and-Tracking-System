@@ -258,18 +258,6 @@ function clearError(element) {
   element.previousElementSibling.style.border = "";
 }
 
-// Function to check if email exists
-async function checkEmailExists(email) {
-  try {
-    const methods = await fetchSignInMethodsForEmail(auth, email);
-    return methods.length > 0;
-  } catch (error) {
-    console.error("Error checking email:", error);
-    // Don't return false on error, let the login attempt proceed
-    return true;
-  }
-}
-
 loginForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("login-email").value.trim();
@@ -346,28 +334,32 @@ loginForm?.addEventListener("submit", async (e) => {
 
     switch(error.code) {
       case "auth/user-not-found":
-        setError(errorLoginEmail, "Account not found. Please check your email or sign up.");
+        setError(errorLoginEmail, "No account found with this email. Please check your email or sign up.");
         break;
       case "auth/wrong-password":
-      case "auth/invalid-credential":  // Firebase 9+ uses this for wrong password
         setError(errorLoginPassword, "Incorrect password. Please try again.");
+        break;
+      case "auth/invalid-credential":  
+        // Firebase 9+ uses this for both wrong email and wrong password (security feature)
+        // Show a generic message that covers both cases
+        setError(errorLoginEmail, "Invalid email or password. Please check your credentials.");
         break;
       case "auth/invalid-email":
         setError(errorLoginEmail, "Invalid email format.");
         break;
       case "auth/too-many-requests":
-        setError(errorLoginPassword, "Too many failed attempts. Please try again later.");
+        setError(errorLoginEmail, "Too many failed login attempts. Please try again later or reset your password.");
         break;
       case "auth/network-request-failed":
-        setError(errorLoginEmail, "Network error. Please check your connection.");
+        setError(errorLoginEmail, "Network error. Please check your internet connection.");
         break;
       case "auth/user-disabled":
-        setError(errorLoginEmail, "This account has been disabled. Please contact support.");
+        setError(errorLoginEmail, "This account has been disabled. Please contact the administrator.");
         break;
       default:
         // Log the exact error for debugging
         console.error('Unhandled Firebase error:', error);
-        setError(errorLoginEmail, "Login failed. Please try again.");
+        setError(errorLoginEmail, "Login failed. Please check your credentials and try again.");
     }
   }
 });
@@ -8136,10 +8128,15 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
         }
         
         // Pre-fill edit form
-        document.getElementById('adminEditFirstName').value = firstName;
-        document.getElementById('adminEditLastName').value = lastName;
-        document.getElementById('adminEditEmail').value = email;
-        document.getElementById('adminEditContactNumber').value = userData.contactNumber || userData.contact || '';
+        const firstNameInput = document.getElementById('adminEditFirstName');
+        const lastNameInput = document.getElementById('adminEditLastName');
+        const emailInput = document.getElementById('adminEditEmail');
+        const contactInput = document.getElementById('adminEditContactNumber');
+        
+        if (firstNameInput) firstNameInput.value = firstName;
+        if (lastNameInput) lastNameInput.value = lastName;
+        if (emailInput) emailInput.value = email;
+        if (contactInput) contactInput.value = userData.contactNumber || userData.contact || '';
         
         console.log('✅ Admin profile loaded successfully:', {
           fullName,
@@ -8545,8 +8542,15 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
   document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Admin User Manager page loaded');
     
-    // Load admin profile when page loads
-    loadAdminProfile();
+    // Wait for authentication before loading admin profile
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log('✅ User authenticated, loading admin profile...');
+        loadAdminProfile();
+      } else {
+        console.log('⚠️ No authenticated user');
+      }
+    });
     
     // Load total users count (real-time)
     loadTotalUsersCount();
@@ -8560,7 +8564,9 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     // Admin Edit Profile button
     const adminEditProfileBtn = document.getElementById('adminEditProfileBtn');
     if (adminEditProfileBtn) {
-      adminEditProfileBtn.addEventListener('click', () => {
+      adminEditProfileBtn.addEventListener('click', async () => {
+        // Reload profile data to ensure form is populated with latest data
+        await loadAdminProfile();
         const modal = document.getElementById('adminEditProfileModal');
         if (modal) modal.style.display = 'flex';
       });
