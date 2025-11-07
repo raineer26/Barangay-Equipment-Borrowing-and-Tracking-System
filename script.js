@@ -209,10 +209,29 @@ window.addEventListener('pageshow', (event) => {
   if (path.endsWith('index.html') || path === '/' || path === '') {
     // If auth.currentUser is falsy, clear fields to avoid restored values from previous sessions
     if (!auth.currentUser) clearSensitiveLoginFields();
+    
+    // Check for error message from disabled account redirect
+    const loginError = sessionStorage.getItem('loginError');
+    if (loginError) {
+      const errorLoginEmail = document.getElementById('error-login-email');
+      if (errorLoginEmail) {
+        setError(errorLoginEmail, loginError);
+      }
+      // Clear the error from sessionStorage
+      sessionStorage.removeItem('loginError');
+    }
   }
   // For protected pages, if the page was restored from bfcache and the user is no longer signed in, force redirect
   if (event.persisted) {
-    const protectedPaths = ["/admin.html", "admin.html", "/UserProfile.html", "UserProfile.html"];
+    const protectedPaths = [
+      "/admin.html", "admin.html", 
+      "/UserProfile.html", "UserProfile.html", 
+      "/user.html", "user.html",
+      "/conference-room.html", "conference-room.html",
+      "/conference-request.html", "conference-request.html",
+      "/tents-calendar.html", "tents-calendar.html",
+      "/tents-chairs-request.html", "tents-chairs-request.html"
+    ];
     if (protectedPaths.some(p => window.location.pathname.endsWith(p)) && !auth.currentUser) {
       // Force a redirect to login (replace so back doesn't loop)
       try { location.replace('index.html'); } catch (e) { window.location.href = 'index.html'; }
@@ -288,6 +307,14 @@ loginForm?.addEventListener("submit", async (e) => {
 
       if (docSnap.exists()) {
         const userData = docSnap.data();
+        
+        // Check if account is disabled
+        if (userData.status === 'inactive') {
+          // Sign out the user immediately
+          await signOut(auth);
+          setError(errorLoginEmail, "Your account has been disabled. Please contact the administrator.");
+          return;
+        }
         
         // Check if there's a redirect parameter
         const urlParams = new URLSearchParams(window.location.search);
@@ -1064,12 +1091,42 @@ function showConfirm(message, onConfirm, onCancel = null) {
 ====================== */
 // Protect specific pages by pathname
 // Only admin.html and UserProfile.html are protected (user.html is now public)
-const protectedPaths = ["/admin.html", "admin.html", "/UserProfile.html", "UserProfile.html"];
+const protectedPaths = [
+  "/admin.html", "admin.html", 
+  "/UserProfile.html", "UserProfile.html", 
+  "/user.html", "user.html",
+  "/conference-room.html", "conference-room.html",
+  "/conference-request.html", "conference-request.html",
+  "/tents-calendar.html", "tents-calendar.html",
+  "/tents-chairs-request.html", "tents-chairs-request.html"
+];
 if (protectedPaths.some(p => window.location.pathname.endsWith(p))) {
-  onAuthStateChanged(auth, (user) => {
+  onAuthStateChanged(auth, async (user) => {
     if (!user) {
       // Not signed in -> go to login
       window.location.href = "index.html";
+    } else {
+      // Check if user account is disabled
+      try {
+        const docRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          const userData = docSnap.data();
+          
+          // If account is disabled, sign out and redirect to login
+          if (userData.status === 'inactive') {
+            console.log('Account is disabled, signing out...');
+            await signOut(auth);
+            
+            // Store error message in sessionStorage to display on login page
+            sessionStorage.setItem('loginError', 'Your account has been disabled. Please contact the administrator.');
+            window.location.href = "index.html";
+          }
+        }
+      } catch (error) {
+        console.error('Error checking user status:', error);
+      }
     }
   });
 }
