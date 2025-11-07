@@ -28,6 +28,94 @@ const auth = getAuth(app);
 const inventoryRef = collection(db, "inventory");
 
 // =============================
+// BURGER MENU / MOBILE NAVIGATION
+// Global functionality - runs on all pages
+// =============================
+document.addEventListener('DOMContentLoaded', function() {
+  const burgerMenu = document.getElementById('burgerMenu');
+  const mobileNav = document.getElementById('mobileNav');
+  const mobileNavOverlay = document.getElementById('mobileNavOverlay');
+  const mobileNavClose = document.getElementById('mobileNavClose');
+  const mobileDropdownToggle = document.getElementById('mobileDropdownToggle');
+  const mobileDropdownMenu = document.getElementById('mobileDropdownMenu');
+
+  // Only initialize if burger menu exists on this page
+  if (!burgerMenu || !mobileNav || !mobileNavOverlay) {
+    return; // Exit if burger menu elements don't exist on this page
+  }
+
+  // Open mobile menu
+  function openMobileMenu() {
+    mobileNav.classList.add('active');
+    mobileNavOverlay.classList.add('active');
+    burgerMenu.classList.add('active');
+    document.body.style.overflow = 'hidden'; // Prevent scrolling when menu is open
+  }
+
+  // Close mobile menu
+  function closeMobileMenu() {
+    mobileNav.classList.remove('active');
+    mobileNavOverlay.classList.remove('active');
+    burgerMenu.classList.remove('active');
+    document.body.style.overflow = ''; // Restore scrolling
+  }
+
+  // Toggle mobile menu
+  burgerMenu.addEventListener('click', function() {
+    if (mobileNav.classList.contains('active')) {
+      closeMobileMenu();
+    } else {
+      openMobileMenu();
+    }
+  });
+
+  // Close menu when clicking close button
+  if (mobileNavClose) {
+    mobileNavClose.addEventListener('click', closeMobileMenu);
+  }
+
+  // Close menu when clicking overlay
+  mobileNavOverlay.addEventListener('click', closeMobileMenu);
+
+  // Toggle dropdown in mobile menu
+  if (mobileDropdownToggle && mobileDropdownMenu) {
+    mobileDropdownToggle.addEventListener('click', function() {
+      mobileDropdownMenu.classList.toggle('active');
+    });
+  }
+
+  // Close mobile menu when clicking a link
+  const mobileNavLinks = mobileNav.querySelectorAll('a');
+  mobileNavLinks.forEach(link => {
+    link.addEventListener('click', closeMobileMenu);
+  });
+
+  // Sync user authentication state with mobile menu
+  // This will be called by the auth state listener later in the code
+  window.updateMobileNavAuth = function(isLoggedIn) {
+    const userIconMobile = document.getElementById('userIconMobile');
+    const loginButtonMobile = document.getElementById('loginButtonMobile');
+    
+    if (userIconMobile && loginButtonMobile) {
+      if (isLoggedIn) {
+        userIconMobile.style.display = 'flex';
+        loginButtonMobile.style.display = 'none';
+      } else {
+        userIconMobile.style.display = 'none';
+        loginButtonMobile.style.display = 'block';
+      }
+    }
+  };
+
+  // Close mobile menu on window resize if screen becomes larger
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 425) {
+      closeMobileMenu();
+    }
+  });
+});
+
+// =============================
 // 2. Unique Custom Alert Function (no naming conflicts FOR BACKEND)
 // =============================
 function showBookingFormAlert(message, type = "success") {
@@ -3624,10 +3712,7 @@ function showRequestDetailsModal(request) {
         <span class="detail-label">Contact Number:</span>
         <span class="detail-value">${request.contactNumber || 'N/A'}</span>
       </div>
-      <div class="detail-row">
-        <span class="detail-label">Address:</span>
-        <span class="detail-value">${request.address || 'N/A'}</span>
-      </div>
+      
       <div class="detail-row">
         <span class="detail-label">Event Date:</span>
         <span class="detail-value">${formatDateToWords(request.eventDate)}</span>
@@ -14723,3 +14808,6 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
   });
   
 } // End of admin-user-manager.html conditional
+// --- Start ---
+loadInventoryRealtime();
+// (Burger menu code moved to global scope at top of file after Firebase init)
