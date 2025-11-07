@@ -357,26 +357,6 @@
           adminChangePasswordModal.querySelectorAll('.error-message').forEach(err => err.textContent = '');
         }
       });
-
-      // Sidebar dropdowns
-      document.querySelectorAll('.dropdown-toggle').forEach(toggle => {
-        toggle.addEventListener('click', e => {
-          e.preventDefault();
-          const dropdown = toggle.parentElement;
-          const arrow = toggle.querySelector('.dropdown-arrow');
-          const isOpen = dropdown.classList.toggle('open');
-          arrow.textContent = isOpen ? '▼' : '▶';
-        });
-      });
-
-      // Mobile menu toggle
-      const sidebar = document.querySelector('.admin-sidebar');
-      const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-      
-      mobileMenuToggle.addEventListener('click', () => {
-        sidebar.classList.toggle('open');
-        mobileMenuToggle.classList.toggle('open');
-      });
     </script>
     
     <!-- Firebase and Admin User Manager Script -->
