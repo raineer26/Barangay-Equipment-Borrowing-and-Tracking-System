@@ -743,8 +743,8 @@ input.error {
   background: #fff;
   border-radius: 12px;
   box-shadow: 2px 4px 12px #e0d6f7;
-  width: 540px;
-  height: 370px;
+  width: 580px;
+  height: 570px;
   padding: 0 0 24px 0;
   display: flex;
   flex-direction: column;
@@ -754,7 +754,8 @@ input.error {
 .service-info {
   padding: 18px 24px 0 24px;
   text-align: left;
-  width: 100%;
+  width: 90%;
+  margin-left: -10px;
 }
 .service-label-main {
   color: #281abc;
@@ -786,6 +787,7 @@ input.error {
   margin-top: 8px;
   box-shadow: 0 2px 8px #d1d1ff;
   transition: background 0.2s, color 0.2s;
+ margin-left: 10px;
 }
 .service-btn:hover, .service-btn:focus {
   background: #fff;
@@ -803,12 +805,12 @@ input.error {
   margin-bottom: 0;
 }
 .service-img {
-  width: 300px;
-  height: 180px;
+  width: 500px;
+  height: 280px;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: 8px;
   margin-bottom: 18px;
-  margin-top: 24px;
+  margin-top: 44px;
   box-shadow: 0 2px 8px #e0d6f7;
 }
 /* === ABOUT THE BARANGAY SECTION (user.html) === */
@@ -10390,7 +10392,7 @@ input[type="number"]::-webkit-outer-spin-button {
   /* Contact info takes remaining space */
   .contact-info {
     flex: 1;
-    width: auto;
+    
   }
 
   .contact-label {
@@ -10402,11 +10404,12 @@ input[type="number"]::-webkit-outer-spin-button {
   }
 
   .contact-details {
-    font-size: 0.8rem;
+    font-size: 0.67rem;
     line-height: 1.5;
     color: #444;
     text-align: left;
     font-family: 'Poppins', sans-serif;
+    
   }
 
   .contact-details ul {
