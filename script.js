@@ -429,11 +429,28 @@ loginForm?.addEventListener("submit", async (e) => {
         const redirectTo = urlParams.get('redirect');
         
         if (redirectTo) {
+          // Prepare flash toast and redirect to the original page
+          try {
+            const flash = { message: 'Logged in successfully', isSuccess: true, duration: TOAST_DURATION };
+            sessionStorage.setItem('flashToast', JSON.stringify(flash));
+          } catch (e) { /* ignore */ }
           // Decode and redirect to the original page
           window.location.href = decodeURIComponent(redirectTo);
         } else if (userData.role === "admin") {
+          try {
+            const name = userData.fullName || '';
+            const welcome = name ? `Welcome back, ${name.split(' ')[0]}` : 'Logged in successfully';
+            const flash = { message: welcome, isSuccess: true, duration: TOAST_DURATION };
+            sessionStorage.setItem('flashToast', JSON.stringify(flash));
+          } catch (e) { /* ignore */ }
           window.location.href = "admin.html";
         } else if (userData.role === "user") {
+          try {
+            const name = userData.fullName || '';
+            const welcome = name ? `Welcome back, ${name.split(' ')[0]}` : 'Logged in successfully';
+            const flash = { message: welcome, isSuccess: true, duration: TOAST_DURATION };
+            sessionStorage.setItem('flashToast', JSON.stringify(flash));
+          } catch (e) { /* ignore */ }
           window.location.href = "user.html";
         } else {
           console.error("Unknown role:", userData.role);
@@ -1150,6 +1167,47 @@ function showConfirm(message, onConfirm, onCancel = null) {
     }, duration);
   }
 
+// On the public login/landing page, show any flash toast left in sessionStorage
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    const path = window.location.pathname || '';
+    const isIndex = path.endsWith('index.html') || path === '/' || path === '';
+    if (!isIndex) return;
+
+    const raw = sessionStorage.getItem('flashToast');
+    if (!raw) return;
+    let payload = null;
+    try { payload = JSON.parse(raw); } catch (e) { payload = null; }
+    if (payload && payload.message) {
+      try { showToast(payload.message, !!payload.isSuccess, payload.duration || TOAST_DURATION); } catch (e) { console.warn('Failed to show flash toast on index page', e); }
+    }
+    try { sessionStorage.removeItem('flashToast'); } catch (e) { }
+  } catch (e) {
+    // swallow errors to avoid breaking the login page
+    console.warn('Flash toast handler error', e);
+  }
+});
+
+// Generic flash toast handler for non-index pages (user/admin) — shows any flash set during redirect
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    const path = window.location.pathname || '';
+    const isIndex = path.endsWith('index.html') || path === '/' || path === '';
+    if (isIndex) return; // index already handles it above
+
+    const raw = sessionStorage.getItem('flashToast');
+    if (!raw) return;
+    let payload = null;
+    try { payload = JSON.parse(raw); } catch (e) { payload = null; }
+    if (payload && payload.message) {
+      try { showToast(payload.message, !!payload.isSuccess, payload.duration || TOAST_DURATION); } catch (e) { console.warn('Failed to show flash toast on page', e); }
+    }
+    try { sessionStorage.removeItem('flashToast'); } catch (e) { }
+  } catch (e) {
+    console.warn('Flash toast handler error (generic)', e);
+  }
+});
+
   /* --------------------------------------------------
      Button spinner helpers (attach to Save buttons)
   -------------------------------------------------- */
@@ -1237,12 +1295,32 @@ if (protectedPaths.some(p => window.location.pathname.endsWith(p))) {
 
 // Make a global logout function available to all pages
 window.logout = async function() {
+  // Use the site's styled confirm dialog (Cancel / OK) rather than native confirm
+  let confirmed = false;
+  try {
+    confirmed = await new Promise((resolve) => {
+      try {
+        showConfirm('Are you sure you want to log out?', () => resolve(true), () => resolve(false));
+      } catch (err) {
+        console.warn('showConfirm threw an error, falling back to native confirm', err);
+        resolve(window.confirm('Are you sure you want to log out?'));
+      }
+    });
+  } catch (e) {
+    console.warn('Confirmation failed, defaulting to cancel:', e);
+    confirmed = false;
+  }
+
+  if (!confirmed) return; // user cancelled
+
+  let signOutSucceeded = false;
   try {
     // Sign out from Firebase
     await signOut(auth);
+    signOutSucceeded = true;
   } catch (err) {
     console.error('Logout failed:', err);
-    // proceed with cleanup and redirect even if signOut failed
+    signOutSucceeded = false;
   }
 
   try {
@@ -1252,14 +1330,35 @@ window.logout = async function() {
     console.warn('Failed to clear sessionStorage', e);
   }
 
-  // Replace history entry so Back button won't return to an authenticated page
-  // This helps avoid browsers restoring an auth-backed UI from the bfcache.
+  // Show a toast message for feedback, then redirect.
   try {
-    location.replace('index.html');
+    // Persist a flash toast so it survives the navigation to index.html
+    const flash = signOutSucceeded
+      ? { message: 'Logged out successfully', isSuccess: true, duration: TOAST_DURATION }
+      : { message: 'Logout failed — redirecting', isSuccess: false, duration: TOAST_DURATION };
+    try {
+      sessionStorage.setItem('flashToast', JSON.stringify(flash));
+    } catch (e) {
+      console.warn('Failed to set flashToast in sessionStorage', e);
+    }
+
+    // Also show it immediately on the current page for immediate feedback
+    try { showToast(flash.message, flash.isSuccess, flash.duration); } catch (e) { console.warn('showToast error', e); }
   } catch (e) {
-    // fallback
-    window.location.href = 'index.html';
+    console.warn('Toast/flash failed', e);
   }
+
+  // Wait for the toast to be visible before redirecting so user sees feedback
+  const waitMs = (typeof TOAST_DURATION !== 'undefined') ? TOAST_DURATION : 1200;
+  setTimeout(() => {
+    // Replace history entry so Back button won't return to an authenticated page
+    try {
+      location.replace('index.html');
+    } catch (e) {
+      // fallback
+      window.location.href = 'index.html';
+    }
+  }, waitMs);
 };
 
 /* User Profile Page Scripts */

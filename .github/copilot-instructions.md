@@ -1,15 +1,45 @@
 
 # Barangay Equipment Borrowing & Tracking System — AI Agent Instructions
 
+
+## Feature Implementation Status
+
+### ✅ Fully Implemented
+- **User Authentication & Profiles** - Login, signup, profile management with 3 tabs (Personal Info, Requests, Notifications)
+- **Tents & Chairs Booking System** - User request forms with date range, quantity selection, delivery/pickup mode
+- **Conference Room Booking System** - User request forms with date, time selection (2-hour minimum, 30-minute gap)
+- **Admin Tents Management** (`admin-tents-requests.html`) - Full review system with inventory validation, status management, archiving
+- **Admin Conference Management** (`admin-conference-requests.html`) - Full review system with time overlap validation, status management
+- **Inventory Tracking** (`inventory/equipment` document) - Real-time stock management for tents (24 total) and chairs (600 total)
+- **Automated Status Transitions** - Auto-changes approved requests to in-progress when event date arrives
+- **5-Scenario Notification System** - Status changes, 3-day reminders, tomorrow reminders, event today, ending soon
+- **Internal Booking System** - Admins can create pre-approved bookings for barangay events with cancellation support
+- **Request Cancellation** - Users can cancel pending requests, admins can cancel internal bookings
+- **Status Filtering** - Filter requests by status (All, Pending, Approved, In Progress, Completed, Rejected, Cancelled)
+- **Role-Based Access Control** - User/admin routing with protected pages
+
+### 🚧 Partially Implemented
+- **Calendar Views** - HTML structure exists (`admin-calendar-tents.html`, `admin-calendar-conference.html`) but Firestore integration incomplete
+- **Manage Inventory Page** (`admin-manage-inventory.html`) - HTML exists but CRUD operations not fully implemented
+
+### 📋 Planned/TODO
+- **Email/SMS Notifications** - Functions are placeholders, need Firebase Cloud Functions + SendGrid/Twilio
+- **User Manager** (`admin-user-manager.html`) - HTML exists but functionality not implemented
+- **Export Functionality** - Dropdown UI exists but PDF/Excel/CSV export not implemented
+- **Advanced Calendar Features** - Interactive booking from calendar, drag-to-reschedule, conflict visualization
+
 ## Architecture Overview
 
 **Static multi-page site + Firebase backend.** No server code in this repo—everything runs client-side.
 
-- **Core**: Single unified `script.js` (~5,600 lines) loaded as ES module. All Firebase logic, auth flows, form handlers, calendar renderers, admin panels, and page-specific scripts live here.
+- **Core**: Refactor the unified `script.js` (~14,265 lines, 625KB) into smaller ES module files such as `firebase-init.js` (Firebase initialization), `auth.js` (authentication flows), `notifications.js` (notification logic), `booking-handlers.js` (form handlers and booking logic), and `admin-panels.js` (admin dashboard and review panels). 
+  - Import only the necessary modules in each HTML page using `<script type="module" src="...">` tags.
+  - Export shared instances (e.g., `auth`, `db`) from `firebase-init.js` and import them in other modules.
+  - This modular approach will improve code organization, reduce load times, and make the codebase easier to maintain and debug.
 - **Pages**: 
   - **Public**: `index.html` (login), `signup.html`, `about.html`, `ContactPage.html`
-  - **User**: `user.html` (user landing), `UserProfile.html`, calendar pages (`conference-room.html`, `tents-calendar.html`), request forms (`conference-request.html`, `tents-chairs-request.html`)
-  - **Admin**: `admin.html` (admin dashboard), `admin-tents-requests.html` (tents & chairs review/management)
+  - **User**: `user.html` (user landing), `UserProfile.html` (with 3 tabs: Personal Info, Requests, Notifications), calendar pages (`conference-room.html`, `tents-calendar.html`), request forms (`conference-request.html`, `tents-chairs-request.html`)
+  - **Admin**: `admin.html` (dashboard with weekly reservations view), `admin-tents-requests.html` (tents/chairs review), `admin-conference-requests.html` (conference review), `admin-calendar-tents.html`, `admin-calendar-conference.html`, `admin-manage-inventory.html`, `admin-user-manager.html`
 - **Routing**: Role-based after login: `users/{uid}` doc has `role` field ("user" or "admin") → redirects to `user.html` or `admin.html`.
 - **Protection**: `onAuthStateChanged` guards protected pages via `protectedPaths` array. Unauthenticated users redirected to `index.html`.
 
@@ -40,6 +70,20 @@
   - `eventDate` (format: "YYYY-MM-DD"), `startTime`, `endTime` (format: "HH:mm")
   - `status`: "pending"|"approved"|"in-progress"|"completed"|"rejected"|"cancelled"
   - `userId`, `userEmail`, `createdAt`, `cancelledAt` (optional)
+  - **NEW**: `inProgressAt`, `autoTransitioned` (boolean, tracks if auto-changed to in-progress)
+  - **NEW**: `isInternalBooking` (boolean, true if created by admin for internal use)
+  - **NEW**: `cancelledBy`, `cancellationReason` (for internal booking cancellations)
+
+- **`notifications` collection**: Stores user notifications. Fields:
+  - `userId` (indexed) - User who receives notification
+  - `type`: "status_change"|"reminder_3days"|"reminder_tomorrow"|"event_today"|"ending_soon"
+  - `requestType`: "conference-room"|"tents-chairs"
+  - `requestId` - References booking document
+  - `title` - Notification headline
+  - `message` - Notification body text
+  - `isRead` (boolean, default false)
+  - `createdAt` (timestamp)
+  - **Lifecycle**: Created on status changes and event date milestones, auto-pruned after 30 days
 
 - **`inventory` collection** → **`equipment` document**: Centralized inventory tracking (CRITICAL for admin operations):
   - `availableTents` (number) - Current available tents for booking
@@ -52,6 +96,108 @@
   - **NOTE**: This document MUST exist before approving any tents/chairs requests. Admin approval will fail if inventory is insufficient.
 
 - **Planned `bookings` collection** (TODOs in calendar scripts): Will store `date: "YYYY-MM-DD"`, `type: "conference-room"|"tents-and-chairs"`, `status: "pending"|"approved"`, `userId`.
+
+## Automated Status Management (IMPLEMENTED ✅)
+
+**Critical Function**: `checkAndUpdateEventStatuses()` (script.js ~lines 3440-3640)
+
+**Purpose**: Automatically transitions requests from **APPROVED** → **IN-PROGRESS** when event dates arrive.
+
+**How it Works**:
+- Runs on page load for `user.html`, `UserProfile.html`, `admin.html`, and all admin pages
+- Queries both `tentsChairsBookings` and `conferenceRoomBookings` for approved requests
+- Checks if today's date falls within event date range (tents: startDate-endDate, conference: eventDate)
+- Updates status to `'in-progress'`, adds `inProgressAt` timestamp and `autoTransitioned: true` flag
+- **Creates notification** for user when status changes
+- Comprehensive logging (50+ console statements) with `[Status Auto-Update]` prefix
+
+**Conference Room Booking Requirements**:
+- Minimum 2 hours duration (enforced in validation)
+- 30-minute gap between bookings (prevents back-to-back conflicts)
+- Time format: 24-hour ("HH:mm"), displayed as 12-hour with AM/PM
+- Fully booked modal shows "No continuous 2-hour slots available"
+
+**Integration Points**:
+- User profile shows in-progress bookings with blue badge
+- Admin dashboard filters reservations to show only approved/in-progress (excludes pending)
+- Status changes trigger notification creation via `createNotification()` function
+
+## Notification System (IMPLEMENTED ✅)
+
+**Location**: `script.js` lines ~2900-3650
+
+**User Interface**: UserProfile.html has 3 tabs:
+1. **Personal Info** - User details, edit profile, change password
+2. **Requests** - All booking requests with status filter (All, Pending, Approved, In Progress, Completed, Rejected, Cancelled)
+3. **Notifications** - Real-time notifications with filter (All, Unread, Read), mark as read, delete, auto-refresh every 5 minutes
+
+**Five Notification Scenarios**:
+
+1. **Status Change** (`createNotification()` function ~line 3050)
+   - Triggered when admin approves/rejects/completes request
+   - Icon varies: ✅ (approved), ❌ (rejected), 🔄 (in-progress), 🏁 (completed)
+   - Rejection notifications include admin's reason
+
+2. **3-Day Advance Reminder** (`check3DayReminders()` ~line 2970)
+   - Calendar icon 📅
+   - Sent 3 days before event
+   - Prevents duplicates using `lastReminderDate` tracking
+
+3. **Tomorrow Reminder** (`checkTomorrowReminders()` ~line 3120)
+   - Bell icon 🔔
+   - Sent 1 day before event
+   - Includes delivery/pickup instructions
+
+4. **Today Event** (`checkTodayReminders()` ~line 3280)
+   - Party icon 🎉
+   - Sent on event day
+   - Auto-created when status changes to in-progress
+
+5. **Ending Soon** (`checkEndingSoonReminders()` ~line 3420)
+   - Clock icon ⏰
+   - Sent on event end date
+   - Reminds to return items/vacate room
+
+**Key Functions**:
+```javascript
+createNotification(userId, type, requestType, requestId, title, message)
+loadNotifications(filterType) // 'all', 'unread', 'read'
+markNotificationAsRead(notificationId)
+deleteNotification(notificationId)
+markAllNotificationsAsRead()
+```
+
+**Reminder Checks Run**:
+- Every time user loads `user.html` or `UserProfile.html`
+- After admin approves/rejects request
+- After status auto-update to in-progress
+
+**Notification Auto-Cleanup**: 
+- Firestore TTL not supported client-side
+- Manually delete notifications older than 30 days in admin tools if needed
+
+## Internal Booking System (IMPLEMENTED ✅)
+
+**Purpose**: Admins can create bookings for internal barangay events (auto-approved, skip user workflow)
+
+**Location**: 
+- Create internal booking modal triggered from admin dashboard
+- Uses same collections (`tentsChairsBookings`, `conferenceRoomBookings`)
+- Flag: `isInternalBooking: true`
+
+**Cancel Internal Bookings**:
+- **Location**: Cancel button appears in admin review tables for internal bookings only
+- **Functions**: 
+  - `cancelInternalBooking()` (tents, first implementation ~line 7947)
+  - `handleCancelInternal()` (tents, active implementation ~line 9826)
+  - `handleCancelInternal()` (conference ~line 12811)
+- **Logic**:
+  - Verifies `isInternalBooking` flag (blocks regular user requests)
+  - Shows confirmation with booking details
+  - Updates status to `'cancelled'`, adds `cancelledAt`, `cancelledBy`, `cancellationReason`
+  - **Returns inventory** to available stock (tents/chairs) or frees time slot (conference)
+  - Creates notification if booking was made for a user (`userId` exists)
+  - **Button Styling**: `.tents-btn-cancel` (orange, hex `f97316`) to distinguish from Deny
 
 ## Key Patterns to Preserve
 
@@ -114,7 +260,7 @@ Blocks **OVERLAPPING** time slots on the same date:
 
 **Helper Functions**:
 - `timeRangesOverlap(start1, end1, start2, end2)` — checks if two time ranges overlap
-- `sanitizeInput(text)` — XSS prevention via HTML entity encoding
+- `sanitizeInput(text)` — XSS prevention by encoding special characters
 - `formatTime12Hour(time)` — converts "14:00" to "2:00 PM"
 
 ### Request Cancellation
@@ -210,7 +356,7 @@ querySnapshot.forEach(doc => {
 
 - **Firebase config in `script.js`** is intentional for frontend apps (API key restricts to allowed domains in Firebase console).
 - **Firestore security rules** (not in this repo) should enforce user can only read/write their own data. Check Firebase console.
-- **XSS prevention**: All text inputs sanitized with `sanitizeInput()` using HTML entity encoding (`&lt;`, `&gt;`, `&amp;`, `&quot;`, `&#x27;`, `&#x2F;`).
+- **XSS prevention**: All text inputs sanitized with `sanitizeInput()` by encoding special characters as HTML entities.
 - **Authentication checks**: All form submissions validate `auth.currentUser` and verify `userId` before Firestore operations.
 - **Loading states**: Submit buttons show spinner during validation and submission, with state restoration in `finally` blocks.
 - **Browser back/forward cache**: `pageshow` event listener on login page clears inputs to prevent credential restoration after logout.
@@ -492,7 +638,7 @@ function renderContent()
 - `deliveryModeFilter` - Delivery mode dropdown
 - `sortByFilter` - Sort dropdown
 - `exportDropdown` - Export menu
-- `tentsModalOverlay` - Calendar modal (future use)
+- `tentsModalOverlay` - Calendar modal for future use
 - `tentsConfirmModal` - Confirmation modal overlay
 - `tentsConfirmTitle` - Confirmation modal title
 - `tentsConfirmMessage` - Confirmation modal message
@@ -522,7 +668,7 @@ function renderCalendarView() {
   // - Show booking count per date
   // - Click date to show modal with bookings
   
-  // 4. Use existing modal (#tentsModalOverlay)
+  // 4. Use existing modal — `tentsModalOverlay`
   // - Update modal title with selected date
   // - List all bookings for that date
   // - Show tents/chairs quantities
@@ -532,33 +678,27 @@ function renderCalendarView() {
 **Reference**: See conference room calendar implementation for pattern
 
 #### 2. **Conference Room Admin Page**
-**To Create**: `admin-conference-requests.html`
+**File**: `admin-conference-requests.html` ✅ **IMPLEMENTED**
 
-**Steps**:
-1. Clone `admin-tents-requests.html` structure
-2. Update collection reference: `conferenceRoomBookings`
-3. Modify table columns:
-   - Remove: Chairs, Tents, Delivery Mode
-   - Add: Purpose, Start Time, End Time
-4. Update inventory logic (if tracking room availability)
-5. Follow same patterns:
-   - Tabs (All Requests | History)
-   - Filters (Name, Status, Date, Sort)
-   - Confirmation modals
-   - Status-based actions
+**Features** (similar pattern to tents admin):
+- Dual-tab system (All Requests | History | Archives)
+- Advanced filtering (Name, Status, Date, Sort)
+- Table columns: Submitted On, Name, Contact, Event Date, Purpose, Start Time, End Time, Address, Status, Actions
+- Status-based action buttons (Approve/Deny for pending, Mark as Completed for approved/in-progress)
+- Cancel button for internal bookings
+- Confirmation modals for all actions
+- Archive/Unarchive functionality
+- **NOTE**: No inventory validation (conference room is single resource, handled by time slot overlap logic)
 
-**CSS Classes**: Use `.conference-*` prefix instead of `.tents-*`
-
-**JavaScript**: Create new section in `script.js`:
-```javascript
-if (window.location.pathname.endsWith('admin-conference-requests.html')) {
-  // Initialize conference admin
-  // Follow tents admin pattern (lines 3900-5410)
-}
-```
+**Key Differences from Tents Admin**:
+- No inventory/equipment tracking (room availability handled by time overlap)
+- Time validation: 2-hour minimum, 30-minute gap between bookings
+- Columns show purpose and time range instead of equipment quantities
 
 #### 3. **Manage Inventory Page**
-**To Create**: `admin-manage-inventory.html`
+**File**: `admin-manage-inventory.html` 🚧 **PARTIALLY IMPLEMENTED**
+
+**Current State**: HTML structure exists but CRUD operations not fully implemented
 
 **Purpose**: Admin interface to update inventory stock levels
 
