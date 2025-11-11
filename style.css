@@ -1289,6 +1289,83 @@ footer {
   transform: translateY(-1px);
 }
 
+/* ========================================
+   PASSWORD TOGGLE (EYE ICON) STYLES
+   ======================================== */
+.password-wrapper {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.password-wrapper input {
+  /* Don't override width or box-sizing - let it inherit from .login-form input */
+  padding-right: 8px !important; /* Match email padding exactly - icon will overlap */
+}
+
+.password-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  z-index: 10; /* Ensure it's above the input */
+  color: #6b7280; /* Gray color for the icon */
+}
+
+.password-toggle:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.password-toggle:focus {
+  outline: 2px solid rgba(99, 102, 241, 0.4);
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+.password-toggle svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  color: #6b7280;
+  transition: color 0.2s ease;
+}
+
+.password-toggle:hover svg {
+  color: #374151;
+}
+
+/* Toggle icon visibility based on state */
+.password-toggle .icon-hide {
+  display: none !important;
+}
+
+.password-toggle[aria-pressed="true"] .icon-hide {
+  display: block !important;
+}
+
+.password-toggle[aria-pressed="true"] .icon-show {
+  display: none !important;
+}
+
+/* Password wrapper for signup form and modals - reduce padding for icon overlay */
+.signup-group .password-wrapper input,
+.form-group .password-wrapper input {
+  width: 100% !important; /* Fill the wrapper */
+  box-sizing: border-box !important; /* Include padding in width calculation */
+  padding-right: 40px !important; /* Space for icon */
+}
+
+
 /* Responsive adjustments for notifications */
 @media (max-width: 768px) {
   .bell-btn {

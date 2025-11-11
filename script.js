@@ -31,6 +31,25 @@ const inventoryRef = collection(db, "inventory");
 // BURGER MENU / MOBILE NAVIGATION
 // Global functionality - runs on all pages
 // =============================
+// Password toggle button handler (delegated) - Global functionality
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.password-toggle');
+  if (!btn) return;
+  
+  // Find the input field - it's the previous sibling of the button within the password-wrapper
+  const wrapper = btn.closest('.password-wrapper');
+  if (!wrapper) return;
+  
+  const input = wrapper.querySelector('input[type="password"], input[type="text"]');
+  if (!input) return;
+  
+  const isPassword = input.type === 'password';
+  input.type = isPassword ? 'text' : 'password';
+  btn.setAttribute('aria-pressed', String(isPassword)); // true when password becomes visible (changing from password to text)
+  btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+  // Icons are SVGs inside the button; visibility toggled by aria-pressed via CSS
+});
+
 document.addEventListener('DOMContentLoaded', function() {
   const burgerMenu = document.getElementById('burgerMenu');
   const mobileNav = document.getElementById('mobileNav');
@@ -15515,5 +15534,8 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
   
 } // End of admin-user-manager.html conditional
 // --- Start ---
-loadInventoryRealtime();
+// Note: `loadInventoryRealtime()` is called when the Inventory Manager page
+// is initialized inside its own conditional block (see above). Calling it
+// unconditionally here caused a ReferenceError on pages that don't define
+// the function. Keep this call removed to avoid errors on other pages.
 // (Burger menu code moved to global scope at top of file after Firebase init)
