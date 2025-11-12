@@ -421,6 +421,10 @@ loginForm?.addEventListener("submit", async (e) => {
     clearError(errorLoginPassword);
   }
 
+  // Get submit button and show spinner with form disable
+  const submitBtn = loginForm.querySelector('button[type="submit"]');
+  showButtonSpinner(submitBtn, { disableForm: true, text: 'LOGGING IN' });
+
   try {
     // Authenticate
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -514,6 +518,9 @@ loginForm?.addEventListener("submit", async (e) => {
         console.error('Unhandled Firebase error:', error);
         setError(errorLoginEmail, "Login failed. Please check your email and password.");
     }
+  } finally {
+    // Always restore button state, even if there's an error
+    hideButtonSpinner(submitBtn);
   }
 });
 
@@ -831,6 +838,9 @@ signupForm?.addEventListener("submit", async (e) => {
   // Clear all errors before Firebase
   [errorFirstname, errorLastname, errorEmail, errorPassword, errorConfirm, errorContact, errorAddress].forEach(clearErrorSignup);
 
+  const submitBtn = signupForm.querySelector('button[type="submit"]');
+  showButtonSpinner(submitBtn, { disableForm: true, text: 'CREATING ACCOUNT' });
+
   try {
     // Create Auth user
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -881,6 +891,8 @@ signupForm?.addEventListener("submit", async (e) => {
         console.error('Signup error:', error);
         showAlert("An error occurred during signup. Please try again later.");
     }
+  } finally {
+    hideButtonSpinner(submitBtn);
   }
 });
 
@@ -1930,7 +1942,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Show spinner on save button
     const editSaveButton = document.querySelector('#editProfileForm .save-changes');
-    const editSpinner = showButtonSpinner(editSaveButton);
+    showButtonSpinner(editSaveButton, { disableForm: true, text: 'SAVING CHANGES' });
 
     try {
       // Update Firestore
@@ -2035,9 +2047,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (!valid) return;
 
-  // Show spinner on save button while processing
-  const saveButton = document.querySelector('#changePasswordForm .save-changes');
-  if (saveButton) showButtonSpinner(saveButton);
+    // Show spinner on save button while processing
+    const saveButton = document.querySelector('#changePasswordForm .save-changes');
+    showButtonSpinner(saveButton, { disableForm: true, text: 'CHANGING PASSWORD' });
 
     try {
       const credential = EmailAuthProvider.credential(user.email, currentPassword);
@@ -2051,11 +2063,9 @@ document.addEventListener('DOMContentLoaded', function() {
         changePasswordForm?.reset();
         // ensure inline change password message is cleared (we prefer toasts)
         if (changePasswordMessage) { changePasswordMessage.style.display = 'none'; changePasswordMessage.textContent = ''; }
-        if (saveButton) hideButtonSpinner(saveButton);
       }, TOAST_DURATION);
     } catch (error) {
       console.error('Error updating password:', error);
-  if (saveButton) hideButtonSpinner(saveButton);
       switch (error.code) {
         case 'auth/wrong-password':
         case 'auth/invalid-credential':
@@ -2070,6 +2080,8 @@ document.addEventListener('DOMContentLoaded', function() {
         default:
           if (errorCurrentPassword) setErrorSignup(errorCurrentPassword, 'Failed to update password. Try again later.');
       }
+    } finally {
+      hideButtonSpinner(saveButton);
     }
   });
 });
