@@ -1251,23 +1251,221 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     return spinner;
   }
+  /* ------------------------------------------------------------------
+     Button spinner helpers
 
-  function showButtonSpinner(button) {
+     RECENT ADDITION (for review): The following helpers extend the
+     existing button spinner behavior to optionally disable all form
+     controls while an async action is in progress. This uses a
+     reference-counting approach (per-form) so multiple concurrent
+     actions won't prematurely re-enable the form. Developers: when
+     merging, note this is a UX safety improvement — it's intentionally
+     conservative about restoring previously-disabled controls.
+  ------------------------------------------------------------------ */
+
+  // WeakMaps to store per-form spinner counters and snapshots of
+  // originally-disabled controls so we can restore state correctly.
+  const _formSpinnerCount = new WeakMap();
+  const _formDisabledSnapshot = new WeakMap();
+
+  function _disableFormControls(form) {
+    if (!form) return;
+    try {
+      const controls = Array.from(form.querySelectorAll('input,select,textarea,button,fieldset'));
+      const originallyDisabled = new Set(controls.filter(el => el.disabled));
+      // Save snapshot so we only re-enable controls that were not
+      // disabled before this operation.
+      _formDisabledSnapshot.set(form, originallyDisabled);
+      controls.forEach(el => {
+        try { el.disabled = true; } catch (e) { /* ignore */ }
+      });
+      // Mark form busy for accessibility
+      try { form.setAttribute('aria-busy', 'true'); } catch (e) {}
+    } catch (e) {
+      console.warn('Failed to disable form controls for spinner:', e);
+    }
+  }
+
+  function _restoreFormControls(form) {
+    if (!form) return;
+    try {
+      const snapshot = _formDisabledSnapshot.get(form) || new Set();
+      const controls = Array.from(form.querySelectorAll('input,select,textarea,button,fieldset'));
+      controls.forEach(el => {
+        try {
+          // If the element was NOT originally disabled, re-enable it.
+          if (!snapshot.has(el)) el.disabled = false;
+        } catch (e) { /* ignore */ }
+      });
+      _formDisabledSnapshot.delete(form);
+      // Clear aria-busy
+      try { form.removeAttribute('aria-busy'); } catch (e) {}
+    } catch (e) {
+      console.warn('Failed to restore form controls after spinner:', e);
+    }
+  }
+
+  function _incFormSpinner(form) {
+    if (!form) return;
+    const current = _formSpinnerCount.get(form) || 0;
+    _formSpinnerCount.set(form, current + 1);
+    if (current === 0) {
+      _disableFormControls(form);
+    }
+  }
+
+  function _decFormSpinner(form) {
+    if (!form) return;
+    const current = _formSpinnerCount.get(form) || 0;
+    const next = Math.max(0, current - 1);
+    _formSpinnerCount.set(form, next);
+    if (next === 0) {
+      _restoreFormControls(form);
+      _formSpinnerCount.delete(form);
+    }
+  }
+
+  /**
+   * Show a spinner inside a button and optionally disable the surrounding
+   * form controls. 
+   * 
+   * Usage: 
+   *   showButtonSpinner(button, { disableForm: true, text: 'SUBMITTING REQUEST' })
+   * 
+   * Options:
+   *   - disableForm (boolean, default true): disable all form controls
+   *   - text (string, optional): replace button text during spinner display
+   * 
+   * The second parameter is optional and defaults to { disableForm: true }
+   */
+  function showButtonSpinner(button, options = { disableForm: true }) {
     if (!button) return null;
-    button.disabled = true;
-    // avoid duplicating spinner
-    if (button.querySelector('.btn-spinner')) return button.querySelector('.btn-spinner');
-    const spinner = createSpinnerElement(16, '#0b3b8c');
-    // insert at start of button
-    button.insertBefore(spinner, button.firstChild);
+    
+    // Check if button already has a spinner element (either from HTML or previously added)
+    let spinner = button.querySelector('.btn-spinner');
+    const hasPreExistingSpinner = !!spinner;
+    
+    // If no spinner exists, create and insert one
+    if (!hasPreExistingSpinner) {
+      spinner = createSpinnerElement(16, '#0b3b8c');
+      try { button.insertBefore(spinner, button.firstChild); } catch (e) { /* ignore */ }
+    } else {
+      // Pre-existing spinner from HTML - clear any hardcoded text (like "Processing...")
+      // Keep only the spinner icon, remove text nodes
+      try {
+        Array.from(spinner.childNodes).forEach(node => {
+          // Remove text nodes but keep the <span class="spinner"> element
+          if (node.nodeType === Node.TEXT_NODE) {
+            node.remove();
+          }
+        });
+        spinner.style.display = 'inline-flex';
+      } catch (e) { /* ignore */ }
+    }
+    
+    try { button.disabled = true; } catch (e) { /* ignore */ }
+
+    // If requested, disable the whole form (reference-counted)
+    if (options && options.disableForm) {
+      const form = button.closest && button.closest('form');
+      if (form) _incFormSpinner(form);
+    }
+
+    // Optional: replace the visible text inside the button in a safe way
+    // without touching icons/SVGs. The API: showButtonSpinner(btn, { text: '...' })
+    try {
+      const textOpt = options && typeof options.text === 'string' ? options.text : null;
+      if (textOpt !== null) {
+        // prefer an existing element with class 'btn-text'
+        let btnTextEl = button.querySelector('.btn-text');
+        if (!btnTextEl) {
+          // find the first non-empty text node and wrap it
+          let textNode = null;
+          for (const node of Array.from(button.childNodes)) {
+            if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== '') {
+              textNode = node;
+              break;
+            }
+          }
+          if (textNode) {
+            btnTextEl = document.createElement('span');
+            btnTextEl.className = 'btn-text';
+            btnTextEl.textContent = textNode.textContent.trim();
+            textNode.parentNode.replaceChild(btnTextEl, textNode);
+          } else {
+            // no existing text node, append a btn-text span so we can update it
+            btnTextEl = document.createElement('span');
+            btnTextEl.className = 'btn-text';
+            btnTextEl.textContent = '';
+            button.appendChild(btnTextEl);
+          }
+        }
+
+        // Store original text only once so multiple calls don't overwrite it
+        if (!button.dataset.origBtnText) {
+          button.dataset.origBtnText = btnTextEl.textContent || '';
+        }
+        btnTextEl.textContent = textOpt;
+        
+        // Make sure btn-text is visible
+        try { btnTextEl.style.display = 'inline'; } catch (e) { /* ignore */ }
+      }
+    } catch (e) {
+      // don't break spinner on text replace errors
+      console.warn('Failed to replace button text for spinner:', e);
+    }
+
     return spinner;
   }
 
-  function hideButtonSpinner(button) {
+  /**
+   * Hide spinner and restore button/form state. Accepts an optional
+   * originalBtnText parameter for callers that pass it (kept for
+   * backward compatibility with code that calls hideButtonSpinner(btn, text)).
+   */
+  function hideButtonSpinner(button, /* optional */ originalBtnText) {
     if (!button) return;
-    const spinner = button.querySelector('.btn-spinner');
-    if (spinner) spinner.remove();
-    button.disabled = false;
+    
+    try {
+      const spinner = button.querySelector('.btn-spinner');
+      if (spinner) {
+        // Check if spinner has content (means it's from HTML, not our dynamically created one)
+        const hasContent = spinner.children.length > 0 || spinner.textContent.trim() !== '';
+        if (hasContent) {
+          // Pre-existing spinner from HTML - hide it instead of removing
+          spinner.style.display = 'none';
+        } else {
+          // Dynamically created spinner - safe to remove
+          spinner.remove();
+        }
+      }
+    } catch (e) { /* ignore */ }
+    
+    try { button.disabled = false; } catch (e) { /* ignore */ }
+
+    // Decrement form counter and restore controls when appropriate
+    const form = button.closest && button.closest('form');
+    if (form) _decFormSpinner(form);
+
+    // Restore original button text if we changed it
+    try {
+      const btnTextEl = button.querySelector('.btn-text');
+      if (btnTextEl) {
+        if (typeof originalBtnText === 'string') {
+          // Explicit parameter takes precedence
+          btnTextEl.textContent = originalBtnText;
+        } else if (button.dataset.origBtnText !== undefined) {
+          // Restore from stored original
+          btnTextEl.textContent = button.dataset.origBtnText;
+          delete button.dataset.origBtnText;
+        }
+        
+        // Reset display style for btn-text (in case it was hidden by CSS)
+        btnTextEl.style.display = '';
+      }
+    } catch (e) {
+      console.warn('Failed to restore button text after spinner:', e);
+    }
   }
 
 /* =====================
@@ -5422,9 +5620,9 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
 
   async function submitTentsChairsRequest(data) {
     const submitBtn = document.querySelector('#tentsChairsForm button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
+    
+    // Use the proper spinner helper that disables the entire form and changes button text
+    showButtonSpinner(submitBtn, { disableForm: true, text: 'SUBMITTING REQUEST' });
 
     try {
       const user = auth.currentUser;
@@ -5443,8 +5641,7 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
         if (userData.status === 'inactive') {
           console.warn('⚠️ [Tents/Chairs Form] User account is disabled');
           showAlert('Your account has been disabled. You cannot create new requests. Please contact the administrator.', false);
-          submitBtn.disabled = false;
-          submitBtn.textContent = originalText;
+          hideButtonSpinner(submitBtn);
           return;
         }
       }
@@ -5547,8 +5744,7 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       console.error('❌ [Tents/Chairs Submit] Error submitting request:', err);
       showAlert('Failed to submit request. Please try again.', false);
     } finally {
-      submitBtn.disabled = false;
-      submitBtn.textContent = originalText;
+      hideButtonSpinner(submitBtn);
     }
   }
 
@@ -6087,9 +6283,9 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
 
   async function submitToFirestore(formData) {
     const submitBtn = document.querySelector('#conferenceRoomForm button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
+    
+    // Use the proper spinner helper that disables the entire form and changes button text
+    showButtonSpinner(submitBtn, { disableForm: true, text: 'SUBMITTING REQUEST' });
 
     try {
       const user = auth.currentUser;
@@ -6108,8 +6304,7 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
         if (userData.status === 'inactive') {
           console.warn('⚠️ [Conference Form] User account is disabled');
           showAlert('Your account has been disabled. You cannot create new requests. Please contact the administrator.', false);
-          submitBtn.disabled = false;
-          submitBtn.textContent = originalText;
+          hideButtonSpinner(submitBtn);
           return;
         }
       }
@@ -6200,8 +6395,7 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
       console.error('❌ [User Submit] Error submitting request:', error);
       showAlert('Something went wrong while submitting your request. Please try again.', false);
     } finally {
-      submitBtn.disabled = false;
-      submitBtn.textContent = originalText;
+      hideButtonSpinner(submitBtn);
     }
   }
 
@@ -7141,10 +7335,9 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
         return;
       }
       
-      // Show loading state
+      // Show loading state with updated button text
       const submitBtn = this.querySelector('.internal-booking-submit-btn');
-      submitBtn.classList.add('loading');
-      submitBtn.disabled = true;
+      showButtonSpinner(submitBtn, { disableForm: true, text: 'CREATING BOOKING' });
       
       try {
         // Get current admin user
@@ -7205,8 +7398,7 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
         console.error('Error creating internal booking:', error);
         showAlert('Failed to create internal booking. Please try again.', false);
       } finally {
-        submitBtn.classList.remove('loading');
-        submitBtn.disabled = false;
+        hideButtonSpinner(submitBtn);
       }
     });
   }
@@ -11264,10 +11456,9 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       
       if (hasError) return;
       
-      // Show loading
+      // Show loading with updated button text
       const submitBtn = this.querySelector('.internal-booking-submit-btn');
-      submitBtn.classList.add('loading');
-      submitBtn.disabled = true;
+      showButtonSpinner(submitBtn, { disableForm: true, text: 'CREATING BOOKING' });
       
       try {
         const currentUser = auth.currentUser;
@@ -11329,8 +11520,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         console.error('Error creating internal booking:', error);
         showAlert('Failed to create internal booking. Please try again.', false);
       } finally {
-        submitBtn.classList.remove('loading');
-        submitBtn.disabled = false;
+        hideButtonSpinner(submitBtn);
       }
     });
   }
@@ -14061,14 +14251,9 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         console.error('Error checking for overlaps:', error);
       }
       
-      // Show loading state
+      // Show loading state with updated button text
       const submitBtn = this.querySelector('.internal-booking-submit-btn');
-      const btnText = submitBtn.querySelector('.btn-text');
-      const btnSpinner = submitBtn.querySelector('.btn-spinner');
-      
-      btnText.style.display = 'none';
-      btnSpinner.style.display = 'inline-flex';
-      submitBtn.disabled = true;
+      showButtonSpinner(submitBtn, { disableForm: true, text: 'CREATING RESERVATION' });
       
       try {
         // Get current admin user
@@ -14117,9 +14302,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         console.error('Error creating internal booking:', error);
         showToast('Failed to create internal reservation. Please try again.', false);
       } finally {
-        btnText.style.display = 'inline';
-        btnSpinner.style.display = 'none';
-        submitBtn.disabled = false;
+        hideButtonSpinner(submitBtn);
       }
     });
   }
