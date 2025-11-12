@@ -1347,7 +1347,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // If no spinner exists, create and insert one
     if (!hasPreExistingSpinner) {
-      spinner = createSpinnerElement(16, '#0b3b8c');
+      // Use white spinner for better visibility on colored backgrounds (user forms)
+      // Use blue spinner for admin forms (white backgrounds)
+      const spinnerColor = '#ffffff';
+      spinner = createSpinnerElement(16, spinnerColor);
       try { button.insertBefore(spinner, button.firstChild); } catch (e) { /* ignore */ }
     } else {
       // Pre-existing spinner from HTML - clear any hardcoded text (like "Processing...")
