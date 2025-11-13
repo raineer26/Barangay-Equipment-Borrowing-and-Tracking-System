@@ -11,12 +11,33 @@ body {
 }
 
 /* NAVIGATION */
+/* Mobile-first header: flexible height on small screens, fixed height on desktop via media query */
 header {
   background: #281ABC;
-  padding: 15px 20px; /* Increased vertical padding for more prominent navbar */
+  /* Mobile: allow content to determine height and use smaller vertical padding */
+  padding: 8px 12px;
   color: #fff;
 }
 
+/* Desktop and larger: fixed header height for consistent layout */
+@media (min-width: 769px) {
+  header {
+    padding: 0 20px;
+    height: 80px; /* desktop header height */
+  }
+
+  /* Make sure inner container centers vertically inside fixed header */
+  .nav-container { align-items: center; height: 100%; }
+
+  /* Slightly larger logo on desktop */
+  .logo img { width: 45px; height: 45px; }
+
+  /* Login button vertical padding tuned for desktop header */
+  .login-btn { padding: 8px 20px; }
+
+  /* Slightly larger profile icon on desktop to match the 80px header */
+  #userIconNav img, #userIconNav .user-icon-btn { width: 36px !important; height: 36px !important; }
+}
 .nav-container {
   display: flex;
   justify-content: space-between;
@@ -95,7 +116,8 @@ nav a {
 
 .login-btn {
   border: 1px solid white;
-  padding: 10px 20px;
+  /* Reduced vertical padding so the button fits within the 57px header */
+  padding: 6px 20px;
   border-radius: 20px;
   font-size: 18px; /* Explicit font size for LOGIN button consistency */
   
@@ -110,6 +132,13 @@ nav a {
 .user-icon-li img {
   width: 32px; /* Smaller to match navbar height */
   height: 32px; /* Smaller to match navbar height */
+}
+
+/* Ensure profile icon size is consistent across pages so navbar heights match */
+#userIconNav img, #userIconNav .user-icon-btn {
+  width: 32px !important;
+  height: 32px !important;
+  object-fit: cover;
 }
 
 .user-icon-btn {

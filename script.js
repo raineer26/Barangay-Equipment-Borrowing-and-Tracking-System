@@ -1647,6 +1647,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Load user data after Firebase confirms auth state so auth.currentUser is available
   onAuthStateChanged(auth, (user) => {
+    // Centralized nav update
+    updateAuthNav(user);
+
     console.log('[UserProfile] Auth state changed. User:', user ? user.email : 'Not logged in');
     if (!user) {
       // Not signed in -> go to login
@@ -4532,21 +4535,11 @@ function throttle(func, limit) {
 
 // Initialize the animations if we're on the about page
 if (window.location.pathname.endsWith('about.html') || window.location.pathname.endsWith('/about')) {
-    // Handle navigation visibility based on auth state
-    onAuthStateChanged(auth, (user) => {
-        const userIconNav = document.getElementById('userIconNav');
-        const loginButtonNav = document.getElementById('loginButtonNav');
-        
-        if (user) {
-            // User is logged in - show profile icon, hide login button
-            if (userIconNav) userIconNav.style.display = 'block';
-            if (loginButtonNav) loginButtonNav.style.display = 'none';
-        } else {
-            // User is logged out - hide profile icon, show login button
-            if (userIconNav) userIconNav.style.display = 'none';
-            if (loginButtonNav) loginButtonNav.style.display = 'block';
-        }
-    });
+  // Handle navigation visibility based on auth state
+  onAuthStateChanged(auth, (user) => {
+    // Use centralized helper
+    updateAuthNav(user);
+  });
 
     // Set initial styles
     const sections = document.querySelectorAll('.history-section, .mission-vision-section, .officials-section');
@@ -4574,18 +4567,8 @@ if (window.location.pathname.endsWith('about.html') || window.location.pathname.
 if (window.location.pathname.endsWith('user.html') || window.location.pathname.endsWith('/user')) {
   // Handle navigation visibility based on auth state
   onAuthStateChanged(auth, (user) => {
-    const userIconNav = document.getElementById('userIconNav');
-    const loginButtonNav = document.getElementById('loginButtonNav');
-    
-    if (user) {
-      // User is logged in - show profile icon, hide login button
-      if (userIconNav) userIconNav.style.display = 'block';
-      if (loginButtonNav) loginButtonNav.style.display = 'none';
-    } else {
-      // User is logged out - hide profile icon, show login button
-      if (userIconNav) userIconNav.style.display = 'none';
-      if (loginButtonNav) loginButtonNav.style.display = 'block';
-    }
+    // Use centralized helper
+    updateAuthNav(user);
   });
 
   const animElements = document.querySelectorAll('.animate-on-scroll');
@@ -4611,20 +4594,10 @@ if (window.location.pathname.endsWith('user.html') || window.location.pathname.e
 
 // Initialize ContactPage.html navigation visibility
 if (window.location.pathname.endsWith('ContactPage.html') || window.location.pathname.endsWith('/ContactPage')) {
-    onAuthStateChanged(auth, (user) => {
-        const userIconNav = document.getElementById('userIconNav');
-        const loginButtonNav = document.getElementById('loginButtonNav');
-        
-        if (user) {
-            // User is logged in - show profile icon, hide login button
-            if (userIconNav) userIconNav.style.display = 'block';
-            if (loginButtonNav) loginButtonNav.style.display = 'none';
-        } else {
-            // User is logged out - hide profile icon, show login button
-            if (userIconNav) userIconNav.style.display = 'none';
-            if (loginButtonNav) loginButtonNav.style.display = 'block';
-        }
-    });
+  onAuthStateChanged(auth, (user) => {
+    // Use centralized helper
+    updateAuthNav(user);
+  });
 }
 
 
@@ -4639,18 +4612,8 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
   
   // Handle navigation visibility based on auth state
   onAuthStateChanged(auth, (user) => {
-    const userIconNav = document.getElementById('userIconNav');
-    const loginButtonNav = document.getElementById('loginButtonNav');
-    
-    if (user) {
-      // User is logged in - show profile icon, hide login button
-      if (userIconNav) userIconNav.style.display = 'block';
-      if (loginButtonNav) loginButtonNav.style.display = 'none';
-    } else {
-      // User is logged out - hide profile icon, show login button
-      if (userIconNav) userIconNav.style.display = 'none';
-      if (loginButtonNav) loginButtonNav.style.display = 'block';
-    }
+    // Use centralized helper
+    updateAuthNav(user);
   });
 
   // TODO: In production, fetch booked dates from Firebase
@@ -5145,19 +5108,9 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
 if (window.location.pathname.endsWith('tents-calendar.html') || window.location.pathname.endsWith('/tents-calendar')) {
   
   // Handle navigation visibility based on auth state
+  // Use centralized helper to update nav visibility
   onAuthStateChanged(auth, (user) => {
-    const userIconNav = document.getElementById('userIconNav');
-    const loginButtonNav = document.getElementById('loginButtonNav');
-    
-    if (user) {
-      // User is logged in - show profile icon, hide login button
-      if (userIconNav) userIconNav.style.display = 'block';
-      if (loginButtonNav) loginButtonNav.style.display = 'none';
-    } else {
-      // User is logged out - hide profile icon, show login button
-      if (userIconNav) userIconNav.style.display = 'none';
-      if (loginButtonNav) loginButtonNav.style.display = 'block';
-    }
+    updateAuthNav(user);
   });
 
   // Store booked dates (date ranges for tents/chairs)
@@ -5869,6 +5822,51 @@ async function autofillUserData(fieldMappings) {
    END OF AUTOFILL USER DATA HELPER FUNCTION
 ===================================================== */
 
+/**
+ * updateAuthNav
+ * Central helper to show/hide the top-right navigation elements
+ * based on Firebase auth state. Call from any onAuthStateChanged handler.
+ *
+ * @param {Object|null} user - Firebase user object or null
+ */
+function updateAuthNav(user) {
+  const userIconNav = document.getElementById('userIconNav');
+  const loginButtonNav = document.getElementById('loginButtonNav');
+
+  // Also handle mobile nav variants if present
+  const userIconMobile = document.getElementById('userIconMobile');
+  const loginButtonMobile = document.getElementById('loginButtonMobile');
+
+  if (user) {
+    // User is logged in - show profile icon, hide LOGIN button
+    if (userIconNav) userIconNav.style.display = 'block';
+    if (loginButtonNav) loginButtonNav.style.display = 'none';
+    if (userIconMobile) userIconMobile.style.display = 'flex';
+    if (loginButtonMobile) loginButtonMobile.style.display = 'none';
+    // If a legacy helper exists for mobile, call it too
+    if (typeof window.updateMobileNavAuth === 'function') window.updateMobileNavAuth(true);
+  } else {
+    // User is logged out - hide profile icon, show LOGIN button
+    if (userIconNav) userIconNav.style.display = 'none';
+    if (loginButtonNav) loginButtonNav.style.display = 'block';
+    if (userIconMobile) userIconMobile.style.display = 'none';
+    if (loginButtonMobile) loginButtonMobile.style.display = 'block';
+    if (typeof window.updateMobileNavAuth === 'function') window.updateMobileNavAuth(false);
+  }
+}
+
+// Ensure top-right nav always reflects auth state across all pages.
+// This global listener updates the nav (desktop + mobile) whenever auth changes.
+onAuthStateChanged(auth, (user) => {
+  try {
+    updateAuthNav(user);
+  } catch (e) {
+    // Defensive: do not break other auth handlers if updateAuthNav fails
+    console.error('updateAuthNav failed:', e);
+  }
+});
+
+
 
 /* =====================================================
    FIXED CONFERENCE ROOM REQUEST FORM SCRIPT
@@ -6466,36 +6464,16 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
 // === CONFERENCE REQUEST PAGE AUTH NAVIGATION ===
 if (window.location.pathname.endsWith('conference-request.html')) {
   onAuthStateChanged(auth, (user) => {
-    const userIconNav = document.getElementById('userIconNav');
-    const loginButtonNav = document.getElementById('loginButtonNav');
-    
-    if (user) {
-      // User is logged in - show profile icon, hide LOGIN button
-      if (userIconNav) userIconNav.style.display = 'block';
-      if (loginButtonNav) loginButtonNav.style.display = 'none';
-    } else {
-      // User is logged out - hide profile icon, show LOGIN button
-      if (userIconNav) userIconNav.style.display = 'none';
-      if (loginButtonNav) loginButtonNav.style.display = 'block';
-    }
+    // Use centralized helper to update nav
+    updateAuthNav(user);
   });
 }
 
 // === TENTS & CHAIRS REQUEST PAGE AUTH NAVIGATION ===
 if (window.location.pathname.endsWith('tents-chairs-request.html')) {
   onAuthStateChanged(auth, (user) => {
-    const userIconNav = document.getElementById('userIconNav');
-    const loginButtonNav = document.getElementById('loginButtonNav');
-    
-    if (user) {
-      // User is logged in - show profile icon, hide LOGIN button
-      if (userIconNav) userIconNav.style.display = 'block';
-      if (loginButtonNav) loginButtonNav.style.display = 'none';
-    } else {
-      // User is logged out - hide profile icon, show LOGIN button
-      if (userIconNav) userIconNav.style.display = 'none';
-      if (loginButtonNav) loginButtonNav.style.display = 'block';
-    }
+    // Use centralized helper to update nav
+    updateAuthNav(user);
   });
 }
 
@@ -6515,8 +6493,7 @@ if (window.location.pathname.endsWith('admin.html')) {
           
           if (userRole === 'admin') {
             // Admin confirmed - show profile icon, hide LOGIN button
-            if (userIconNav) userIconNav.style.display = 'block';
-            if (loginButtonNav) loginButtonNav.style.display = 'none';
+            updateAuthNav(user);
           } else {
             // Not an admin - redirect to user page
             console.warn('Non-admin user attempted to access admin.html');
