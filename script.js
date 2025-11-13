@@ -15737,3 +15737,670 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
 // unconditionally here caused a ReferenceError on pages that don't define
 // the function. Keep this call removed to avoid errors on other pages.
 // (Burger menu code moved to global scope at top of file after Firebase init)
+
+
+/* =====================================================================
+   PHASE 1 SECURITY ENHANCEMENTS
+   - Session Timeout & Auto-Logout
+   - Rate Limiting for Login Attempts
+   - Security Audit Logging
+   
+   Added: November 12, 2025
+   Purpose: Implement Option 2 Enhanced Security features
+   
+   Features:
+   1. Automatic logout after 30 minutes of inactivity
+   2. Warning 5 minutes before session expires
+   3. Rate limiting to prevent brute force login attacks
+   4. Audit logging for security events
+===================================================================== */
+
+// ============================================================================
+// 1. SESSION TIMEOUT CONFIGURATION
+// ============================================================================
+
+/**
+ * Session timeout settings
+ * - SESSION_TIMEOUT: Time until automatic logout (30 minutes)
+ * - WARNING_TIME: When to show warning before logout (5 minutes before)
+ * - ACTIVITY_CHECK_INTERVAL: How often to check for inactivity (1 minute)
+ */
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+const WARNING_TIME = 5 * 60 * 1000; // Show warning 5 minutes before logout
+const ACTIVITY_CHECK_INTERVAL = 60 * 1000; // Check every minute
+
+let sessionTimer = null;
+let warningTimer = null;
+let lastActivityTime = Date.now();
+let sessionWarningShown = false;
+
+/**
+ * Reset the session timeout timer
+ * Called whenever user activity is detected
+ */
+function resetSessionTimer() {
+  lastActivityTime = Date.now();
+  sessionWarningShown = false;
+  
+  // Clear existing timers
+  if (sessionTimer) clearTimeout(sessionTimer);
+  if (warningTimer) clearTimeout(warningTimer);
+  
+  // Only set timers if user is logged in
+  if (!auth.currentUser) return;
+  
+  // Set warning timer (5 minutes before logout)
+  warningTimer = setTimeout(() => {
+    showSessionWarning();
+  }, SESSION_TIMEOUT - WARNING_TIME);
+  
+  // Set logout timer (30 minutes of inactivity)
+  sessionTimer = setTimeout(() => {
+    handleSessionTimeout();
+  }, SESSION_TIMEOUT);
+  
+  console.log('🔄 [Session] Timer reset. Auto-logout in', SESSION_TIMEOUT / 60000, 'minutes');
+}
+
+/**
+ * Show warning before auto-logout
+ * Gives user option to continue session
+ */
+function showSessionWarning() {
+  if (sessionWarningShown || !auth.currentUser) return;
+  
+  sessionWarningShown = true;
+  const remainingMinutes = Math.ceil(WARNING_TIME / 60000);
+  
+  console.warn('⚠️ [Session] Warning: Session will expire in', remainingMinutes, 'minutes');
+  
+  showAlert(
+    `Your session will expire in ${remainingMinutes} minutes due to inactivity.\n\nClick OK to continue your session, or you will be automatically logged out.`,
+    false,
+    () => {
+      console.log('✅ [Session] User extended session');
+      resetSessionTimer();
+    }
+  );
+}
+
+/**
+ * Handle session timeout - auto logout user
+ * Redirects to login page with timeout message
+ */
+async function handleSessionTimeout() {
+  if (!auth.currentUser) return;
+  
+  console.warn('🔒 [Session] Session expired due to inactivity. Logging out...');
+  
+  try {
+    const currentUser = auth.currentUser;
+    
+    // Log the session timeout event
+    await logSecurityEvent('session_timeout', currentUser.uid, {
+      email: currentUser.email,
+      reason: 'inactivity',
+      duration: SESSION_TIMEOUT
+    });
+    
+    // Sign out user
+    await signOut(auth);
+    
+    // Clear session storage
+    sessionStorage.clear();
+    
+    // Show alert and redirect
+    showAlert(
+      'Your session has expired due to inactivity. Please log in again for security.',
+      false,
+      () => {
+        window.location.replace('index.html?timeout=true');
+      }
+    );
+  } catch (error) {
+    console.error('❌ [Session] Error during timeout:', error);
+    // Force redirect even if error occurs
+    window.location.replace('index.html?timeout=true');
+  }
+}
+
+/**
+ * Track user activity to prevent premature logout
+ * Monitors mouse, keyboard, scroll, and touch events
+ */
+function initializeActivityTracking() {
+  const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click', 'mousemove'];
+  
+  activityEvents.forEach(eventType => {
+    document.addEventListener(eventType, () => {
+      const timeSinceLastActivity = Date.now() - lastActivityTime;
+      
+      // Only reset timer if more than 1 minute has passed since last activity
+      // This prevents excessive timer resets from continuous activity
+      if (auth.currentUser && timeSinceLastActivity > ACTIVITY_CHECK_INTERVAL) {
+        resetSessionTimer();
+      } else {
+        // Just update last activity time without resetting timer
+        lastActivityTime = Date.now();
+      }
+    }, { passive: true });
+  });
+  
+  console.log('✅ [Session] Activity tracking initialized');
+}
+
+/**
+ * Initialize session management
+ * Starts tracking when user logs in, stops when user logs out
+ */
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    console.log('👤 [Session] User logged in, starting session timer');
+    resetSessionTimer();
+  } else {
+    console.log('🚪 [Session] User logged out, clearing session timers');
+    if (sessionTimer) clearTimeout(sessionTimer);
+    if (warningTimer) clearTimeout(warningTimer);
+    sessionWarningShown = false;
+  }
+});
+
+// Initialize activity tracking on page load
+initializeActivityTracking();
+
+// Check for timeout parameter in URL (redirected from timeout)
+if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('timeout') === 'true') {
+    // Show timeout message on login page
+    setTimeout(() => {
+      const errorLoginEmail = document.getElementById("error-login-email");
+      if (errorLoginEmail) {
+        errorLoginEmail.textContent = "Your session expired due to inactivity. Please log in again.";
+        errorLoginEmail.style.display = "block";
+        const emailInput = document.getElementById("login-email");
+        if (emailInput) {
+          emailInput.style.border = "1px solid #ff9800"; // Orange border for warning
+        }
+      }
+    }, 100);
+    
+    // Remove timeout parameter from URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
+
+
+// ============================================================================
+// 2. RATE LIMITING FOR LOGIN ATTEMPTS
+// ============================================================================
+
+/**
+ * Rate limiting configuration
+ * - MAX_LOGIN_ATTEMPTS: Maximum failed attempts before lockout
+ * - LOCKOUT_DURATION: How long to lock account after max attempts
+ * - ATTEMPT_WINDOW: Time window for tracking attempts
+ */
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
+const ATTEMPT_WINDOW = 30 * 60 * 1000; // 30 minutes in milliseconds
+
+/**
+ * Check if email is currently locked out due to too many failed attempts
+ * @param {string} email - Email address to check
+ * @returns {Object} { isLocked: boolean, remainingTime: number, attempts: number }
+ */
+async function checkLoginRateLimit(email) {
+  try {
+    const rateLimitRef = doc(db, 'loginAttempts', email.toLowerCase());
+    const rateLimitDoc = await getDoc(rateLimitRef);
+    
+    if (!rateLimitDoc.exists()) {
+      return { isLocked: false, remainingTime: 0, attempts: 0 };
+    }
+    
+    const data = rateLimitDoc.data();
+    const now = Date.now();
+    
+    // Check if lockout period has expired
+    if (data.lockedUntil && data.lockedUntil.toMillis() > now) {
+      const remainingTime = Math.ceil((data.lockedUntil.toMillis() - now) / 60000);
+      console.warn('🚫 [Rate Limit] Email locked:', email, 'Remaining:', remainingTime, 'minutes');
+      return {
+        isLocked: true,
+        remainingTime: remainingTime,
+        attempts: data.attempts || 0
+      };
+    }
+    
+    // Check if we should reset the attempt counter (attempt window expired)
+    if (data.firstAttempt && (now - data.firstAttempt.toMillis()) > ATTEMPT_WINDOW) {
+      console.log('🔄 [Rate Limit] Attempt window expired, resetting counter for:', email);
+      await updateDoc(rateLimitRef, {
+        attempts: 0,
+        firstAttempt: null,
+        lockedUntil: null
+      });
+      return { isLocked: false, remainingTime: 0, attempts: 0 };
+    }
+    
+    return {
+      isLocked: false,
+      remainingTime: 0,
+      attempts: data.attempts || 0
+    };
+    
+  } catch (error) {
+    console.error('❌ [Rate Limit] Error checking rate limit:', error);
+    // On error, allow login attempt (fail open for better UX)
+    return { isLocked: false, remainingTime: 0, attempts: 0 };
+  }
+}
+
+/**
+ * Record a failed login attempt
+ * Increments counter and locks account if max attempts reached
+ * @param {string} email - Email address of failed login
+ */
+async function recordFailedLoginAttempt(email) {
+  try {
+    const rateLimitRef = doc(db, 'loginAttempts', email.toLowerCase());
+    const rateLimitDoc = await getDoc(rateLimitRef);
+    const now = new Date();
+    
+    if (!rateLimitDoc.exists()) {
+      // First failed attempt
+      await setDoc(rateLimitRef, {
+        email: email.toLowerCase(),
+        attempts: 1,
+        firstAttempt: now,
+        lastAttempt: now,
+        lockedUntil: null
+      });
+      console.log('⚠️ [Rate Limit] First failed attempt for:', email);
+    } else {
+      const data = rateLimitDoc.data();
+      const newAttempts = (data.attempts || 0) + 1;
+      
+      const updateData = {
+        attempts: newAttempts,
+        lastAttempt: now
+      };
+      
+      // Set first attempt time if not already set
+      if (!data.firstAttempt) {
+        updateData.firstAttempt = now;
+      }
+      
+      // Lock account if max attempts reached
+      if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
+        const lockoutTime = new Date(Date.now() + LOCKOUT_DURATION);
+        updateData.lockedUntil = lockoutTime;
+        console.warn('🔒 [Rate Limit] Account locked due to too many attempts:', email, 'Until:', lockoutTime);
+        
+        // Log security event
+        await logSecurityEvent('account_locked', email, {
+          reason: 'too_many_failed_attempts',
+          attempts: newAttempts,
+          lockedUntil: lockoutTime
+        });
+      } else {
+        console.warn('⚠️ [Rate Limit] Failed attempt', newAttempts, 'of', MAX_LOGIN_ATTEMPTS, 'for:', email);
+      }
+      
+      await updateDoc(rateLimitRef, updateData);
+    }
+  } catch (error) {
+    console.error('❌ [Rate Limit] Error recording failed attempt:', error);
+  }
+}
+
+/**
+ * Reset login attempts after successful login
+ * @param {string} email - Email address of successful login
+ */
+async function resetLoginAttempts(email) {
+  try {
+    const rateLimitRef = doc(db, 'loginAttempts', email.toLowerCase());
+    await updateDoc(rateLimitRef, {
+      attempts: 0,
+      firstAttempt: null,
+      lastAttempt: null,
+      lockedUntil: null
+    });
+    console.log('✅ [Rate Limit] Login attempts reset for:', email);
+  } catch (error) {
+    // Document might not exist, which is fine
+    if (error.code !== 'not-found') {
+      console.error('❌ [Rate Limit] Error resetting attempts:', error);
+    }
+  }
+}
+
+
+// ============================================================================
+// 3. SECURITY AUDIT LOGGING
+// ============================================================================
+
+/**
+ * Log security-related events to Firestore for audit trail
+ * @param {string} eventType - Type of event (login, logout, failed_login, etc.)
+ * @param {string} userId - User ID or email involved in event
+ * @param {Object} metadata - Additional event metadata
+ */
+async function logSecurityEvent(eventType, userId, metadata = {}) {
+  try {
+    const logData = {
+      eventType: eventType,
+      userId: userId || 'anonymous',
+      timestamp: new Date(),
+      userAgent: navigator.userAgent,
+      page: window.location.pathname,
+      ...metadata
+    };
+    
+    // Add client IP if available (Vercel sets this in headers, but not accessible client-side)
+    // In production, this would be better handled by Cloud Functions
+    
+    await addDoc(collection(db, 'securityLogs'), logData);
+    
+    console.log('📝 [Security Log]', eventType, 'for', userId);
+  } catch (error) {
+    // Don't block user actions if logging fails
+    console.error('❌ [Security Log] Error logging event:', error);
+  }
+}
+
+/**
+ * Log successful login event
+ * Called after user successfully authenticates
+ * @param {Object} user - Firebase user object
+ */
+async function logSuccessfulLogin(user) {
+  await logSecurityEvent('login_success', user.uid, {
+    email: user.email,
+    method: 'email_password'
+  });
+}
+
+/**
+ * Log failed login attempt
+ * Called when login fails for any reason
+ * @param {string} email - Email used in failed attempt
+ * @param {string} reason - Reason for failure (wrong_password, user_not_found, etc.)
+ */
+async function logFailedLogin(email, reason) {
+  await logSecurityEvent('login_failed', email, {
+    email: email,
+    reason: reason,
+    method: 'email_password'
+  });
+}
+
+/**
+ * Log user logout event
+ * Called when user explicitly logs out
+ * @param {string} userId - User ID logging out
+ * @param {string} email - User email
+ */
+async function logLogout(userId, email) {
+  await logSecurityEvent('logout', userId, {
+    email: email,
+    type: 'manual'
+  });
+}
+
+
+// ============================================================================
+// 4. INTEGRATION WITH EXISTING LOGIN SYSTEM
+// ============================================================================
+
+/**
+ * Enhanced login form handler with rate limiting and logging
+ * This wraps around the existing login functionality
+ */
+if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
+  console.log('🔒 [Security] Phase 1 security features active on login page');
+  
+  // Store original login form handler
+  const loginFormElement = document.getElementById("loginForm");
+  
+  if (loginFormElement) {
+    // Remove existing event listener by cloning the element
+    const newLoginForm = loginFormElement.cloneNode(true);
+    loginFormElement.parentNode.replaceChild(newLoginForm, loginFormElement);
+    
+    // Add new enhanced login handler
+    newLoginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById("login-email").value.trim();
+      const password = document.getElementById("login-password").value;
+      const errorLoginEmail = document.getElementById("error-login-email");
+      const errorLoginPassword = document.getElementById("error-login-password");
+      
+      // Helper functions for error display
+      const setError = (element, message) => {
+        element.innerHTML = `<span style='color:#d32f2f;'>${message}</span>`;
+        element.previousElementSibling.style.border = "2px solid #d32f2f";
+      };
+      const clearError = (element) => {
+        element.innerHTML = "";
+        element.previousElementSibling.style.border = "";
+      };
+      
+      // Validate email format
+      let valid = true;
+      if (!email) {
+        setError(errorLoginEmail, "Email can't be blank");
+        valid = false;
+      } else if (!validateEmail(email).isValid) {
+        setError(errorLoginEmail, "Invalid email format");
+        valid = false;
+      } else {
+        clearError(errorLoginEmail);
+      }
+      
+      if (!valid) return;
+      
+      // Validate password
+      if (!password) {
+        setError(errorLoginPassword, "Password can't be blank");
+        return;
+      } else {
+        clearError(errorLoginPassword);
+      }
+      
+      // PHASE 1: Check rate limiting BEFORE attempting login
+      console.log('🔍 [Security] Checking rate limit for:', email);
+      const rateLimit = await checkLoginRateLimit(email);
+      
+      if (rateLimit.isLocked) {
+        const minutes = rateLimit.remainingTime;
+        setError(errorLoginEmail, `Too many failed login attempts. Account locked for ${minutes} minute${minutes !== 1 ? 's' : ''}. Please try again later or reset your password.`);
+        
+        // Log the locked attempt
+        await logSecurityEvent('login_attempt_while_locked', email, {
+          email: email,
+          remainingLockTime: minutes
+        });
+        
+        return;
+      }
+      
+      // Show warning if approaching max attempts
+      if (rateLimit.attempts > 0 && rateLimit.attempts < MAX_LOGIN_ATTEMPTS) {
+        const remaining = MAX_LOGIN_ATTEMPTS - rateLimit.attempts;
+        console.warn(`⚠️ [Security] ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining before lockout`);
+      }
+      
+      try {
+        // Attempt authentication
+        console.log('🔐 [Security] Attempting login for:', email);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        
+        // PHASE 1: Reset rate limiting on successful login
+        await resetLoginAttempts(email);
+        
+        // PHASE 1: Log successful login
+        await logSuccessfulLogin(user);
+        
+        try {
+          // Get Firestore user data
+          const docRef = doc(db, "users", user.uid);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            const userData = docSnap.data();
+            
+            // Check if account is disabled
+            if (userData.status === 'inactive') {
+              console.log('⚠️ User account is disabled');
+              
+              // Log disabled account login attempt
+              await logSecurityEvent('disabled_account_login_attempt', user.uid, {
+                email: user.email
+              });
+              
+              // Sign out the user immediately
+              await signOut(auth);
+              setError(errorLoginEmail, "Your account has been disabled. Please contact the administrator.");
+              return;
+            }
+            
+            // Successful login - redirect based on role
+            console.log('✅ [Security] Login successful for:', email);
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const redirectTo = urlParams.get('redirect');
+            
+            if (redirectTo) {
+              window.location.href = decodeURIComponent(redirectTo);
+            } else if (userData.role === "admin") {
+              window.location.href = "admin.html";
+            } else if (userData.role === "user") {
+              window.location.href = "user.html";
+            } else {
+              console.error("Unknown role:", userData.role);
+              alert("⚠️ Unknown role. Contact support.");
+            }
+          } else {
+            console.error("No user document found for uid:", user.uid);
+            alert("⚠️ No user profile found. Contact admin.");
+          }
+        } catch (firestoreError) {
+          console.error("Firestore error:", firestoreError);
+          alert("⚠️ Error loading user profile. Please try again.");
+        }
+      } catch (error) {
+        clearError(errorLoginEmail);
+        clearError(errorLoginPassword);
+        console.log('Firebase auth error:', error.code);
+        
+        // PHASE 1: Record failed login attempt
+        await recordFailedLoginAttempt(email);
+        
+        // PHASE 1: Log failed login with reason
+        await logFailedLogin(email, error.code);
+        
+        // Get updated rate limit info
+        const updatedRateLimit = await checkLoginRateLimit(email);
+        
+        // Display appropriate error message
+        switch(error.code) {
+          case "auth/user-not-found":
+          case "auth/wrong-password":
+          case "auth/invalid-credential":
+            let errorMsg = "Incorrect email or password. Please try again.";
+            
+            // Add remaining attempts warning
+            if (updatedRateLimit.attempts > 0) {
+              const remaining = MAX_LOGIN_ATTEMPTS - updatedRateLimit.attempts;
+              if (remaining > 0) {
+                errorMsg += ` (${remaining} attempt${remaining !== 1 ? 's' : ''} remaining)`;
+              }
+            }
+            
+            setError(errorLoginEmail, errorMsg);
+            break;
+          case "auth/invalid-email":
+            setError(errorLoginEmail, "Invalid email format.");
+            break;
+          case "auth/too-many-requests":
+            setError(errorLoginEmail, "Too many failed attempts. Please try again later or reset your password.");
+            break;
+          case "auth/network-request-failed":
+            setError(errorLoginEmail, "Network error. Please check your internet connection.");
+            break;
+          case "auth/user-disabled":
+            setError(errorLoginEmail, "This account has been disabled. Please contact support.");
+            break;
+          default:
+            console.error('Unhandled Firebase error:', error);
+            setError(errorLoginEmail, "Login failed. Please check your email and password.");
+        }
+      }
+    });
+    
+    console.log('✅ [Security] Enhanced login handler installed');
+  }
+}
+
+
+// ============================================================================
+// 5. ENHANCED LOGOUT WITH LOGGING
+// ============================================================================
+
+/**
+ * Override the global logout function to add security logging
+ */
+const originalLogout = window.logout;
+window.logout = async function() {
+  try {
+    const currentUser = auth.currentUser;
+    
+    if (currentUser) {
+      console.log('🚪 [Security] User logging out:', currentUser.email);
+      
+      // Log the logout event BEFORE signing out
+      await logLogout(currentUser.uid, currentUser.email);
+    }
+    
+    // Call original logout function
+    if (originalLogout) {
+      await originalLogout();
+    } else {
+      // Fallback if original doesn't exist
+      await signOut(auth);
+      sessionStorage.clear();
+      location.replace('index.html');
+    }
+  } catch (err) {
+    console.error('❌ [Security] Error during logout:', err);
+    // Still try to logout even if logging fails
+    try {
+      await signOut(auth);
+      sessionStorage.clear();
+      location.replace('index.html');
+    } catch (e) {
+      console.error('❌ [Security] Critical logout error:', e);
+      location.replace('index.html');
+    }
+  }
+};
+
+console.log('✅ [Security] Enhanced logout handler installed');
+
+
+// ============================================================================
+// PHASE 1 SECURITY INITIALIZATION COMPLETE
+// ============================================================================
+
+console.log('🔒 [Security] Phase 1 Security Features Initialized:');
+console.log('  ✅ Session Timeout: 30 minutes');
+console.log('  ✅ Session Warning: 5 minutes before timeout');
+console.log('  ✅ Rate Limiting: Max', MAX_LOGIN_ATTEMPTS, 'attempts per', ATTEMPT_WINDOW / 60000, 'minutes');
+console.log('  ✅ Account Lockout:', LOCKOUT_DURATION / 60000, 'minutes');
+console.log('  ✅ Security Audit Logging: Enabled');
+console.log('  ✅ Activity Tracking: Enabled');
