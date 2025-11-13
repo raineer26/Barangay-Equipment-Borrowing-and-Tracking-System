@@ -4874,11 +4874,33 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
                 <div class="tents-preview-purpose">${sanitizeInput(preview.purpose)}</div>
                 <div class="tents-preview-time">${preview.time}</div>
               `;
+              
+              // Make preview clickable to open modal (FULLY BOOKED dates)
+              previewDiv.setAttribute('role', 'button');
+              previewDiv.setAttribute('tabindex', '0');
+              previewDiv.setAttribute('aria-label', `View reservations for ${currentDateStr}`);
+              previewDiv.style.cursor = 'pointer';
+              
+              previewDiv.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent date cell click
+                if (typeof showDateBookingsModalConference === 'function') {
+                  showDateBookingsModalConference(currentDateStr);
+                }
+              });
+              
+              // Keyboard support
+              previewDiv.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  previewDiv.click();
+                }
+              });
+              
               dateCell.appendChild(previewDiv);
             }
           });
           
-          // Show error modal when clicked
+          // Show error modal when clicked on date cell (not preview)
           dateCell.style.cursor = 'not-allowed';
           dateCell.addEventListener('click', () => showFullyBookedError(currentDateStr));
         } else {
@@ -4895,11 +4917,33 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
                 <div class="tents-preview-purpose">${sanitizeInput(preview.purpose)}</div>
                 <div class="tents-preview-time">${preview.time}</div>
               `;
+              
+              // Make preview clickable to open modal (PARTIALLY BOOKED dates)
+              previewDiv.setAttribute('role', 'button');
+              previewDiv.setAttribute('tabindex', '0');
+              previewDiv.setAttribute('aria-label', `View reservations for ${currentDateStr}`);
+              previewDiv.style.cursor = 'pointer';
+              
+              previewDiv.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent date cell click (which would open booking form)
+                if (typeof showDateBookingsModalConference === 'function') {
+                  showDateBookingsModalConference(currentDateStr);
+                }
+              });
+              
+              // Keyboard support
+              previewDiv.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  previewDiv.click();
+                }
+              });
+              
               dateCell.appendChild(previewDiv);
             }
           });
           
-          // Allow clicking to make new booking (redirect to form)
+          // Allow clicking date cell to make new booking (redirect to form)
           dateCell.style.cursor = 'pointer';
           dateCell.addEventListener('click', () => openBookingModal(currentDateStr));
         }
@@ -5292,11 +5336,33 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
               <div class="tents-preview-purpose">${sanitizeInput(preview.purpose)}</div>
               <div class="tents-preview-time">${preview.quantities}</div>
             `;
+            
+            // Make preview clickable to open modal (TENTS & CHAIRS)
+            previewDiv.setAttribute('role', 'button');
+            previewDiv.setAttribute('tabindex', '0');
+            previewDiv.setAttribute('aria-label', `View reservations for ${currentDateStr}`);
+            previewDiv.style.cursor = 'pointer';
+            
+            previewDiv.addEventListener('click', (e) => {
+              e.stopPropagation(); // Prevent date cell click (which would open booking form)
+              if (typeof showDateBookingsModalTents === 'function') {
+                showDateBookingsModalTents(currentDateStr);
+              }
+            });
+            
+            // Keyboard support
+            previewDiv.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                previewDiv.click();
+              }
+            });
+            
             dateCell.appendChild(previewDiv);
           }
         });
         
-        // Still allow clicking to make new booking (inventory checked at form level)
+        // Still allow clicking date cell to make new booking (inventory checked at form level)
         dateCell.classList.add('available');
         dateCell.style.cursor = 'pointer';
         dateCell.addEventListener('click', () => openBookingModal(currentDateStr));
@@ -12744,6 +12810,31 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       dateEl.addEventListener('click', () => {
         const date = dateEl.getAttribute('data-date');
         showDateBookingsModalConference(date);
+      });
+    });
+
+    // Make preview items clickable (open modal) without triggering the date click
+    document.querySelectorAll('.tents-calendar-event, .tents-more-bookings').forEach(previewEl => {
+      previewEl.setAttribute('role', 'button');
+      previewEl.setAttribute('tabindex', '0');
+      previewEl.style.cursor = 'pointer';
+
+      previewEl.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent parent date cell from firing
+        const dateEl = previewEl.closest('.tents-calendar-date');
+        if (!dateEl) return;
+        const date = dateEl.getAttribute('data-date');
+        if (typeof showDateBookingsModalConference === 'function') {
+          showDateBookingsModalConference(date);
+        }
+      });
+
+      // Keyboard support
+      previewEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          previewEl.click();
+        }
       });
     });
   }
