@@ -12,9 +12,20 @@
   <script>
     (function() {
       try {
+        // TEMPORARY: Allow direct access for testing (remove after testing spinner)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('allowDirect') === 'true') {
+          console.log('[Index] Direct access allowed via URL parameter');
+          return;
+        }
+        
         // Check if this is a direct visit (typing URL) vs navigation from within the site
         const referrer = document.referrer;
         const isFromSameSite = referrer && (referrer.includes(window.location.hostname) || referrer.includes('localhost') || referrer.includes('127.0.0.1'));
+        
+        console.log('[Index Redirect Script] referrer:', referrer);
+        console.log('[Index Redirect Script] isFromSameSite:', isFromSameSite);
+        console.log('[Index Redirect Script] hostname:', window.location.hostname);
         
         // If visitor came from a link on the site (like LOGIN button), show login page
         if (isFromSameSite) {

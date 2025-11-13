@@ -440,10 +440,11 @@ loginForm?.addEventListener("submit", async (e) => {
         
         // Check if account is disabled
         if (userData.status === 'inactive') {
-          console.log('⚠️ User account is disabled');
           // Sign out the user immediately
           await signOut(auth);
           setError(errorLoginEmail, "Your account has been disabled. Please contact the administrator.");
+          // Don't return early - let finally block clean up spinner
+          hideButtonSpinner(submitBtn);
           return;
         }
         
@@ -451,8 +452,12 @@ loginForm?.addEventListener("submit", async (e) => {
         const urlParams = new URLSearchParams(window.location.search);
         const redirectTo = urlParams.get('redirect');
         
+        // Add small delay to show "LOGGING IN" feedback before redirect
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
         if (redirectTo) {
           // Prepare flash toast and redirect to the original page
+          console.log('[Login] Redirecting to:', redirectTo);
           try {
             const flash = { message: 'Logged in successfully', isSuccess: true, duration: TOAST_DURATION };
             sessionStorage.setItem('flashToast', JSON.stringify(flash));
@@ -460,6 +465,7 @@ loginForm?.addEventListener("submit", async (e) => {
           // Decode and redirect to the original page
           window.location.href = decodeURIComponent(redirectTo);
         } else if (userData.role === "admin") {
+          console.log('[Login] Redirecting to admin dashboard...');
           try {
             const name = userData.fullName || '';
             const welcome = name ? `Welcome back, ${name.split(' ')[0]}` : 'Logged in successfully';
@@ -468,6 +474,7 @@ loginForm?.addEventListener("submit", async (e) => {
           } catch (e) { /* ignore */ }
           window.location.href = "admin.html";
         } else if (userData.role === "user") {
+          console.log('[Login] Redirecting to user dashboard...');
           try {
             const name = userData.fullName || '';
             const welcome = name ? `Welcome back, ${name.split(' ')[0]}` : 'Logged in successfully';
@@ -476,21 +483,21 @@ loginForm?.addEventListener("submit", async (e) => {
           } catch (e) { /* ignore */ }
           window.location.href = "user.html";
         } else {
-          console.error("Unknown role:", userData.role);
+          console.error('[Login] Unknown role:', userData.role);
           alert("⚠️ Unknown role. Contact support.");
         }
       } else {
-        console.error("No user document found for uid:", user.uid);
+        console.error('[Login] No user document found for uid:', user.uid);
         alert("⚠️ No user profile found. Contact admin.");
       }
     } catch (firestoreError) {
-      console.error("Firestore error:", firestoreError);
+      console.error('[Login] Firestore error:', firestoreError);
       alert("⚠️ Error loading user profile. Please try again.");
     }
   } catch (error) {
     clearError(errorLoginEmail);
     clearError(errorLoginPassword);
-    console.log('Firebase auth error:', error.code); // For debugging
+    console.log('[Login] Firebase auth error:', error.code, error.message);
 
     switch(error.code) {
       case "auth/user-not-found":
@@ -515,11 +522,12 @@ loginForm?.addEventListener("submit", async (e) => {
         break;
       default:
         // Log the exact error for debugging
-        console.error('Unhandled Firebase error:', error);
+        console.error('[Login] Unhandled Firebase error:', error);
         setError(errorLoginEmail, "Login failed. Please check your email and password.");
     }
   } finally {
     // Always restore button state, even if there's an error
+    console.log('[Login] Cleaning up: hiding spinner and re-enabling form...');
     hideButtonSpinner(submitBtn);
   }
 });
@@ -1351,43 +1359,17 @@ document.addEventListener('DOMContentLoaded', function() {
    * The second parameter is optional and defaults to { disableForm: true }
    */
   function showButtonSpinner(button, options = { disableForm: true }) {
-    if (!button) return null;
+    if (!button) {
+      console.warn('[showButtonSpinner] Button is null or undefined');
+      return null;
+    }
     
     // Check if button already has a spinner element (either from HTML or previously added)
     let spinner = button.querySelector('.btn-spinner');
     const hasPreExistingSpinner = !!spinner;
     
-    // If no spinner exists, create and insert one
-    if (!hasPreExistingSpinner) {
-      // Use white spinner for better visibility on colored backgrounds (user forms)
-      // Use blue spinner for admin forms (white backgrounds)
-      const spinnerColor = '#ffffff';
-      spinner = createSpinnerElement(16, spinnerColor);
-      try { button.insertBefore(spinner, button.firstChild); } catch (e) { /* ignore */ }
-    } else {
-      // Pre-existing spinner from HTML - clear any hardcoded text (like "Processing...")
-      // Keep only the spinner icon, remove text nodes
-      try {
-        Array.from(spinner.childNodes).forEach(node => {
-          // Remove text nodes but keep the <span class="spinner"> element
-          if (node.nodeType === Node.TEXT_NODE) {
-            node.remove();
-          }
-        });
-        spinner.style.display = 'inline-flex';
-      } catch (e) { /* ignore */ }
-    }
-    
-    try { button.disabled = true; } catch (e) { /* ignore */ }
-
-    // If requested, disable the whole form (reference-counted)
-    if (options && options.disableForm) {
-      const form = button.closest && button.closest('form');
-      if (form) _incFormSpinner(form);
-    }
-
-    // Optional: replace the visible text inside the button in a safe way
-    // without touching icons/SVGs. The API: showButtonSpinner(btn, { text: '...' })
+    // Optional: replace the visible text inside the button BEFORE inserting spinner
+    // This ensures proper order: spinner, then text
     try {
       const textOpt = options && typeof options.text === 'string' ? options.text : null;
       if (textOpt !== null) {
@@ -1427,7 +1409,47 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     } catch (e) {
       // don't break spinner on text replace errors
-      console.warn('Failed to replace button text for spinner:', e);
+      console.error('[showButtonSpinner] Failed to replace button text:', e);
+    }
+    
+    // Now insert spinner AFTER text is wrapped
+    if (!hasPreExistingSpinner) {
+      // Use white spinner for better visibility on colored backgrounds (user forms)
+      const spinnerColor = '#ffffff';
+      spinner = createSpinnerElement(16, spinnerColor);
+      try { 
+        button.insertBefore(spinner, button.firstChild);
+      } catch (e) { 
+        console.error('[showButtonSpinner] Failed to insert spinner:', e);
+      }
+    } else {
+      // Pre-existing spinner from HTML - clear any hardcoded text (like "Processing...")
+      // Keep only the spinner icon, remove text nodes
+      try {
+        Array.from(spinner.childNodes).forEach(node => {
+          // Remove text nodes but keep the <span class="spinner"> element
+          if (node.nodeType === Node.TEXT_NODE) {
+            node.remove();
+          }
+        });
+        spinner.style.display = 'inline-flex';
+      } catch (e) { 
+        console.error('[showButtonSpinner] Failed to show pre-existing spinner:', e);
+      }
+    }
+    
+    try { 
+      button.disabled = true;
+    } catch (e) { 
+      console.error('[showButtonSpinner] Failed to disable button:', e);
+    }
+
+    // If requested, disable the whole form (reference-counted)
+    if (options && options.disableForm) {
+      const form = button.closest && button.closest('form');
+      if (form) {
+        _incFormSpinner(form);
+      }
     }
 
     return spinner;
@@ -1942,7 +1964,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Show spinner on save button
     const editSaveButton = document.querySelector('#editProfileForm .save-changes');
-    showButtonSpinner(editSaveButton, { disableForm: true, text: 'SAVING CHANGES' });
+    showButtonSpinner(editSaveButton, { disableForm: true, text: 'Saving Changes' });
 
     try {
       // Update Firestore
@@ -2049,7 +2071,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Show spinner on save button while processing
     const saveButton = document.querySelector('#changePasswordForm .save-changes');
-    showButtonSpinner(saveButton, { disableForm: true, text: 'CHANGING PASSWORD' });
+    showButtonSpinner(saveButton, { disableForm: true, text: 'Saving Changes' });
 
     try {
       const credential = EmailAuthProvider.credential(user.email, currentPassword);
@@ -7352,7 +7374,7 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
       
       // Show loading state with updated button text
       const submitBtn = this.querySelector('.internal-booking-submit-btn');
-      showButtonSpinner(submitBtn, { disableForm: true, text: 'CREATING BOOKING' });
+      showButtonSpinner(submitBtn, { disableForm: true, text: 'Adding Booking' });
       
       try {
         // Get current admin user
@@ -11473,7 +11495,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       
       // Show loading with updated button text
       const submitBtn = this.querySelector('.internal-booking-submit-btn');
-      showButtonSpinner(submitBtn, { disableForm: true, text: 'CREATING BOOKING' });
+      showButtonSpinner(submitBtn, { disableForm: true, text: 'Adding Booking' });
       
       try {
         const currentUser = auth.currentUser;
@@ -14268,7 +14290,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       
       // Show loading state with updated button text
       const submitBtn = this.querySelector('.internal-booking-submit-btn');
-      showButtonSpinner(submitBtn, { disableForm: true, text: 'CREATING RESERVATION' });
+      showButtonSpinner(submitBtn, { disableForm: true, text: 'Adding Reservation' });
       
       try {
         // Get current admin user
@@ -16211,6 +16233,10 @@ if (window.location.pathname.endsWith('index.html') || window.location.pathname 
         clearError(errorLoginPassword);
       }
       
+      // Show spinner - Get submit button and show spinner
+      const submitBtn = newLoginForm.querySelector('button[type="submit"]');
+      showButtonSpinner(submitBtn, { disableForm: true, text: 'LOGGING IN' });
+      
       // PHASE 1: Check rate limiting BEFORE attempting login
       console.log('🔍 [Security] Checking rate limit for:', email);
       const rateLimit = await checkLoginRateLimit(email);
@@ -16225,6 +16251,8 @@ if (window.location.pathname.endsWith('index.html') || window.location.pathname 
           remainingLockTime: minutes
         });
         
+        // Cleanup spinner before return
+        hideButtonSpinner(submitBtn);
         return;
       }
       
@@ -16266,11 +16294,17 @@ if (window.location.pathname.endsWith('index.html') || window.location.pathname 
               // Sign out the user immediately
               await signOut(auth);
               setError(errorLoginEmail, "Your account has been disabled. Please contact the administrator.");
+              
+              // Cleanup spinner before return
+              hideButtonSpinner(submitBtn);
               return;
             }
             
             // Successful login - redirect based on role
             console.log('✅ [Security] Login successful for:', email);
+            
+            // Add small delay to show spinner before redirect
+            await new Promise(resolve => setTimeout(resolve, 300));
             
             const urlParams = new URLSearchParams(window.location.search);
             const redirectTo = urlParams.get('redirect');
@@ -16340,6 +16374,9 @@ if (window.location.pathname.endsWith('index.html') || window.location.pathname 
             console.error('Unhandled Firebase error:', error);
             setError(errorLoginEmail, "Login failed. Please check your email and password.");
         }
+      } finally {
+        // Always cleanup spinner and re-enable form
+        hideButtonSpinner(submitBtn);
       }
     });
     
