@@ -240,6 +240,30 @@
       </div>
     </div>
 
+    <!-- Internal Booking Confirmation Modal -->
+    <div id="internalBookingConfirmModal" class="modal-overlay" style="z-index: 10000;">
+      <div class="modal-content">
+        <h2>Request Summary</h2>
+        <p>Please review the following information before confirming this internal booking.</p>
+
+        <div class="modal-summary">
+          <p><strong>Event Start Date:</strong> <span id="confirmStartDate"></span></p>
+          <p><strong>Event End Date:</strong> <span id="confirmEndDate"></span></p>
+          <p><strong>Quantity of Tent/s:</strong> <span id="confirmTents">0</span></p>
+          <p><strong>Quantity of Chair/s:</strong> <span id="confirmChairs">0</span></p>
+          <p><strong>Purpose:</strong> <span id="confirmPurpose"></span></p>
+          <p><strong>Location:</strong> <span id="confirmLocation"></span></p>
+          <p><strong>Contact Person:</strong> <span id="confirmContactPerson"></span></p>
+          <p><strong>Contact Number:</strong> <span id="confirmContactNumber"></span></p>
+        </div>
+
+        <div class="modal-buttons">
+          <button type="button" class="cancel-btn" id="cancel-btn">Cancel</button>
+          <button type="button" class="confirm-btn" id="confirm-btn">Confirm</button>
+        </div>
+      </div>
+    </div>
+
     <script src="script.js" type="module"></script>
   </body>
 </html>

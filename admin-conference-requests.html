@@ -215,6 +215,30 @@
         </div>
       </div>
 
+      <!-- Internal Booking Confirmation Modal -->
+      <div id="internalBookingConfirmModalConference" class="modal-overlay" style="z-index: 10001;">
+        <div class="modal-content">
+          <h2>Request Summary</h2>
+          <p>Please review the following information before confirming this internal reservation.</p>
+
+          <div class="modal-summary">
+            <p><strong>Event Date:</strong> <span id="confirmEventDateConference"></span></p>
+            <p><strong>Start Time:</strong> <span id="confirmStartTimeConference"></span></p>
+            <p><strong>End Time:</strong> <span id="confirmEndTimeConference"></span></p>
+            <p><strong>Expected Attendees:</strong> <span id="confirmAttendeesConference"></span></p>
+            <p><strong>Purpose:</strong> <span id="confirmPurposeConference"></span></p>
+            <p><strong>Department:</strong> <span id="confirmDepartmentConference"></span></p>
+            <p><strong>Contact Person:</strong> <span id="confirmContactPersonConference"></span></p>
+            <p><strong>Contact Number:</strong> <span id="confirmContactNumberConference"></span></p>
+          </div>
+
+          <div class="modal-buttons">
+            <button type="button" class="cancel-btn" id="cancel-btn-conference">Cancel</button>
+            <button type="button" class="confirm-btn" id="confirm-btn-conference">Confirm</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Internal Booking Modal -->
       <div class="internal-booking-modal-overlay" id="internalBookingModalConference">
         <div class="internal-booking-modal">

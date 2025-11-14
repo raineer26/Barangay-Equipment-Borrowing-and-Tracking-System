@@ -7270,9 +7270,13 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
 
   // Form validation helpers
   function setInternalError(elementId, message) {
-    const errorElement = document.getElementById(`error-${elementId}`);
-    const inputElement = document.getElementById(elementId);
-    
+    // Support both dashed-ids (error-internal-start-date) and camelCase input ids (internalStartDate)
+    const dashed = elementId.includes('-') ? elementId : elementId.replace(/([A-Z])/g, '-$1').toLowerCase();
+    const camel = elementId.includes('-') ? elementId.replace(/-([a-z])/g, (m,c)=>c.toUpperCase()) : elementId;
+
+    const errorElement = document.getElementById(`error-${dashed}`) || document.getElementById(`error-${camel}`);
+    const inputElement = document.getElementById(camel) || document.getElementById(dashed) || document.getElementById(elementId);
+
     if (errorElement) {
       errorElement.textContent = message;
     }
@@ -7282,9 +7286,13 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
   }
 
   function clearInternalError(elementId) {
-    const errorElement = document.getElementById(`error-${elementId}`);
-    const inputElement = document.getElementById(elementId);
-    
+    // Support both dashed and camelCase IDs
+    const dashed = elementId.includes('-') ? elementId : elementId.replace(/([A-Z])/g, '-$1').toLowerCase();
+    const camel = elementId.includes('-') ? elementId.replace(/-([a-z])/g, (m,c)=>c.toUpperCase()) : elementId;
+
+    const errorElement = document.getElementById(`error-${dashed}`) || document.getElementById(`error-${camel}`);
+    const inputElement = document.getElementById(camel) || document.getElementById(dashed) || document.getElementById(elementId);
+
     if (errorElement) {
       errorElement.textContent = '';
     }
@@ -7302,9 +7310,18 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
       'internal-purpose',
       'internal-location',
       'internal-contact-person',
-      'internal-contact-number'
+      'internal-contact-number',
+      // also support camelCase variants
+      'internalStartDate',
+      'internalEndDate',
+      'internalTents',
+      'internalChairs',
+      'internalPurpose',
+      'internalLocation',
+      'internalContactPerson',
+      'internalContactNumber'
     ];
-    
+
     errorIds.forEach(clearInternalError);
   }
 
@@ -7448,70 +7465,41 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
         return;
       }
       
-      // Show loading state with updated button text
-      const submitBtn = this.querySelector('.internal-booking-submit-btn');
-      showButtonSpinner(submitBtn, { disableForm: true, text: 'Adding Booking' });
+      // Show confirmation modal instead of submitting directly
+      populateInternalBookingConfirmModal({
+        startDate,
+        endDate,
+        tents,
+        chairs,
+        purpose,
+        location,
+        contactPerson,
+        contactNumber
+      });
       
-      try {
-        // Get current admin user
-        const currentUser = auth.currentUser;
-        if (!currentUser) {
-          throw new Error('No authenticated user');
-        }
-        
-        // Create booking document
-        const bookingData = {
-          startDate: startDate,
-          endDate: endDate,
-          quantityTents: tents,
-          quantityChairs: chairs,
-          purpose: sanitizeInput(purpose),
-          completeAddress: sanitizeInput(location),
-          fullName: sanitizeInput(contactPerson),
-          contactNumber: contactNumber,
-          modeOfReceiving: 'Internal',
-          status: 'approved', // Auto-approved for internal bookings
-          userId: currentUser.uid,
-          userEmail: currentUser.email,
-          createdAt: new Date(),
-          approvedAt: new Date(),
-          isInternalBooking: true
-        };
-        
-        // Add to Firestore
-        await addDoc(collection(db, 'tentsChairsBookings'), bookingData);
-        
-        // Update inventory
-        const inventoryRef = doc(db, 'inventory', 'equipment');
-        const inventorySnap = await getDoc(inventoryRef);
-        
-        if (inventorySnap.exists()) {
-          const currentInventory = inventorySnap.data();
-          await updateDoc(inventoryRef, {
-            availableTents: (currentInventory.availableTents || 0) - tents,
-            availableChairs: (currentInventory.availableChairs || 0) - chairs,
-            tentsInUse: (currentInventory.tentsInUse || 0) + tents,
-            chairsInUse: (currentInventory.chairsInUse || 0) + chairs,
-            lastUpdated: new Date()
-          });
-        }
-        
-        // Success!
-        showAlert('Internal booking added successfully!', true, () => {
-          closeModal();
-          // Reload data
-          loadInventoryCounts();
-          loadAllReservationsData().then(() => {
-            renderWeekCalendar();
-            loadReservations();
-          });
-        });
-        
-      } catch (error) {
-        console.error('Error creating internal booking:', error);
-        showAlert('Failed to create internal booking. Please try again.', false);
-      } finally {
-        hideButtonSpinner(submitBtn);
+    });
+  }
+
+  // Add event listeners for confirmation modal buttons
+  const confirmYesBtn = document.getElementById('confirm-btn');
+  const confirmNoBtn = document.getElementById('cancel-btn');
+  const confirmModal = document.getElementById('internalBookingConfirmModal');
+
+  if (confirmYesBtn) {
+    confirmYesBtn.addEventListener('click', handleInternalBookingConfirm);
+    console.log('✅ Confirm button event listener attached');
+  }
+
+  if (confirmNoBtn) {
+    confirmNoBtn.addEventListener('click', handleInternalBookingCancel);
+    console.log('✅ Cancel button event listener attached');
+  }
+
+  // Close confirmation modal when clicking outside
+  if (confirmModal) {
+    confirmModal.addEventListener('click', (e) => {
+      if (e.target === confirmModal) {
+        handleInternalBookingCancel();
       }
     });
   }
@@ -7519,7 +7507,158 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
 
 /* =====================================================
    END OF ADMIN DASHBOARD SCRIPT
-===================================================== *//* =====================================================
+===================================================== */
+
+// Function to populate the internal booking confirmation modal
+function populateInternalBookingConfirmModal(data) {
+  console.log('📋 Populating internal booking confirmation modal with data:', data);
+  
+  // Populate the summary spans
+  document.getElementById('confirmStartDate').textContent = data.startDate || 'N/A';
+  document.getElementById('confirmEndDate').textContent = data.endDate || 'N/A';
+  document.getElementById('confirmTents').textContent = data.tents || 0;
+  document.getElementById('confirmChairs').textContent = data.chairs || 0;
+  document.getElementById('confirmPurpose').textContent = data.purpose || 'N/A';
+  document.getElementById('confirmLocation').textContent = data.location || 'N/A';
+  document.getElementById('confirmContactPerson').textContent = data.contactPerson || 'N/A';
+  document.getElementById('confirmContactNumber').textContent = data.contactNumber || 'N/A';
+  
+  // Show the modal
+  const modal = document.getElementById('internalBookingConfirmModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    console.log('✅ Internal booking confirmation modal shown');
+  } else {
+    console.error('❌ Internal booking confirmation modal not found');
+  }
+}
+
+// Function to handle confirmation modal Yes button
+function handleInternalBookingConfirm() {
+  console.log('✅ Admin confirmed internal booking');
+  
+  // Get form data
+  // Use the actual input IDs from the form (camelCase)
+  const startDate = document.getElementById('internalStartDate')?.value || '';
+  const endDate = document.getElementById('internalEndDate')?.value || '';
+  const tents = parseInt(document.getElementById('internalTents')?.value) || 0;
+  const chairs = parseInt(document.getElementById('internalChairs')?.value) || 0;
+  const purpose = document.getElementById('internalPurpose')?.value || '';
+  const location = document.getElementById('internalLocation')?.value || '';
+  const contactPerson = document.getElementById('internalContactPerson')?.value || '';
+  const contactNumber = document.getElementById('internalContactNumber')?.value || '';
+  
+  // Submit the booking
+  submitInternalBooking({
+    startDate,
+    endDate,
+    tents,
+    chairs,
+    purpose,
+    location,
+    contactPerson,
+    contactNumber
+  });
+  
+  // Hide the modal
+  const modal = document.getElementById('internalBookingConfirmModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+// Function to handle confirmation modal No button
+function handleInternalBookingCancel() {
+  console.log('❌ Admin cancelled internal booking confirmation');
+  
+  // Hide the modal
+  const modal = document.getElementById('internalBookingConfirmModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+// Function to submit internal booking to Firestore
+async function submitInternalBooking(data) {
+  console.log('📤 Submitting internal booking to Firestore:', data);
+  
+  try {
+    // Check inventory availability first
+    const inventoryRef = doc(db, 'inventory', 'equipment');
+    const inventorySnap = await getDoc(inventoryRef);
+    
+    if (!inventorySnap.exists()) {
+      console.error('❌ Inventory document not found');
+      showAlert('Inventory data not found. Please contact administrator.', false);
+      return;
+    }
+    
+    const inventory = inventorySnap.data();
+    const availableTents = inventory.availableTents || 0;
+    const availableChairs = inventory.availableChairs || 0;
+    
+    if (data.tents > availableTents || data.chairs > availableChairs) {
+      console.error('❌ Insufficient inventory for internal booking');
+      showAlert(`Insufficient inventory. Available: ${availableTents} tents, ${availableChairs} chairs.`, false);
+      return;
+    }
+    
+    // Create the booking document
+    const bookingData = {
+      startDate: data.startDate,
+      endDate: data.endDate,
+      quantityTents: data.tents,
+      quantityChairs: data.chairs,
+      purposeOfUse: data.purpose,
+      completeAddress: data.location,
+      contactNumber: data.contactNumber,
+      fullName: data.contactPerson,
+      status: 'approved', // Internal bookings are auto-approved
+      isInternalBooking: true,
+      createdAt: new Date(),
+      approvedAt: new Date()
+    };
+    
+    // Add to Firestore
+    const docRef = await addDoc(collection(db, 'tentsChairsBookings'), bookingData);
+    console.log('✅ Internal booking created with ID:', docRef.id);
+    
+    // Update inventory
+    await updateDoc(inventoryRef, {
+      availableTents: availableTents - data.tents,
+      availableChairs: availableChairs - data.chairs,
+      tentsInUse: (inventory.tentsInUse || 0) + data.tents,
+      chairsInUse: (inventory.chairsInUse || 0) + data.chairs,
+      lastUpdated: new Date()
+    });
+    
+    console.log('✅ Inventory updated for internal booking');
+    
+    // Show success message and close booking modal when OK is clicked
+    showAlert('Internal booking created successfully!', true, () => {
+      // Close the booking modal (the main form modal)
+      const bookingModal = document.getElementById('internalBookingModal');
+      if (bookingModal) {
+        bookingModal.classList.remove('active');
+      }
+      
+      // Reset form
+      const form = document.getElementById('internalBookingForm');
+      if (form) form.reset();
+      
+      // Clear any errors
+      if (typeof clearAllInternalErrors === 'function') {
+        clearAllInternalErrors();
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error creating internal booking:', error);
+    showAlert('Failed to create internal booking. Please try again.', false);
+  }
+}
+
+/* =====================================================
    ADMIN TENTS & CHAIRS REQUEST MANAGEMENT
    - Table and calendar views
    - Filter and search functionality  
@@ -11569,9 +11708,95 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       
       if (hasError) return;
       
-      // Show loading with updated button text
-      const submitBtn = this.querySelector('.internal-booking-submit-btn');
-      showButtonSpinner(submitBtn, { disableForm: true, text: 'Adding Booking' });
+      // Show confirmation modal instead of submitting directly
+      populateInternalBookingConfirmModalTents({
+        startDate,
+        endDate,
+        tents,
+        chairs,
+        purpose,
+        location,
+        contactPerson,
+        contactNumber
+      });
+    });
+  }
+
+  // Function to populate the internal booking confirmation modal
+  function populateInternalBookingConfirmModalTents(data) {
+    console.log('📋 Populating tents internal booking confirmation modal with data:', data);
+    
+    // Populate the summary spans
+    document.getElementById('confirmStartDateTents').textContent = data.startDate || 'N/A';
+    document.getElementById('confirmEndDateTents').textContent = data.endDate || 'N/A';
+    document.getElementById('confirmTentsTents').textContent = data.tents || 0;
+    document.getElementById('confirmChairsTents').textContent = data.chairs || 0;
+    document.getElementById('confirmPurposeTents').textContent = data.purpose || 'N/A';
+    document.getElementById('confirmLocationTents').textContent = data.location || 'N/A';
+    document.getElementById('confirmContactPersonTents').textContent = data.contactPerson || 'N/A';
+    document.getElementById('confirmContactNumberTents').textContent = data.contactNumber || 'N/A';
+    
+    // Show the modal
+    const modal = document.getElementById('internalBookingConfirmModalTents');
+    if (modal) {
+      modal.style.display = 'flex';
+      console.log('✅ Tents internal booking confirmation modal shown');
+    } else {
+      console.error('❌ Tents internal booking confirmation modal not found');
+    }
+  }
+
+  // Function to handle confirmation modal Confirm button
+  function handleInternalBookingConfirmTents() {
+    console.log('✅ Admin confirmed tents internal booking');
+    
+    // Get form data from form inputs
+    const startDate = document.getElementById('internalStartDateTents').value.trim();
+    const endDate = document.getElementById('internalEndDateTents').value.trim();
+    const tents = parseInt(document.getElementById('internalTentsTents').value) || 0;
+    const chairs = parseInt(document.getElementById('internalChairsTents').value) || 0;
+    const purpose = document.getElementById('internalPurposeTents').value.trim();
+    const location = document.getElementById('internalLocationTents').value.trim();
+    const contactPerson = document.getElementById('internalContactPersonTents').value.trim();
+    const contactNumber = document.getElementById('internalContactNumberTents').value.trim();
+    
+    // Hide confirmation modal
+    const modal = document.getElementById('internalBookingConfirmModalTents');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+    
+    // Submit the booking
+    submitInternalBookingTents({
+      startDate,
+      endDate,
+      tents,
+      chairs,
+      purpose,
+      location,
+      contactPerson,
+      contactNumber
+    });
+  }
+
+  // Function to handle confirmation modal Cancel button
+  function handleInternalBookingCancelTents() {
+    console.log('❌ Admin cancelled tents internal booking confirmation');
+    
+    // Hide the modal
+    const modal = document.getElementById('internalBookingConfirmModalTents');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  // Function to submit internal booking to Firestore
+  async function submitInternalBookingTents(data) {
+    console.log('📤 Submitting tents internal booking to Firestore:', data);
+    
+    const form = document.getElementById('internalBookingFormTents');
+    const submitBtn = form.querySelector('.internal-booking-submit-btn');
+    showButtonSpinner(submitBtn, { disableForm: true, text: 'Adding Booking' });
       
       try {
         const currentUser = auth.currentUser;
@@ -11580,23 +11805,23 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         }
         
         // Split contact person name into first and last name
-        const nameParts = contactPerson.trim().split(/\s+/);
+        const nameParts = data.contactPerson.trim().split(/\s+/);
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || ''; // Join remaining parts as last name
         
         // Create booking
         const bookingData = {
-          startDate: startDate,
-          endDate: endDate,
-          quantityTents: tents,
-          quantityChairs: chairs,
-          purposeOfUse: sanitizeInput(purpose), // Use purposeOfUse to match other requests
-          purpose: sanitizeInput(purpose), // Also keep purpose for consistency
-          completeAddress: sanitizeInput(location),
+          startDate: data.startDate,
+          endDate: data.endDate,
+          quantityTents: data.tents,
+          quantityChairs: data.chairs,
+          purposeOfUse: sanitizeInput(data.purpose), // Use purposeOfUse to match other requests
+          purpose: sanitizeInput(data.purpose), // Also keep purpose for consistency
+          completeAddress: sanitizeInput(data.location),
           firstName: sanitizeInput(firstName),
           lastName: sanitizeInput(lastName),
-          fullName: sanitizeInput(contactPerson), // Keep fullName for backwards compatibility
-          contactNumber: contactNumber,
+          fullName: sanitizeInput(data.contactPerson), // Keep fullName for backwards compatibility
+          contactNumber: data.contactNumber,
           modeOfReceiving: 'Internal',
           status: 'approved',
           userId: currentUser.uid,
@@ -11615,16 +11840,26 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         if (inventorySnap.exists()) {
           const currentInventory = inventorySnap.data();
           await updateDoc(inventoryRef, {
-            availableTents: (currentInventory.availableTents || 0) - tents,
-            availableChairs: (currentInventory.availableChairs || 0) - chairs,
-            tentsInUse: (currentInventory.tentsInUse || 0) + tents,
-            chairsInUse: (currentInventory.chairsInUse || 0) + chairs,
+            availableTents: (currentInventory.availableTents || 0) - data.tents,
+            availableChairs: (currentInventory.availableChairs || 0) - data.chairs,
+            tentsInUse: (currentInventory.tentsInUse || 0) + data.tents,
+            chairsInUse: (currentInventory.chairsInUse || 0) + data.chairs,
             lastUpdated: new Date()
           });
         }
         
         showAlert('Internal booking added successfully!', true, () => {
-          closeModal();
+          // Close booking modal
+          const modal = document.getElementById('internalBookingModalTents');
+          if (modal) {
+            modal.classList.remove('active');
+          }
+          
+          // Reset form
+          form.reset();
+          clearAllInternalErrorsTents();
+          
+          // Reload data
           loadInventoryStats();
           loadAllRequests();
         });
@@ -11634,6 +11869,29 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         showAlert('Failed to create internal booking. Please try again.', false);
       } finally {
         hideButtonSpinner(submitBtn);
+      }
+  }
+
+  // Add event listeners for confirmation modal buttons
+  const confirmYesBtnTents = document.getElementById('confirm-btn-tents');
+  const confirmNoBtnTents = document.getElementById('cancel-btn-tents');
+  const confirmModalTents = document.getElementById('internalBookingConfirmModalTents');
+
+  if (confirmYesBtnTents) {
+    confirmYesBtnTents.addEventListener('click', handleInternalBookingConfirmTents);
+    console.log('✅ Tents confirm button event listener attached');
+  }
+
+  if (confirmNoBtnTents) {
+    confirmNoBtnTents.addEventListener('click', handleInternalBookingCancelTents);
+    console.log('✅ Tents cancel button event listener attached');
+  }
+
+  // Close confirmation modal when clicking outside
+  if (confirmModalTents) {
+    confirmModalTents.addEventListener('click', (e) => {
+      if (e.target === confirmModalTents) {
+        handleInternalBookingCancelTents();
       }
     });
   }
@@ -14149,6 +14407,28 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     });
   }
 
+  // Add event listeners for confirmation modal buttons
+  const confirmYesBtn = document.getElementById('confirm-btn');
+  const confirmNoBtn = document.getElementById('cancel-btn');
+  const confirmModal = document.getElementById('internalBookingConfirmModal');
+
+  if (confirmYesBtn) {
+    confirmYesBtn.addEventListener('click', handleInternalBookingConfirm);
+  }
+
+  if (confirmNoBtn) {
+    confirmNoBtn.addEventListener('click', handleInternalBookingCancel);
+  }
+
+  // Close confirmation modal when clicking outside
+  if (confirmModal) {
+    confirmModal.addEventListener('click', (e) => {
+      if (e.target === confirmModal) {
+        handleInternalBookingCancel();
+      }
+    });
+  }
+
   // Form validation helpers
   function setInternalError(elementId, message) {
     const errorElement = document.getElementById(elementId);
@@ -14389,9 +14669,105 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         console.error('Error checking for overlaps:', error);
       }
       
-      // Show loading state with updated button text
-      const submitBtn = this.querySelector('.internal-booking-submit-btn');
-      showButtonSpinner(submitBtn, { disableForm: true, text: 'Adding Reservation' });
+      // Show confirmation modal instead of submitting directly
+      populateInternalBookingConfirmModalConference({
+        eventDate,
+        startTime,
+        endTime,
+        expectedAttendees,
+        purpose,
+        department,
+        contactPerson,
+        contactNumber
+      });
+    });
+  }
+
+  // Function to populate the internal booking confirmation modal
+  function populateInternalBookingConfirmModalConference(data) {
+    console.log('📋 Populating conference internal booking confirmation modal with data:', data);
+    
+    // Format times to 12-hour
+    const formatTime = (time24) => {
+      if (!time24) return 'N/A';
+      const [hours, minutes] = time24.split(':');
+      const hour = parseInt(hours);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const hour12 = hour % 12 || 12;
+      return `${hour12}:${minutes} ${ampm}`;
+    };
+    
+    // Populate the summary spans
+    document.getElementById('confirmEventDateConference').textContent = data.eventDate || 'N/A';
+    document.getElementById('confirmStartTimeConference').textContent = formatTime(data.startTime);
+    document.getElementById('confirmEndTimeConference').textContent = formatTime(data.endTime);
+    document.getElementById('confirmAttendeesConference').textContent = data.expectedAttendees || 0;
+    document.getElementById('confirmPurposeConference').textContent = data.purpose || 'N/A';
+    document.getElementById('confirmDepartmentConference').textContent = data.department || 'N/A';
+    document.getElementById('confirmContactPersonConference').textContent = data.contactPerson || 'N/A';
+    document.getElementById('confirmContactNumberConference').textContent = data.contactNumber || 'N/A';
+    
+    // Show the modal
+    const modal = document.getElementById('internalBookingConfirmModalConference');
+    if (modal) {
+      modal.style.display = 'flex';
+      console.log('✅ Conference internal booking confirmation modal shown');
+    } else {
+      console.error('❌ Conference internal booking confirmation modal not found');
+    }
+  }
+
+  // Function to handle confirmation modal Confirm button
+  function handleInternalBookingConfirmConference() {
+    console.log('✅ Admin confirmed conference internal booking');
+    
+    // Get form data from form inputs
+    const eventDate = document.getElementById('internalEventDateConference').value.trim();
+    const startTime = document.getElementById('internalStartTimeConference').value.trim();
+    const endTime = document.getElementById('internalEndTimeConference').value.trim();
+    const expectedAttendees = parseInt(document.getElementById('internalExpectedAttendeesConference').value) || 0;
+    const purpose = document.getElementById('internalPurposeConference').value.trim();
+    const department = document.getElementById('internalDepartmentConference').value.trim();
+    const contactPerson = document.getElementById('internalContactPersonConference').value.trim();
+    const contactNumber = document.getElementById('internalContactNumberConference').value.trim();
+    
+    // Hide confirmation modal
+    const modal = document.getElementById('internalBookingConfirmModalConference');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+    
+    // Submit the booking
+    submitInternalBookingConference({
+      eventDate,
+      startTime,
+      endTime,
+      expectedAttendees,
+      purpose,
+      department,
+      contactPerson,
+      contactNumber
+    });
+  }
+
+  // Function to handle confirmation modal Cancel button
+  function handleInternalBookingCancelConference() {
+    console.log('❌ Admin cancelled conference internal booking confirmation');
+    
+    // Hide the modal
+    const modal = document.getElementById('internalBookingConfirmModalConference');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  // Function to submit internal booking to Firestore
+  async function submitInternalBookingConference(data) {
+    console.log('📤 Submitting conference internal booking to Firestore:', data);
+    
+    const form = document.getElementById('internalBookingFormConference');
+    const submitBtn = form.querySelector('.internal-booking-submit-btn');
+    showButtonSpinner(submitBtn, { disableForm: true, text: 'Adding Reservation' });
       
       try {
         // Get current admin user
@@ -14401,22 +14777,22 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         }
         
         // Split contact person name into first and last name
-        const nameParts = contactPerson.trim().split(/\s+/);
+        const nameParts = data.contactPerson.trim().split(/\s+/);
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || ''; // Join remaining parts as last name
         
         // Create booking document
         const bookingData = {
-          eventDate: eventDate,
-          startTime: startTime,
-          endTime: endTime,
-          expectedAttendees: expectedAttendees,
-          purpose: sanitizeInput(purpose),
-          department: department ? sanitizeInput(department) : null,
+          eventDate: data.eventDate,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          expectedAttendees: data.expectedAttendees,
+          purpose: sanitizeInput(data.purpose),
+          department: data.department ? sanitizeInput(data.department) : null,
           firstName: sanitizeInput(firstName),
           lastName: sanitizeInput(lastName),
-          fullName: sanitizeInput(contactPerson), // Keep fullName for backwards compatibility
-          contactNumber: contactNumber,
+          fullName: sanitizeInput(data.contactPerson), // Keep fullName for backwards compatibility
+          contactNumber: data.contactNumber,
           address: 'Internal Booking', // Can be modified if needed
           status: 'approved', // Auto-approved for internal bookings
           userId: currentUser.uid,
@@ -14429,18 +14805,50 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         // Add to Firestore
         await addDoc(collection(db, 'conferenceRoomBookings'), bookingData);
         
-        // Success!
-        showToast('Internal reservation added successfully!', true);
-        closeInternalBookingModalFunc();
-        
-        // Reload data
-        await loadAllRequests();
+        // Success! Show alert and close modal when OK is clicked
+        showAlert('Internal reservation added successfully!', true, async () => {
+          // Close booking modal
+          const modal = document.getElementById('internalBookingModalConference');
+          if (modal) {
+            modal.classList.remove('active');
+          }
+          
+          // Reset form
+          form.reset();
+          clearAllInternalErrors();
+          
+          // Reload data
+          await loadAllRequests();
+        });
         
       } catch (error) {
         console.error('Error creating internal booking:', error);
-        showToast('Failed to create internal reservation. Please try again.', false);
+        showAlert('Failed to create internal reservation. Please try again.', false);
       } finally {
         hideButtonSpinner(submitBtn);
+      }
+  }
+
+  // Add event listeners for confirmation modal buttons
+  const confirmYesBtnConference = document.getElementById('confirm-btn-conference');
+  const confirmNoBtnConference = document.getElementById('cancel-btn-conference');
+  const confirmModalConference = document.getElementById('internalBookingConfirmModalConference');
+
+  if (confirmYesBtnConference) {
+    confirmYesBtnConference.addEventListener('click', handleInternalBookingConfirmConference);
+    console.log('✅ Conference confirm button event listener attached');
+  }
+
+  if (confirmNoBtnConference) {
+    confirmNoBtnConference.addEventListener('click', handleInternalBookingCancelConference);
+    console.log('✅ Conference cancel button event listener attached');
+  }
+
+  // Close confirmation modal when clicking outside
+  if (confirmModalConference) {
+    confirmModalConference.addEventListener('click', (e) => {
+      if (e.target === confirmModalConference) {
+        handleInternalBookingCancelConference();
       }
     });
   }

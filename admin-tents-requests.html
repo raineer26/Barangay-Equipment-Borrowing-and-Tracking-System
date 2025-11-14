@@ -223,6 +223,30 @@
         </div>
       </div>
 
+      <!-- Internal Booking Confirmation Modal -->
+      <div id="internalBookingConfirmModalTents" class="modal-overlay" style="z-index: 10001;">
+        <div class="modal-content">
+          <h2>Request Summary</h2>
+          <p>Please review the following information before confirming this internal booking.</p>
+
+          <div class="modal-summary">
+            <p><strong>Event Start Date:</strong> <span id="confirmStartDateTents"></span></p>
+            <p><strong>Event End Date:</strong> <span id="confirmEndDateTents"></span></p>
+            <p><strong>Quantity of Tent/s:</strong> <span id="confirmTentsTents">0</span></p>
+            <p><strong>Quantity of Chair/s:</strong> <span id="confirmChairsTents">0</span></p>
+            <p><strong>Purpose:</strong> <span id="confirmPurposeTents"></span></p>
+            <p><strong>Location:</strong> <span id="confirmLocationTents"></span></p>
+            <p><strong>Contact Person:</strong> <span id="confirmContactPersonTents"></span></p>
+            <p><strong>Contact Number:</strong> <span id="confirmContactNumberTents"></span></p>
+          </div>
+
+          <div class="modal-buttons">
+            <button type="button" class="cancel-btn" id="cancel-btn-tents">Cancel</button>
+            <button type="button" class="confirm-btn" id="confirm-btn-tents">Confirm</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Internal Booking Modal -->
       <div class="internal-booking-modal-overlay" id="internalBookingModalTents">
         <div class="internal-booking-modal">
