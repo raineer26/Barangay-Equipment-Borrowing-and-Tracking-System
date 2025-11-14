@@ -751,6 +751,23 @@ function updatePasswordStrength(strength) {
   }
 }
 
+// Email verification note - Show reminder when user starts typing email
+document.getElementById("signup-email")?.addEventListener("input", function(e) {
+  const emailNote = document.getElementById("email-verification-note");
+  
+  if (e.target.value.length > 0) {
+    // Show the verification note when user starts typing
+    if (emailNote) {
+      emailNote.style.display = "inline";
+    }
+  } else {
+    // Hide the note when input is empty
+    if (emailNote) {
+      emailNote.style.display = "none";
+    }
+  }
+});
+
 // ============================================================================
 // EMAIL VERIFICATION FUNCTIONS
 // ============================================================================
