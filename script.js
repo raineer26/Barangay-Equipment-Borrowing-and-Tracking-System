@@ -5947,8 +5947,9 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     document.getElementById('summaryPurpose').textContent = data.purposeOfUse;
     document.getElementById('summaryTents').textContent = data.quantityTents;
     document.getElementById('summaryChairs').textContent = data.quantityChairs;
-    document.getElementById('summaryStart').textContent = data.startDate;
-    document.getElementById('summaryEnd').textContent = data.endDate;
+    // Show human-friendly dates (e.g., "November 12, 2025")
+    document.getElementById('summaryStart').textContent = formatDateToWords(data.startDate);
+    document.getElementById('summaryEnd').textContent = formatDateToWords(data.endDate);
     document.getElementById('summaryMode').textContent = data.modeOfReceiving;
   }
 
@@ -6659,9 +6660,9 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
     const modal = document.getElementById('conferenceConfirmationModal');
     if (modal) {
       document.getElementById('confSummaryPurpose').textContent = purpose;
-      document.getElementById('confSummaryDate').textContent = eventDate;
-      document.getElementById('confSummaryStart').textContent = startTime;
-      document.getElementById('confSummaryEnd').textContent = endTime;
+      document.getElementById('confSummaryDate').textContent = formatDateToWords(eventDate);
+        document.getElementById('confSummaryStart').textContent = formatTime12Hour(startTime);
+        document.getElementById('confSummaryEnd').textContent = formatTime12Hour(endTime);
       document.getElementById('confSummaryContact').textContent = contactNumber;
       modal.style.display = 'flex';
 
