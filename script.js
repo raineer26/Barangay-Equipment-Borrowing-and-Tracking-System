@@ -7342,36 +7342,58 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
   // Load inventory counts from Firestore
   async function loadInventoryCounts() {
     try {
-      // Fetch inventory document (assuming there's an 'inventory' collection with a single doc)
+      console.log('[Inventory] Loading inventory counts...');
+      
+      // Fetch inventory document
       const inventoryDoc = await getDoc(doc(db, 'inventory', 'equipment'));
       
-      if (inventoryDoc.exists()) {
-        const data = inventoryDoc.data();
-        const availableTents = data.availableTents || 24;
-        const availableChairs = data.availableChairs || 600;
+      if (!inventoryDoc.exists()) {
+        console.log('[Inventory] Document does not exist, using default values');
+        return;
+      }
 
-        // Update inventory displays
-        const tentsElement = document.getElementById('availableTents');
-        const chairsElement = document.getElementById('availableChairs');
+      const data = inventoryDoc.data();
+      const totalTents = data.totalTents || 24;
+      const totalChairs = data.totalChairs || 600;
+      
+      console.log(`[Inventory] Total - Tents: ${totalTents}, Chairs: ${totalChairs}`);
 
-        if (tentsElement) {
-          tentsElement.textContent = availableTents;
-        }
+      // Query all approved and in-progress bookings to calculate actual usage
+      const bookingsRef = collection(db, 'tentsChairsBookings');
+      const q = query(bookingsRef, where('status', 'in', ['approved', 'in-progress']));
+      const querySnapshot = await getDocs(q);
 
-        if (chairsElement) {
-          chairsElement.textContent = availableChairs;
-        }
+      let tentsInUse = 0;
+      let chairsInUse = 0;
 
-        console.log(`Available Tents: ${availableTents}`);
-        console.log(`Available Chairs: ${availableChairs}`);
+      querySnapshot.forEach((doc) => {
+        const booking = doc.data();
+        tentsInUse += parseInt(booking.quantityTents || 0);
+        chairsInUse += parseInt(booking.quantityChairs || 0);
+      });
 
-      } else {
-        console.log('Inventory document does not exist, using default values');
-        // Default values already set in HTML
+      console.log(`[Inventory] In Use - Tents: ${tentsInUse}, Chairs: ${chairsInUse}`);
+
+      // Calculate available inventory
+      const availableTents = totalTents - tentsInUse;
+      const availableChairs = totalChairs - chairsInUse;
+
+      console.log(`[Inventory] Available - Tents: ${availableTents}, Chairs: ${availableChairs}`);
+
+      // Update inventory displays
+      const tentsElement = document.getElementById('availableTents');
+      const chairsElement = document.getElementById('availableChairs');
+
+      if (tentsElement) {
+        tentsElement.textContent = availableTents;
+      }
+
+      if (chairsElement) {
+        chairsElement.textContent = availableChairs;
       }
 
     } catch (error) {
-      console.error('Error loading inventory counts:', error);
+      console.error('[Inventory] Error loading inventory counts:', error);
       // Keep default values on error
     }
   }
@@ -9382,14 +9404,16 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   async function updateInventoryInUse() {
     console.log('🔄 Updating inventory "In Use" counts...');
     try {
-      // Get all approved requests
-      const approvedRequests = allRequests.filter(req => req.status === 'approved');
+      // Get all approved AND in-progress requests
+      const activeRequests = allRequests.filter(req => 
+        req.status === 'approved' || req.status === 'in-progress'
+      );
       
       let tentsInUse = 0;
       let chairsInUse = 0;
 
       // Calculate total in use
-      approvedRequests.forEach(req => {
+      activeRequests.forEach(req => {
         tentsInUse += parseInt(req.quantityTents || 0);
         chairsInUse += parseInt(req.quantityChairs || 0);
       });
