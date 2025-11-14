@@ -12329,6 +12329,7 @@ input[type="number"]::-webkit-outer-spin-button {
     gap: 12px !important;
     padding: 12px !important;
     box-sizing: border-box !important;
+    justify-content: center !important;
   }
 
   .tents-table-card {
@@ -12337,6 +12338,7 @@ input[type="number"]::-webkit-outer-spin-button {
     padding: 14px !important;
     background: #fff !important;
     box-sizing: border-box !important;
+    width: 336px;
   }
 
   .tents-card-row {
@@ -12381,6 +12383,7 @@ input[type="number"]::-webkit-outer-spin-button {
     font-size: 11px !important;
     padding: 6px 10px !important;
     min-width: auto !important;
+    background-color: #0a58ca;
   }
 
   /* ========== END MOBILE TABLE TO CARDS ========== */
