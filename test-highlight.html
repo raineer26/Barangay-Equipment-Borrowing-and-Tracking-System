@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Highlight Test</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            padding: 50px;
+            font-family: Arial, sans-serif;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f4f4f4;
+        }
+        
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .test-controls {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f0f0f0;
+            border-radius: 8px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .position-marker {
+            position: fixed;
+            left: 100px;
+            width: 2px;
+            height: 100vh;
+            background: red;
+            top: 0;
+            z-index: 1000;
+            opacity: 0.5;
+        }
+        
+        .info {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e7f3ff;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="position-marker" style="left: 100px;"></div>
+    <div class="position-marker" style="left: 200px;"></div>
+    
+    <h1>Highlight Effect Position Test</h1>
+    
+    <div class="info">
+        <strong>Test Instructions:</strong>
+        <ol>
+            <li>Notice the red vertical lines (position markers)</li>
+            <li>Click "Highlight Row 2" button</li>
+            <li>Watch if Row 2 moves to the right or stays aligned with the markers</li>
+            <li>The row should highlight WITHOUT shifting position</li>
+        </ol>
+    </div>
+    
+    <div class="test-controls">
+        <button onclick="highlightRow(2)">Highlight Row 2</button>
+        <button onclick="removeHighlight()">Remove Highlight</button>
+        <button onclick="showPositionInfo()">Show Position Info</button>
+    </div>
+    
+    <div id="position-info" style="display:none; padding: 15px; background: #fff3cd; margin: 10px 0; border-radius: 4px;">
+        <h3>Position Measurements:</h3>
+        <div id="measurements"></div>
+    </div>
+    
+    <table class="tents-requests-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Date</th>
+                <th>Quantity</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr data-row="1">
+                <td>001</td>
+                <td>Juan Dela Cruz</td>
+                <td>2024-11-15</td>
+                <td>10 Chairs</td>
+                <td>Pending</td>
+            </tr>
+            <tr data-row="2" id="test-row">
+                <td>002</td>
+                <td>Maria Santos</td>
+                <td>2024-11-16</td>
+                <td>5 Tents</td>
+                <td>Approved</td>
+            </tr>
+            <tr data-row="3">
+                <td>003</td>
+                <td>Pedro Garcia</td>
+                <td>2024-11-17</td>
+                <td>20 Chairs</td>
+                <td>In Progress</td>
+            </tr>
+            <tr data-row="4">
+                <td>004</td>
+                <td>Ana Reyes</td>
+                <td>2024-11-18</td>
+                <td>3 Tents</td>
+                <td>Completed</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <script>
+        let beforePosition = null;
+        
+        function highlightRow(rowNum) {
+            const row = document.querySelector(`tr[data-row="${rowNum}"]`);
+            if (!row) return;
+            
+            // Measure BEFORE
+            const beforeRect = row.getBoundingClientRect();
+            beforePosition = {
+                left: beforeRect.left,
+                right: beforeRect.right,
+                width: beforeRect.width,
+                top: beforeRect.top
+            };
+            
+            // Add highlight
+            row.classList.add('highlighted-request');
+            
+            // Force reflow
+            row.offsetHeight;
+            
+            // Measure AFTER
+            const afterRect = row.getBoundingClientRect();
+            const afterPosition = {
+                left: afterRect.left,
+                right: afterRect.right,
+                width: afterRect.width,
+                top: afterRect.top
+            };
+            
+            // Calculate shift
+            const leftShift = afterRect.left - beforeRect.left;
+            const widthChange = afterRect.width - beforeRect.width;
+            
+            console.log('BEFORE:', beforePosition);
+            console.log('AFTER:', afterPosition);
+            console.log('LEFT SHIFT:', leftShift, 'px');
+            console.log('WIDTH CHANGE:', widthChange, 'px');
+            
+            // Show alert if there's a shift
+            if (Math.abs(leftShift) > 0.5) {
+                alert(`⚠️ POSITION SHIFT DETECTED!\nRow moved ${leftShift.toFixed(2)}px to the right`);
+            } else {
+                alert(`✅ SUCCESS!\nNo position shift detected (${leftShift.toFixed(2)}px)`);
+            }
+        }
+        
+        function removeHighlight() {
+            const rows = document.querySelectorAll('tr');
+            rows.forEach(row => row.classList.remove('highlighted-request'));
+            beforePosition = null;
+            document.getElementById('position-info').style.display = 'none';
+        }
+        
+        function showPositionInfo() {
+            const row = document.getElementById('test-row');
+            const rect = row.getBoundingClientRect();
+            const computed = window.getComputedStyle(row);
+            
+            const info = `
+                <p><strong>Current Position:</strong></p>
+                <ul>
+                    <li>Left: ${rect.left.toFixed(2)}px</li>
+                    <li>Width: ${rect.width.toFixed(2)}px</li>
+                    <li>Border: ${computed.border}</li>
+                    <li>Border Width: ${computed.borderWidth}</li>
+                    <li>Box Shadow: ${computed.boxShadow.substring(0, 100)}...</li>
+                    <li>Outline: ${computed.outline}</li>
+                    <li>Margin: ${computed.margin}</li>
+                </ul>
+                ${beforePosition ? `
+                    <p><strong>Comparison:</strong></p>
+                    <ul>
+                        <li>Before Left: ${beforePosition.left.toFixed(2)}px</li>
+                        <li>Current Left: ${rect.left.toFixed(2)}px</li>
+                        <li>Shift: ${(rect.left - beforePosition.left).toFixed(2)}px</li>
+                    </ul>
+                ` : ''}
+            `;
+            
+            document.getElementById('measurements').innerHTML = info;
+            document.getElementById('position-info').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

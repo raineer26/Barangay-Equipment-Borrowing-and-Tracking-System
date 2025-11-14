@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin Notifications - Barangay Mapulang Lupa</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@100..900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  </head>
+  <body class="admin-body">
+    <!-- SIDEBAR -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-header">
+        <img src="Assets/BrgyLogo.png" alt="Barangay Logo" class="sidebar-logo">
+        <h3>BARANGAY MAPULANG LUPA</h3>
+        <p>OFFICIAL SITE</p>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="admin.html" class="sidebar-link">
+          <img src="Assets/dashboard.png" alt="Dashboard Icon" class="nav-icon">
+          <span>Dashboard</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="#" class="sidebar-link dropdown-toggle" id="reviewRequestsToggle">
+            <img src="Assets/review.png" alt="Review Icon" class="nav-icon">
+            <span>Review Requests</span>
+            <span class="dropdown-arrow">▼</span>
+          </a>
+          <div class="dropdown-content" id="reviewRequestsDropdown">
+            <a href="admin-conference-requests.html" class="dropdown-link">Conference Room</a>
+            <a href="admin-tents-requests.html" class="dropdown-link">Tents & Chairs</a>
+          </div>
+        </div>
+
+        <a href="admin-user-manager.html" class="sidebar-link">
+          <img src="Assets/umicon-black.png" alt="Users Icon" class="nav-icon">
+          <span>Manage Accounts</span>
+        </a>
+
+        <a href="admin-manage-inventory.html" class="sidebar-link">
+          <img src="Assets/inventory.png" alt="Inventory Icon" class="nav-icon">
+          <span>Manage Inventory</span>
+        </a>
+
+        <a href="admin-notifications.html" class="sidebar-link active">
+          <img src="Assets/notification.png" alt="Notifications Icon" class="nav-icon">
+          <span>Notifications</span>
+          <span class="admin-notif-badge" id="adminNotifBadge">0</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button onclick="window.logout()" class="logout-btn">
+          <span>Log Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- MOBILE MENU TOGGLE -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+      <span>☰</span>
+    </button>
+
+    <!-- MAIN CONTENT -->
+    <main class="admin-main">
+      <section class="admin-hero">
+        <div class="admin-hero-overlay"></div>
+        <div class="admin-hero-content">
+          <h1>ADMIN <span class="highlight-yellow">NOTIFICATIONS</span></h1>
+          <p>Stay updated on system events, requests, and important alerts</p>
+        </div>
+      </section>
+
+      <div class="admin-content">
+        <!-- NOTIFICATION STATS -->
+        <div class="admin-notif-stats-grid">
+          <div class="admin-notif-stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-content">
+              <h3 id="totalNotifCount">-</h3>
+              <p>Total Notifications</p>
+            </div>
+          </div>
+
+          <div class="admin-notif-stat-card">
+            <div class="stat-icon">✉️</div>
+            <div class="stat-content">
+              <h3 id="unreadNotifCount">-</h3>
+              <p>Unread Notifications</p>
+            </div>
+          </div>
+
+          <div class="admin-notif-stat-card">
+            <div class="stat-icon">🔴</div>
+            <div class="stat-content">
+              <h3 id="highPriorityCount">-</h3>
+              <p>High Priority</p>
+            </div>
+          </div>
+
+          <div class="admin-notif-stat-card">
+            <div class="stat-icon">📅</div>
+            <div class="stat-content">
+              <h3 id="todayNotifCount">-</h3>
+              <p>Today</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- NOTIFICATION CONTROLS -->
+        <div class="admin-notif-controls">
+          <div class="admin-notif-filter-tabs">
+            <button class="admin-notif-filter-btn active" data-filter="all">
+              All <span class="filter-count" id="countAll">0</span>
+            </button>
+            <button class="admin-notif-filter-btn" data-filter="unread">
+              Unread <span class="filter-count" id="countUnread">0</span>
+            </button>
+            <button class="admin-notif-filter-btn" data-filter="read">
+              Read <span class="filter-count" id="countRead">0</span>
+            </button>
+          </div>
+
+          <div class="admin-notif-actions">
+            <select id="priorityFilter" class="admin-notif-dropdown">
+              <option value="all">All Priorities</option>
+              <option value="high">High Priority</option>
+              <option value="medium">Medium Priority</option>
+              <option value="low">Low Priority</option>
+            </select>
+
+            <select id="typeFilter" class="admin-notif-dropdown">
+              <option value="all">All Types</option>
+              <option value="new_request">New Requests</option>
+              <option value="deadline_approaching">Deadline Approaching</option>
+              <option value="in_progress_alert">In Progress</option>
+              <option value="completion_reminder">Completion Reminder</option>
+              <option value="cancelled_request">Cancelled Requests</option>
+              <option value="inventory_low">Inventory Alerts</option>
+            </select>
+
+            <select id="sortFilter" class="admin-notif-dropdown">
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="priority">Priority First</option>
+            </select>
+
+            <button class="admin-notif-mark-all-btn" id="markAllReadBtn">
+              Mark All as Read
+            </button>
+            
+            <button class="admin-notif-clear-btn" id="clearReadBtn" title="Delete all read notifications">
+              🗑️ Clear Read Notifications
+            </button>
+          </div>
+        </div>
+
+        <!-- NOTIFICATIONS LIST -->
+        <div class="admin-notif-list-container">
+          <div id="adminNotificationsList" class="admin-notif-list">
+            <!-- Notifications will be dynamically loaded here -->
+            <div class="admin-notif-loading">
+              <div class="spinner"></div>
+              <p>Loading notifications...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="script.js"></script>
+  </body>
+</html>

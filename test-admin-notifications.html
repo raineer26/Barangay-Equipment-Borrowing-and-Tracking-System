@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test Admin Notifications - Barangay Mapulang Lupa</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      padding: 2rem;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 1.5rem;
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 0.5rem;
+    }
+    .test-section {
+      margin-bottom: 2rem;
+      padding: 1.5rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+    h2 {
+      color: #667eea;
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+    .btn {
+      padding: 0.75rem 1.5rem;
+      margin: 0.5rem 0.5rem 0.5rem 0;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: white;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .btn-primary { background: #667eea; }
+    .btn-success { background: #10b981; }
+    .btn-warning { background: #f59e0b; }
+    .btn-danger { background: #ef4444; }
+    .btn-info { background: #06b6d4; }
+    .btn-secondary { background: #6b7280; }
+    
+    .log {
+      background: #1e293b;
+      color: #10b981;
+      padding: 1rem;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 1rem;
+      line-height: 1.6;
+    }
+    .log div { margin-bottom: 0.5rem; }
+    .log .success { color: #10b981; }
+    .log .error { color: #ef4444; }
+    .log .info { color: #06b6d4; }
+    .log .warning { color: #f59e0b; }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .stat-card {
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      border: 2px solid #e5e7eb;
+      text-align: center;
+    }
+    .stat-card h3 {
+      font-size: 2rem;
+      color: #667eea;
+      margin-bottom: 0.5rem;
+    }
+    .stat-card p {
+      color: #6b7280;
+      font-size: 0.9rem;
+    }
+    
+    .filter-test {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .filter-test .btn {
+      margin: 0;
+      font-size: 0.9rem;
+      padding: 0.6rem 1rem;
+    }
+    
+    /* LOGIN OVERLAY */
+    .login-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+    .login-overlay.hidden {
+      display: none;
+    }
+    .login-box {
+      background: white;
+      padding: 2.5rem;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      width: 90%;
+      max-width: 400px;
+    }
+    .login-box h2 {
+      margin-bottom: 0.5rem;
+      color: #667eea;
+      font-size: 1.8rem;
+      text-align: center;
+    }
+    .login-box p {
+      color: #6b7280;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+    .login-form-group {
+      margin-bottom: 1rem;
+    }
+    .login-form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #333;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .login-form-group input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 1rem;
+      transition: border-color 0.3s;
+    }
+    .login-form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .login-error {
+      background: #fee;
+      color: #c00;
+      padding: 0.75rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      display: none;
+    }
+    .login-error.show {
+      display: block;
+    }
+    .login-btn {
+      width: 100%;
+      padding: 0.875rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .login-btn:hover:not(:disabled) {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+    .login-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .login-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid white;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 0.5rem;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <!-- LOGIN OVERLAY -->
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-box">
+      <h2>🔐 Admin Login</h2>
+      <p>Login with your admin account to access the test suite</p>
+      
+      <div class="login-error" id="loginError"></div>
+      
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="login-form-group">
+          <label for="loginEmail">Email Address</label>
+          <input type="email" id="loginEmail" required placeholder="admin@example.com">
+        </div>
+        
+        <div class="login-form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" required placeholder="••••••••">
+        </div>
+        
+        <button type="submit" class="login-btn" id="loginBtn">
+          Login to Test Suite
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="container" id="mainContent" style="display: none;">
+    <h1>🧪 Admin Notifications Test Suite</h1>
+    <p style="color: #6b7280; margin-bottom: 2rem;">
+      This page helps you test all notification types and filters. Open browser console for detailed logs.
+    </p>
+
+    <!-- STATISTICS -->
+    <div class="test-section">
+      <h2>📊 Current Statistics</h2>
+      <div class="stats">
+        <div class="stat-card">
+          <h3 id="totalCount">-</h3>
+          <p>Total Notifications</p>
+        </div>
+        <div class="stat-card">
+          <h3 id="unreadCount">-</h3>
+          <p>Unread</p>
+        </div>
+        <div class="stat-card">
+          <h3 id="duplicateCount">-</h3>
+          <p>Possible Duplicates</p>
+        </div>
+        <div class="stat-card">
+          <h3 id="todayCount">-</h3>
+          <p>Created Today</p>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="loadStats()">🔄 Refresh Stats</button>
+      <button class="btn btn-danger" onclick="deleteAllNotifications()">🗑️ Delete All Admin Notifications</button>
+    </div>
+
+    <!-- CREATE TEST NOTIFICATIONS -->
+    <div class="test-section">
+      <h2>➕ Create Test Notifications</h2>
+      <p style="margin-bottom: 1rem; color: #6b7280;">Each button creates one notification of each type for testing filters:</p>
+      
+      <button class="btn btn-primary" onclick="createTestNotification('new_request')">📥 New Request</button>
+      <button class="btn btn-warning" onclick="createTestNotification('deadline_approaching')">⏰ Deadline Approaching</button>
+      <button class="btn btn-info" onclick="createTestNotification('in_progress_alert')">🔄 In Progress</button>
+      <button class="btn btn-success" onclick="createTestNotification('completion_reminder')">🏁 Completion Reminder</button>
+      <button class="btn btn-danger" onclick="createTestNotification('cancelled_request')">❌ Cancelled Request</button>
+      <button class="btn btn-secondary" onclick="createTestNotification('inventory_low')">📦 Inventory Low</button>
+      
+      <br><br>
+      <button class="btn btn-primary" onclick="createAllTestNotifications()">🎯 Create All Types at Once</button>
+    </div>
+
+    <!-- CHECK DUPLICATES -->
+    <div class="test-section">
+      <h2>🔍 Duplicate Detection</h2>
+      <p style="margin-bottom: 1rem; color: #6b7280;">Analyze notifications for duplicates based on type + requestId + date:</p>
+      <button class="btn btn-warning" onclick="checkDuplicates()">🔎 Find Duplicates</button>
+      <button class="btn btn-danger" onclick="removeDuplicates()">🧹 Remove Duplicates (Keep Latest)</button>
+      <div id="duplicateLog" class="log" style="display: none;"></div>
+    </div>
+
+    <!-- TEST FILTERS -->
+    <div class="test-section">
+      <h2>🎚️ Test Notification Filters</h2>
+      <p style="margin-bottom: 1rem; color: #6b7280;">Click to filter and count notifications by type:</p>
+      <div class="filter-test">
+        <button class="btn btn-primary" onclick="testFilter('all')">All</button>
+        <button class="btn btn-primary" onclick="testFilter('new_request')">New Requests</button>
+        <button class="btn btn-warning" onclick="testFilter('deadline_approaching')">Deadline</button>
+        <button class="btn btn-info" onclick="testFilter('in_progress_alert')">In Progress</button>
+        <button class="btn btn-success" onclick="testFilter('completion_reminder')">Completion</button>
+        <button class="btn btn-danger" onclick="testFilter('cancelled_request')">Cancelled</button>
+        <button class="btn btn-secondary" onclick="testFilter('inventory_low')">Inventory</button>
+      </div>
+      <div id="filterLog" class="log"></div>
+    </div>
+
+    <!-- ACTIVITY LOG -->
+    <div class="test-section">
+      <h2>📋 Activity Log</h2>
+      <div id="activityLog" class="log"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+    import { getFirestore, collection, query, where, getDocs, addDoc, deleteDoc, doc, serverTimestamp, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDaP8M8C1cBnT2VV7DttTmHtOZNTpXJQoY",
+      authDomain: "barangay-equipment-borrowing.firebaseapp.com",
+      projectId: "barangay-equipment-borrowing",
+      storageBucket: "barangay-equipment-borrowing.firebasestorage.app",
+      messagingSenderId: "646949698348",
+      appId: "1:646949698348:web:dc5f3f5df9e2bd6e97f1f1"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // Make functions global
+    window.db = db;
+    window.auth = auth;
+    window.collection = collection;
+    window.query = query;
+    window.where = where;
+    window.getDocs = getDocs;
+    window.addDoc = addDoc;
+    window.deleteDoc = deleteDoc;
+    window.doc = doc;
+    window.serverTimestamp = serverTimestamp;
+    window.orderBy = orderBy;
+    window.getDoc = getDoc;
+    window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+
+    function log(message, type = 'info') {
+      const activityLog = document.getElementById('activityLog');
+      if (activityLog) {
+        const div = document.createElement('div');
+        div.className = type;
+        div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        activityLog.insertBefore(div, activityLog.firstChild);
+      }
+      console.log(message);
+    }
+
+    window.log = log;
+
+    // Auto-load stats on page load
+    setTimeout(() => {
+      if (auth.currentUser) {
+        loadStats();
+      }
+    }, 1000);
+
+    auth.onAuthStateChanged(async (user) => {
+      const loginOverlay = document.getElementById('loginOverlay');
+      const mainContent = document.getElementById('mainContent');
+      
+      if (user) {
+        // Check if user is admin
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            if (userData.role === 'admin') {
+              log('✅ Admin user authenticated: ' + user.email, 'success');
+              loginOverlay.classList.add('hidden');
+              mainContent.style.display = 'block';
+              loadStats();
+            } else {
+              log('❌ Access denied: Not an admin user', 'error');
+              await auth.signOut();
+              showLoginError('Access denied. This page is for administrators only.');
+            }
+          } else {
+            log('❌ User data not found', 'error');
+            await auth.signOut();
+            showLoginError('User data not found. Please contact administrator.');
+          }
+        } catch (error) {
+          log('❌ Error checking user role: ' + error.message, 'error');
+          await auth.signOut();
+          showLoginError('Error verifying admin access.');
+        }
+      } else {
+        log('⚠️ Not authenticated. Please login.', 'warning');
+        loginOverlay.classList.remove('hidden');
+        mainContent.style.display = 'none';
+      }
+    });
+    
+    function showLoginError(message) {
+      const loginError = document.getElementById('loginError');
+      loginError.textContent = message;
+      loginError.classList.add('show');
+    }
+    
+    window.showLoginError = showLoginError;
+  </script>
+
+  <script>
+    // Login handler
+    async function handleLogin(event) {
+      event.preventDefault();
+      
+      const loginBtn = document.getElementById('loginBtn');
+      const loginError = document.getElementById('loginError');
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      
+      // Hide previous errors
+      loginError.classList.remove('show');
+      
+      // Disable button and show loading
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = '<span class="login-spinner"></span>Logging in...';
+      
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        // Auth state listener will handle the rest
+      } catch (error) {
+        console.error('Login error:', error);
+        
+        let errorMessage = 'Login failed. Please try again.';
+        
+        if (error.code === 'auth/invalid-credential') {
+          errorMessage = 'Invalid email or password.';
+        } else if (error.code === 'auth/user-not-found') {
+          errorMessage = 'No account found with this email.';
+        } else if (error.code === 'auth/wrong-password') {
+          errorMessage = 'Incorrect password.';
+        } else if (error.code === 'auth/too-many-requests') {
+          errorMessage = 'Too many failed attempts. Please try again later.';
+        } else if (error.code === 'auth/network-request-failed') {
+          errorMessage = 'Network error. Please check your connection.';
+        }
+        
+        showLoginError(errorMessage);
+        
+        // Re-enable button
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = 'Login to Test Suite';
+      }
+    }
+    
+    window.handleLogin = handleLogin;
+  </script>
+
+  <script>
+    // Load statistics
+    async function loadStats() {
+      log('Loading statistics...', 'info');
+      
+      try {
+        const notificationsQuery = query(
+          collection(db, 'notifications'),
+          where('isAdminNotification', '==', true)
+        );
+        
+        const snapshot = await getDocs(notificationsQuery);
+        const notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        const totalCount = notifications.length;
+        const unreadCount = notifications.filter(n => !n.read).length;
+        
+        // Check for duplicates
+        const seen = new Map();
+        let duplicateCount = 0;
+        notifications.forEach(n => {
+          const key = `${n.type}_${n.requestId}_${n.metadata?.notificationDate || ''}`;
+          if (seen.has(key)) {
+            duplicateCount++;
+          }
+          seen.set(key, (seen.get(key) || 0) + 1);
+        });
+        
+        // Today count
+        const today = new Date().toISOString().split('T')[0];
+        const todayCount = notifications.filter(n => 
+          n.metadata?.notificationDate === today || 
+          (n.createdAt && new Date(n.createdAt.toDate()).toISOString().split('T')[0] === today)
+        ).length;
+        
+        document.getElementById('totalCount').textContent = totalCount;
+        document.getElementById('unreadCount').textContent = unreadCount;
+        document.getElementById('duplicateCount').textContent = duplicateCount;
+        document.getElementById('todayCount').textContent = todayCount;
+        
+        log(`✅ Stats loaded: ${totalCount} total, ${unreadCount} unread, ${duplicateCount} duplicates, ${todayCount} today`, 'success');
+        
+      } catch (error) {
+        log('❌ Error loading stats: ' + error.message, 'error');
+      }
+    }
+
+    // Create test notification
+    async function createTestNotification(type) {
+      log(`Creating test notification: ${type}`, 'info');
+      
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          log('❌ Must be logged in to create notifications', 'error');
+          return;
+        }
+
+        const testData = {
+          new_request: {
+            title: '📥 New Tents & Chairs Request',
+            message: 'Juan Dela Cruz submitted a new tents & chairs borrowing request for November 20, 2025. Items requested: 50 chairs, 2 tents. Please review and approve/reject.',
+            priority: 'medium'
+          },
+          deadline_approaching: {
+            title: '⏰ Pending Request - Event Tomorrow ⚠️ URGENT',
+            message: 'Maria Santos\'s conference room request for November 15, 2025 is still pending review. Event starts in 1 day. Please review and take action soon to avoid disappointing the resident.',
+            priority: 'high'
+          },
+          in_progress_alert: {
+            title: '🔄 Event Started - Conference Room',
+            message: 'Pedro Reyes\'s conference room reservation is now in progress (November 14, 2025 2:00 PM - 4:00 PM). Purpose: Community Meeting. Monitor the event and prepare to mark as completed when room is vacated.',
+            priority: 'medium'
+          },
+          completion_reminder: {
+            title: '🏁 Mark as Completed - Event Ending Soon',
+            message: 'Ana Garcia\'s tents & chairs booking ends today (November 14, 2025). Items: 100 chairs, 5 tents. Please verify items are returned and mark as completed.',
+            priority: 'high'
+          },
+          cancelled_request: {
+            title: '❌ Request Cancelled by User',
+            message: 'Roberto Cruz cancelled their tents & chairs request for November 18, 2025. No action needed.',
+            priority: 'low'
+          },
+          inventory_low: {
+            title: '📦 Low Inventory Alert',
+            message: 'Chairs inventory is running low: Only 50 chairs available out of 600 total. Consider reviewing upcoming bookings.',
+            priority: 'medium'
+          }
+        };
+
+        const data = testData[type];
+        if (!data) {
+          log('❌ Invalid notification type: ' + type, 'error');
+          return;
+        }
+
+        await addDoc(collection(db, 'notifications'), {
+          userId: user.uid,
+          isAdminNotification: true,
+          type: type,
+          requestId: `TEST-${Date.now()}`,
+          requestType: 'tents-chairs',
+          title: data.title,
+          message: data.message,
+          priority: data.priority,
+          read: false,
+          createdAt: serverTimestamp(),
+          actionUrl: 'admin-tents-requests.html',
+          metadata: {
+            notificationDate: new Date().toISOString().split('T')[0],
+            isTest: true
+          }
+        });
+
+        log(`✅ Created ${type} notification`, 'success');
+        loadStats();
+
+      } catch (error) {
+        log('❌ Error creating notification: ' + error.message, 'error');
+      }
+    }
+
+    // Create all test notifications
+    async function createAllTestNotifications() {
+      log('Creating all test notification types...', 'info');
+      const types = ['new_request', 'deadline_approaching', 'in_progress_alert', 'completion_reminder', 'cancelled_request', 'inventory_low'];
+      
+      for (const type of types) {
+        await createTestNotification(type);
+        await new Promise(resolve => setTimeout(resolve, 500)); // Delay between creates
+      }
+      
+      log('✅ All test notifications created!', 'success');
+    }
+
+    // Check duplicates
+    async function checkDuplicates() {
+      log('Checking for duplicate notifications...', 'info');
+      
+      try {
+        const notificationsQuery = query(
+          collection(db, 'notifications'),
+          where('isAdminNotification', '==', true)
+        );
+        
+        const snapshot = await getDocs(notificationsQuery);
+        const notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        const seen = new Map();
+        const duplicates = [];
+        
+        notifications.forEach(n => {
+          const key = `${n.type}_${n.requestId}_${n.metadata?.notificationDate || 'no-date'}`;
+          
+          if (seen.has(key)) {
+            duplicates.push({ key, current: n, previous: seen.get(key) });
+          } else {
+            seen.set(key, n);
+          }
+        });
+        
+        const duplicateLog = document.getElementById('duplicateLog');
+        duplicateLog.style.display = 'block';
+        duplicateLog.innerHTML = '';
+        
+        if (duplicates.length === 0) {
+          duplicateLog.innerHTML = '<div class="success">✅ No duplicates found!</div>';
+          log('✅ No duplicates found', 'success');
+        } else {
+          duplicateLog.innerHTML = `<div class="warning">⚠️ Found ${duplicates.length} duplicate(s):</div>`;
+          duplicates.forEach((dup, index) => {
+            duplicateLog.innerHTML += `<div class="error">${index + 1}. Type: ${dup.current.type}, RequestID: ${dup.current.requestId}, Date: ${dup.current.metadata?.notificationDate}</div>`;
+          });
+          log(`⚠️ Found ${duplicates.length} duplicate notifications`, 'warning');
+        }
+        
+      } catch (error) {
+        log('❌ Error checking duplicates: ' + error.message, 'error');
+      }
+    }
+
+    // Remove duplicates
+    async function removeDuplicates() {
+      if (!confirm('This will delete duplicate notifications, keeping only the latest one for each unique combination. Continue?')) {
+        return;
+      }
+      
+      log('Removing duplicate notifications...', 'warning');
+      
+      try {
+        const notificationsQuery = query(
+          collection(db, 'notifications'),
+          where('isAdminNotification', '==', true),
+          orderBy('createdAt', 'desc')
+        );
+        
+        const snapshot = await getDocs(notificationsQuery);
+        const notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        const seen = new Set();
+        const toDelete = [];
+        
+        // Keep first occurrence (most recent due to orderBy desc), mark others for deletion
+        notifications.forEach(n => {
+          const key = `${n.type}_${n.requestId}_${n.metadata?.notificationDate || 'no-date'}`;
+          
+          if (seen.has(key)) {
+            toDelete.push(n.id);
+          } else {
+            seen.add(key);
+          }
+        });
+        
+        if (toDelete.length === 0) {
+          log('✅ No duplicates to remove', 'success');
+          return;
+        }
+        
+        // Delete duplicates
+        for (const id of toDelete) {
+          await deleteDoc(doc(db, 'notifications', id));
+        }
+        
+        log(`✅ Deleted ${toDelete.length} duplicate notification(s)`, 'success');
+        loadStats();
+        checkDuplicates();
+        
+      } catch (error) {
+        log('❌ Error removing duplicates: ' + error.message, 'error');
+      }
+    }
+
+    // Delete all notifications
+    async function deleteAllNotifications() {
+      if (!confirm('⚠️ This will DELETE ALL admin notifications! Are you sure?')) {
+        return;
+      }
+      
+      log('Deleting all admin notifications...', 'warning');
+      
+      try {
+        const notificationsQuery = query(
+          collection(db, 'notifications'),
+          where('isAdminNotification', '==', true)
+        );
+        
+        const snapshot = await getDocs(notificationsQuery);
+        
+        for (const docSnapshot of snapshot.docs) {
+          await deleteDoc(doc(db, 'notifications', docSnapshot.id));
+        }
+        
+        log(`✅ Deleted ${snapshot.size} admin notification(s)`, 'success');
+        loadStats();
+        
+      } catch (error) {
+        log('❌ Error deleting notifications: ' + error.message, 'error');
+      }
+    }
+
+    // Test filter
+    async function testFilter(filterType) {
+      log(`Testing filter: ${filterType}`, 'info');
+      
+      try {
+        let notificationsQuery;
+        
+        if (filterType === 'all') {
+          notificationsQuery = query(
+            collection(db, 'notifications'),
+            where('isAdminNotification', '==', true)
+          );
+        } else {
+          notificationsQuery = query(
+            collection(db, 'notifications'),
+            where('isAdminNotification', '==', true),
+            where('type', '==', filterType)
+          );
+        }
+        
+        const snapshot = await getDocs(notificationsQuery);
+        const count = snapshot.size;
+        
+        const filterLog = document.getElementById('filterLog');
+        const timestamp = new Date().toLocaleTimeString();
+        
+        filterLog.innerHTML = `<div class="success">[${timestamp}] Filter "${filterType}": Found ${count} notification(s)</div>` + filterLog.innerHTML;
+        
+        log(`✅ Filter "${filterType}" returned ${count} results`, 'success');
+        
+      } catch (error) {
+        log('❌ Error testing filter: ' + error.message, 'error');
+      }
+    }
+
+    // Make functions global
+    window.loadStats = loadStats;
+    window.createTestNotification = createTestNotification;
+    window.createAllTestNotifications = createAllTestNotifications;
+    window.checkDuplicates = checkDuplicates;
+    window.removeDuplicates = removeDuplicates;
+    window.deleteAllNotifications = deleteAllNotifications;
+    window.testFilter = testFilter;
+  </script>
+</body>
+</html>

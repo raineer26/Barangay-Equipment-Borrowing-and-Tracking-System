@@ -250,7 +250,7 @@ if (hasError) {
 
 
     try {
-      await addDoc(collection(db, "tentsChairsBookings"), {
+      const docRef = await addDoc(collection(db, "tentsChairsBookings"), {
         fullName,
         contactNumber,
         completeAddress,
@@ -263,6 +263,25 @@ if (hasError) {
         createdAt: serverTimestamp(),
       });
 
+      console.log('[Tents Form] ✓ Request submitted with ID:', docRef.id);
+      
+      // Create admin notification for new request
+      try {
+        await createNewRequestAdminNotification(docRef.id, 'tents-chairs', {
+          fullName,
+          contactNumber,
+          completeAddress,
+          modeOfReceiving,
+          quantityChairs: parseInt(quantityChairs),
+          quantityTents: parseInt(quantityTents),
+          startDate,
+          endDate
+        });
+        console.log('[Tents Form] ✓ Admin notification created');
+      } catch (notifError) {
+        console.error('[Tents Form] ⚠️ Failed to create admin notification:', notifError);
+        // Don't block form submission if notification fails
+      }
 
       showAlert('Your tents & chairs request has been submitted successfully! You can check the status in your profile.', true, () => {
         window.location.href = 'UserProfile.html';
@@ -4167,6 +4186,23 @@ async function checkAndUpdateEventStatuses() {
           // Don't block status update if notification fails
         }
         
+        // Create admin notification for in-progress status
+        try {
+          await createInProgressAdminNotification(requestId, 'tents-chairs', {
+            fullName: request.fullName,
+            contactNumber: request.contactNumber,
+            startDate: request.startDate,
+            endDate: request.endDate,
+            quantityChairs: request.quantityChairs,
+            quantityTents: request.quantityTents,
+            modeOfReceiving: request.modeOfReceiving
+          });
+          console.log(`📧 [Status Auto-Update] Admin notification created for tents request ${requestId}`);
+        } catch (adminNotifError) {
+          console.error(`❌ [Status Auto-Update] Failed to create admin notification:`, adminNotifError);
+          // Don't block status update if admin notification fails
+        }
+        
       } else {
         console.log(`⏭️ [Status Auto-Update] Event not started yet (starts ${request.startDate})`);
       }
@@ -4237,6 +4273,22 @@ async function checkAndUpdateEventStatuses() {
       } catch (notifError) {
         console.error(`❌ [Status Auto-Update] Failed to create notification:`, notifError);
         // Don't block status update if notification fails
+      }
+      
+      // Create admin notification for in-progress status
+      try {
+        await createInProgressAdminNotification(requestId, 'conference-room', {
+          fullName: request.fullName,
+          contactNumber: request.contactNumber,
+          purpose: request.purpose,
+          eventDate: request.eventDate,
+          startTime: request.startTime,
+          endTime: request.endTime
+        });
+        console.log(`📧 [Status Auto-Update] Admin notification created for conference request ${requestId}`);
+      } catch (adminNotifError) {
+        console.error(`❌ [Status Auto-Update] Failed to create admin notification:`, adminNotifError);
+        // Don't block status update if admin notification fails
       }
     }
     
@@ -4578,6 +4630,15 @@ async function handleCancelRequest(request) {
         status: 'cancelled',
         cancelledAt: serverTimestamp()
       });
+
+      // Create admin notification for cancellation
+      try {
+        await createCancelledRequestAdminNotification(request.id, request.type, request);
+        console.log('[User Cancel] ✓ Admin notification created for cancelled request');
+      } catch (notifError) {
+        console.error('[User Cancel] ⚠️ Failed to create admin notification:', notifError);
+        // Don't block cancellation flow if notification fails
+      }
 
       // Close modal
       const modal = document.getElementById('requestDetailsModal');
@@ -6000,7 +6061,7 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       console.log('✅ [Tents/Chairs Submit] No identical requests found - proceeding with submission');
 
       // ✅ NO IDENTICAL REQUESTS - Proceed with submission
-      await addDoc(collection(db, 'tentsChairsBookings'), {
+      const docRef = await addDoc(collection(db, 'tentsChairsBookings'), {
         ...data,
         userId: user.uid,
         userEmail: user.email,
@@ -6009,6 +6070,25 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       });
 
       console.log('✅ [Tents/Chairs Submit] Request submitted successfully!');
+      
+      // Create admin notification for new tents & chairs request
+      try {
+        await createNewRequestAdminNotification(docRef.id, 'tents-chairs', {
+          fullName: `${data.firstName} ${data.lastName}`,
+          contactNumber: data.contactNumber,
+          completeAddress: data.completeAddress,
+          modeOfReceiving: data.modeOfReceiving,
+          quantityChairs: data.quantityChairs,
+          quantityTents: data.quantityTents,
+          startDate: data.startDate,
+          endDate: data.endDate
+        });
+        console.log('[Tents/Chairs Form] ✓ Admin notification created');
+      } catch (notifError) {
+        console.error('[Tents/Chairs Form] ⚠️ Failed to create admin notification:', notifError);
+        // Don't block user flow if notification fails
+      }
+      
       showAlert('Your tents & chairs request has been submitted successfully!', true, () => {
         window.location.href = 'UserProfile.html';
       });
@@ -6697,7 +6777,7 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
       console.log('✅ [User Submit] No conflicts found - proceeding with submission');
 
       // ✅ NO CONFLICTS - Proceed with submission
-      await addDoc(collection(db, 'conferenceRoomBookings'), {
+      const docRef = await addDoc(collection(db, 'conferenceRoomBookings'), {
         ...formData,
         userId: user.uid,
         userEmail: user.email,
@@ -6706,6 +6786,24 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
       });
 
       console.log('✅ [User Submit] Booking submitted successfully!');
+      
+      // Create admin notification for new conference room request
+      try {
+        await createNewRequestAdminNotification(docRef.id, 'conference-room', {
+          fullName: `${formData.firstName} ${formData.lastName}`,
+          contactNumber: formData.contactNumber,
+          purpose: formData.purpose,
+          address: formData.address,
+          eventDate: formData.eventDate,
+          startTime: formData.startTime,
+          endTime: formData.endTime
+        });
+        console.log('[Conference Form] ✓ Admin notification created');
+      } catch (notifError) {
+        console.error('[Conference Form] ⚠️ Failed to create admin notification:', notifError);
+        // Don't block user flow if notification fails
+      }
+      
       showAlert('Your conference room reservation has been submitted successfully!', true, () => {
         window.location.href = 'UserProfile.html';
       });
@@ -9697,6 +9795,8 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     
     if (currentView === 'table') {
       renderTableView();
+      // Check for request highlighting from notification
+      highlightTentsRequest();
     } else {
       renderCalendarView();
     }
@@ -9819,6 +9919,54 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
 
     const d = formatTimestamp(ts);
     return `${d.date}<br><em style="font-size:11px;color:#6b7280;">${d.time}</em>`;
+  }
+  
+  /**
+   * Highlight request from notification (URL parameter)
+   */
+  function highlightTentsRequest() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestId = urlParams.get('highlightRequest');
+    const requestType = urlParams.get('type');
+    
+    if (!requestId || requestType !== 'tents-chairs') {
+      return; // No highlighting needed
+    }
+    
+    console.log(`🎯 [Tents Highlight] Attempting to highlight request: ${requestId}`);
+    
+    // Find the request in our data
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      console.warn(`⚠️ [Tents Highlight] Request ${requestId} not found`);
+      return;
+    }
+    
+    // Wait for DOM to be ready
+    setTimeout(() => {
+      const rows = document.querySelectorAll('.tents-requests-table tbody tr');
+      let targetRow = null;
+      
+      // Find row by contact number (unique identifier)
+      rows.forEach(row => {
+        const contactCell = row.cells[3]?.textContent.trim();
+        if (contactCell === (request.contactNumber || '').trim()) {
+          targetRow = row;
+        }
+      });
+      
+      if (targetRow) {
+        console.log(`✅ [Tents Highlight] Found row, applying highlight`);
+        targetRow.classList.add('highlighted-request');
+        targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        setTimeout(() => {
+          targetRow.classList.remove('highlighted-request');
+        }, 6000);
+        
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }, 500);
   }
 
   /**
@@ -12167,6 +12315,12 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       console.log('[Admin Tents v2] ✅ Status check complete, loading data...');
       await loadInventoryStats();
       await loadAllRequests();
+      
+      // Check for highlighting from notification
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('highlightRequest')) {
+        console.log('🎯 [Tents Admin] Highlighting requested from notification');
+      }
 
       console.log('✅ Page initialized successfully');
     });
@@ -12986,6 +13140,8 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   function renderContent() {
     if (currentView === 'table') {
       renderTableView();
+      // Check for request highlighting from notification
+      highlightConferenceRequest();
     } else {
       renderCalendarView();
     }
@@ -13204,6 +13360,48 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       `;
     }
     return '—';
+  }
+  
+  /**
+   * Highlight conference request from notification (URL parameter)
+   */
+  function highlightConferenceRequest() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestId = urlParams.get('highlightRequest');
+    const requestType = urlParams.get('type');
+    
+    if (!requestId || requestType !== 'conference-room') {
+      return;
+    }
+    
+    console.log(`🎯 [Conference Highlight] Highlighting request: ${requestId}`);
+    
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      console.warn(`⚠️ [Conference Highlight] Request not found`);
+      return;
+    }
+    
+    setTimeout(() => {
+      const rows = document.querySelectorAll('.tents-requests-table tbody tr');
+      let targetRow = null;
+      
+      rows.forEach(row => {
+        const contactCell = row.cells[3]?.textContent.trim();
+        if (contactCell === (request.contactNumber || '').trim()) {
+          targetRow = row;
+        }
+      });
+      
+      if (targetRow) {
+        console.log(`✅ [Conference Highlight] Row found, highlighting`);
+        targetRow.classList.add('highlighted-request');
+        targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        setTimeout(() => targetRow.classList.remove('highlighted-request'), 6000);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }, 500);
   }
 
   /**
@@ -17198,6 +17396,1467 @@ console.log('✅ [Security] Enhanced logout handler installed');
 console.log('🔒 [Security] Phase 1 Security Features Initialized:');
 console.log('  ✅ Session Timeout: 30 minutes');
 console.log('  ✅ Session Warning: 5 minutes before timeout');
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// ADMIN NOTIFICATIONS SYSTEM
+// ════════════════════════════════════════════════════════════════════════════
+// Comprehensive notification system for administrators
+// Tracks: New requests, deadlines, completions, inventory, in-progress status
+// Created: November 14, 2025
+// ════════════════════════════════════════════════════════════════════════════
+
+console.log('🔔 [Admin Notifications] Initializing system...');
+
+// Global state for admin notifications
+let currentAdminNotificationFilter = 'all'; // 'all', 'unread', 'read'
+let currentPriorityFilter = 'all'; // 'all', 'high', 'medium', 'low'
+let currentTypeFilter = 'all';
+let currentSortFilter = 'newest'; // 'newest', 'oldest', 'priority'
+let allAdminNotifications = [];
+
+/**
+ * ============================================================================
+ * CORE FUNCTION 1: CREATE ADMIN NOTIFICATION
+ * ============================================================================
+ * Creates notifications for ALL admin users
+ */
+async function createAdminNotification(notificationData) {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📢 [Admin Notif Creator] createAdminNotification()');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📋 Notification Type:', notificationData.type);
+  console.log('📋 Title:', notificationData.title);
+  console.log('📋 Priority:', notificationData.priority || 'medium');
+  console.log('📋 Request ID:', notificationData.requestId || 'N/A');
+  
+  try {
+    // Step 1: Get all admin users
+    console.log('🔍 Fetching all admin users...');
+    const usersQuery = query(
+      collection(db, "users"),
+      where("role", "==", "admin")
+    );
+    
+    const usersSnapshot = await getDocs(usersQuery);
+    console.log(`✅ Found ${usersSnapshot.size} admin user(s)`);
+    
+    if (usersSnapshot.empty) {
+      console.warn('⚠️ No admin users found! Notification not created.');
+      return [];
+    }
+    
+    // Step 2: Create notification for each admin
+    const notificationIds = [];
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const adminUserId = userDoc.id;
+      console.log(`📝 Creating notification for admin: ${userDoc.data().email}`);
+      
+      const notificationRef = await addDoc(collection(db, "notifications"), {
+        userId: adminUserId,
+        isAdminNotification: true, // Flag to distinguish admin notifications
+        type: notificationData.type,
+        requestId: notificationData.requestId || null,
+        requestType: notificationData.requestType || null,
+        title: notificationData.title,
+        message: notificationData.message,
+        priority: notificationData.priority || 'medium',
+        read: false,
+        createdAt: serverTimestamp(),
+        actionUrl: notificationData.actionUrl || null,
+        metadata: {
+          ...notificationData.metadata,
+          notificationDate: new Date().toISOString().split('T')[0] // For deduplication
+        }
+      });
+      
+      notificationIds.push(notificationRef.id);
+      console.log(`✅ Notification created with ID: ${notificationRef.id}`);
+    }
+    
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`✅ SUCCESS! Created ${notificationIds.length} admin notification(s)`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    
+    // Update badge on all admin pages
+    if (typeof updateAdminNotificationBadge === 'function') {
+      updateAdminNotificationBadge();
+    }
+    
+    return notificationIds;
+    
+  } catch (error) {
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('❌ [Admin Notif Creator] FAILED to create notification');
+    console.error('Error:', error.message);
+    console.error('Error code:', error.code);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    throw error;
+  }
+}
+
+/**
+ * ============================================================================
+ * AUTO-CLEANUP: REMOVE OLD READ NOTIFICATIONS
+ * ============================================================================
+ * Automatically removes read notifications older than 7 days
+ */
+async function autoCleanupOldReadNotifications() {
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const oldReadNotifications = allAdminNotifications.filter(n => {
+      if (!n.read) return false; // Only consider read notifications
+      if (!n.createdAt) return false;
+      
+      const notifDate = n.createdAt.toDate ? n.createdAt.toDate() : new Date(n.createdAt);
+      return notifDate < sevenDaysAgo;
+    });
+    
+    if (oldReadNotifications.length === 0) {
+      console.log('[Admin Notifications] 🧹 No old read notifications to cleanup');
+      return;
+    }
+    
+    console.log(`[Admin Notifications] 🧹 Auto-cleanup: Removing ${oldReadNotifications.length} read notifications older than 7 days`);
+    
+    const deletePromises = oldReadNotifications.map(n => 
+      deleteDoc(doc(db, "notifications", n.id))
+    );
+    
+    await Promise.all(deletePromises);
+    
+    // Remove from local array
+    allAdminNotifications = allAdminNotifications.filter(n => 
+      !oldReadNotifications.some(old => old.id === n.id)
+    );
+    
+    console.log(`[Admin Notifications] ✓ Auto-cleanup completed: ${oldReadNotifications.length} old notifications removed`);
+    
+  } catch (error) {
+    console.error('[Admin Notifications] ⚠️ Auto-cleanup error:', error);
+    // Don't throw - this is a background task
+  }
+}
+
+/**
+ * ============================================================================
+ * CORE FUNCTION 2: LOAD ADMIN NOTIFICATIONS
+ * ============================================================================
+ */
+async function loadAdminNotifications() {
+  console.log('[Admin Notifications] ═══════════════════════════════════');
+  console.log('[Admin Notifications] Loading notifications...');
+  
+  const user = auth.currentUser;
+  if (!user) {
+    console.warn('[Admin Notifications] ⚠️ No authenticated user');
+    return;
+  }
+  
+  const notificationsList = document.getElementById('adminNotificationsList');
+  if (!notificationsList) {
+    console.warn('[Admin Notifications] ⚠️ Notifications list element not found');
+    return;
+  }
+  
+  try {
+    // Query admin notifications for current user
+    const q = query(
+      collection(db, "notifications"),
+      where("isAdminNotification", "==", true),
+      where("userId", "==", user.uid),
+      limit(200) // Limit to last 200 notifications
+    );
+    
+    console.log('[Admin Notifications] 🔍 Querying Firestore...');
+    const querySnapshot = await getDocs(q);
+    console.log(`[Admin Notifications] 📊 Found ${querySnapshot.size} notifications`);
+    
+    // Store all notifications
+    allAdminNotifications = [];
+    querySnapshot.forEach(doc => {
+      allAdminNotifications.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    // Sort by createdAt (newest first) in JavaScript
+    allAdminNotifications.sort((a, b) => {
+      const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return bTime - aTime;
+    });
+    
+    console.log('[Admin Notifications] 🔄 Sorted notifications by date');
+    
+    // Auto-cleanup old read notifications (older than 7 days)
+    await autoCleanupOldReadNotifications();
+    
+    // Update statistics
+    updateAdminNotificationStats();
+    
+    // Render notifications
+    renderAdminNotifications();
+    
+    console.log('[Admin Notifications] ✓ Notifications loaded successfully');
+    console.log('[Admin Notifications] ═══════════════════════════════════');
+    
+  } catch (error) {
+    console.error('[Admin Notifications] ❌ Error loading:', error);
+    
+    notificationsList.innerHTML = `
+      <div class="admin-notif-empty">
+        <div class="admin-notif-empty-icon">⚠️</div>
+        <h3>Error Loading Notifications</h3>
+        <p>${error.message}</p>
+      </div>
+    `;
+  }
+}
+
+/**
+ * ============================================================================
+ * CORE FUNCTION 3: UPDATE NOTIFICATION STATISTICS
+ * ============================================================================
+ */
+function updateAdminNotificationStats() {
+  const unreadCount = allAdminNotifications.filter(n => !n.read).length;
+  const readCount = allAdminNotifications.filter(n => n.read).length;
+  const totalCount = allAdminNotifications.length;
+  const highPriorityCount = allAdminNotifications.filter(n => 
+    n.priority === 'high' && !n.read
+  ).length;
+  
+  // Count today's notifications
+  const today = new Date().toISOString().split('T')[0];
+  const todayCount = allAdminNotifications.filter(n => {
+    if (!n.createdAt) return false;
+    const notifDate = n.createdAt.toDate ? 
+      n.createdAt.toDate().toISOString().split('T')[0] : 
+      new Date(n.createdAt).toISOString().split('T')[0];
+    return notifDate === today;
+  }).length;
+  
+  // Update stat cards
+  const totalEl = document.getElementById('totalNotifCount');
+  const unreadEl = document.getElementById('unreadNotifCount');
+  const highPriorityEl = document.getElementById('highPriorityCount');
+  const todayEl = document.getElementById('todayNotifCount');
+  
+  if (totalEl) totalEl.textContent = totalCount;
+  if (unreadEl) unreadEl.textContent = unreadCount;
+  if (highPriorityEl) highPriorityEl.textContent = highPriorityCount;
+  if (todayEl) todayEl.textContent = todayCount;
+  
+  // Update filter counts
+  const countAll = document.getElementById('countAll');
+  const countUnread = document.getElementById('countUnread');
+  const countRead = document.getElementById('countRead');
+  
+  if (countAll) countAll.textContent = totalCount;
+  if (countUnread) countUnread.textContent = unreadCount;
+  if (countRead) countRead.textContent = readCount;
+  
+  // Enable/disable mark all as read button
+  const markAllBtn = document.getElementById('markAllReadBtn');
+  if (markAllBtn) {
+    markAllBtn.disabled = unreadCount === 0;
+  }
+  
+  // Enable/disable clear read button
+  const clearReadBtn = document.getElementById('clearReadBtn');
+  if (clearReadBtn) {
+    clearReadBtn.disabled = readCount === 0;
+  }
+  
+  console.log(`[Admin Notifications] Stats - Total: ${totalCount}, Unread: ${unreadCount}, Read: ${readCount}, High Priority: ${highPriorityCount}`);
+}
+
+/**
+ * ============================================================================
+ * CORE FUNCTION 4: RENDER ADMIN NOTIFICATIONS
+ * ============================================================================
+ */
+function renderAdminNotifications() {
+  console.log(`[Admin Notifications] 🎨 Rendering (filter: ${currentAdminNotificationFilter}, priority: ${currentPriorityFilter}, type: ${currentTypeFilter}, sort: ${currentSortFilter})`);
+  
+  const notificationsList = document.getElementById('adminNotificationsList');
+  if (!notificationsList) return;
+  
+  // Filter notifications
+  let filteredNotifications = [...allAdminNotifications];
+  
+  // Filter by read status
+  if (currentAdminNotificationFilter === 'unread') {
+    filteredNotifications = filteredNotifications.filter(n => !n.read);
+  } else if (currentAdminNotificationFilter === 'read') {
+    filteredNotifications = filteredNotifications.filter(n => n.read);
+  }
+  
+  // Filter by priority
+  if (currentPriorityFilter !== 'all') {
+    filteredNotifications = filteredNotifications.filter(n => 
+      n.priority === currentPriorityFilter
+    );
+  }
+  
+  // Filter by type
+  if (currentTypeFilter !== 'all') {
+    filteredNotifications = filteredNotifications.filter(n => 
+      n.type === currentTypeFilter
+    );
+  }
+  
+  // Sort notifications
+  filteredNotifications.sort((a, b) => {
+    if (currentSortFilter === 'priority') {
+      // Priority first (high > medium > low), then by date
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      const aPriority = priorityOrder[a.priority || 'medium'];
+      const bPriority = priorityOrder[b.priority || 'medium'];
+      
+      if (aPriority !== bPriority) {
+        return bPriority - aPriority; // Higher priority first
+      }
+    }
+    
+    // Then by date
+    const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+    const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+    
+    return currentSortFilter === 'oldest' ? 
+      aTime - bTime : // Oldest first
+      bTime - aTime;  // Newest first
+  });
+  
+  console.log(`[Admin Notifications] Displaying ${filteredNotifications.length} notifications`);
+  
+  // Clear list
+  notificationsList.innerHTML = '';
+  
+  // Show empty state if no notifications
+  if (filteredNotifications.length === 0) {
+    const emptyIcon = currentAdminNotificationFilter === 'all' ? '🔔' : 
+                     currentAdminNotificationFilter === 'unread' ? '✉️' : '✅';
+    const emptyMessage = currentAdminNotificationFilter === 'all' 
+      ? 'No notifications yet' 
+      : `No ${currentAdminNotificationFilter} notifications`;
+    
+    notificationsList.innerHTML = `
+      <div class="admin-notif-empty">
+        <div class="admin-notif-empty-icon">${emptyIcon}</div>
+        <h3>${emptyMessage}</h3>
+        <p>${currentAdminNotificationFilter === 'all' 
+          ? 'System notifications will appear here.' 
+          : 'Try changing filters to see other notifications.'
+        }</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Render each notification
+  filteredNotifications.forEach(notification => {
+    const notifElement = createAdminNotificationElement(notification);
+    notificationsList.appendChild(notifElement);
+  });
+  
+  console.log('[Admin Notifications] ✓ Notifications rendered');
+}
+
+/**
+ * ============================================================================
+ * CORE FUNCTION 5: CREATE NOTIFICATION ELEMENT
+ * ============================================================================
+ */
+function createAdminNotificationElement(notification) {
+  const div = document.createElement('div');
+  div.className = `admin-notif-item ${notification.read ? 'read' : 'unread'} priority-${notification.priority || 'medium'}`;
+  div.dataset.id = notification.id;
+  
+  // Priority badge
+  const priorityBadge = `
+    <span class="admin-notif-priority-badge ${notification.priority || 'medium'}">
+      ${notification.priority || 'medium'}
+    </span>
+  `;
+  
+  // Type badge
+  let typeText = 'Notification';
+  const typeMap = {
+    'new_request': 'New Request',
+    'deadline_approaching': 'Deadline Warning',
+    'in_progress_alert': 'In Progress',
+    'completion_reminder': 'Completion Reminder',
+    'cancelled_request': 'Cancelled',
+    'inventory_low': 'Inventory Alert'
+  };
+  typeText = typeMap[notification.type] || typeText;
+  
+  // Format time ago
+  const timeAgo = formatTimeAgo(notification.createdAt);
+  
+  // Determine action URL
+  let actionUrl = notification.actionUrl;
+  if (!actionUrl && notification.requestType) {
+    actionUrl = notification.requestType === 'tents-chairs' ? 
+      'admin-tents-requests.html' : 
+      'admin-conference-requests.html';
+  }
+  
+  div.innerHTML = `
+    <div class="admin-notif-item-header">
+      <h3 class="admin-notif-item-title">${sanitizeInput(notification.title)}</h3>
+      ${priorityBadge}
+    </div>
+    <p class="admin-notif-item-message">${sanitizeInput(notification.message)}</p>
+    <div class="admin-notif-item-meta">
+      <span class="admin-notif-type-badge">${typeText}</span>
+      ${notification.requestType ? `<span class="admin-notif-type-badge">${notification.requestType === 'tents-chairs' ? 'Tents & Chairs' : 'Conference Room'}</span>` : ''}
+      <span class="admin-notif-time">🕒 ${timeAgo}</span>
+    </div>
+    <div class="admin-notif-actions-row">
+      ${!notification.read ? `
+        <button class="admin-notif-action-btn mark-read" data-action="mark-read">
+          Mark as Read
+        </button>
+      ` : ''}
+      ${actionUrl ? `
+        <button class="admin-notif-action-btn view-request" data-action="view-request" data-url="${actionUrl}" data-request-id="${notification.requestId || ''}" data-request-type="${notification.requestType || ''}">
+          View ${notification.requestId ? 'Request' : 'Page'}
+        </button>
+      ` : ''}
+      <button class="admin-notif-action-btn delete" data-action="delete">
+        Delete
+      </button>
+    </div>
+  `;
+  
+  // Add event listeners
+  div.querySelectorAll('.admin-notif-action-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      
+      console.log(`[Admin Notifications] 🖱️ Action: ${action} for notification ${notification.id}`);
+      
+      if (action === 'mark-read') {
+        await markAdminNotificationAsRead(notification.id);
+      } else if (action === 'view-request') {
+        const url = btn.dataset.url;
+        const requestId = btn.dataset.requestId;
+        const requestType = btn.dataset.requestType;
+        
+        if (url) {
+          // Build URL with parameters for highlighting
+          let targetUrl = url;
+          if (requestId && requestType) {
+            targetUrl += `?highlightRequest=${requestId}&type=${requestType}`;
+          }
+          window.location.href = targetUrl;
+        }
+      } else if (action === 'delete') {
+        await deleteAdminNotification(notification.id);
+      }
+    });
+  });
+  
+  // Click anywhere on notification to mark as read (if unread)
+  if (!notification.read) {
+    div.addEventListener('click', () => {
+      markAdminNotificationAsRead(notification.id);
+    });
+  }
+  
+  return div;
+}
+
+/**
+ * ============================================================================
+ * CORE FUNCTION 6: MARK NOTIFICATION AS READ
+ * ============================================================================
+ */
+async function markAdminNotificationAsRead(notificationId) {
+  console.log(`[Admin Notifications] 📖 Marking as read: ${notificationId}`);
+  
+  try {
+    await updateDoc(doc(db, "notifications", notificationId), {
+      read: true
+    });
+    
+    console.log('[Admin Notifications] ✓ Marked as read');
+    
+    // Reload notifications
+    await loadAdminNotifications();
+    
+    // Update badge
+    if (typeof updateAdminNotificationBadge === 'function') {
+      updateAdminNotificationBadge();
+    }
+    
+  } catch (error) {
+    console.error('[Admin Notifications] ❌ Error marking as read:', error);
+    showToast('Error updating notification', false);
+  }
+}
+
+/**
+ * ============================================================================
+ * CORE FUNCTION 7: MARK ALL AS READ
+ * ============================================================================
+ */
+async function markAllAdminNotificationsAsRead() {
+  console.log('[Admin Notifications] 📖 Marking all as read...');
+  
+  const unreadNotifications = allAdminNotifications.filter(n => !n.read);
+  
+  if (unreadNotifications.length === 0) {
+    console.log('[Admin Notifications] No unread notifications');
+    return;
+  }
+  
+  console.log(`[Admin Notifications] Marking ${unreadNotifications.length} notifications as read`);
+  
+  try {
+    const promises = unreadNotifications.map(n => 
+      updateDoc(doc(db, "notifications", n.id), { read: true })
+    );
+    
+    await Promise.all(promises);
+    
+    console.log(`[Admin Notifications] ✓ Marked ${unreadNotifications.length} as read`);
+    showToast('All notifications marked as read', true);
+    
+    // Reload notifications
+    await loadAdminNotifications();
+    
+    // Update badge
+    if (typeof updateAdminNotificationBadge === 'function') {
+      updateAdminNotificationBadge();
+    }
+    
+  } catch (error) {
+    console.error('[Admin Notifications] ❌ Error marking all as read:', error);
+    showToast('Error updating notifications', false);
+  }
+}
+
+/**
+ * ============================================================================
+ * CORE FUNCTION 8: DELETE NOTIFICATION
+ * ============================================================================
+ */
+async function deleteAdminNotification(notificationId) {
+  console.log(`[Admin Notifications] 🗑️ Deleting: ${notificationId}`);
+  
+  const confirmed = confirm('Are you sure you want to delete this notification?');
+  if (!confirmed) {
+    console.log('[Admin Notifications] Deletion cancelled');
+    return;
+  }
+  
+  try {
+    await deleteDoc(doc(db, "notifications", notificationId));
+    
+    console.log('[Admin Notifications] ✓ Notification deleted');
+    showToast('Notification deleted', true);
+    
+    // Reload notifications
+    await loadAdminNotifications();
+    
+  } catch (error) {
+    console.error('[Admin Notifications] ❌ Error deleting:', error);
+    showToast('Error deleting notification', false);
+  }
+}
+
+/**
+ * ============================================================================
+ * CORE FUNCTION 8B: CLEAR ALL READ NOTIFICATIONS
+ * ============================================================================
+ */
+async function clearReadAdminNotifications() {
+  console.log('[Admin Notifications] 🗑️ Clearing all read notifications...');
+  
+  const readNotifications = allAdminNotifications.filter(n => n.read);
+  
+  if (readNotifications.length === 0) {
+    showToast('No read notifications to clear', false);
+    console.log('[Admin Notifications] No read notifications found');
+    return;
+  }
+  
+  const confirmed = confirm(
+    `Are you sure you want to delete ${readNotifications.length} read notification(s)?\n\n` +
+    `This action cannot be undone.`
+  );
+  
+  if (!confirmed) {
+    console.log('[Admin Notifications] Clear cancelled');
+    return;
+  }
+  
+  try {
+    console.log(`[Admin Notifications] Deleting ${readNotifications.length} read notifications...`);
+    
+    // Delete all read notifications
+    const deletePromises = readNotifications.map(n => 
+      deleteDoc(doc(db, "notifications", n.id))
+    );
+    
+    await Promise.all(deletePromises);
+    
+    console.log(`[Admin Notifications] ✓ Deleted ${readNotifications.length} read notifications`);
+    showToast(`Cleared ${readNotifications.length} read notification(s)`, true);
+    
+    // Reload notifications
+    await loadAdminNotifications();
+    
+    // Update badge
+    if (typeof updateAdminNotificationBadge === 'function') {
+      updateAdminNotificationBadge();
+    }
+    
+  } catch (error) {
+    console.error('[Admin Notifications] ❌ Error clearing read notifications:', error);
+    showToast('Error clearing notifications', false);
+  }
+}
+
+/**
+ * ============================================================================
+ * CORE FUNCTION 9: UPDATE NOTIFICATION BADGE (SIDEBAR)
+ * ============================================================================
+ */
+async function updateAdminNotificationBadge() {
+  const user = auth.currentUser;
+  if (!user) return;
+  
+  try {
+    const q = query(
+      collection(db, "notifications"),
+      where("isAdminNotification", "==", true),
+      where("userId", "==", user.uid),
+      where("read", "==", false)
+    );
+    
+    const snapshot = await getDocs(q);
+    const count = snapshot.size;
+    
+    const badge = document.getElementById('adminNotifBadge');
+    if (badge) {
+      badge.textContent = count;
+      badge.classList.toggle('active', count > 0);
+      badge.classList.toggle('pulse', count > 0);
+    }
+    
+    console.log(`[Admin Notif Badge] Updated: ${count} unread`);
+    
+  } catch (error) {
+    console.error('[Admin Notif Badge] Error:', error);
+  }
+}
+
+/**
+ * ============================================================================
+ * FILTER FUNCTIONS
+ * ============================================================================
+ */
+function filterAdminNotifications(filterType) {
+  console.log(`[Admin Notifications] 🔍 Filter: ${filterType}`);
+  
+  currentAdminNotificationFilter = filterType;
+  
+  // Update filter button states
+  document.querySelectorAll('.admin-notif-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filterType);
+  });
+  
+  renderAdminNotifications();
+}
+
+function setPriorityFilter(priority) {
+  currentPriorityFilter = priority;
+  renderAdminNotifications();
+}
+
+function setTypeFilter(type) {
+  currentTypeFilter = type;
+  renderAdminNotifications();
+}
+
+function setSortFilter(sort) {
+  currentSortFilter = sort;
+  renderAdminNotifications();
+}
+
+/**
+ * ============================================================================
+ * ATTACH EVENT LISTENERS (ADMIN NOTIFICATIONS PAGE)
+ * ============================================================================
+ */
+if (window.location.pathname.endsWith('admin-notifications.html') || 
+    window.location.pathname.endsWith('/admin-notifications')) {
+  
+  console.log('[Admin Notifications] 🎛️ Page detected, attaching event listeners...');
+  
+  document.addEventListener('DOMContentLoaded', () => {
+    // Initialize sidebar dropdown for Review Requests
+    const reviewRequestsToggle = document.getElementById('reviewRequestsToggle');
+    if (reviewRequestsToggle) {
+      reviewRequestsToggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        const dropdown = this.nextElementSibling;
+        if (dropdown) {
+          dropdown.classList.toggle('open');
+          this.classList.toggle('open');
+        }
+        console.log('[Admin Notifications] ✓ Sidebar dropdown toggled');
+      });
+      console.log('[Admin Notifications] ✓ Sidebar dropdown initialized');
+    } else {
+      console.warn('[Admin Notifications] ⚠️ reviewRequestsToggle element not found!');
+    }
+    
+    // Filter buttons
+    document.querySelectorAll('.admin-notif-filter-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        filterAdminNotifications(this.dataset.filter);
+      });
+    });
+    
+    // Priority filter dropdown
+    const priorityFilter = document.getElementById('priorityFilter');
+    if (priorityFilter) {
+      priorityFilter.addEventListener('change', (e) => {
+        setPriorityFilter(e.target.value);
+      });
+    }
+    
+    // Type filter dropdown
+    const typeFilter = document.getElementById('typeFilter');
+    if (typeFilter) {
+      typeFilter.addEventListener('change', (e) => {
+        setTypeFilter(e.target.value);
+      });
+    }
+    
+    // Sort filter dropdown
+    const sortFilter = document.getElementById('sortFilter');
+    if (sortFilter) {
+      sortFilter.addEventListener('change', (e) => {
+        setSortFilter(e.target.value);
+      });
+    }
+    
+    // Mark all as read button
+    const markAllBtn = document.getElementById('markAllReadBtn');
+    if (markAllBtn) {
+      markAllBtn.addEventListener('click', markAllAdminNotificationsAsRead);
+    }
+    
+    // Clear read notifications button
+    const clearReadBtn = document.getElementById('clearReadBtn');
+    if (clearReadBtn) {
+      clearReadBtn.addEventListener('click', clearReadAdminNotifications);
+    }
+    
+    console.log('[Admin Notifications] ✓ Event listeners attached');
+  });
+  
+  // Load notifications when user is authenticated
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      console.log('[Admin Notifications] 👤 User authenticated, loading notifications...');
+      loadAdminNotifications();
+      
+      // Auto-refresh every 2 minutes
+      setInterval(loadAdminNotifications, 2 * 60 * 1000);
+    }
+  });
+}
+
+/**
+ * ============================================================================
+ * UPDATE BADGE ON ALL ADMIN PAGES
+ * ============================================================================
+ */
+function isAdminPage() {
+  const adminPages = [
+    'admin.html',
+    'admin-tents-requests.html',
+    'admin-conference-requests.html',
+    'admin-manage-inventory.html',
+    'admin-notifications.html',
+    'admin-user-manager.html'
+  ];
+  
+  return adminPages.some(page => 
+    window.location.pathname.endsWith(page) || 
+    window.location.pathname.endsWith(page.replace('.html', ''))
+  );
+}
+
+// Update badge on all admin pages
+if (isAdminPage()) {
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      updateAdminNotificationBadge();
+      // Auto-refresh badge every 2 minutes
+      setInterval(updateAdminNotificationBadge, 2 * 60 * 1000);
+    }
+  });
+}
+
+console.log('🔔 [Admin Notifications] System initialized');
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// AUTOMATED CHECKS - ONLY RUN ON ADMIN DASHBOARD (admin.html)
+// ════════════════════════════════════════════════════════════════════════════
+// NOTE: Automated checks only run on admin.html to prevent duplicate execution
+// when multiple admin pages are open simultaneously.
+// ════════════════════════════════════════════════════════════════════════════
+
+if (window.location.pathname.endsWith('admin.html') || 
+    window.location.pathname.endsWith('/admin')) {
+  
+  console.log('[Admin Notifications] 🎯 Dashboard detected - Setting up automated checks');
+  
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      // Run checks after 5 seconds to let page load first
+      setTimeout(async () => {
+        console.log('[Admin Notifications] ⏰ Running initial automated checks...');
+        
+        try {
+          await checkPendingReviewDeadlines();
+          await checkOverdueCompletions();
+          await checkInventoryLevels();
+          
+          console.log('[Admin Notifications] ✓ All automated checks completed');
+        } catch (error) {
+          console.error('[Admin Notifications] ❌ Error during automated checks:', error);
+        }
+      }, 5000);
+      
+      // Run checks every 15 minutes
+      setInterval(async () => {
+        console.log('[Admin Notifications] ⏰ Running scheduled automated checks...');
+        try {
+          await checkPendingReviewDeadlines();
+          await checkOverdueCompletions();
+          await checkInventoryLevels();
+          
+          console.log('[Admin Notifications] ✓ Scheduled checks completed');
+        } catch (error) {
+          console.error('[Admin Notifications] ❌ Error during scheduled checks:', error);
+        }
+      }, 15 * 60 * 1000);
+      
+      console.log('[Admin Notifications] ✅ Automated checks configured (15-minute interval)');
+    }
+  });
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// ADMIN NOTIFICATION CREATORS & AUTOMATED CHECKS
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * ============================================================================
+ * NOTIFICATION TYPE 1: NEW REQUEST SUBMITTED
+ * ============================================================================
+ * Called when user submits a new booking request
+ */
+async function createNewRequestAdminNotification(requestId, requestType, requestData) {
+  console.log('[Admin Notif - New Request] ═══════════════════════════');
+  console.log('[Admin Notif - New Request] Request ID:', requestId);
+  console.log('[Admin Notif - New Request] Type:', requestType);
+  
+  try {
+    // DUPLICATE PREVENTION: Check if notification already exists for this request
+    const existingQuery = query(
+      collection(db, "notifications"),
+      where("type", "==", "new_request"),
+      where("requestId", "==", requestId)
+    );
+    
+    const existing = await getDocs(existingQuery);
+    if (existing.size > 0) {
+      console.log('[Admin Notif - New Request] ⊘ Notification already exists, skipping');
+      return;
+    }
+    
+    // Calculate priority based on event date
+    const eventDate = new Date(requestData.startDate || requestData.eventDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const daysUntil = Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24));
+    
+    const priority = daysUntil <= 2 ? 'high' : 'medium';
+    const urgencyNote = daysUntil <= 2 ? ' ⚠️ URGENT - Event within 48 hours!' : '';
+    
+    const userName = requestData.fullName || 
+                    (requestData.firstName && requestData.lastName ? 
+                      `${requestData.firstName} ${requestData.lastName}` : 
+                      'Unknown User');
+    
+    const eventDateStr = formatDateToWords(requestData.startDate || requestData.eventDate);
+    
+    let title = '';
+    let message = '';
+    
+    if (requestType === 'tents-chairs') {
+      const items = [];
+      if (requestData.quantityChairs) items.push(`${requestData.quantityChairs} chairs`);
+      if (requestData.quantityTents) items.push(`${requestData.quantityTents} tents`);
+      const itemsList = items.join(', ');
+      
+      title = `📥 New Tents & Chairs Request${urgencyNote}`;
+      message = `${userName} submitted a new tents & chairs borrowing request for ${eventDateStr}. ` +
+                `Items requested: ${itemsList}. ` +
+                `${daysUntil <= 2 ? 'This request requires immediate attention!' : 'Please review and approve/reject.'}`;
+    } else {
+      const timeRange = requestData.startTime && requestData.endTime ? 
+        ` (${formatTime12Hour(requestData.startTime)} - ${formatTime12Hour(requestData.endTime)})` : '';
+      
+      title = `📥 New Conference Room Request${urgencyNote}`;
+      message = `${userName} submitted a new conference room booking for ${eventDateStr}${timeRange}. ` +
+                `Purpose: ${requestData.purpose || 'Not specified'}. ` +
+                `${daysUntil <= 2 ? 'This request requires immediate attention!' : 'Please review and approve/reject.'}`;
+    }
+    
+    await createAdminNotification({
+      type: 'new_request',
+      requestId: requestId,
+      requestType: requestType,
+      title: title,
+      message: message,
+      priority: priority,
+      actionUrl: requestType === 'tents-chairs' ? 
+        'admin-tents-requests.html' : 
+        'admin-conference-requests.html',
+      metadata: {
+        eventDate: requestData.startDate || requestData.eventDate,
+        userName: userName,
+        daysUntil: daysUntil
+      }
+    });
+    
+    console.log('[Admin Notif - New Request] ✓ Notification created');
+    console.log('[Admin Notif - New Request] ═══════════════════════════');
+    
+  } catch (error) {
+    console.error('[Admin Notif - New Request] ❌ Error:', error);
+  }
+}
+
+/**
+ * ============================================================================
+ * NOTIFICATION TYPE 2: REQUEST STATUS CHANGED TO IN-PROGRESS
+ * ============================================================================
+ * Called when automated status change occurs
+ */
+async function createInProgressAdminNotification(requestId, requestType, requestData) {
+  console.log('[Admin Notif - In Progress] ═══════════════════════════');
+  console.log('[Admin Notif - In Progress] Request ID:', requestId);
+  console.log('[Admin Notif - In Progress] Type:', requestType);
+  
+  try {
+    // Check if notification already exists
+    const existingQuery = query(
+      collection(db, "notifications"),
+      where("type", "==", "in_progress_alert"),
+      where("requestId", "==", requestId)
+    );
+    
+    const existing = await getDocs(existingQuery);
+    if (existing.size > 0) {
+      console.log('[Admin Notif - In Progress] ⊘ Notification already exists, skipping');
+      return;
+    }
+    
+    const userName = requestData.fullName || 
+                    (requestData.firstName && requestData.lastName ? 
+                      `${requestData.firstName} ${requestData.lastName}` : 
+                      'Unknown User');
+    
+    const eventDateStr = formatDateToWords(requestData.startDate || requestData.eventDate);
+    
+    let title = '';
+    let message = '';
+    
+    if (requestType === 'tents-chairs') {
+      const items = [];
+      if (requestData.quantityChairs) items.push(`${requestData.quantityChairs} chairs`);
+      if (requestData.quantityTents) items.push(`${requestData.quantityTents} tents`);
+      const itemsList = items.join(', ');
+      
+      title = `🔄 Event Started - Tents & Chairs`;
+      message = `${userName}'s tents & chairs booking is now in progress (${eventDateStr}). ` +
+                `Items: ${itemsList}. ` +
+                `Monitor the event and prepare to mark as completed when items are returned.`;
+    } else {
+      const timeRange = requestData.startTime && requestData.endTime ? 
+        ` (${formatTime12Hour(requestData.startTime)} - ${formatTime12Hour(requestData.endTime)})` : '';
+      
+      title = `🔄 Event Started - Conference Room`;
+      message = `${userName}'s conference room reservation is now in progress (${eventDateStr}${timeRange}). ` +
+                `Purpose: ${requestData.purpose || 'Not specified'}. ` +
+                `Monitor the event and prepare to mark as completed when room is vacated.`;
+    }
+    
+    await createAdminNotification({
+      type: 'in_progress_alert',
+      requestId: requestId,
+      requestType: requestType,
+      title: title,
+      message: message,
+      priority: 'medium',
+      actionUrl: requestType === 'tents-chairs' ? 
+        'admin-tents-requests.html' : 
+        'admin-conference-requests.html',
+      metadata: {
+        eventDate: requestData.startDate || requestData.eventDate,
+        userName: userName,
+        autoTransitioned: true
+      }
+    });
+    
+    console.log('[Admin Notif - In Progress] ✓ Notification created');
+    console.log('[Admin Notif - In Progress] ═══════════════════════════');
+    
+  } catch (error) {
+    console.error('[Admin Notif - In Progress] ❌ Error:', error);
+  }
+}
+
+/**
+ * ============================================================================
+ * NOTIFICATION TYPE 3: USER CANCELLED REQUEST
+ * ============================================================================
+ */
+async function createCancelledRequestAdminNotification(requestId, requestType, requestData) {
+  console.log('[Admin Notif - Cancelled] ═══════════════════════════');
+  console.log('[Admin Notif - Cancelled] Request ID:', requestId);
+  
+  try {
+    const userName = requestData.fullName || 
+                    (requestData.firstName && requestData.lastName ? 
+                      `${requestData.firstName} ${requestData.lastName}` : 
+                      'Unknown User');
+    
+    const eventDateStr = formatDateToWords(requestData.startDate || requestData.eventDate);
+    
+    const title = `❌ Request Cancelled`;
+    const message = `${userName} cancelled their ${requestType === 'tents-chairs' ? 'tents & chairs' : 'conference room'} booking for ${eventDateStr}. ` +
+                    `No action needed - this is for your information only.`;
+    
+    await createAdminNotification({
+      type: 'cancelled_request',
+      requestId: requestId,
+      requestType: requestType,
+      title: title,
+      message: message,
+      priority: 'low',
+      actionUrl: requestType === 'tents-chairs' ? 
+        'admin-tents-requests.html' : 
+        'admin-conference-requests.html',
+      metadata: {
+        eventDate: requestData.startDate || requestData.eventDate,
+        userName: userName
+      }
+    });
+    
+    console.log('[Admin Notif - Cancelled] ✓ Notification created');
+    console.log('[Admin Notif - Cancelled] ═══════════════════════════');
+    
+  } catch (error) {
+    console.error('[Admin Notif - Cancelled] ❌ Error:', error);
+  }
+}
+
+/**
+ * ============================================================================
+ * AUTOMATED CHECK 1: PENDING REQUESTS NEAR DEADLINE
+ * ============================================================================
+ * Checks for pending requests with events happening soon
+ */
+async function checkPendingReviewDeadlines() {
+  console.log('[Admin Notif - Deadline Check] ═══════════════════════════');
+  console.log('[Admin Notif - Deadline Check] Checking for pending requests near deadline...');
+  
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const in2Days = new Date(today);
+    in2Days.setDate(in2Days.getDate() + 2);
+    
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const in2DaysStr = in2Days.toISOString().split('T')[0];
+    
+    console.log('[Admin Notif - Deadline Check] Checking events on:', tomorrowStr, 'and', in2DaysStr);
+    
+    // Check tents & chairs
+    const tentsQuery = query(
+      collection(db, "tentsChairsBookings"),
+      where("status", "==", "pending"),
+      where("startDate", "in", [tomorrowStr, in2DaysStr])
+    );
+    
+    const tentsSnapshot = await getDocs(tentsQuery);
+    console.log(`[Admin Notif - Deadline Check] Found ${tentsSnapshot.size} pending tents bookings`);
+    
+    for (const docSnapshot of tentsSnapshot.docs) {
+      const request = { id: docSnapshot.id, ...docSnapshot.data() };
+      
+      // Check if notification already sent today
+      const todayStr = today.toISOString().split('T')[0];
+      const existingQuery = query(
+        collection(db, "notifications"),
+        where("type", "==", "deadline_approaching"),
+        where("requestId", "==", request.id),
+        where("metadata.notificationDate", "==", todayStr)
+      );
+      
+      const existing = await getDocs(existingQuery);
+      if (existing.size > 0) {
+        console.log(`[Admin Notif - Deadline Check] ⊘ Already notified for ${request.id}`);
+        continue;
+      }
+      
+      // Create notification
+      const startDate = new Date(request.startDate + 'T00:00:00');
+      const daysUntil = Math.floor((startDate - today) / (1000 * 60 * 60 * 24));
+      const priority = daysUntil <= 1 ? 'high' : 'medium';
+      
+      const userName = request.fullName || 'Unknown User';
+      const urgencyNote = daysUntil <= 1 ? ' ⚠️ URGENT' : '';
+      
+      await createAdminNotification({
+        type: 'deadline_approaching',
+        requestId: request.id,
+        requestType: 'tents-chairs',
+        title: `⏰ Pending Request - Event ${daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : 'in ' + daysUntil + ' Days'}${urgencyNote}`,
+        message: `${userName}'s tents & chairs request for ${formatDateToWords(request.startDate)} is still pending review. ` +
+                 `Event ${daysUntil === 0 ? 'is today' : 'starts in ' + daysUntil + ' day' + (daysUntil > 1 ? 's' : '')}. Please review and take action soon to avoid disappointing the resident.`,
+        priority: priority,
+        actionUrl: 'admin-tents-requests.html',
+        metadata: {
+          eventDate: request.startDate,
+          userName: userName,
+          daysUntil: daysUntil,
+          notificationDate: todayStr
+        }
+      });
+      
+      console.log(`[Admin Notif - Deadline Check] ✓ Created notification for ${request.id}`);
+    }
+    
+    // Check conference room
+    const conferenceQuery = query(
+      collection(db, "conferenceRoomBookings"),
+      where("status", "==", "pending"),
+      where("eventDate", "in", [tomorrowStr, in2DaysStr])
+    );
+    
+    const conferenceSnapshot = await getDocs(conferenceQuery);
+    console.log(`[Admin Notif - Deadline Check] Found ${conferenceSnapshot.size} pending conference bookings`);
+    
+    for (const docSnapshot of conferenceSnapshot.docs) {
+      const request = { id: docSnapshot.id, ...docSnapshot.data() };
+      
+      // Check if notification already sent today
+      const todayStr = today.toISOString().split('T')[0];
+      const existingQuery = query(
+        collection(db, "notifications"),
+        where("type", "==", "deadline_approaching"),
+        where("requestId", "==", request.id),
+        where("metadata.notificationDate", "==", todayStr)
+      );
+      
+      const existing = await getDocs(existingQuery);
+      if (existing.size > 0) {
+        console.log(`[Admin Notif - Deadline Check] ⊘ Already notified for ${request.id}`);
+        continue;
+      }
+      
+      // Create notification
+      const eventDate = new Date(request.eventDate + 'T00:00:00');
+      const daysUntil = Math.floor((eventDate - today) / (1000 * 60 * 60 * 24));
+      const priority = daysUntil <= 1 ? 'high' : 'medium';
+      
+      const userName = request.fullName || 'Unknown User';
+      const urgencyNote = daysUntil <= 1 ? ' ⚠️ URGENT' : '';
+      
+      await createAdminNotification({
+        type: 'deadline_approaching',
+        requestId: request.id,
+        requestType: 'conference-room',
+        title: `⏰ Pending Request - Event ${daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : 'in ' + daysUntil + ' Days'}${urgencyNote}`,
+        message: `${userName}'s conference room request for ${formatDateToWords(request.eventDate)} is still pending review. ` +
+                 `Event ${daysUntil === 0 ? 'is today' : 'starts in ' + daysUntil + ' day' + (daysUntil > 1 ? 's' : '')}. Please review and take action soon to avoid disappointing the resident.`,
+        priority: priority,
+        actionUrl: 'admin-conference-requests.html',
+        metadata: {
+          eventDate: request.eventDate,
+          userName: userName,
+          daysUntil: daysUntil,
+          notificationDate: todayStr
+        }
+      });
+      
+      console.log(`[Admin Notif - Deadline Check] ✓ Created notification for ${request.id}`);
+    }
+    
+    console.log('[Admin Notif - Deadline Check] ✓ Check completed');
+    console.log('[Admin Notif - Deadline Check] ═══════════════════════════');
+    
+  } catch (error) {
+    console.error('[Admin Notif - Deadline Check] ❌ Error:', error);
+  }
+}
+
+/**
+ * ============================================================================
+ * AUTOMATED CHECK 2: OVERDUE COMPLETIONS
+ * ============================================================================
+ * Checks for in-progress requests that should be marked completed
+ */
+async function checkOverdueCompletions() {
+  console.log('[Admin Notif - Overdue Check] ═══════════════════════════');
+  console.log('[Admin Notif - Overdue Check] Checking for overdue completions...');
+  
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // Check tents & chairs (endDate < today)
+    const tentsQuery = query(
+      collection(db, "tentsChairsBookings"),
+      where("status", "==", "in-progress")
+    );
+    
+    const tentsSnapshot = await getDocs(tentsQuery);
+    console.log(`[Admin Notif - Overdue Check] Found ${tentsSnapshot.size} in-progress tents bookings`);
+    
+    for (const docSnapshot of tentsSnapshot.docs) {
+      const request = { id: docSnapshot.id, ...docSnapshot.data() };
+      const endDate = new Date(request.endDate);
+      
+      if (endDate < today) {
+        // Event ended, check if notification sent today
+        const existingQuery = query(
+          collection(db, "notifications"),
+          where("type", "==", "completion_reminder"),
+          where("requestId", "==", request.id),
+          where("metadata.notificationDate", "==", todayStr)
+        );
+        
+        const existing = await getDocs(existingQuery);
+        if (existing.size > 0) {
+          console.log(`[Admin Notif - Overdue Check] ⊘ Already notified for ${request.id}`);
+          continue;
+        }
+        
+        // Calculate days overdue
+        const daysOverdue = Math.ceil((today - endDate) / (1000 * 60 * 60 * 24));
+        const priority = daysOverdue >= 1 ? 'high' : 'medium';
+        
+        const userName = request.fullName || 'Unknown User';
+        const urgencyNote = daysOverdue >= 2 ? ' ⚠️ URGENT' : '';
+        
+        await createAdminNotification({
+          type: 'completion_reminder',
+          requestId: request.id,
+          requestType: 'tents-chairs',
+          title: `✅ Completion Reminder - Tents & Chairs${urgencyNote}`,
+          message: `${userName}'s tents & chairs booking ended on ${formatDateToWords(request.endDate)} (${daysOverdue} day${daysOverdue > 1 ? 's' : ''} ago). ` +
+                   `Please verify items have been returned and mark the request as completed. ` +
+                   `${daysOverdue >= 2 ? 'This is overdue - please take action immediately!' : ''}`,
+          priority: priority,
+          actionUrl: 'admin-tents-requests.html',
+          metadata: {
+            endDate: request.endDate,
+            userName: userName,
+            daysOverdue: daysOverdue,
+            notificationDate: todayStr
+          }
+        });
+        
+        console.log(`[Admin Notif - Overdue Check] ✓ Created notification for ${request.id} (${daysOverdue} days overdue)`);
+      }
+    }
+    
+    // Check conference room (eventDate < today)
+    const conferenceQuery = query(
+      collection(db, "conferenceRoomBookings"),
+      where("status", "==", "in-progress")
+    );
+    
+    const conferenceSnapshot = await getDocs(conferenceQuery);
+    console.log(`[Admin Notif - Overdue Check] Found ${conferenceSnapshot.size} in-progress conference bookings`);
+    
+    for (const docSnapshot of conferenceSnapshot.docs) {
+      const request = { id: docSnapshot.id, ...docSnapshot.data() };
+      const eventDate = new Date(request.eventDate);
+      
+      if (eventDate < today) {
+        // Event ended, check if notification sent today
+        const existingQuery = query(
+          collection(db, "notifications"),
+          where("type", "==", "completion_reminder"),
+          where("requestId", "==", request.id),
+          where("metadata.notificationDate", "==", todayStr)
+        );
+        
+        const existing = await getDocs(existingQuery);
+        if (existing.size > 0) {
+          console.log(`[Admin Notif - Overdue Check] ⊘ Already notified for ${request.id}`);
+          continue;
+        }
+        
+        // Calculate days overdue
+        const daysOverdue = Math.ceil((today - eventDate) / (1000 * 60 * 60 * 24));
+        const priority = daysOverdue >= 1 ? 'high' : 'medium';
+        
+        const userName = request.fullName || 'Unknown User';
+        const urgencyNote = daysOverdue >= 2 ? ' ⚠️ URGENT' : '';
+        
+        await createAdminNotification({
+          type: 'completion_reminder',
+          requestId: request.id,
+          requestType: 'conference-room',
+          title: `✅ Completion Reminder - Conference Room${urgencyNote}`,
+          message: `${userName}'s conference room booking ended on ${formatDateToWords(request.eventDate)} (${daysOverdue} day${daysOverdue > 1 ? 's' : ''} ago). ` +
+                   `Please verify the room has been vacated and mark the request as completed. ` +
+                   `${daysOverdue >= 2 ? 'This is overdue - please take action immediately!' : ''}`,
+          priority: priority,
+          actionUrl: 'admin-conference-requests.html',
+          metadata: {
+            eventDate: request.eventDate,
+            userName: userName,
+            daysOverdue: daysOverdue,
+            notificationDate: todayStr
+          }
+        });
+        
+        console.log(`[Admin Notif - Overdue Check] ✓ Created notification for ${request.id} (${daysOverdue} days overdue)`);
+      }
+    }
+    
+    console.log('[Admin Notif - Overdue Check] ✓ Check completed');
+    console.log('[Admin Notif - Overdue Check] ═══════════════════════════');
+    
+  } catch (error) {
+    console.error('[Admin Notif - Overdue Check] ❌ Error:', error);
+  }
+}
+
+/**
+ * ============================================================================
+ * AUTOMATED CHECK 3: LOW INVENTORY ALERT
+ * ============================================================================
+ * Checks inventory levels and alerts if running low
+ */
+async function checkInventoryLevels() {
+  console.log('[Admin Notif - Inventory Check] ═══════════════════════════');
+  console.log('[Admin Notif - Inventory Check] Checking inventory levels...');
+  
+  try {
+    // Get current inventory
+    const inventoryDoc = await getDoc(doc(db, "inventory", "equipment"));
+    
+    if (!inventoryDoc.exists()) {
+      console.log('[Admin Notif - Inventory Check] ⚠️ Inventory document not found');
+      return;
+    }
+    
+    const inventory = inventoryDoc.data();
+    const availableTents = inventory.availableTents || 0;
+    const availableChairs = inventory.availableChairs || 0;
+    
+    console.log(`[Admin Notif - Inventory Check] Available - Tents: ${availableTents}, Chairs: ${availableChairs}`);
+    
+    // Check if notification already sent today
+    const todayStr = new Date().toISOString().split('T')[0];
+    const existingQuery = query(
+      collection(db, "notifications"),
+      where("type", "==", "inventory_low"),
+      where("metadata.notificationDate", "==", todayStr)
+    );
+    
+    const existing = await getDocs(existingQuery);
+    if (existing.size > 0) {
+      console.log('[Admin Notif - Inventory Check] ⊘ Already notified today');
+      return;
+    }
+    
+    // Check thresholds
+    const tentsCritical = availableTents < 3;
+    const chairsCritical = availableChairs < 30;
+    const tentsLow = !tentsCritical && availableTents < 5;
+    const chairsLow = !chairsCritical && availableChairs < 50;
+    
+    if (tentsCritical || chairsCritical || tentsLow || chairsLow) {
+      const alerts = [];
+      let priority = 'medium';
+      
+      if (tentsCritical) {
+        alerts.push(`⚠️ CRITICAL: Only ${availableTents} tent${availableTents !== 1 ? 's' : ''} available (threshold: 3)`);
+        priority = 'high';
+      } else if (tentsLow) {
+        alerts.push(`⚠️ LOW: Only ${availableTents} tents available (threshold: 5)`);
+      }
+      
+      if (chairsCritical) {
+        alerts.push(`⚠️ CRITICAL: Only ${availableChairs} chairs available (threshold: 30)`);
+        priority = 'high';
+      } else if (chairsLow) {
+        alerts.push(`⚠️ LOW: Only ${availableChairs} chairs available (threshold: 50)`);
+      }
+      
+      await createAdminNotification({
+        type: 'inventory_low',
+        title: `📦 Inventory ${priority === 'high' ? 'CRITICAL' : 'Low'} Alert`,
+        message: `Inventory levels are ${priority === 'high' ? 'critically low' : 'running low'}:\n\n${alerts.join('\n')}\n\n` +
+                 `Please review upcoming bookings and consider restricting new requests until inventory is restored.`,
+        priority: priority,
+        actionUrl: 'admin-manage-inventory.html',
+        metadata: {
+          availableTents: availableTents,
+          availableChairs: availableChairs,
+          notificationDate: todayStr
+        }
+      });
+      
+      console.log(`[Admin Notif - Inventory Check] ✓ ${priority.toUpperCase()} alert created`);
+    } else {
+      console.log('[Admin Notif - Inventory Check] ✓ Inventory levels OK');
+    }
+    
+    console.log('[Admin Notif - Inventory Check] ═══════════════════════════');
+    
+  } catch (error) {
+    console.error('[Admin Notif - Inventory Check] ❌ Error:', error);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// END OF ADMIN NOTIFICATIONS SYSTEM
+// ════════════════════════════════════════════════════════════════════════════
+
 console.log('  ✅ Rate Limiting: Max', MAX_LOGIN_ATTEMPTS, 'attempts per', ATTEMPT_WINDOW / 60000, 'minutes');
 console.log('  ✅ Account Lockout:', LOCKOUT_DURATION / 60000, 'minutes');
 console.log('  ✅ Security Audit Logging: Enabled');
