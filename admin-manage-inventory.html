@@ -68,8 +68,8 @@
       </section>
 
       <div class="admin-content">
-        <h2 class="content-title">EQUIPMENTS LIST</h2>
         <div class="inventory-card">
+          <h1 class="content-title" style="text-align: center; color: #281ABC; margin-bottom: 2rem;">EQUIPMENTS LIST</h1>
           <div class="inventory-grid">
 
             <!-- Tents -->
@@ -102,6 +102,7 @@
 
           <div class="inventory-actions">
             <button class="edit-btn" id="editInventory">Edit Inventory</button>
+            <button class="cancel-btn" id="cancelInventory" style="display: none;">Cancel</button>
             <button class="save-btn" id="saveInventory" disabled>Save</button>
           </div>
         </div>
@@ -111,7 +112,8 @@
     <!-- Save confirmation modal -->
     <div class="modal" id="saveConfirmModal">
       <div class="modal-content">
-        <h2>Confirm Save Changes?</h2>
+        <h2>Save Changes</h2>
+        <p>Are you sure you want to save changes? The inventory will be updated.</p>
         <div id="saveChangesList"></div>
         <div class="modal-actions">
           <button class="edit-btn" id="confirmSaveNo">No</button>
