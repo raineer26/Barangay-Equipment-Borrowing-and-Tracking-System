@@ -535,120 +535,122 @@ loginForm?.addEventListener("submit", async (e) => {
 /* =====================
    FORGOT PASSWORD FUNCTIONALITY
 ====================== */
-if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
-  const forgotPasswordLink = document.getElementById('forgotPasswordLink');
-  const forgotPasswordModal = document.getElementById('forgotPasswordModal');
-  const forgotPasswordForm = document.getElementById('forgotPasswordForm');
-  const resetEmailInput = document.getElementById('resetEmail');
-  const errorResetEmail = document.getElementById('error-reset-email');
-  const closeModalBtn = forgotPasswordModal?.querySelector('.close-modal');
+document.addEventListener('DOMContentLoaded', function() {
+  if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
+    const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+    const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+    const resetEmailInput = document.getElementById('resetEmail');
+    const errorResetEmail = document.getElementById('error-reset-email');
+    const closeModalBtn = forgotPasswordModal?.querySelector('.close-modal');
 
-  // Open forgot password modal
-  forgotPasswordLink?.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (forgotPasswordModal) {
-      forgotPasswordModal.style.display = 'block';
-      resetEmailInput.value = '';
-      if (errorResetEmail) errorResetEmail.textContent = '';
-    }
-  });
-
-  // Close modal
-  closeModalBtn?.addEventListener('click', () => {
-    if (forgotPasswordModal) {
-      forgotPasswordModal.style.display = 'none';
-    }
-  });
-
-  // Close modal when clicking outside
-  window.addEventListener('click', (e) => {
-    if (e.target === forgotPasswordModal) {
-      forgotPasswordModal.style.display = 'none';
-    }
-  });
-
-  // Handle forgot password form submission
-  forgotPasswordForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const email = resetEmailInput.value.trim();
-    console.log('[Forgot Password] Form submitted with email:', email);
-    
-    // Validate email
-    if (!email) {
-      if (errorResetEmail) {
-        errorResetEmail.innerHTML = `<span style='color:#d32f2f;font-size:14px;'>Email cannot be blank</span>`;
+    // Open forgot password modal
+    forgotPasswordLink?.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (forgotPasswordModal) {
+        forgotPasswordModal.style.display = 'block';
+        resetEmailInput.value = '';
+        if (errorResetEmail) errorResetEmail.textContent = '';
       }
-      return;
-    }
+    });
 
-    const emailValidation = validateEmail(email);
-    if (!emailValidation.isValid) {
-      console.log('[Forgot Password] Email validation failed:', emailValidation.message);
-      if (errorResetEmail) {
-        errorResetEmail.innerHTML = `<span style='color:#d32f2f;font-size:14px;'>${emailValidation.message}</span>`;
-      }
-      return;
-    }
-
-    // Clear error
-    if (errorResetEmail) errorResetEmail.textContent = '';
-
-    // Show loading state on button
-    const submitBtn = forgotPasswordForm.querySelector('button[type="submit"]');
-    const originalBtnText = submitBtn.textContent;
-    console.log('[Forgot Password] Showing spinner and sending reset email...');
-    showButtonSpinner(submitBtn);
-
-    try {
-      // Send password reset email
-      console.log('[Forgot Password] Calling sendPasswordResetEmail for:', email);
-      await sendPasswordResetEmail(auth, email);
-      console.log('[Forgot Password] Password reset email sent successfully!');
-      
-      // Close modal
+    // Close modal
+    closeModalBtn?.addEventListener('click', () => {
       if (forgotPasswordModal) {
         forgotPasswordModal.style.display = 'none';
       }
+    });
 
-      // Show success message
-      showAlert(
-        `Password reset email sent to ${email}. Please check your inbox (and spam folder) and follow the instructions to reset your password.`,
-        true
-      );
-      
-    } catch (error) {
-      console.error('[Forgot Password] Error:', error);
-      console.error('[Forgot Password] Error code:', error.code);
-      console.error('[Forgot Password] Error message:', error.message);
-      
-      let errorMessage = 'Failed to send reset email. Please try again.';
-      
-      switch(error.code) {
-        case 'auth/user-not-found':
-          errorMessage = 'No account found with this email address.';
-          break;
-        case 'auth/invalid-email':
-          errorMessage = 'Invalid email address.';
-          break;
-        case 'auth/too-many-requests':
-          errorMessage = 'Too many requests. Please try again later.';
-          break;
-        case 'auth/network-request-failed':
-          errorMessage = 'Network error. Please check your connection.';
-          break;
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+      if (e.target === forgotPasswordModal) {
+        forgotPasswordModal.style.display = 'none';
       }
+    });
+
+    // Handle forgot password form submission
+    forgotPasswordForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
       
-      if (errorResetEmail) {
-        errorResetEmail.innerHTML = `<span style='color:#d32f2f;font-size:14px;'>${errorMessage}</span>`;
+      const email = resetEmailInput.value.trim();
+      console.log('[Forgot Password] Form submitted with email:', email);
+      
+      // Validate email
+      if (!email) {
+        if (errorResetEmail) {
+          errorResetEmail.innerHTML = `<span style='color:#d32f2f;font-size:14px;'>Email cannot be blank</span>`;
+        }
+        return;
       }
-    } finally {
-      // Restore button state
-      console.log('[Forgot Password] Restoring button state');
-      hideButtonSpinner(submitBtn, originalBtnText);
-    }
-  });
-}
+
+      const emailValidation = validateEmail(email);
+      if (!emailValidation.isValid) {
+        console.log('[Forgot Password] Email validation failed:', emailValidation.message);
+        if (errorResetEmail) {
+          errorResetEmail.innerHTML = `<span style='color:#d32f2f;font-size:14px;'>${emailValidation.message}</span>`;
+        }
+        return;
+      }
+
+      // Clear error
+      if (errorResetEmail) errorResetEmail.textContent = '';
+
+      // Show loading state on button
+      const submitBtn = forgotPasswordForm.querySelector('button[type="submit"]');
+      const originalBtnText = submitBtn.textContent;
+      console.log('[Forgot Password] Showing spinner and sending reset email...');
+      showButtonSpinner(submitBtn);
+
+      try {
+        // Send password reset email
+        console.log('[Forgot Password] Calling sendPasswordResetEmail for:', email);
+        await sendPasswordResetEmail(auth, email);
+        console.log('[Forgot Password] Password reset email sent successfully!');
+        
+        // Close modal
+        if (forgotPasswordModal) {
+          forgotPasswordModal.style.display = 'none';
+        }
+
+        // Show success message
+        showAlert(
+          `Password reset email sent to ${email}. Please check your inbox (and spam folder) and follow the instructions to reset your password.`,
+          true
+        );
+        
+      } catch (error) {
+        console.error('[Forgot Password] Error:', error);
+        console.error('[Forgot Password] Error code:', error.code);
+        console.error('[Forgot Password] Error message:', error.message);
+        
+        let errorMessage = 'Failed to send reset email. Please try again.';
+        
+        switch(error.code) {
+          case 'auth/user-not-found':
+            errorMessage = 'No account found with this email address.';
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Invalid email address.';
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = 'Too many requests. Please try again later.';
+            break;
+          case 'auth/network-request-failed':
+            errorMessage = 'Network error. Please check your connection.';
+            break;
+        }
+        
+        if (errorResetEmail) {
+          errorResetEmail.innerHTML = `<span style='color:#d32f2f;font-size:14px;'>${errorMessage}</span>`;
+        }
+      } finally {
+        // Restore button state
+        console.log('[Forgot Password] Restoring button state');
+        hideButtonSpinner(submitBtn, originalBtnText);
+      }
+    });
+  }
+});
 
 /* =====================
    SIGNUP PAGE SCRIPT
