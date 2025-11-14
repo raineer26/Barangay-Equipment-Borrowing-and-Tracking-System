@@ -6,7 +6,7 @@
    (from index.html)
 ====================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { signInWithEmailAndPassword, getAuth, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+import { signInWithEmailAndPassword, getAuth, fetchSignInMethodsForEmail, onAuthStateChanged, signOut, createUserWithEmailAndPassword, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail, sendEmailVerification } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 
 import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, orderBy, updateDoc, onSnapshot, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
@@ -426,9 +426,45 @@ loginForm?.addEventListener("submit", async (e) => {
   showButtonSpinner(submitBtn, { disableForm: true, text: 'LOGGING IN' });
 
   try {
-    // Authenticate
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+    // Use the loginUser function with email verification check
+    const result = await loginUser(email, password);
+
+    if (!result.success) {
+      // Handle login failure
+      hideButtonSpinner(submitBtn);
+      
+      if (result.needsVerification) {
+        // Email not verified - show specific message with resend option
+        setError(errorLoginEmail, result.message);
+        
+        // Add resend verification link
+        const resendLink = document.createElement('div');
+        resendLink.innerHTML = `<a href="#" id="resendVerification" style="color: #1976d2; text-decoration: underline; font-size: 14px; margin-top: 5px; display: inline-block;">Resend verification email</a>`;
+        errorLoginEmail.appendChild(resendLink);
+        
+        // Add resend handler
+        document.getElementById('resendVerification')?.addEventListener('click', async (e) => {
+          e.preventDefault();
+          try {
+            // Sign in temporarily to send verification
+            const tempUser = await signInWithEmailAndPassword(auth, email, password);
+            await sendEmailVerification(tempUser.user);
+            await signOut(auth);
+            showToast('Verification email sent! Please check your inbox.', true);
+          } catch (err) {
+            console.error('Resend verification error:', err);
+            showToast('Failed to resend verification email. Please try again.', false);
+          }
+        });
+      } else {
+        // Other login errors
+        setError(errorLoginEmail, result.message);
+      }
+      return;
+    }
+
+    // Login successful - proceed with existing logic
+    const user = result.user;
 
     try {
       // Get Firestore role
@@ -493,41 +529,12 @@ loginForm?.addEventListener("submit", async (e) => {
     } catch (firestoreError) {
       console.error('[Login] Firestore error:', firestoreError);
       alert("⚠️ Error loading user profile. Please try again.");
+      hideButtonSpinner(submitBtn);
     }
   } catch (error) {
-    clearError(errorLoginEmail);
-    clearError(errorLoginPassword);
-    console.log('[Login] Firebase auth error:', error.code, error.message);
-
-    switch(error.code) {
-      case "auth/user-not-found":
-      case "auth/wrong-password":
-      case "auth/invalid-credential":
-        // Generic message for security - doesn't reveal if email exists or password is wrong
-        setError(errorLoginEmail, "Incorrect email or password. Please try again.");
-        break;
-      case "auth/invalid-email":
-        // This should rarely happen since we validate email format first
-        setError(errorLoginEmail, "Invalid email format.");
-        break;
-      case "auth/too-many-requests":
-        setError(errorLoginEmail, "Too many failed attempts. Please try again later or reset your password.");
-        break;
-      case "auth/network-request-failed":
-        setError(errorLoginEmail, "Network error. Please check your internet connection.");
-        break;
-      case "auth/user-disabled":
-        // Firebase Auth level disable (different from our Firestore status check)
-        setError(errorLoginEmail, "This account has been disabled. Please contact support.");
-        break;
-      default:
-        // Log the exact error for debugging
-        console.error('[Login] Unhandled Firebase error:', error);
-        setError(errorLoginEmail, "Login failed. Please check your email and password.");
-    }
-  } finally {
-    // Always restore button state, even if there's an error
-    console.log('[Login] Cleaning up: hiding spinner and re-enabling form...');
+    // Unexpected errors not caught by loginUser function
+    console.error('[Login] Unexpected error:', error);
+    setError(errorLoginEmail, "An unexpected error occurred. Please try again.");
     hideButtonSpinner(submitBtn);
   }
 });
@@ -744,6 +751,161 @@ function updatePasswordStrength(strength) {
   }
 }
 
+// ============================================================================
+// EMAIL VERIFICATION FUNCTIONS
+// ============================================================================
+
+/**
+ * Register a new user with email verification
+ * @param {string} email - User's email address
+ * @param {string} password - User's password
+ * @param {Object} userData - Additional user data to save in Firestore (must include fullName)
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+async function registerUser(email, password, userData = {}) {
+  try {
+    console.log('[Register] Creating user account for:', email);
+    
+    // Step 1: Create Firebase Auth user
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    console.log('[Register] User account created:', user.uid);
+
+    // Step 2: Update display name (BEFORE sending verification)
+    if (userData.fullName) {
+      await updateProfile(user, { displayName: userData.fullName });
+      console.log('[Register] Display name updated:', userData.fullName);
+    }
+
+    // Step 3: Send email verification immediately
+    await sendEmailVerification(user);
+    console.log('[Register] Verification email sent to:', email);
+
+    // Step 4: Save user data to Firestore (if provided)
+    if (Object.keys(userData).length > 0) {
+      await setDoc(doc(db, "users", user.uid), {
+        ...userData,
+        email: email,
+        emailVerified: false,
+        createdAt: serverTimestamp()
+      });
+      console.log('[Register] User data saved to Firestore');
+    }
+
+    // Step 5: Sign out the user to force email verification
+    await signOut(auth);
+    console.log('[Register] User signed out - must verify email before logging in');
+
+    return {
+      success: true,
+      message: "Account created successfully! Please check your email to verify your account before logging in."
+    };
+
+  } catch (error) {
+    console.error('[Register] Error:', error.code, error.message);
+    
+    // Return user-friendly error messages
+    let errorMessage = "An error occurred during signup. Please try again.";
+    
+    switch (error.code) {
+      case 'auth/email-already-in-use':
+        errorMessage = "This email is already registered. Please login or use a different email.";
+        break;
+      case 'auth/invalid-email':
+        errorMessage = "Invalid email format. Please check your email.";
+        break;
+      case 'auth/weak-password':
+        errorMessage = "Password is too weak. Please choose a stronger password.";
+        break;
+      case 'auth/network-request-failed':
+        errorMessage = "Network error. Please check your internet connection.";
+        break;
+    }
+    
+    return {
+      success: false,
+      message: errorMessage
+    };
+  }
+}
+
+/**
+ * Login user with email verification check
+ * @param {string} email - User's email address
+ * @param {string} password - User's password
+ * @returns {Promise<{success: boolean, message: string, user: Object|null}>}
+ */
+async function loginUser(email, password) {
+  try {
+    console.log('[Login] Attempting login for:', email);
+    
+    // Step 1: Authenticate with Firebase
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    console.log('[Login] Authentication successful:', user.uid);
+
+    // Step 2: Check if email is verified
+    if (!user.emailVerified) {
+      console.warn('[Login] Email not verified for:', email);
+      
+      // Sign out immediately
+      await signOut(auth);
+      console.log('[Login] User signed out due to unverified email');
+      
+      return {
+        success: false,
+        message: "Please verify your email before logging in. Check your inbox for the verification link.",
+        user: null,
+        needsVerification: true
+      };
+    }
+
+    console.log('[Login] Email verified - login successful');
+    
+    return {
+      success: true,
+      message: "Login successful!",
+      user: user
+    };
+
+  } catch (error) {
+    console.error('[Login] Error:', error.code, error.message);
+    
+    // Return user-friendly error messages
+    let errorMessage = "Login failed. Please check your email and password.";
+    
+    switch (error.code) {
+      case "auth/user-not-found":
+      case "auth/wrong-password":
+      case "auth/invalid-credential":
+        errorMessage = "Incorrect email or password. Please try again.";
+        break;
+      case "auth/invalid-email":
+        errorMessage = "Invalid email format.";
+        break;
+      case "auth/too-many-requests":
+        errorMessage = "Too many failed attempts. Please try again later or reset your password.";
+        break;
+      case "auth/network-request-failed":
+        errorMessage = "Network error. Please check your internet connection.";
+        break;
+      case "auth/user-disabled":
+        errorMessage = "This account has been disabled. Please contact support.";
+        break;
+    }
+    
+    return {
+      success: false,
+      message: errorMessage,
+      user: null
+    };
+  }
+}
+
+// ============================================================================
+// END EMAIL VERIFICATION FUNCTIONS
+// ============================================================================
+
 signupForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("signup-email").value.trim();
@@ -852,32 +1014,37 @@ signupForm?.addEventListener("submit", async (e) => {
   showButtonSpinner(submitBtn, { disableForm: true, text: 'CREATING ACCOUNT' });
 
   try {
-    // Create Auth user
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-
-    // Update display name with full name
+    // Prepare user data for Firestore
     const fullName = `${firstName} ${lastName}`;
-    await updateProfile(user, { displayName: fullName });
-
-    // Save user data to Firestore
     const userData = {
       firstName: firstName,
       lastName: lastName,
-      email: email,
+      fullName: fullName,
       contactNumber: contact,
       address: sanitizedAddress,
-      role: "user", // Default role for new signups
-      createdAt: serverTimestamp()
+      role: "user" // Default role for new signups
     };
 
-    // Save to Firestore using setDoc with the user's UID as the document ID
-    await setDoc(doc(db, "users", user.uid), userData);
+    // Use the registerUser function with email verification
+    const result = await registerUser(email, password, userData);
 
-    // Show success message and redirect to user landing page (already logged in)
-    showAlert("Account created successfully! Welcome to Barangay Mapulang Lupa.", true, () => {
-      window.location.href = "user.html"; // Redirect to landing page, user is already authenticated
-    });
+    if (result.success) {
+      // Show success message and redirect to login page
+      showAlert(result.message, true, () => {
+        window.location.href = "index.html"; // Redirect to login page
+      });
+    } else {
+      // Handle registration errors
+      if (result.message.includes('email is already registered')) {
+        setErrorSignup(errorEmail, result.message);
+      } else if (result.message.includes('email format') || result.message.includes('Invalid email')) {
+        setErrorSignup(errorEmail, result.message);
+      } else if (result.message.includes('Password')) {
+        setErrorSignup(errorPassword, result.message);
+      } else {
+        showAlert(result.message, false);
+      }
+    }
   } catch (error) {
     // Handle specific Firebase Auth errors
     switch (error.code) {
@@ -16368,6 +16535,44 @@ if (window.location.pathname.endsWith('index.html') || window.location.pathname 
         console.log('🔐 [Security] Attempting login for:', email);
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
+        
+        // ✅ EMAIL VERIFICATION CHECK - Must verify before proceeding
+        if (!user.emailVerified) {
+          console.warn('[Login] Email not verified for:', email);
+          
+          // Sign out immediately
+          await signOut(auth);
+          console.log('[Login] User signed out due to unverified email');
+          
+          // Show error message with resend option
+          setError(errorLoginEmail, 'Please verify your email before logging in. Check your inbox for the verification link.');
+          
+          // Add resend verification link
+          const resendLink = document.createElement('div');
+          resendLink.innerHTML = `<a href="#" id="resendVerification" style="color: #1976d2; text-decoration: underline; font-size: 14px; margin-top: 5px; display: inline-block;">Resend verification email</a>`;
+          errorLoginEmail.appendChild(resendLink);
+          
+          // Add resend handler
+          document.getElementById('resendVerification')?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+              // Sign in temporarily to send verification
+              const tempUser = await signInWithEmailAndPassword(auth, email, password);
+              await sendEmailVerification(tempUser.user);
+              await signOut(auth);
+              showToast('Verification email sent! Please check your inbox.', true);
+            } catch (err) {
+              console.error('Resend verification error:', err);
+              showToast('Failed to resend verification email. Please try again.', false);
+            }
+          });
+          
+          // Cleanup spinner and return
+          hideButtonSpinner(submitBtn);
+          return;
+        }
+        
+        console.log('[Login] Email verified - proceeding with login');
         
         // PHASE 1: Reset rate limiting on successful login
         await resetLoginAttempts(email);
