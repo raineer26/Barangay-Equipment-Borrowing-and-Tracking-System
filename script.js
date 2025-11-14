@@ -7766,6 +7766,10 @@ function handleInternalBookingCancel() {
 async function submitInternalBooking(data) {
   console.log('📤 Submitting internal booking to Firestore:', data);
   
+  const form = document.getElementById('internalBookingForm');
+  const submitBtn = form.querySelector('.internal-booking-submit-btn');
+  showButtonSpinner(submitBtn, { disableForm: true, text: 'Adding Booking' });
+  
   try {
     // Check inventory availability first
     const inventoryRef = doc(db, 'inventory', 'equipment');
@@ -7839,6 +7843,8 @@ async function submitInternalBooking(data) {
   } catch (error) {
     console.error('❌ Error creating internal booking:', error);
     showAlert('Failed to create internal booking. Please try again.', false);
+  } finally {
+    hideButtonSpinner(submitBtn);
   }
 }
 
