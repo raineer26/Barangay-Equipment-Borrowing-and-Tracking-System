@@ -4477,6 +4477,12 @@ input[type="number"]::-webkit-outer-spin-button {
   z-index: 10;
   width: 55px;
 }
+.calendar-date.available {
+  width: 55px;
+}
+.calendar-date.has-bookings {
+  width: 55px;
+}
 }
 
 /* ===== Custom Alert Overlay ===== */
@@ -11624,6 +11630,7 @@ input[type="number"]::-webkit-outer-spin-button {
   .modal-content {
     width: 78%;
     padding: 20px;
+    height: auto;
   }
 
   .modal-content h2 {
@@ -11649,7 +11656,7 @@ input[type="number"]::-webkit-outer-spin-button {
   .form-group input,
   .form-group select,
   .form-group textarea {
-    width: 100%;
+    width: 95%;
     font-size: 0.9rem;
     padding: 10px 12px;
   }
