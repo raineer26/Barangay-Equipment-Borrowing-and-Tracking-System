@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body class="admin-body">
+    
+    
     <!-- SIDEBAR -->
     <aside class="admin-sidebar">
       <div class="sidebar-header">
@@ -51,10 +53,46 @@
       </div>
     </aside>
 
-    <!-- MOBILE MENU TOGGLE -->
-    <button class="mobile-menu-toggle" id="mobileMenuToggle">
-      <span>☰</span>
-    </button>
+    <!-- Mobile Navigation Overlay -->
+    <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+
+    <!-- Mobile Navigation Menu -->
+    <nav class="mobile-nav" id="mobileNav">
+      <!-- ========== MOBILE HEADER ========== -->
+    <div class="admin-mobile-header">
+      <div class="admin-mobile-logo">
+        <img src="Assets/BrgyLogo.png" alt="Barangay Logo">
+        <div class="admin-mobile-title">
+          <h1>BARANGAY MAPULANG LUPA</h1>
+          <p>Admin Dashboard</p>
+        </div>
+      </div>
+      
+      <div class="burger-menu" id="burgerMenu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+    <!-- ========== END MOBILE HEADER ========== -->
+    
+      <ul>
+        <li><a href="admin.html">DASHBOARD</a></li>
+        <li class="dropdown">
+          <div class="dropdown-toggle" id="mobileDropdownToggle">
+            <span>REVIEW REQUESTS</span>
+            <span>▾</span>
+          </div>
+          <ul class="dropdown-menu" id="mobileDropdownMenu">
+            <li><a href="admin-tents-requests.html">Tents and Chairs</a></li>
+            <li><a href="admin-conference-requests.html">Conference Room</a></li>
+          </ul>
+        </li>
+        <li><a href="admin-user-manager.html">MANAGE ACCOUNTS</a></li>
+        <li><a href="admin-manage-inventory.html">MANAGE INVENTORY</a></li>
+        <li><a href="#" onclick="window.logout()">LOGOUT</a></li>
+      </ul>
+    </nav>
 
     <!-- MAIN CONTENT -->
     <main class="admin-main">
@@ -63,12 +101,12 @@
         <section class="admin-hero">
           <div class="admin-hero-overlay"></div>
           <div class="admin-hero-content">
-            <h1><span class="highlight-yellow">USER ACCOUNTS</span> MANAGEMENT</h1>
-            <p>View and manage all registered user accounts, including their contact details, registration date, and account status.</p>
+            <h1><span class="highlight-yellow">ACCOUNTS</span> MANAGEMENT</h1>
+            <p>View and manage all registered user accounts</p>
           </div>
         </section>
 
-        <!-- Stats Card -->
+        <!-- Stats Card (Desktop) -->
         <div class="um-stats-card">
           <div class="um-stats-number" id="totalUsersCount">-</div>
           <div class="um-stats-label">TOTAL REGISTERED USERS</div>
@@ -76,110 +114,157 @@
 
         <!-- Main Content Card -->
         <div class="admin-content-card">
-        <nav class="um-tabs-nav" role="tablist" aria-label="Manage User Accounts Tabs">
-          <button type="button" role="tab" aria-selected="true" id="tab-all" class="um-tabs-btn um-active" aria-controls="tabpanel-all" tabindex="0">All Registered Users</button>
-          <button type="button" role="tab" aria-selected="false" id="tab-admin" class="um-tabs-btn" aria-controls="tabpanel-admin" tabindex="-1">Admin</button>
-        </nav>
+          <nav class="um-tabs-nav" role="tablist" aria-label="Manage User Accounts Tabs">
+            <button type="button" role="tab" aria-selected="true" id="tab-all" class="um-tabs-btn um-active" aria-controls="tabpanel-all" tabindex="0">All Registered Users</button>
+            <button type="button" role="tab" aria-selected="false" id="tab-admin" class="um-tabs-btn" aria-controls="tabpanel-admin" tabindex="-1">Admin</button>
+          </nav>
 
-        <!-- All Registered Users Tab Panel -->
-        <div id="tabpanel-all" role="tabpanel" aria-labelledby="tab-all" tabindex="0">
-          <!-- Filters -->
-          <div class="um-filters-row" aria-label="Search and filter registered users">
-            <div class="um-filter-group">
-              <label for="searchUsers">Search</label>
-              <input id="searchUsers" type="text" class="um-filter-input" placeholder="Search by name, email, or address..." />
+          <!-- All Registered Users Tab Panel -->
+          <div id="tabpanel-all" role="tabpanel" aria-labelledby="tab-all" tabindex="0">
+            <!-- Filters -->
+            <div class="um-filters-row" aria-label="Search and filter registered users">
+              <div class="um-filter-group">
+                <label for="searchUsers">Search</label>
+                <input id="searchUsers" type="text" class="um-filter-input" placeholder="Search by name, email, or address..." />
+              </div>
+
+              <div class="um-filter-group">
+                <label for="filterStatus">Status</label>
+                <select id="filterStatus" class="um-filter-select">
+                  <option value="">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div class="um-filter-group">
+                <label for="filterDate">Date</label>
+                <input id="filterDate" type="date" class="um-filter-date" placeholder="dd/mm/yyyy" />
+              </div>
+
+              <div class="um-filter-group">
+                <label for="sortBy">Sort By</label>
+                <select id="sortBy" class="um-filter-select">
+                  <option value="">Select Sort</option>
+                  <option value="name-asc">Last Name (A-Z)</option>
+                  <option value="name-desc">Last Name (Z-A)</option>
+                  <option value="date-newest">Date (Newest First)</option>
+                  <option value="date-oldest">Date (Oldest First)</option>
+                </select>
+              </div>
             </div>
 
-            <div class="um-filter-group">
-              <label for="filterStatus">Status</label>
-              <select id="filterStatus" class="um-filter-select">
-                <option value="">All Statuses</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+            <!-- Mobile Cards Container (Hidden on Desktop) -->
+            <div class="um-mobile-cards" id="umMobileCards">
+              <!-- Cards will be dynamically populated by JavaScript -->
             </div>
 
-            <div class="um-filter-group">
-              <label for="filterDate">Date</label>
-              <input id="filterDate" type="date" class="um-filter-date" placeholder="dd/mm/yyyy" />
-            </div>
-
-            <div class="um-filter-group">
-              <label for="sortBy">Sort By</label>
-              <select id="sortBy" class="um-filter-select">
-                <option value="">Select Sort</option>
-                <option value="name-asc">Last Name (A-Z)</option>
-                <option value="name-desc">Last Name (Z-A)</option>
-                <option value="date-newest">Date (Newest First)</option>
-                <option value="date-oldest">Date (Oldest First)</option>
-              </select>
+            <!-- Users Table (Hidden on Mobile) -->
+            <div class="um-table-container">
+              <table class="um-users-table" role="table" aria-label="Registered users list">
+                <thead>
+                  <tr>
+                    <th scope="col">User</th>
+                    <th scope="col">Contact Number</th>
+                    <th scope="col">Address</th>
+                    <th scope="col">Created</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" style="text-align: center;">Total Requests</th>
+                    <th scope="col" style="text-align: center;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
+                      <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                        <div class="spinner" style="border: 3px solid #f3f3f3; border-top: 3px solid #2f21a1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
+                        <span>Loading users...</span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <!-- Users Table -->
-          <div class="um-table-container">
-            <table class="um-users-table" role="table" aria-label="Registered users list">
-              <thead>
-                <tr>
-                  <th scope="col">User</th>
-                  <th scope="col">Contact Number</th>
-                  <th scope="col">Address</th>
-                  <th scope="col">Created</th>
-                  <th scope="col">Status</th>
-                  <th scope="col" style="text-align: center;">Total Requests</th>
-                  <th scope="col" style="text-align: center;">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <!-- User rows will be dynamically populated by JavaScript -->
-                <tr>
-                  <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
-                    <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
-                      <div class="spinner" style="border: 3px solid #f3f3f3; border-top: 3px solid #2f21a1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
-                      <span>Loading users...</span>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Admin Tab Panel -->
-        <div id="tabpanel-admin" role="tabpanel" aria-labelledby="tab-admin" tabindex="0" hidden>
-          <section style="background:#d8e7ff;border-radius:6px;padding:20px 30px; margin-top: 20px; user-select:none;">
-            <div style="display:flex; align-items:center; gap: 20px; margin-bottom:14px;">
-              <div class="um-user-avatar" id="adminAvatar" aria-hidden="true" style="background:#2f21a1; font-weight: 700; font-size: 24px;">AD</div>
+          <!-- Admin Tab Panel -->
+          <div id="tabpanel-admin" role="tabpanel" aria-labelledby="tab-admin" tabindex="0" hidden>
+            
+            <!-- Desktop Admin Section -->
+            <section style="background:#d8e7ff;border-radius:6px;padding:20px 30px; margin-top: 20px; user-select:none;" class="um-admin-desktop">
+              <div style="display:flex; align-items:center; gap: 20px; margin-bottom:14px;">
+                <div class="um-user-avatar" id="adminAvatar" aria-hidden="true" style="background:#2f21a1; font-weight: 700; font-size: 24px;">AD</div>
+                <div>
+                  <div id="adminFullName" style="font-weight:700; font-size:18px; user-select: text;">Admin Account</div>
+                  <div id="adminEmail" style="font-size:14px; color:#2f21a1; user-select: text;">
+                    <span aria-label="Email">📧</span> <span id="adminEmailText">mapulanglupa.gov.ph@gmail.com</span>
+                  </div>
+                  <div id="adminPhone" style="font-size:14px; color:#2f21a1; user-select: text;">
+                    <span aria-label="Phone">📱</span> <span id="adminPhoneText">0977384341</span>
+                  </div>
+                </div>
+                <div style="margin-left:auto; display:flex; gap: 12px;">
+                  <button type="button" id="adminEditProfileBtn" style="border:1.5px solid #444; background:#fff; color:#444; font-size:14px; font-weight:600; padding:8px 16px; border-radius:6px; cursor:pointer;">✏️ Edit Profile</button>
+                  <button type="button" id="adminChangePasswordBtn" style="background:#2f21a1; border:none; color:#fff; font-size:14px; font-weight:700; padding:8px 16px; border-radius:6px; cursor:pointer;">🔑 Change Password</button>
+                </div>
+              </div>
+              <hr style="border:none; border-bottom:1px solid #ccc; margin:12px 0;">
               <div>
-                <div id="adminFullName" style="font-weight:700; font-size:18px; user-select: text;">Admin Account</div>
-                <div id="adminEmail" style="font-size:14px; color:#2f21a1; user-select: text;">
-                  <span aria-label="Email">📧</span> <span id="adminEmailText">mapulanglupa.gov.ph@gmail.com</span>
-                </div>
-                <div id="adminPhone" style="font-size:14px; color:#2f21a1; user-select: text;">
-                  <span aria-label="Phone">📱</span> <span id="adminPhoneText">0977384341</span>
+                <h3 style="font-weight:700; color:#222; margin-bottom:12px;">Account Information</h3>
+                <div style="display:flex; gap: 50px; font-size: 14px;">
+                  <div>
+                    <div style="font-weight:600;">Account Created</div>
+                    <div id="adminAccountCreated">November 01, 2025</div>
+                  </div>
+                  <div>
+                    <div style="font-weight:600;">Account Status</div>
+                    <div><span id="adminAccountStatus" style="background:#d8f3d8; color:#28a745; border-radius: 12px; padding: 4px 12px; font-weight: 700;">Active</span></div>
+                  </div>
                 </div>
               </div>
-              <div style="margin-left:auto; display:flex; gap: 12px;">
-                <button type="button" id="adminEditProfileBtn" style="border:1.5px solid #444; background:#fff; color:#444; font-size:14px; font-weight:600; padding:8px 16px; border-radius:6px; cursor:pointer;">✏️ Edit Profile</button>
-                <button type="button" id="adminChangePasswordBtn" style="background:#2f21a1; border:none; color:#fff; font-size:14px; font-weight:700; padding:8px 16px; border-radius:6px; cursor:pointer;">🔑 Change Password</button>
+            </section>
+
+            <!-- Mobile Admin Card -->
+            <div class="um-admin-mobile-card">
+              <h3 class="um-admin-card-title">Admin Account</h3>
+              
+              <div class="um-admin-card-header">
+                <div class="um-admin-avatar" id="adminAvatarMobile">AD</div>
+                <div class="um-admin-info">
+                  <div class="um-admin-email">
+                    <span>📧</span>
+                    <span id="adminEmailTextMobile">mapulanglupa.gov.ph@gmail.com</span>
+                  </div>
+                  <div class="um-admin-phone">
+                    <span>📱</span>
+                    <span id="adminPhoneTextMobile">0977384341</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="um-admin-card-body">
+                <div class="um-admin-status-row">
+                  <div class="um-admin-status-item">
+                    <span class="um-admin-status-label">Account Status</span>
+                    <span class="um-admin-status-badge" id="adminAccountStatusMobile">Active</span>
+                  </div>
+                  <div class="um-admin-status-item">
+                    <span class="um-admin-status-label">Account Created</span>
+                    <span class="um-admin-status-value" id="adminAccountCreatedMobile">November 01, 2025</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="um-admin-card-actions">
+                <button type="button" class="um-admin-card-btn um-admin-edit-btn" id="adminEditProfileBtnMobile">
+                  ✏️ Edit Profile
+                </button>
+                <button type="button" class="um-admin-card-btn um-admin-password-btn" id="adminChangePasswordBtnMobile">
+                  🔑 Change Password
+                </button>
               </div>
             </div>
-            <hr style="border:none; border-bottom:1px solid #ccc; margin:12px 0;">
-            <div>
-              <h3 style="font-weight:700; color:#222; margin-bottom:12px;">Account Information</h3>
-              <div style="display:flex; gap: 50px; font-size: 14px;">
-                <div>
-                  <div style="font-weight:600;">Account Created</div>
-                  <div id="adminAccountCreated">November 01, 2025</div>
-                </div>
-                <div>
-                  <div style="font-weight:600;">Account Status</div>
-                  <div><span id="adminAccountStatus" style="background:#d8f3d8; color:#28a745; border-radius: 12px; padding: 4px 12px; font-weight: 700;">Active</span></div>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
+          </div>
         </div>
       </div>
 
@@ -226,12 +311,10 @@
               <div class="password-wrapper">
                 <input type="password" id="adminCurrentPassword" placeholder="Enter current password">
                 <button type="button" class="password-toggle" aria-pressed="false" aria-label="Show password">
-                  <!-- Eye (show) -->
                   <svg class="icon-show" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
                     <circle cx="12" cy="12" r="3"></circle>
                   </svg>
-                  <!-- Eye Off (hide) -->
                   <svg class="icon-hide" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display: none;">
                     <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.84 21.84 0 0 1 5.06-4.94"></path>
                     <path d="M1 1l22 22"></path>
@@ -247,12 +330,10 @@
               <div class="password-wrapper">
                 <input type="password" id="adminNewPassword" placeholder="Enter new password">
                 <button type="button" class="password-toggle" aria-pressed="false" aria-label="Show password">
-                  <!-- Eye (show) -->
                   <svg class="icon-show" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
                     <circle cx="12" cy="12" r="3"></circle>
                   </svg>
-                  <!-- Eye Off (hide) -->
                   <svg class="icon-hide" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display: none;">
                     <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.84 21.84 0 0 1 5.06-4.94"></path>
                     <path d="M1 1l22 22"></path>
@@ -268,12 +349,10 @@
               <div class="password-wrapper">
                 <input type="password" id="adminConfirmPassword" placeholder="Confirm new password">
                 <button type="button" class="password-toggle" aria-pressed="false" aria-label="Show password">
-                  <!-- Eye (show) -->
                   <svg class="icon-show" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
                     <circle cx="12" cy="12" r="3"></circle>
                   </svg>
-                  <!-- Eye Off (hide) -->
                   <svg class="icon-hide" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display: none;">
                     <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.84 21.84 0 0 1 5.06-4.94"></path>
                     <path d="M1 1l22 22"></path>
@@ -346,28 +425,23 @@
         });
       });
 
-      // Edit Profile Modal
+      // Edit Profile Modal - Desktop
       const adminEditProfileBtn = document.getElementById('adminEditProfileBtn');
       const adminEditProfileModal = document.getElementById('adminEditProfileModal');
       const editProfileCloseModalBtns = adminEditProfileModal.querySelectorAll('.close-modal');
 
-      // Open edit profile modal
       adminEditProfileBtn.addEventListener('click', () => {
         adminEditProfileModal.style.display = 'flex';
       });
 
-      // Close edit profile modal
       editProfileCloseModalBtns.forEach(btn => {
         btn.addEventListener('click', () => {
           adminEditProfileModal.style.display = 'none';
-          // Clear form
           document.getElementById('adminEditProfileForm').reset();
-          // Clear error messages
           adminEditProfileModal.querySelectorAll('.error-message').forEach(err => err.textContent = '');
         });
       });
 
-      // Close edit profile modal when clicking outside
       adminEditProfileModal.addEventListener('click', (e) => {
         if (e.target === adminEditProfileModal) {
           adminEditProfileModal.style.display = 'none';
@@ -376,28 +450,29 @@
         }
       });
 
-      // Change Password Modal
+      // Edit Profile Modal - Mobile
+      const adminEditProfileBtnMobile = document.getElementById('adminEditProfileBtnMobile');
+      adminEditProfileBtnMobile.addEventListener('click', () => {
+        adminEditProfileModal.style.display = 'flex';
+      });
+
+      // Change Password Modal - Desktop
       const adminChangePasswordBtn = document.getElementById('adminChangePasswordBtn');
       const adminChangePasswordModal = document.getElementById('adminChangePasswordModal');
       const changePasswordCloseModalBtns = adminChangePasswordModal.querySelectorAll('.close-modal');
 
-      // Open change password modal
       adminChangePasswordBtn.addEventListener('click', () => {
         adminChangePasswordModal.style.display = 'flex';
       });
 
-      // Close change password modal
       changePasswordCloseModalBtns.forEach(btn => {
         btn.addEventListener('click', () => {
           adminChangePasswordModal.style.display = 'none';
-          // Clear form
           document.getElementById('adminChangePasswordForm').reset();
-          // Clear error messages
           adminChangePasswordModal.querySelectorAll('.error-message').forEach(err => err.textContent = '');
         });
       });
 
-      // Close change password modal when clicking outside
       adminChangePasswordModal.addEventListener('click', (e) => {
         if (e.target === adminChangePasswordModal) {
           adminChangePasswordModal.style.display = 'none';
@@ -405,6 +480,130 @@
           adminChangePasswordModal.querySelectorAll('.error-message').forEach(err => err.textContent = '');
         }
       });
+
+      // Change Password Modal - Mobile
+      const adminChangePasswordBtnMobile = document.getElementById('adminChangePasswordBtnMobile');
+      adminChangePasswordBtnMobile.addEventListener('click', () => {
+        adminChangePasswordModal.style.display = 'flex';
+      });
+    </script>
+
+    <script>
+            // Function to create mobile cards from table data
+      function populateMobileCards() {
+        const tableBody = document.querySelector('.um-users-table tbody');
+        const mobileCardsContainer = document.getElementById('umMobileCards');
+        
+        if (!tableBody || !mobileCardsContainer) return;
+        
+        // Clear existing mobile cards
+        mobileCardsContainer.innerHTML = '';
+        
+        // Get all table rows
+        const rows = tableBody.querySelectorAll('tr');
+        
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          
+          // Skip if loading or empty row
+          if (cells.length < 7) return;
+          
+          // Extract data from table cells
+          const userCell = cells[0];
+          const contactCell = cells[1];
+          const addressCell = cells[2];
+          const createdCell = cells[3];
+          const statusCell = cells[4];
+          const requestsCell = cells[5];
+          const actionsCell = cells[6];
+          
+          // Get user info
+          const userAvatar = userCell.querySelector('.um-user-avatar');
+          const userName = userCell.querySelector('.um-user-name');
+          const userEmail = userCell.querySelector('.um-user-email');
+          
+          // Get action buttons
+          const actionButtons = actionsCell.querySelectorAll('button');
+          
+          // Create mobile card
+          const card = document.createElement('div');
+          card.className = 'um-user-card';
+          
+          // Build card HTML
+          card.innerHTML = `
+            <div class="um-user-card-header">
+              <div class="um-user-avatar">${userAvatar ? userAvatar.textContent : 'U'}</div>
+              <div class="um-user-info">
+                <div class="um-user-name">${userName ? userName.textContent : 'Unknown User'}</div>
+                <div class="um-user-email">${userEmail ? userEmail.textContent : 'No email'}</div>
+              </div>
+            </div>
+            
+            <div class="um-user-card-body">
+              <div class="um-user-detail">
+                <span class="um-user-detail-label">Contact:</span>
+                <span class="um-user-detail-value">${contactCell.textContent.trim()}</span>
+              </div>
+              <div class="um-user-detail">
+                <span class="um-user-detail-label">Address:</span>
+                <span class="um-user-detail-value">${addressCell.textContent.trim()}</span>
+              </div>
+              <div class="um-user-detail">
+                <span class="um-user-detail-label">Registered:</span>
+                <span class="um-user-detail-value">${createdCell.textContent.trim()}</span>
+              </div>
+              <div class="um-user-detail">
+                <span class="um-user-detail-label">Status:</span>
+                <span class="um-user-detail-value">${statusCell.innerHTML}</span>
+              </div>
+              <div class="um-user-detail">
+                <span class="um-user-detail-label">Total Requests:</span>
+                <span class="um-user-detail-value">${requestsCell.textContent.trim()}</span>
+              </div>
+            </div>
+            
+            <div class="um-user-card-actions">
+            </div>
+          `;
+          
+          // Clone and append action buttons
+          const cardActions = card.querySelector('.um-user-card-actions');
+          actionButtons.forEach(button => {
+            const clonedButton = button.cloneNode(true);
+            // Copy event listeners by re-adding onclick if it exists
+            if (button.onclick) {
+              clonedButton.onclick = button.onclick;
+            }
+            cardActions.appendChild(clonedButton);
+          });
+          
+          // Append card to container
+          mobileCardsContainer.appendChild(card);
+        });
+      }
+
+      // Call the function when the page loads and when table updates
+      window.addEventListener('load', populateMobileCards);
+
+      // If you're using a mutation observer or have table update functions,
+      // call populateMobileCards() after updating the table
+      // Example: After your Firebase data loads and populates the table
+      // populateMobileCards();
+
+      // You can also call it periodically or after specific events
+      // For example, after filtering:
+      const searchInput = document.getElementById('searchUsers');
+      const filterStatus = document.getElementById('filterStatus');
+      const filterDate = document.getElementById('filterDate');
+      const sortBy = document.getElementById('sortBy');
+
+      if (searchInput) searchInput.addEventListener('input', () => setTimeout(populateMobileCards, 100));
+      if (filterStatus) filterStatus.addEventListener('change', () => setTimeout(populateMobileCards, 100));
+      if (filterDate) filterDate.addEventListener('change', () => setTimeout(populateMobileCards, 100));
+      if (sortBy) sortBy.addEventListener('change', () => setTimeout(populateMobileCards, 100));
+
+      // Export the function so it can be called from your main script
+      window.populateMobileCards = populateMobileCards;
     </script>
     
     <!-- Firebase and Admin User Manager Script -->

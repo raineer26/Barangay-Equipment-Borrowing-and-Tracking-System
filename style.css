@@ -5821,6 +5821,15 @@ input[type="number"]::-webkit-outer-spin-button {
   }
 }
 
+/* ==================== HIDE MOBILE ADMIN CARD ON DESKTOP ==================== */
+.um-admin-mobile-card {
+  display: none !important;
+}
+
+.um-admin-card-body {
+  display: none !important;
+}
+
 /* ==================== PLACEHOLDER CONTENT STYLES ==================== */
 .admin-content {
   padding: 40px;
@@ -6100,16 +6109,143 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .tents-search-icon {
   position: absolute;
-  left: 12px;
+  right: 12px;
   top: 50%;
   transform: translateY(-50%);
   width: 16px;
   height: 16px;
   color: #9ca3af;
+  pointer-events: none;
 }
 
 .tents-search-wrapper input {
-  padding-left: 36px;
+  padding-right: 36px;
+  padding-left: 12px;
+}
+
+/* ==================== HISTORY TAB - RESPONSIVE CARDS GRID ==================== */
+.tents-history-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  padding: 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tents-history-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.tents-history-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.tents-history-card-header {
+  border-bottom: 2px solid #f3f4f6;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.tents-history-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 4px 0;
+}
+
+.tents-history-card-subtitle {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.tents-history-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tents-history-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.tents-history-card-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.tents-history-card-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  min-width: 80px;
+}
+
+.tents-history-card-value {
+  font-size: 13px;
+  color: #111827;
+  font-weight: 500;
+  text-align: right;
+  flex: 1;
+  word-break: break-word;
+}
+
+.tents-history-card-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.tents-history-card-status.completed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.tents-history-card-status.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.tents-history-card-status.cancelled {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.tents-history-card-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+  flex-wrap: wrap;
+}
+
+.tents-history-card-actions button {
+  flex: 1;
+  min-width: 100px;
+  padding: 8px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
 }
 
 /* Table */
@@ -9353,13 +9489,20 @@ input[type="number"]::-webkit-outer-spin-button {
   /* Request Cards */
   .request-cards {
     height: auto;
-    max-height: 350px;
-    padding-right: 5px;
+    max-height: none;
+    padding: 0 12px 10px 12px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .request-card {
-    padding: 14px 16px;
-    margin-bottom: 10px;
+    padding: 14px 14px;
+    margin-bottom: 0;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    box-sizing: border-box;
   }
 
   .request-card-header h3 {
@@ -11659,3 +11802,2279 @@ input[type="number"]::-webkit-outer-spin-button {
    END OF CONSOLIDATED RESPONSIVE STYLES
    All media queries above this point are organized by breakpoint
    ============================================================================ */
+
+/* ========== USER MANAGER - DESKTOP VISIBILITY ========== */
+#umMobileCards { display: none !important; }
+#umUsersTable { display: table !important; }
+/* ========== END USER MANAGER - DESKTOP VISIBILITY ========== */
+
+/* ===================================
+   MOBILE VIEW BREAKPOINT - 640px and below
+   FIXED VERSION with Mobile Header
+   =================================== */
+
+@media screen and (max-width: 640px) {
+  
+  /* ========== UNIVERSAL FIX - PREVENT HORIZONTAL SCROLL ========== */
+  * {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* ========== BODY & LAYOUT ========== */
+  .admin-body {
+    flex-direction: column !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    padding-top: 70px !important;
+    margin: 0 !important;
+  }
+
+  /* ========== FIXED MOBILE HEADER ========== */
+  .admin-mobile-header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: 70px !important;
+    background: linear-gradient(135deg, #281ABC 0%, #1a0e7a 100%) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0 15px !important;
+    z-index: 1000 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  }
+
+  .admin-mobile-logo {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+
+  .admin-mobile-logo img {
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 50% !important;
+    border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  }
+
+  .admin-mobile-title {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+  }
+
+  .admin-mobile-title h1 {
+    font-family: 'League Spartan', sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: white !important;
+    margin: 0 !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+  }
+
+  .admin-mobile-title p {
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 10px !important;
+    font-weight: 500 !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+  }
+
+  /* ========== HIDE DESKTOP SIDEBAR ========== */
+  .admin-sidebar {
+    display: none !important;
+  }
+
+  /* ========== BURGER MENU ========== */
+  .burger-menu {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+    padding: 8px !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    z-index: 1001 !important;
+    position: relative !important;
+  }
+
+  .burger-menu span {
+    width: 28px !important;
+    height: 3px !important;
+    background: white !important;
+    border-radius: 2px !important;
+    transition: all 0.3s ease !important;
+  }
+
+  .burger-menu.active span:nth-child(1) {
+    transform: rotate(45deg) translate(7px, 7px) !important;
+  }
+
+  .burger-menu.active span:nth-child(2) {
+    opacity: 0 !important;
+  }
+
+  .burger-menu.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(7px, -7px) !important;
+  }
+
+  /* ========== MOBILE NAV OVERLAY & MENU ========== */
+  .mobile-nav-overlay {
+    display: none !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100vh !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(2px) !important;
+    z-index: 999 !important;
+  }
+
+  .mobile-nav-overlay.active {
+    display: block !important;
+  }
+
+  .mobile-nav {
+    display: block !important;
+    position: fixed !important;
+    top: 70px !important;
+    right: -100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: calc(100vh - 70px) !important;
+    background: linear-gradient(135deg, #281ABC 0%, #1a0e7a 100%) !important;
+    box-shadow: -5px 0 25px rgba(0, 0, 0, 0.3) !important;
+    z-index: 1000 !important;
+    transition: right 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+    padding: 20px 0 0 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  .mobile-nav.active {
+    right: 0 !important;
+  }
+
+  /* ========== MAIN CONTENT ========== */
+  .admin-main {
+    width: 100% !important;
+    max-width: 100vw !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+    margin-top: 0 !important;
+  }
+
+  .admin-page-wrapper {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* ========== HERO SECTION ========== */
+  .admin-hero {
+    height: 150px !important;
+    padding: 30px 15px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+  }
+
+  .admin-hero-overlay {
+    width: 100% !important;
+    max-width: 100vw !important;
+    left: 0 !important;
+    right: 0 !important;
+  }
+
+  .admin-hero-content {
+    padding: 0 15px !important;
+    text-align: center !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .admin-hero-content h1 {
+    font-size: 24px !important;
+    margin-bottom: 8px !important;
+    line-height: 1.2 !important;
+    word-wrap: break-word !important;
+  }
+
+  .admin-hero-content .highlight-yellow {
+    font-size: 24px !important;
+  }
+
+  .admin-hero-content p {
+    font-size: 12px !important;
+    padding: 0 10px !important;
+    line-height: 1.4 !important;
+    word-wrap: break-word !important;
+  }
+
+  /* ========== USER MANAGER - STATS CARD ========== */
+  .um-stats-card {
+    width: calc(100% - 30px) !important;
+    padding: 5px 5px !important;
+    margin: 20px 15px !important;
+    border-radius: 10px !important;
+    background: white !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    border: 2px solid #2f21a1 !important;
+    box-sizing: border-box !important;
+  }
+
+  .um-stats-number {
+    font-size: 52px !important;
+    font-weight: 700 !important;
+    color: #2f21a1 !important;
+    margin: 0 0 10px 0 !important;
+    line-height: 1 !important;
+  }
+
+  .um-stats-label {
+    font-size: 13px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.8px !important;
+    color: #666 !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+  }
+
+  /* ========== USER MANAGER - CONTENT CARD ========== */
+  .admin-content-card {
+    width: calc(100% - 30px) !important;
+    margin: 0 15px 20px 15px !important;
+    padding: 0 !important;
+    border-radius: 10px !important;
+    background: white !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ========== USER MANAGER - TABS ========== */
+  .um-tabs-nav {
+    display: flex !important;
+    gap: 0 !important;
+    border-bottom: 2px solid #e5e7eb !important;
+    margin: 0 !important;
+    width: 100% !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .um-tabs-btn {
+    flex: 1 !important;
+    padding: 14px 10px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    background: transparent !important;
+    cursor: pointer !important;
+    color: #6b7280 !important;
+    border-bottom: 3px solid transparent !important;
+    transition: all 0.3s ease !important;
+    text-align: center !important;
+  }
+
+  .um-tabs-btn.um-active {
+    color: #2f21a1 !important;
+    border-bottom-color: #2f21a1 !important;
+    background: rgba(47, 33, 161, 0.05) !important;
+  }
+
+  /* ========== USER MANAGER - TAB PANELS ========== */
+  #tabpanel-all,
+  #tabpanel-admin {
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ========== USER MANAGER - FILTERS ========== */
+  .um-filters-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 20px 15px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+  }
+
+  .um-filter-group {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .um-filter-group label {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    margin-bottom: 6px !important;
+    display: block !important;
+    color: #374151 !important;
+  }
+
+  .um-filter-input,
+  .um-filter-select,
+  .um-filter-date {
+    width: 100% !important;
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+    background: white !important;
+  }
+
+  /* ========== USER MANAGER - HIDE TABLE, SHOW MOBILE CARDS ========== */
+  .um-table-container {
+    display: none !important;
+  }
+
+  .um-mobile-cards {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+    padding: 0 15px 20px 15px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ========== USER MANAGER - MOBILE USER CARDS ========== */
+  .um-user-card {
+    background: white !important;
+    border: 2px solid #e5e7eb !important;
+    border-radius: 10px !important;
+    padding: 16px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+    transition: all 0.2s ease !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin-bottom: 12px !important;
+  }
+
+  .um-user-card:hover {
+    box-shadow: 0 4px 12px rgba(47, 33, 161, 0.12) !important;
+    border-color: #2f21a1 !important;
+    transform: translateY(-2px) !important;
+  }
+
+  .um-user-card-header {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    margin-bottom: 12px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 2px solid #f3f4f6 !important;
+  }
+
+  /* ========== MOBILE CALENDAR STYLING ========== */
+  .tents-calendar-container {
+    width: calc(100% - 30px) !important;
+    margin: 14px 15px !important;
+    box-sizing: border-box !important;
+    background: white !important;
+    border-radius: 14px !important;
+    border: 2px solid #111827 !important;
+    padding: 10px !important;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08) !important;
+    overflow: hidden !important;
+  }
+
+  .tents-calendar-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    padding: 6px 8px !important;
+  }
+
+  .tents-calendar-header h2 {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+    margin: 0 !important;
+    text-align: center !important;
+    flex: 1 !important;
+  }
+
+  .tents-calendar-grid {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 0 !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    margin-top: 8px !important;
+    border: 1px solid #e6e6e6 !important;
+    background: #fff !important;
+  }
+
+  .tents-calendar-day-header {
+    background: #5b21b6 !important;
+    color: #fff !important;
+    padding: 8px 6px !important;
+    text-align: center !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    border-right: 1px solid rgba(0,0,0,0.05) !important;
+  }
+
+  .tents-calendar-day-header:last-child { border-right: none !important; }
+
+  .tents-calendar-date {
+    min-height: 64px !important;
+    padding: 6px !important;
+    border: 1px solid #f3f4f6 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    position: relative !important;
+  }
+
+  .tents-calendar-date.empty { background: #fbfdff !important; }
+
+  .tents-date-number {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+  }
+
+  .tents-calendar-legend {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin-top: 10px !important;
+    padding: 0 6px !important;
+  }
+
+  .tents-legend-item {
+    display: flex !important;
+    gap: 4px !important;
+    font-size: 11px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+  }
+
+  
+
+  /* Hide verbose event preview on mobile to save space; rely on badge + modal */
+  .tents-calendar-event {
+    display: none !important;
+  }
+
+  .tents-more-bookings {
+    display: none !important;
+  }
+
+  /* Slightly reduce font sizes for calendar controls on mobile */
+  .tents-calendar-nav-btn { padding: 6px !important; }
+  .tents-calendar-nav-btn svg { width: 18px !important; height: 18px !important; }
+
+  /* Ensure calendar fits within mobile viewport */
+  .tents-calendar-container .tents-calendar-grid { width: 100% !important; }
+
+  /* ========== END MOBILE CALENDAR STYLING ========== */
+
+  /* ========== MOBILE TENTS/CONFERENCE TABLE TO CARDS LAYOUT ========== */
+  
+  /* Hide table structure on mobile */
+  .tents-table-container {
+    padding: 0 !important;
+    overflow-x: visible !important;
+  }
+
+  .tents-requests-table {
+    display: none !important;
+  }
+
+  /* Show cards container instead */
+  .tents-table-as-cards {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding: 12px !important;
+    box-sizing: border-box !important;
+  }
+
+  .tents-table-card {
+    border: 1.5px solid #d1d5db !important;
+    border-radius: 8px !important;
+    padding: 14px !important;
+    background: #fff !important;
+    box-sizing: border-box !important;
+  }
+
+  .tents-card-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 8px !important;
+    gap: 8px !important;
+    min-height: 24px !important;
+  }
+
+  .tents-card-row:last-child {
+    margin-bottom: 0 !important;
+  }
+
+  .tents-card-label {
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    color: #374151 !important;
+    min-width: 90px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .tents-card-value {
+    font-size: 13px !important;
+    color: #111827 !important;
+    flex: 1 !important;
+    text-align: right !important;
+    word-break: break-word !important;
+  }
+
+  .tents-card-actions {
+    margin-top: 12px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid #e5e7eb !important;
+    display: flex !important;
+    gap: 6px !important;
+    flex-wrap: wrap !important;
+  }
+
+  .tents-card-actions button {
+    font-size: 11px !important;
+    padding: 6px 10px !important;
+    min-width: auto !important;
+  }
+
+  /* ========== END MOBILE TABLE TO CARDS ========== */
+
+  /* ========== HISTORY TAB - MOBILE RESPONSIVE CARDS ========== */
+  .tents-history-cards-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .tents-history-card {
+    background: white !important;
+    border: 1.5px solid #d1d5db !important;
+    border-radius: 8px !important;
+    padding: 14px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    box-sizing: border-box !important;
+  }
+
+  .tents-history-card-header {
+    border-bottom: 1px solid #f3f4f6 !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .tents-history-card-title {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #111827 !important;
+    margin: 0 0 2px 0 !important;
+  }
+
+  .tents-history-card-subtitle {
+    font-size: 11px !important;
+    color: #6b7280 !important;
+    margin: 0 !important;
+  }
+
+  .tents-history-card-body {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .tents-history-card-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 6px 0 !important;
+    border-bottom: 1px solid #f3f4f6 !important;
+    min-height: 20px !important;
+  }
+
+  .tents-history-card-row:last-child {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+  }
+
+  .tents-history-card-label {
+    font-weight: 600 !important;
+    font-size: 11px !important;
+    color: #6b7280 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+    min-width: 80px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .tents-history-card-value {
+    font-size: 12px !important;
+    color: #111827 !important;
+    font-weight: 500 !important;
+    text-align: right !important;
+    flex: 1 !important;
+    word-break: break-word !important;
+  }
+
+  .tents-history-card-status {
+    display: inline-block !important;
+    padding: 3px 10px !important;
+    border-radius: 12px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: capitalize !important;
+  }
+
+  .tents-history-card-actions {
+    display: flex !important;
+    gap: 6px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid #f3f4f6 !important;
+    flex-wrap: wrap !important;
+  }
+
+  .tents-history-card-actions button {
+    font-size: 10px !important;
+    padding: 6px 10px !important;
+    min-width: auto !important;
+    flex: 1 !important;
+  }
+
+  /* ========== END HISTORY CARDS MOBILE ========== */
+
+  .um-user-avatar {
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(135deg, #2f21a1 0%, #5271ff 100%) !important;
+    color: white !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    flex-shrink: 0 !important;
+    border: 3px solid #e0e7ff !important;
+  }
+
+  .um-user-info {
+    flex: 1 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .um-user-name {
+    font-weight: 700 !important;
+    font-size: 16px !important;
+    color: #111827 !important;
+    margin: 0 0 4px 0 !important;
+    word-wrap: break-word !important;
+    line-height: 1.3 !important;
+  }
+
+  .um-user-email {
+    font-size: 13px !important;
+    color: #6b7280 !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+  }
+
+  .um-user-card-body {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .um-user-detail {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    padding: 8px 0 !important;
+    border-bottom: 1px solid #f9fafb !important;
+  }
+
+  .um-user-detail:last-child {
+    border-bottom: none !important;
+  }
+
+  .um-user-detail-label {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    color: #374151 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .um-user-detail-value {
+    font-size: 14px !important;
+    color: #111827 !important;
+    word-wrap: break-word !important;
+    text-align: right !important;
+    font-weight: 500 !important;
+  }
+
+  .um-user-status {
+    display: inline-flex !important;
+    padding: 5px 12px !important;
+    border-radius: 16px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    width: fit-content !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  .um-user-status.active {
+    background: #dcfce7 !important;
+    color: #166534 !important;
+    border: 1px solid #86efac !important;
+  }
+
+  .um-user-status.inactive {
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    border: 1px solid #fca5a5 !important;
+  }
+
+  .um-user-card-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding-top: 12px !important;
+    border-top: 2px solid #f3f4f6 !important;
+  }
+
+  .um-user-card-actions button {
+    width: 100% !important;
+    padding: 11px 16px !important;
+    font-size: 13px !important;
+    border-radius: 8px !important;
+    border: none !important;
+    cursor: pointer !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+    box-sizing: border-box !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  .um-action-btn.um-btn-view {
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important;
+    color: white !important;
+    box-shadow: 0 2px 4px rgba(13, 110, 253, 0.3) !important;
+  }
+
+  .um-action-btn.um-btn-view:active {
+    background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%) !important;
+    transform: scale(0.98) !important;
+  }
+
+  .um-action-btn.um-btn-disable {
+    background: linear-gradient(135deg, #dc3545 0%, #bb2d3b 100%) !important;
+    color: white !important;
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3) !important;
+  }
+
+  .um-action-btn.um-btn-disable:active {
+    background: linear-gradient(135deg, #bb2d3b 0%, #a02834 100%) !important;
+    transform: scale(0.98) !important;
+  }
+
+  .um-action-btn.um-btn-enable {
+    background: linear-gradient(135deg, #198754 0%, #157347 100%) !important;
+    color: white !important;
+    box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3) !important;
+  }
+
+  .um-action-btn.um-btn-enable:active {
+    background: linear-gradient(135deg, #157347 0%, #146c43 100%) !important;
+    transform: scale(0.98) !important;
+  }
+
+  /* ========== USER MANAGER - ADMIN SECTION ========== */
+  .um-admin-desktop {
+    display: none !important;
+  }
+
+  .um-admin-mobile-card {
+    display: block !important;
+    background: linear-gradient(135deg, #d8e7ff 0%, #c8dcff 100%) !important;
+    border: 2px solid #2f21a1 !important;
+    border-radius: 10px !important;
+    padding: 20px !important;
+    margin: 20px 15px !important;
+    box-shadow: 0 4px 12px rgba(47, 33, 161, 0.15) !important;
+    width: calc(100% - 30px) !important;
+    box-sizing: border-box !important;
+  }
+
+  .um-admin-card-title {
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    color: #2f21a1 !important;
+    margin: 0 0 16px 0 !important;
+    text-align: center !important;
+  }
+
+  .um-admin-card-header {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 1px solid rgba(47, 33, 161, 0.2) !important;
+  }
+
+  .um-admin-avatar {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50% !important;
+    background: #2f21a1 !important;
+    color: white !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    flex-shrink: 0 !important;
+  }
+
+  .um-admin-info {
+    flex: 1 !important;
+  }
+
+  .um-admin-email,
+  .um-admin-phone {
+    font-size: 13px !important;
+    color: #2f21a1 !important;
+    margin: 4px 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    word-wrap: break-word !important;
+  }
+
+  .um-admin-card-body {
+    display: block !important;
+    margin-bottom: 16px !important;
+  }
+
+  .um-admin-status-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 12px !important;
+    background: white !important;
+    border-radius: 8px !important;
+  }
+
+  .um-admin-status-item {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+  }
+
+  .um-admin-status-label {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: #6b7280 !important;
+  }
+
+  .um-admin-status-value {
+    font-size: 14px !important;
+    color: #111827 !important;
+  }
+
+  .um-admin-status-badge {
+    display: inline-flex !important;
+    padding: 4px 12px !important;
+    border-radius: 12px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    background: #d4edda !important;
+    color: #155724 !important;
+    width: fit-content !important;
+  }
+
+  .um-admin-card-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .um-admin-card-btn {
+    width: 100% !important;
+    padding: 12px 20px !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  .um-admin-edit-btn {
+    background: white !important;
+    color: #444 !important;
+    border: 2px solid #444 !important;
+  }
+
+  .um-admin-edit-btn:active {
+    background: #f5f5f5 !important;
+  }
+
+  .um-admin-password-btn {
+    background: #2f21a1 !important;
+    color: white !important;
+  }
+
+  .um-admin-password-btn:active {
+    background: #1a0e7a !important;
+  }
+
+  /* ========== MANAGE INVENTORY - EQUIPMENT LIST ========== */
+  .inventory-card {
+    width: calc(100% - 30px) !important;
+    margin: 20px 15px !important;
+    padding: 20px !important;
+    border-radius: 10px !important;
+    background: white !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  }
+
+  .inventory-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 25px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .item-image {
+    width: 100% !important;
+    height: 200px !important;
+    object-fit: contain !important;
+    margin-bottom: 16px !important;
+  }
+
+  .inventory-item h3 {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #2f21a1 !important;
+    margin-bottom: 16px !important;
+    text-transform: uppercase !important;
+  }
+
+  .item-fields {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    margin-bottom: 20px !important;
+    width: 100% !important;
+  }
+
+  .item-fields label {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    padding: 12px !important;
+    background: #f9fafb !important;
+    border-radius: 6px !important;
+    color: #374151 !important;
+  }
+
+  .item-fields input,
+  .item-fields .static-value {
+    width: 70px !important;
+    padding: 8px !important;
+    font-size: 14px !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 4px !important;
+    text-align: center !important;
+    font-weight: 600 !important;
+    box-sizing: border-box !important;
+  }
+
+  .inventory-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    margin-top: 0 !important;
+    width: 100% !important;
+  }
+
+  .content-title {
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    color: #2f21a1 !important;
+    margin: 20px 15px !important;
+    text-transform: uppercase !important;
+    justify-content: center !important;
+    display: flex !important;
+  }
+
+  .edit-btn,
+  .save-btn {
+    width: 100% !important;
+    padding: 12px 20px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    box-sizing: border-box !important;
+  }
+
+  .edit-btn {
+    background: #ef4444 !important;
+    color: white !important;
+  }
+
+  .edit-btn:active {
+    background: #1a0e7a !important;
+  }
+
+  .save-btn {
+    background: #3b82f6 !important;
+    color: white !important;
+  }
+
+  .save-btn:active {
+    background: #157347 !important;
+  }
+
+  /* ========== TENTS/CONFERENCE - STATS ========== */
+  .tents-stats-container {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    padding: 20px 15px !important;
+    width: calc(100% - 30px) !important;
+    margin: 0 15px !important;
+    box-sizing: border-box !important;
+  }
+
+  .tents-stat-card {
+    padding: 18px 12px !important;
+    border-radius: 8px !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+  }
+
+  .stat-number {
+    font-size: 32px !important;
+    font-weight: 700 !important;
+    margin-bottom: 6px !important;
+  }
+
+  .stat-label {
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  /* ========== TENTS/CONFERENCE - CONTENT CARD ========== */
+  .tents-content-card {
+    width: calc(100% - 30px) !important;
+    margin: 0 15px 20px 15px !important;
+    padding: 0 !important;
+    border-radius: 10px !important;
+    background: white !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+
+  /* ========== TENTS/CONFERENCE - TABS & CONTROLS ========== */
+  .tents-tabs-container {
+    padding: 15px !important;
+    margin: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .tents-controls-row {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    margin-bottom: 15px !important;
+  }
+
+  .tents-tabs-section {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 20px !important;
+    width: 100% !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+
+  .tents-dropdown-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  font-size: 10px;
+  color: #374151;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+  .tents-tabs {
+    display: flex !important;
+    gap: 5px !important;
+    order: 1 !important;
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .tents-tab-btn {
+    flex: 1 !important;
+    padding: 10px 8px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    background: #f3f4f6 !important;
+    color: #6b7280 !important;
+    cursor: pointer !important;
+    border-radius: 6px !important;
+    transition: all 0.2s ease !important;
+    text-align: center !important;
+  }
+
+  .tents-tab-btn.active {
+    background: #2f21a1 !important;
+    color: white !important;
+  }
+
+  .tents-action-buttons {
+    display: flex !important;
+    gap: 8px !important;
+    order: 2 !important;
+    width: 100% !important;
+  }
+
+  .tents-action-buttons button {
+    flex: 1 !important;
+    padding: 10px 8px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    white-space: nowrap !important;
+    text-align: center !important;
+  }
+
+  .tents-header-actions{
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 10px !important;
+    width: 100% !important;
+    justify-content: flex-end !important;
+  }
+
+  /* ========== TENTS/CONFERENCE - FILTERS ========== */
+  .tents-filters-section {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 15px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+  }
+
+  .tents-filter-group {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .tents-filter-group label {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    display: block !important;
+    margin-bottom: 6px !important;
+    color: #374151 !important;
+  }
+
+  .tents-filter-group input,
+  .tents-filter-group select {
+    width: 100% !important;
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+    background: white !important;
+  }
+
+  /* ========== TENTS/CONFERENCE - TABLE TO CARDS ========== */
+  .tents-table-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+
+  .tents-requests-table,
+  .conference-requests-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+  }
+
+  .tents-requests-table thead,
+  .conference-requests-table thead {
+    display: none !important;
+  }
+
+  .tents-requests-table tbody,
+  .conference-requests-table tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 12px 10px 12px 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .tents-requests-table tbody tr,
+  .conference-requests-table tbody tr {
+    display: flex !important;
+    flex-direction: column !important;
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 10px !important;
+    padding: 10px !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
+    transition: all 0.2s ease !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .tents-requests-table tbody tr:hover,
+  .conference-requests-table tbody tr:hover {
+    box-shadow: 0 4px 12px rgba(47, 33, 161, 0.12) !important;
+    border-color: #2f21a1 !important;
+  }
+
+  .tents-requests-table tbody td,
+  .conference-requests-table tbody td {
+    display: block !important;
+    width: 100% !important;
+    padding: 4px 0 !important;
+    border: none !important;
+    text-align: left !important;
+    font-size: 11px !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+  }
+
+  .tents-requests-table tbody td:first-child,
+  .conference-requests-table tbody td:first-child {
+    padding-top: 0 !important;
+  }
+
+  /* ========== TENTS REQUEST - CORRECTED COLUMN LABELS ========== */
+  /* Column order: submitted, firstName, lastName, contact, purpose, startDate, endDate, chairs, tents, mode, address, status, actions */
+  .tents-requests-table tbody td:nth-child(1)::before { 
+    content: "Submitted: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .tents-requests-table tbody td:nth-child(2)::before { 
+    content: "Name: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .tents-requests-table tbody td:nth-child(3)::before { 
+    content: "Last Name: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .tents-requests-table tbody td:nth-child(4)::before { 
+    content: "Contact: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .tents-requests-table tbody td:nth-child(5)::before { 
+    content: "Purpose: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .tents-requests-table tbody td:nth-child(6)::before { 
+    content: "Event Date: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .tents-requests-table tbody td:nth-child(7)::before { 
+    content: "Start Time: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .tents-requests-table tbody td:nth-child(8)::before { 
+    content: "End Time: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .tents-requests-table tbody td:nth-child(9)::before { 
+    content: "Status: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .tents-requests-table tbody td:nth-child(10)::before { 
+    content: "Mode: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .tents-requests-table tbody td:nth-child(11)::before { 
+    content: "Address: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .tents-requests-table tbody td:nth-child(12)::before { 
+    content: "Status: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+
+
+  /* ========== CONFERENCE REQUEST - CORRECTED COLUMN LABELS ========== */
+  /* Column order: submitted, firstName, lastName, contact, purpose, eventDate, startTime, endTime, status, actions */
+  .conference-requests-table tbody td:nth-child(1)::before { 
+    content: "Submitted: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .conference-requests-table tbody td:nth-child(2)::before { 
+    content: "Name: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .conference-requests-table tbody td:nth-child(3)::before { 
+    content: "Contact: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .conference-requests-table tbody td:nth-child(4)::before { 
+    content: "Event Date: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .conference-requests-table tbody td:nth-child(5)::before { 
+    content: "Purpose: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .conference-requests-table tbody td:nth-child(6)::before { 
+    content: "Event Date: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .conference-requests-table tbody td:nth-child(7)::before { 
+    content: "Start Time: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .conference-requests-table tbody td:nth-child(8)::before { 
+    content: "End Time: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+  .conference-requests-table tbody td:nth-child(9)::before { 
+    content: "Status: " !important; 
+    font-weight: 700 !important; 
+    color: #111827 !important; 
+  }
+
+  .tents-requests-table tbody td:last-child,
+  .conference-requests-table tbody td:last-child {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    padding-top: 10px !important;
+    margin-top: 6px !important;
+    border-top: 1px solid #f3f4f6 !important;
+  }
+
+  .tents-requests-table tbody td:last-child::before,
+  .conference-requests-table tbody td:last-child::before {
+    display: none !important;
+  }
+
+  .tents-requests-table tbody td:last-child button,
+  .conference-requests-table tbody td:last-child button {
+    width: 100% !important;
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+    border-radius: 6px !important;
+    border: none !important;
+    cursor: pointer !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+    box-sizing: border-box !important;
+    pointer-events: auto !important;
+    z-index: 10 !important;
+    position: relative !important;
+  }
+
+  .tents-requests-table tbody td:last-child button:active,
+  .conference-requests-table tbody td:last-child button:active {
+    transform: scale(0.98) !important;
+    opacity: 0.9 !important;
+  }
+
+  /* ========== MOBILE CARD OPTIMIZATION ========== */
+  /* Ensure card content displays correctly and compactly */
+  .tents-requests-table tbody td::before {
+    display: block !important;
+    margin-bottom: 3px !important;
+    color: #374151 !important;
+    font-size: 10px !important;
+  }
+
+  .tents-requests-table tbody td,
+  .conference-requests-table tbody td {
+    word-break: break-word !important;
+    line-height: 1.3 !important;
+  }
+
+  /* Improve label readability */
+  .tents-requests-table tbody td:nth-child(1),
+  .tents-requests-table tbody td:nth-child(2),
+  .tents-requests-table tbody td:nth-child(3),
+  .conference-requests-table tbody td:nth-child(1),
+  .conference-requests-table tbody td:nth-child(2),
+  .conference-requests-table tbody td:nth-child(3) {
+    font-weight: 500 !important;
+    color: #111827 !important;
+  }
+
+  /* Compact padding for mobile cards */
+  .tents-requests-table tbody td,
+  .conference-requests-table tbody td {
+    padding: 3px 0 !important;
+  }
+
+  .tents-requests-table tbody td:first-child,
+  .conference-requests-table tbody td:first-child {
+    padding-top: 0 !important;
+  }
+
+  /* Tighten button section spacing */
+  .tents-requests-table tbody td:last-child,
+  .conference-requests-table tbody td:last-child {
+    padding-top: 8px !important;
+    margin-top: 4px !important;
+    gap: 5px !important;
+  }
+
+  /* ========== CALENDAR MODAL/SECTION ========== */
+  .calendar-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 15px 10px !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .calendar-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 20px !important;
+    padding: 0 10px !important;
+  }
+
+  .calendar-header h2 {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    margin: 0 !important;
+  }
+
+  .calendar-nav {
+    display: flex !important;
+    gap: 10px !important;
+  }
+
+  .calendar-nav button {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    border: 1px solid #e5e7eb !important;
+    background: white !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 18px !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .calendar-nav button:active {
+    background: #f3f4f6 !important;
+  }
+
+  .calendar-legend {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    margin-bottom: 20px !important;
+    padding: 12px !important;
+    background: #f9fafb !important;
+    border-radius: 8px !important;
+  }
+
+  .legend-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 12px !important;
+  }
+
+  .legend-color {
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 4px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .calendar-note {
+    font-size: 11px !important;
+    color: #6b7280 !important;
+    text-align: center !important;
+    margin-top: 8px !important;
+  }
+
+  /* ========== CALENDAR GRID ========== */
+  .calendar-grid {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 3px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 0 !important;
+  }
+
+  .calendar-day-header {
+    text-align: center !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    color: #2f21a1 !important;
+    padding: 6px 2px !important;
+    background: #f3f4f6 !important;
+    border-radius: 4px !important;
+    line-height: 1.2 !important;
+    min-height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .calendar-day {
+    min-height: 48px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 6px !important;
+    background: white !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    padding: 4px 2px !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+  }
+
+  .calendar-day:hover {
+    border-color: #2f21a1 !important;
+    box-shadow: 0 2px 6px rgba(47, 33, 161, 0.15) !important;
+  }
+
+  .calendar-day.today {
+    background: #e0f2ff !important;
+    border-color: #0284c7 !important;
+  }
+
+  .calendar-day.has-booking {
+    background: #fef3c7 !important;
+    border-color: #f59e0b !important;
+  }
+
+  .calendar-day.disabled {
+    background: #f9fafb !important;
+    color: #d1d5db !important;
+    cursor: not-allowed !important;
+  }
+
+  .calendar-day-number {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    margin-bottom: 2px !important;
+    line-height: 1 !important;
+  }
+
+  .calendar-day-event {
+    font-size: 7px !important;
+    color: #6b7280 !important;
+    text-align: center !important;
+    line-height: 1.1 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  /* ========== ADD BOOKING BUTTON ========== */
+  .add-booking-btn,
+  .add-internal-booking-btn {
+    width: calc(100% - 30px) !important;
+    margin: 15px !important;
+    padding: 14px 20px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    background: #2f21a1 !important;
+    color: white !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    box-sizing: border-box !important;
+  }
+
+  .add-booking-btn:active,
+  .add-internal-booking-btn:active {
+    background: #1a0e7a !important;
+    transform: scale(0.98) !important;
+  }
+
+  /* ========== MODALS - UNIVERSAL FIX ========== */
+  .modal,
+  .um-modal-overlay,
+  .um-confirm-modal-overlay,
+  .internal-booking-modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 2000 !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+  }
+
+  /* Show modals only when they have the active class or inline style */
+  .modal[style*="display: flex"],
+  .modal[style*="display: block"],
+  .um-modal-overlay[style*="display: flex"],
+  .um-modal-overlay[style*="display: block"],
+  .um-confirm-modal-overlay.active,
+  .internal-booking-modal-overlay.active {
+    display: flex !important;
+  }
+
+  .modal-content,
+  .um-modal,
+  .um-confirm-modal,
+  .internal-booking-modal {
+    width: calc(100% - 40px) !important;
+    max-width: 400px !important;
+    max-height: 85vh !important;
+    background: white !important;
+    border-radius: 10px !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2) !important;
+    overflow-y: auto !important;
+    box-sizing: border-box !important;
+    margin: auto !important;
+  }
+
+  .modal-content {
+    padding: 25px 20px !important;
+  }
+
+  .modal h2,
+  .um-modal-header h3,
+  .um-confirm-modal-header h3,
+  .internal-booking-modal-header h2 {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+    margin: 0 0 20px 0 !important;
+  }
+
+  .form-group {
+    width: 100% !important;
+    margin-bottom: 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  .form-group label {
+    display: block !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #374151 !important;
+    margin-bottom: 6px !important;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100% !important;
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+    font-family: 'Poppins', sans-serif !important;
+  }
+
+  .form-group textarea {
+    min-height: 80px !important;
+    resize: vertical !important;
+  }
+
+  .password-wrapper {
+    position: relative !important;
+    width: 100% !important;
+  }
+
+  .password-toggle {
+    position: absolute !important;
+    right: 10px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    padding: 5px !important;
+  }
+
+  .error-message,
+  .internal-error-message {
+    font-size: 12px !important;
+    color: #dc3545 !important;
+    margin-top: 4px !important;
+  }
+
+  .modal-buttons,
+  .internal-booking-form-actions,
+  .um-confirm-modal-footer {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    margin-top: 20px !important;
+    width: 100% !important;
+  }
+
+  .modal-buttons button,
+  .internal-booking-form-actions button,
+  .um-confirm-modal-footer button {
+    width: 100% !important;
+    padding: 12px 20px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    box-sizing: border-box !important;
+  }
+
+  .close-modal,
+  .internal-booking-cancel-btn,
+  .um-confirm-btn-no {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+  }
+
+  .close-modal:active,
+  .internal-booking-cancel-btn:active,
+  .um-confirm-btn-no:active {
+    background: #e5e7eb !important;
+  }
+
+  .save-changes,
+  .internal-booking-submit-btn,
+  .um-confirm-btn-yes {
+    background: #2f21a1 !important;
+    color: white !important;
+  }
+
+  .save-changes:active,
+  .internal-booking-submit-btn:active,
+  .um-confirm-btn-yes:active {
+    background: #1a0e7a !important;
+  }
+
+  /* ========== USER DETAILS MODAL ========== */
+  .um-modal-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 20px !important;
+    border-bottom: 1px solid #e5e7eb !important;
+  }
+
+  .um-modal-close {
+    background: none !important;
+    border: none !important;
+    font-size: 28px !important;
+    cursor: pointer !important;
+    color: #6b7280 !important;
+    padding: 0 !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .um-modal-body {
+    padding: 20px !important;
+  }
+
+  /* ========== DASHBOARD SECTIONS ========== */
+  .admin-dashboard-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 20px 15px !important;
+    gap: 20px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+
+  .dashboard-left,
+  .dashboard-right {
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 20px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ========== PENDING REQUESTS ========== */
+  .pending-requests-section {
+    background: #f1e9f3 !important;
+    padding: 20px 18px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .section-title {
+    font-size: 18px !important;
+    margin-bottom: 6px !important;
+    text-align: center !important;
+  }
+
+  .section-subtitle {
+    font-size: 13px !important;
+    margin-bottom: 18px !important;
+    text-align: center !important;
+  }
+
+  .pending-cards-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ========== INVENTORY STOCKS ========== */
+  .inventory-stocks-section {
+    background: #e8dff0 !important;
+    padding: 20px 18px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+
+  }
+
+  .inventory-cards-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    margin-top: 18px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ========== WEEK CALENDAR ========== */
+  .week-calendar-card {
+    background: #f1e9f3 !important;
+    padding: 20px 18px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .week-calendar-grid {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 5px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .week-day-card {
+    padding: 10px 4px !important;
+    min-height: 60px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .week-day-name {
+    font-size: 10px !important;
+    margin-bottom: 6px !important;
+    text-transform: uppercase !important;
+  }
+
+  .week-day-number {
+    font-size: 18px !important;
+    font-weight: 700 !important;
+  }
+
+  /* ========== RESERVATIONS ========== */
+  .reservations-card {
+    background: #f1e9f3 !important;
+    padding: 20px 18px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .reservations-list {
+    max-height: 400px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-right: 5px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ========== SCROLLBAR STYLING ========== */
+  .reservations-list::-webkit-scrollbar,
+  .um-mobile-cards::-webkit-scrollbar {
+    width: 6px !important;
+  }
+
+  .reservations-list::-webkit-scrollbar-track,
+  .um-mobile-cards::-webkit-scrollbar-track {
+    background: #f1f1f1 !important;
+  }
+
+  .reservations-list::-webkit-scrollbar-thumb,
+  .um-mobile-cards::-webkit-scrollbar-thumb {
+    background: #2f21a1 !important;
+    border-radius: 3px !important;
+  }
+
+  /* ========== LOADING SPINNER ========== */
+  .spinner {
+    border: 3px solid #f3f3f3 !important;
+    border-top: 3px solid #2f21a1 !important;
+    border-radius: 50% !important;
+    width: 40px !important;
+    height: 40px !important;
+    animation: spin 1s linear infinite !important;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* ========== ANIMATIONS ========== */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      max-height: 0;
+    }
+    to {
+      opacity: 1;
+      max-height: 500px;
+    }
+  }
+
+  /* ========== FINAL CATCH-ALL FIXES ========== */
+    /* ========== MOBILE MODAL STYLING ========== */
+    .um-modal-overlay,
+    .um-confirm-modal-overlay,
+    .um-modal,
+    .um-confirm-modal {
+      position: fixed !important;
+      z-index: 10001 !important;
+    }
+
+    .um-modal-overlay.active,
+    .um-confirm-modal-overlay.active {
+      display: flex !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      background: rgba(0, 0, 0, 0.7) !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 16px !important;
+      box-sizing: border-box !important;
+    }
+
+    .um-modal,
+    .um-confirm-modal {
+      width: 100% !important;
+      max-width: calc(100vw - 32px) !important;
+      max-height: 85vh !important;
+      background: white !important;
+      border-radius: 12px !important;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3) !important;
+      overflow-y: auto !important;
+      box-sizing: border-box !important;
+    }
+
+    .um-modal-header {
+      padding: 18px 16px !important;
+      border-bottom: 1px solid #e5e7eb !important;
+      background: linear-gradient(135deg, #2f21a1 0%, #1a1464 100%) !important;
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 1 !important;
+    }
+
+    .um-modal-header h3 {
+      font-size: 18px !important;
+      font-weight: 700 !important;
+      color: #ffffff !important;
+      margin: 0 !important;
+    }
+
+    .um-modal-close {
+      position: absolute !important;
+      top: 16px !important;
+      right: 16px !important;
+      font-size: 24px !important;
+      color: #ffffff !important;
+      background: none !important;
+      border: none !important;
+      cursor: pointer !important;
+      padding: 4px !important;
+    }
+
+    .um-modal-body {
+      padding: 16px !important;
+      overflow-y: auto !important;
+      max-height: calc(85vh - 70px) !important;
+    }
+
+    .um-user-detail-card {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 12px !important;
+    }
+
+    .um-user-detail-header {
+      display: flex !important;
+      align-items: center !important;
+      gap: 12px !important;
+      margin-bottom: 12px !important;
+      padding-bottom: 12px !important;
+      border-bottom: 1px solid #e5e7eb !important;
+    }
+
+    .um-user-detail-avatar {
+      width: 56px !important;
+      height: 56px !important;
+      min-width: 56px !important;
+      background: linear-gradient(135deg, #2f21a1 0%, #1a1464 100%) !important;
+      color: white !important;
+      border-radius: 50% !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-weight: 700 !important;
+      font-size: 18px !important;
+    }
+
+    .um-user-detail-name h4 {
+      font-size: 16px !important;
+      font-weight: 700 !important;
+      color: #111827 !important;
+      margin: 0 0 4px 0 !important;
+    }
+
+    .um-user-detail-row {
+      display: flex !important;
+      align-items: flex-start !important;
+      gap: 10px !important;
+      font-size: 13px !important;
+      line-height: 1.4 !important;
+      color: #374151 !important;
+    }
+
+    .um-user-detail-row svg {
+      flex-shrink: 0 !important;
+      margin-top: 2px !important;
+    }
+
+    .um-user-requests-section h4 {
+      font-size: 14px !important;
+      font-weight: 700 !important;
+      color: #111827 !important;
+      margin: 12px 0 8px 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+    }
+
+    .um-no-requests {
+      text-align: center !important;
+      padding: 20px 12px !important;
+      color: #6b7280 !important;
+    }
+
+    .um-request-list {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 8px !important;
+    }
+
+    .um-request-item {
+      border: 1px solid #e5e7eb !important;
+      border-radius: 6px !important;
+      padding: 10px 12px !important;
+      background: #f9fafb !important;
+      font-size: 12px !important;
+    }
+
+    /* ========== END MOBILE MODAL STYLING ========== */
+
+  /* ========== USER MANAGER - MOBILE VISIBILITY ========== */
+  #umMobileCards { display: grid !important; }
+  #umUsersTable { display: none !important; }
+  /* ========== END USER MANAGER - MOBILE VISIBILITY ========== */
+
+  .admin-content,
+  .admin-content-card,
+  .tents-content-card,
+  table,
+  thead,
+  tbody,
+  tr,
+  td,
+  th {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Ensure no element causes horizontal scroll */
+  body * {
+    max-width: 100vw !important;
+  }
+
+  /* Override any potential conflicts */
+  .admin-main * {
+    box-sizing: border-box !important;
+  }
+}
+/* ===================================
+   END MOBILE VIEW BREAKPOINT - 425px
+   =================================== */

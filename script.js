@@ -9038,7 +9038,13 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     console.log(`🎨 Rendering ${currentView} view for ${currentTab} tab`);
     
     if (currentView === 'table') {
-      renderTableView();
+      // Check if mobile (425px or less)
+      const isMobile = window.innerWidth <= 425;
+      if (isMobile) {
+        renderMobileCardView();
+      } else {
+        renderTableView();
+      }
     } else {
       renderCalendarView();
     }
@@ -9145,6 +9151,122 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     `;
 
     contentArea.innerHTML = tableHTML;
+  }
+
+  /**
+   * Render mobile card view for tents requests
+   */
+  function renderMobileCardView() {
+    const contentArea = document.getElementById('tentsContentArea');
+    const requests = getFilteredRequests();
+
+    if (requests.length === 0) {
+      contentArea.innerHTML = `
+        <div class="tents-empty-state">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+          </svg>
+          <h3>No requests found</h3>
+          <p>There are no requests matching your current filters.</p>
+        </div>
+      `;
+      return;
+    }
+
+    let cardsHTML = `<div class="tents-table-as-cards">`;
+
+    requests.forEach(req => {
+      // Format submitted date and time
+      let submittedDate = 'N/A';
+      let submittedTime = '';
+      if (req.createdAt) {
+        const createdDate = req.createdAt.toDate();
+        submittedDate = formatDateText(createdDate.toISOString().split('T')[0]);
+        submittedTime = createdDate.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: true 
+        });
+      }
+
+      // Get names
+      const firstName = (req.firstName && req.firstName.trim())
+        ? req.firstName.trim()
+        : (req.fullName ? getFirstName(req.fullName) : (req.userEmail ? req.userEmail.split('@')[0] : ''));
+      const lastName = (req.lastName && req.lastName.trim())
+        ? req.lastName.trim()
+        : (req.fullName ? getLastName(req.fullName) : '');
+      
+      const startDate = formatDateText(req.startDate);
+      const endDate = formatDateText(req.endDate);
+      const contactNumber = sanitizeInput(req.contactNumber || 'N/A');
+      const purpose = sanitizeInput(req.purposeOfUse || req.purpose || 'N/A');
+      const status = req.status || 'pending';
+
+      cardsHTML += `
+        <div class="tents-table-card">
+          <div class="tents-card-row">
+            <span class="tents-card-label">Submitted On:</span>
+            <span class="tents-card-value">${submittedDate} ${submittedTime}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">Status:</span>
+            <span class="tents-card-value">${renderStatusBadge(status)}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">First Name:</span>
+            <span class="tents-card-value">${sanitizeInput(firstName)}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">Last Name:</span>
+            <span class="tents-card-value">${sanitizeInput(lastName)}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">Contact:</span>
+            <span class="tents-card-value">${contactNumber}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">Purpose:</span>
+            <span class="tents-card-value">${purpose}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">Event Date:</span>
+            <span class="tents-card-value">${startDate}${endDate && endDate !== startDate ? ' - ' + endDate : ''}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">Start Time:</span>
+            <span class="tents-card-value">${req.startTime || 'N/A'}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">End Time:</span>
+            <span class="tents-card-value">${req.endTime || 'N/A'}</span>
+          </div>
+          ${currentTab === 'history' || currentTab === 'archives' ? `
+            <div class="tents-card-row">
+              <span class="tents-card-label">Remarks:</span>
+              <span class="tents-card-value">${renderRemarks(req)}</span>
+            </div>
+          ` : ''}
+          ${currentTab === 'history' ? `
+            <div class="tents-card-row">
+              <span class="tents-card-label">Completed On:</span>
+              <span class="tents-card-value">${renderCompletedOn(req)}</span>
+            </div>
+          ` : (currentTab === 'archives' ? `
+            <div class="tents-card-row">
+              <span class="tents-card-label">Archived On:</span>
+              <span class="tents-card-value">${renderArchivedOn(req)}</span>
+            </div>
+          ` : '')}
+          <div class="tents-card-actions">
+            ${renderActionButtons(req)}
+          </div>
+        </div>
+      `;
+    });
+
+    cardsHTML += `</div>`;
+    contentArea.innerHTML = cardsHTML;
   }
 
   /**
@@ -12210,7 +12332,13 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
    */
   function renderContent() {
     if (currentView === 'table') {
-      renderTableView();
+      // Check if mobile (425px or less)
+      const isMobile = window.innerWidth <= 425;
+      if (isMobile) {
+        renderMobileCardViewConference();
+      } else {
+        renderTableView();
+      }
     } else {
       renderCalendarView();
     }
@@ -12374,6 +12502,171 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   }
 
   /**
+   * Render mobile card view for conference requests
+   */
+  function renderMobileCardViewConference() {
+    const contentArea = document.getElementById('conferenceContentArea');
+    if (!contentArea) return;
+
+    const filteredRequests = getFilteredRequests();
+
+    // Empty state
+    if (filteredRequests.length === 0) {
+      contentArea.innerHTML = `
+        <div class="tents-empty-state">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+          </svg>
+          <h3>No requests found</h3>
+          <p>No conference room reservations match your current filters.</p>
+        </div>
+      `;
+      return;
+    }
+
+    let cardsHTML = `<div class="tents-table-as-cards">`;
+
+    filteredRequests.forEach(req => {
+      const { firstName, lastName } = getNameParts(req);
+
+      // Format submitted date
+      const submittedDate = req.createdAt ? 
+        new Date(req.createdAt.toMillis()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 
+        'N/A';
+      const submittedTime = req.createdAt ? 
+        new Date(req.createdAt.toMillis()).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 
+        '';
+
+      // Format event date
+      const eventDate = req.eventDate ? 
+        new Date(req.eventDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 
+        'N/A';
+
+      // Format times to 12-hour format
+      const formatTime = (time24) => {
+        if (!time24) return 'N/A';
+        const [hours, minutes] = time24.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${hour12}:${minutes} ${ampm}`;
+      };
+
+      const startTime = formatTime(req.startTime);
+      const endTime = formatTime(req.endTime);
+
+      // Completed/Archived date and time (for history/archives tab)
+      let completedDate = '';
+      let completedTime = '';
+      if (currentTab === 'history') {
+        if (req.completedAt) {
+          const d = new Date(req.completedAt.toMillis());
+          completedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          completedTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } else if (req.rejectedAt) {
+          const d = new Date(req.rejectedAt.toMillis());
+          completedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          completedTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } else if (req.cancelledAt) {
+          const d = new Date(req.cancelledAt.toMillis());
+          completedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          completedTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } else {
+          completedDate = 'N/A';
+          completedTime = '';
+        }
+      } else if (currentTab === 'archives') {
+        if (req.archivedAt) {
+          const d = new Date(req.archivedAt.toMillis());
+          completedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          completedTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } else {
+          completedDate = 'N/A';
+          completedTime = '';
+        }
+      }
+
+      // Remarks (for history/archives tab)
+      let remarks = '';
+      if (currentTab !== 'all') {
+        if (req.status === 'rejected' && req.rejectionReason) {
+          remarks = sanitizeInput(req.rejectionReason);
+        } else if (req.status === 'cancelled') {
+          remarks = 'Cancelled by user';
+        } else {
+          remarks = '—';
+        }
+      }
+
+      const status = req.status || 'pending';
+
+      cardsHTML += `
+        <div class="tents-table-card">
+          <div class="tents-card-row">
+            <span class="tents-card-label">Submitted On:</span>
+            <span class="tents-card-value">${submittedDate} ${submittedTime}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">Status:</span>
+            <span class="tents-card-value">${renderStatusBadge(status)}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">First Name:</span>
+            <span class="tents-card-value">${sanitizeInput(firstName)}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">Last Name:</span>
+            <span class="tents-card-value">${sanitizeInput(lastName)}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">Contact Number:</span>
+            <span class="tents-card-value">${sanitizeInput(req.contactNumber || 'N/A')}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">Purpose:</span>
+            <span class="tents-card-value">${sanitizeInput(req.purpose || 'N/A')}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">Event Date:</span>
+            <span class="tents-card-value">${eventDate}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">Start Time:</span>
+            <span class="tents-card-value">${startTime}</span>
+          </div>
+          <div class="tents-card-row">
+            <span class="tents-card-label">End Time:</span>
+            <span class="tents-card-value">${endTime}</span>
+          </div>
+          ${currentTab !== 'all' ? `
+            <div class="tents-card-row">
+              <span class="tents-card-label">Remarks:</span>
+              <span class="tents-card-value">${remarks}</span>
+            </div>
+          ` : ''}
+          ${currentTab === 'history' ? `
+            <div class="tents-card-row">
+              <span class="tents-card-label">Completed On:</span>
+              <span class="tents-card-value">${completedDate}${completedTime ? ` ${completedTime}` : ''}</span>
+            </div>
+          ` : (currentTab === 'archives' ? `
+            <div class="tents-card-row">
+              <span class="tents-card-label">Archived On:</span>
+              <span class="tents-card-value">${completedDate}${completedTime ? ` ${completedTime}` : ''}</span>
+            </div>
+          ` : '')}
+          <div class="tents-card-actions">
+            ${renderActionButtons(req)}
+          </div>
+        </div>
+      `;
+    });
+
+    cardsHTML += `</div>`;
+    contentArea.innerHTML = cardsHTML;
+  }
+
+  /**
    * Render status badge with appropriate color
    */
   function renderStatusBadge(status) {
@@ -12501,16 +12794,6 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         <div class="tents-calendar-date ${hasBookings ? 'has-bookings' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">
           <div class="tents-date-number">${day}</div>
       `;
-
-      if (hasBookings) {
-        // show up to 2 booking previews
-        dayBookings.slice(0,2).forEach(b => {
-          const name = sanitizeInput(b.fullName || (b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : 'Unknown'));
-          const timeRange = `${formatTime12Hour(b.startTime)} - ${formatTime12Hour(b.endTime)}`;
-          calendarHTML += `<div class="tents-calendar-event"><div class="tents-event-name">${name}</div><div class="tents-event-items">${timeRange}</div></div>`;
-        });
-        if (dayBookings.length > 2) calendarHTML += `<div class="tents-more-bookings">+${dayBookings.length-2} more</div>`;
-      }
 
       calendarHTML += '</div>';
     }
@@ -14538,6 +14821,11 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     });
     
     console.log(`📋 Rendered ${regularUsers.length} users in table`);
+    
+    // Call mobile card population function after table is populated
+    if (window.populateMobileCards) {
+      window.populateMobileCards();
+    }
   }
   
   /**
@@ -15530,6 +15818,28 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
         }
       });
     }
+
+      // Add event delegation for mobile card buttons
+      const mobileCardsContainer = document.getElementById('umMobileCards');
+      if (mobileCardsContainer) {
+        mobileCardsContainer.addEventListener('click', (e) => {
+          const target = e.target;
+          const button = target.closest('button');
+        
+          if (!button) return;
+        
+          const userId = button.getAttribute('data-user-id');
+          if (!userId) return;
+        
+          if (button.classList.contains('um-btn-view')) {
+            viewUserDetails(userId);
+          } else if (button.classList.contains('um-btn-disable')) {
+            disableUser(userId);
+          } else if (button.classList.contains('um-btn-enable')) {
+            enableUser(userId);
+          }
+        });
+      }
   });
   
 } // End of admin-user-manager.html conditional
