@@ -4858,7 +4858,25 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
         console.log(`   📍 [Calendar Render] Date ${currentDateStr}: ${dateBookings.length} booking(s) found - ${dateBookings.map(b => `${b.startTime}-${b.endTime}`).join(', ')}`);
       }
       
-      if (hasBookings) {
+      if (isPast) {
+        // Past dates - show preview if has bookings, but not clickable
+        dateCell.classList.add('past');
+        if (hasBookings) {
+          // Fetch booking details for preview banner (informational only, not clickable)
+          fetchBookingPreview(currentDateStr).then(preview => {
+            if (preview) {
+              const previewDiv = document.createElement('div');
+              previewDiv.classList.add('tents-booking-preview');
+              previewDiv.innerHTML = `
+                <div class="tents-preview-purpose">${sanitizeInput(preview.purpose)}</div>
+                <div class="tents-preview-time">${preview.time}</div>
+              `;
+              // Do not add click handler for past dates
+              dateCell.appendChild(previewDiv);
+            }
+          });
+        }
+      } else if (hasBookings) {
         // Check if date is fully booked (no 4-hour gap)
         const fullyBooked = isDateFullyBooked(dateBookings);
         
@@ -4949,8 +4967,6 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
           dateCell.style.cursor = 'pointer';
           dateCell.addEventListener('click', () => openBookingModal(currentDateStr));
         }
-      } else if (isPast) {
-        dateCell.classList.add('past');
       } else {
         dateCell.classList.add('available');
         dateCell.addEventListener('click', () => openBookingModal(currentDateStr));
@@ -5322,8 +5338,23 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
       console.log(`   Date ${currentDateStr}: bookings=${hasBookings ? bookedDates[currentDateStr].length : 0}, isToday=${isToday}, isPast=${isPast}`);
       
       if (isPast) {
-        // Past dates - grayed out, not clickable
+        // Past dates - show preview if has bookings, but not clickable
         dateCell.classList.add('past');
+        if (hasBookings) {
+          // Fetch booking details for preview banner (informational only, not clickable)
+          fetchBookingPreview(currentDateStr).then(preview => {
+            if (preview) {
+              const previewDiv = document.createElement('div');
+              previewDiv.classList.add('tents-booking-preview');
+              previewDiv.innerHTML = `
+                <div class="tents-preview-purpose">${sanitizeInput(preview.purpose)}</div>
+                <div class="tents-preview-time">${preview.quantities}</div>
+              `;
+              // Do not add click handler for past dates
+              dateCell.appendChild(previewDiv);
+            }
+          });
+        }
       } else if (hasBookings) {
         // Has bookings but still available (Option A)
         // Show purple preview banner, white background, clickable for new requests
