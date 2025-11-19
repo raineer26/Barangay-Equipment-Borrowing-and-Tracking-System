@@ -2212,8 +2212,9 @@ footer {
 /* Request Details Modal */
 .request-details-modal {
   max-width: 600px;
+  max-height: 90vh;
   padding: 30px;
-  height: 600px;
+  overflow-y: auto;
 }
 
 .request-details-modal h2 {
@@ -2224,7 +2225,8 @@ footer {
 }
 
 .request-details-content {
-  margin-bottom: 24px;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
 }
 
 .detail-row {
@@ -2263,10 +2265,9 @@ footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  position: absolute;
-  bottom: 20px;
-  right: 44px;
-  margin-bottom: 10px;
+  padding-top: 20px;
+  border-top: 2px solid #f0f0f0;
+  margin-top: 10px;
 }
 
 .cancel-request-btn {
@@ -10053,8 +10054,9 @@ body.sidebar-collapsed .sidebar-toggle-btn,
 
   .modal-actions {
     flex-direction: column;
-    position: static;
     padding-top: 20px;
+    border-top: 2px solid #f0f0f0;
+    margin-top: 10px;
     gap: 10px;
   }
 

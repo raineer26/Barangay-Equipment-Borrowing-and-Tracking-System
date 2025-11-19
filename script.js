@@ -4518,9 +4518,19 @@ function formatDateToWords(dateString) {
 
 // Function to show request details modal
 function showRequestDetailsModal(request) {
+  console.log('═══════════════════════════════════════');
+  console.log('📋 [Modal] showRequestDetailsModal called');
+  console.log('📋 [Modal] Request object:', request);
+  console.log('📋 [Modal] Request ID:', request.id);
+  console.log('📋 [Modal] Request Type:', request.type);
+  console.log('📋 [Modal] Request Status:', request.status);
+  console.log('═══════════════════════════════════════');
+  
   // Create modal if it doesn't exist
   let modal = document.getElementById('requestDetailsModal');
   if (!modal) {
+    console.log('🏗️ [Modal] Creating new modal element');
+
     modal = document.createElement('div');
     modal.id = 'requestDetailsModal';
     modal.className = 'modal';
@@ -4534,11 +4544,13 @@ function showRequestDetailsModal(request) {
       </div>
     `;
     document.body.appendChild(modal);
+    console.log('✅ [Modal] New modal created and appended to body');
 
     // Add close handlers
     const closeDetailsBtn = modal.querySelector('.close-details-btn');
     
     closeDetailsBtn.addEventListener('click', () => {
+      console.log('🔘 [Modal] Initial close button clicked');
       modal.style.display = 'none';
     });
 
@@ -4573,11 +4585,10 @@ function showRequestDetailsModal(request) {
     </div>
   `;
 
-  // Check if this is a conference room request (check multiple possible values)
+  // Check if this is a conference room request (check type field and eventDate presence)
   const isConferenceRoom = request.type === 'Conference Room' || 
                            request.type === 'conference-room' || 
-                           request.eventDate || 
-                           request.purpose;
+                           (request.eventDate !== undefined && request.eventDate !== null);
 
   if (isConferenceRoom) {
     const timeStr = request.startTime && request.endTime 
@@ -4627,6 +4638,10 @@ function showRequestDetailsModal(request) {
         <span class="detail-value">${request.completeAddress || 'N/A'}</span>
       </div>
       <div class="detail-row">
+        <span class="detail-label">Purpose of Use:</span>
+        <span class="detail-value">${request.purpose || request.purposeOfUse || 'N/A'}</span>
+      </div>
+      <div class="detail-row">
         <span class="detail-label">Start Date:</span>
         <span class="detail-value">${formatDateToWords(request.startDate)}</span>
       </div>
@@ -4661,7 +4676,14 @@ function showRequestDetailsModal(request) {
   // Update modal actions to include cancel button for pending requests
   const modalActions = modal.querySelector('.modal-actions');
   
+  console.log('🔍 [Modal] Request status:', request.status);
+  console.log('🔍 [Modal] Request type:', request.type);
+  console.log('🔍 [Modal] Request ID:', request.id);
+  console.log('🔍 [Modal] Status lowercase:', request.status?.toLowerCase());
+  console.log('🔍 [Modal] Is pending?', request.status?.toLowerCase() === 'pending');
+  
   if (request.status?.toLowerCase() === 'pending') {
+    console.log('✅ [Modal] Status is PENDING - Adding Cancel button');
     modalActions.innerHTML = `
       <button type="button" class="cancel-request-btn" data-request-id="${request.id}" data-request-type="${request.type}">Cancel Request</button>
       <button type="button" class="close-details-btn">Close</button>
@@ -4669,8 +4691,15 @@ function showRequestDetailsModal(request) {
     
     // Add cancel button handler
     const cancelBtn = modalActions.querySelector('.cancel-request-btn');
-    cancelBtn.addEventListener('click', () => handleCancelRequest(request));
+    if (cancelBtn) {
+      console.log('✅ [Modal] Cancel button found, attaching click handler');
+      cancelBtn.addEventListener('click', () => handleCancelRequest(request));
+    } else {
+      console.error('❌ [Modal] Cancel button NOT found in DOM!');
+    }
   } else {
+    console.log('ℹ️ [Modal] Status is NOT pending - Only showing Close button');
+    console.log('   Current status:', request.status);
     modalActions.innerHTML = `
       <button type="button" class="close-details-btn">Close</button>
     `;
@@ -4678,19 +4707,33 @@ function showRequestDetailsModal(request) {
   
   // Re-attach close handler
   const closeBtn = modalActions.querySelector('.close-details-btn');
-  closeBtn.addEventListener('click', () => {
-    modal.style.display = 'none';
-  });
+  if (closeBtn) {
+    console.log('✅ [Modal] Close button found, attaching click handler');
+    closeBtn.addEventListener('click', () => {
+      console.log('🔘 [Modal] Close button clicked');
+      modal.style.display = 'none';
+    });
+  } else {
+    console.error('❌ [Modal] Close button NOT found in DOM!');
+  }
   
   // Show modal
+  console.log('👁️ [Modal] Displaying modal...');
   modal.style.display = 'block';
 }
 
 // Function to handle request cancellation
 async function handleCancelRequest(request) {
+  console.log('🚫 [Cancel] handleCancelRequest called');
+  console.log('🚫 [Cancel] Request:', request);
+  console.log('🚫 [Cancel] Request ID:', request.id);
+  console.log('🚫 [Cancel] Request Type:', request.type);
+  
   const confirmMessage = `Are you sure you want to cancel this ${request.type === 'conference-room' ? 'Conference Room Reservation' : 'Tents & Chairs Borrowing'} request?\n\nThis action cannot be undone, but you can submit a new request afterwards.`;
   
+  console.log('🚫 [Cancel] Showing confirmation dialog');
   showConfirm(confirmMessage, async () => {
+    console.log('🚫 [Cancel] User confirmed cancellation');
     try {
       const collectionName = request.type === 'conference-room' ? 'conferenceRoomBookings' : 'tentsChairsBookings';
       
@@ -5955,7 +5998,7 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       lastName: document.getElementById('lastName').value.trim(),
       contactNumber: document.getElementById('contactNumber').value.trim(),
       completeAddress: document.getElementById('completeAddress').value.trim(),
-      purposeOfUse: document.getElementById('purposeOfUse').value.trim(),
+      purpose: document.getElementById('purposeOfUse').value.trim(), // Store as 'purpose' for calendar/modal compatibility
       quantityChairs: parseInt(document.getElementById('quantityChairs').value || 0),
       quantityTents: parseInt(document.getElementById('quantityTents').value || 0),
       modeOfReceiving: document.getElementById('modeOfReceiving').value,
@@ -5974,7 +6017,7 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     if (!d.lastName) setFieldError('lastName', 'Enter your last name'), valid = false;
     if (!/^09\d{9}$/.test(d.contactNumber)) setFieldError('contactNumber', 'Must start with 09 and be 11 digits'), valid = false;
     if (!d.completeAddress) setFieldError('completeAddress', 'Complete address required'), valid = false;
-    if (!d.purposeOfUse) setFieldError('purposeOfUse', 'Purpose required'), valid = false;
+    if (!d.purpose) setFieldError('purposeOfUse', 'Purpose required'), valid = false;
 
     if ((d.quantityChairs === 0 || isNaN(d.quantityChairs)) && (d.quantityTents === 0 || isNaN(d.quantityTents))) {
       const msg = 'Please borrow at least one item (set tents or chairs above 0)';
@@ -6013,7 +6056,7 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
   }
 
   function populateSummaryModal(data) {
-    document.getElementById('summaryPurpose').textContent = data.purposeOfUse;
+    document.getElementById('summaryPurpose').textContent = data.purpose;
     document.getElementById('summaryTents').textContent = data.quantityTents;
     document.getElementById('summaryChairs').textContent = data.quantityChairs;
     // Show human-friendly dates (e.g., "November 12, 2025")
@@ -6133,6 +6176,7 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       // ✅ NO IDENTICAL REQUESTS - Proceed with submission
       const docRef = await addDoc(collection(db, 'tentsChairsBookings'), {
         ...data,
+        fullName: `${data.firstName} ${data.lastName}`, // Combined name for display
         userId: user.uid,
         userEmail: user.email,
         status: 'pending',
