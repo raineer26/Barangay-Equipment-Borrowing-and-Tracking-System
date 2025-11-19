@@ -28,6 +28,85 @@ const auth = getAuth(app);
 const inventoryRef = collection(db, "inventory");
 
 // =============================
+// REAL-TIME UPDATE MANAGER
+// Handles Firestore onSnapshot listeners with proper cleanup
+// =============================
+class RealtimeManager {
+  constructor() {
+    this.listeners = new Map(); // Store listeners by key
+    this.isActive = true;
+    console.log('[Real-Time Manager] ✅ Initialized');
+  }
+  
+  // Add a new real-time listener
+  addListener(key, unsubscribe) {
+    // If listener already exists for this key, clean it up first
+    if (this.listeners.has(key)) {
+      console.log(`[Real-Time Manager] ⚠️ Replacing existing listener: ${key}`);
+      this.removeListener(key);
+    }
+    
+    this.listeners.set(key, unsubscribe);
+    console.log(`[Real-Time Manager] ✅ Added listener: ${key} (Total: ${this.listeners.size})`);
+  }
+  
+  // Remove a specific listener
+  removeListener(key) {
+    const unsubscribe = this.listeners.get(key);
+    if (unsubscribe) {
+      try {
+        unsubscribe();
+        this.listeners.delete(key);
+        console.log(`[Real-Time Manager] 🗑️ Removed listener: ${key} (Remaining: ${this.listeners.size})`);
+      } catch (err) {
+        console.error(`[Real-Time Manager] ❌ Error removing listener ${key}:`, err);
+      }
+    }
+  }
+  
+  // Clean up all listeners (call on logout or page unload)
+  cleanup() {
+    console.log(`[Real-Time Manager] 🧹 Cleaning up ${this.listeners.size} listeners...`);
+    this.listeners.forEach((unsubscribe, key) => {
+      try {
+        unsubscribe();
+        console.log(`[Real-Time Manager]   ✓ Cleaned: ${key}`);
+      } catch (err) {
+        console.error(`[Real-Time Manager]   ✗ Error cleaning ${key}:`, err);
+      }
+    });
+    this.listeners.clear();
+    console.log('[Real-Time Manager] ✅ All listeners cleaned up');
+  }
+  
+  // Pause all listeners (useful when modal is open)
+  pause() {
+    this.isActive = false;
+    console.log('[Real-Time Manager] ⏸️ Paused (listeners still active but updates ignored)');
+  }
+  
+  // Resume listeners
+  resume() {
+    this.isActive = true;
+    console.log('[Real-Time Manager] ▶️ Resumed');
+  }
+  
+  // Check if updates should be processed
+  shouldProcess() {
+    return this.isActive;
+  }
+}
+
+// Global instance
+const realtimeManager = new RealtimeManager();
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+  console.log('[Real-Time Manager] 🚪 Page unloading, cleaning up listeners...');
+  realtimeManager.cleanup();
+});
+
+// =============================
 // BURGER MENU / MOBILE NAVIGATION
 // Global functionality - runs on all pages
 // =============================
@@ -1926,8 +2005,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('[UserProfile] Auth state changed. User:', user ? user.email : 'Not logged in');
     if (!user) {
-      // Not signed in -> go to login
-      console.log('[UserProfile] No user, redirecting to login');
+      // Not signed in -> cleanup and go to login
+      console.log('[UserProfile] No user, cleaning up real-time listeners...');
+      realtimeManager.cleanup();
+      console.log('[UserProfile] Redirecting to login');
       window.location.href = "index.html";
       return;
     }
@@ -1942,11 +2023,11 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('[UserProfile] Step 1/3: Loading user personal data...');
     loadUserData();
     
-    console.log('[UserProfile] Step 2/3: Loading user requests (filtered view)...');
-    loadUserRequests();
+    console.log('[UserProfile] Step 2/3: Setting up REAL-TIME requests listener...');
+    setupRealtimeRequests(user.uid);
     
-    console.log('[UserProfile] Step 3/3: Loading notifications from Firestore...');
-    loadNotifications();
+    console.log('[UserProfile] Step 3/3: Setting up REAL-TIME notifications listener...');
+    setupRealtimeNotifications(user.uid);
     
     // Start auto-refresh for notification count
     startNotificationRefresh();
@@ -2457,7 +2538,83 @@ function updateFilterCounts(allRequests) {
   statusFilter.value = currentValue;
 }
 
-// Function to load user requests and display them
+// Helper to reload requests (called by real-time listeners)
+function loadUserRequestsFromCache() {
+  const statusFilter = document.getElementById('statusFilter');
+  const currentFilter = statusFilter ? statusFilter.value : 'all';
+  loadUserRequests(currentFilter);
+}
+
+// Setup real-time listeners for user requests
+function setupRealtimeRequests(userId) {
+  console.log('[Real-Time Requests] 🔄 Setting up listeners for user:', userId);
+  
+  // Query tents/chairs bookings
+  const tentsQuery = query(
+    collection(db, "tentsChairsBookings"),
+    where("userId", "==", userId)
+  );
+  
+  // Query conference room bookings
+  const conferenceQuery = query(
+    collection(db, "conferenceRoomBookings"),
+    where("userId", "==", userId)
+  );
+  
+  // Setup tents listener
+  const unsubscribeTents = onSnapshot(tentsQuery, 
+    (snapshot) => {
+      console.log('[Real-Time Requests] 🏕️ Tents bookings updated:', snapshot.size);
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          console.log('[Real-Time Requests]   ➕ New tents request:', change.doc.id);
+        } else if (change.type === "modified") {
+          console.log('[Real-Time Requests]   ✏️ Modified tents request:', change.doc.id);
+          showToast('Request status updated!', true, 2000);
+        } else if (change.type === "removed") {
+          console.log('[Real-Time Requests]   ➖ Removed tents request:', change.doc.id);
+        }
+      });
+      
+      // Reload the display
+      loadUserRequestsFromCache();
+    },
+    (error) => {
+      console.error('[Real-Time Requests] ❌ Tents listener error:', error);
+    }
+  );
+  
+  // Setup conference listener
+  const unsubscribeConference = onSnapshot(conferenceQuery, 
+    (snapshot) => {
+      console.log('[Real-Time Requests] 🏢 Conference bookings updated:', snapshot.size);
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          console.log('[Real-Time Requests]   ➕ New conference request:', change.doc.id);
+        } else if (change.type === "modified") {
+          console.log('[Real-Time Requests]   ✏️ Modified conference request:', change.doc.id);
+          showToast('Request status updated!', true, 2000);
+        } else if (change.type === "removed") {
+          console.log('[Real-Time Requests]   ➖ Removed conference request:', change.doc.id);
+        }
+      });
+      
+      // Reload the display
+      loadUserRequestsFromCache();
+    },
+    (error) => {
+      console.error('[Real-Time Requests] ❌ Conference listener error:', error);
+    }
+  );
+  
+  // Store listeners in manager
+  realtimeManager.addListener('userRequestsTents', unsubscribeTents);
+  realtimeManager.addListener('userRequestsConference', unsubscribeConference);
+  
+  console.log('[Real-Time Requests] ✅ Listeners active');
+}
+
+// Function to load user requests and display them (can be called directly or by listeners)
 async function loadUserRequests(filterStatus = 'all') {
   console.log('[Filter] loadUserRequests called with filter:', filterStatus);
   
@@ -3184,6 +3341,86 @@ let allNotifications = []; // Cache of all notifications
 /**
  * Load notifications from Firestore
  */
+// Setup real-time listener for notifications
+function setupRealtimeNotifications(userId) {
+  console.log('[Real-Time Notifications] 🔄 Setting up listener for user:', userId);
+  
+  const q = query(
+    collection(db, "notifications"),
+    where("userId", "==", userId),
+    limit(100) // Limit to last 100 notifications
+  );
+  
+  const unsubscribe = onSnapshot(q,
+    (snapshot) => {
+      console.log('[Real-Time Notifications] 🔔 Notifications updated:', snapshot.size);
+      
+      // Check for new notifications
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          const notif = change.doc.data();
+          console.log('[Real-Time Notifications]   ➕ New notification:', notif.title);
+          
+          // Only show toast for truly new notifications (not initial load)
+          if (allNotifications.length > 0) {
+            showToast(`📬 ${notif.title}`, true, 3000);
+          }
+        } else if (change.type === "modified") {
+          console.log('[Real-Time Notifications]   ✏️ Modified notification');
+        } else if (change.type === "removed") {
+          console.log('[Real-Time Notifications]   ➖ Removed notification');
+        }
+      });
+      
+      // Update the display
+      processNotificationsSnapshot(snapshot);
+    },
+    (error) => {
+      console.error('[Real-Time Notifications] ❌ Listener error:', error);
+    }
+  );
+  
+  realtimeManager.addListener('userNotifications', unsubscribe);
+  console.log('[Real-Time Notifications] ✅ Listener active');
+}
+
+// Process notifications snapshot (called by real-time listener)
+function processNotificationsSnapshot(querySnapshot) {
+  console.log(`[Notifications] 📊 Processing ${querySnapshot.size} notifications`);
+  
+  // Store all notifications
+  allNotifications = [];
+  querySnapshot.forEach(doc => {
+    allNotifications.push({
+      id: doc.id,
+      ...doc.data()
+    });
+  });
+  
+  // Sort by createdAt in JavaScript (newest first)
+  allNotifications.sort((a, b) => {
+    const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+    const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+    return bTime - aTime; // Descending order (newest first)
+  });
+  console.log('[Notifications] 🔄 Sorted notifications by date (newest first)');
+  
+  const unreadCount = allNotifications.filter(n => !n.read).length;
+  const readCount = allNotifications.filter(n => n.read).length;
+  console.log('[Notifications] 📋 Notification breakdown:');
+  console.log(`[Notifications]   - Total: ${allNotifications.length}`);
+  console.log(`[Notifications]   - Unread: ${unreadCount}`);
+  console.log(`[Notifications]   - Read: ${readCount}`);
+  
+  // Update filter counts
+  updateNotificationCounts();
+  
+  // Render filtered notifications
+  renderNotifications();
+  
+  console.log('[Notifications] ✓ Notifications processed successfully');
+}
+
 async function loadNotifications() {
   console.log('[Notifications] ═══════════════════════════════════');
   console.log('[Notifications] Loading notifications from Firestore...');
@@ -3212,39 +3449,11 @@ async function loadNotifications() {
     
     console.log('[Notifications] 🔍 Querying Firestore for user:', user.uid);
     const querySnapshot = await getDocs(q);
-    console.log(`[Notifications] 📊 Found ${querySnapshot.size} notifications`);
     
-    // Store all notifications
-    allNotifications = [];
-    querySnapshot.forEach(doc => {
-      allNotifications.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
+    // Process the snapshot using the helper function
+    processNotificationsSnapshot(querySnapshot);
     
-    // Sort by createdAt in JavaScript (newest first)
-    allNotifications.sort((a, b) => {
-      const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-      const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-      return bTime - aTime; // Descending order (newest first)
-    });
-    console.log('[Notifications] 🔄 Sorted notifications by date (newest first)');
-    
-    console.log('[Notifications] 📋 Notification breakdown:');
-    const unreadCount = allNotifications.filter(n => !n.read).length;
-    const readCount = allNotifications.filter(n => n.read).length;
-    console.log(`[Notifications]   - Total: ${allNotifications.length}`);
-    console.log(`[Notifications]   - Unread: ${unreadCount}`);
-    console.log(`[Notifications]   - Read: ${readCount}`);
-    
-    // Update filter counts
-    updateNotificationCounts();
-    
-    // Render filtered notifications
-    renderNotifications();
-    
-    console.log('[Notifications] ✓ Notifications loaded successfully');
+    console.log('[Notifications] ✓ Initial load complete');
     console.log('[Notifications] ═══════════════════════════════════');
     
   } catch (error) {
@@ -7028,20 +7237,14 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
   let dateCounts = {};
 
   document.addEventListener('DOMContentLoaded', async function() {
-    // Load all reservations data first
-    await loadAllReservationsData();
+    // Setup real-time listeners for dashboard
+    setupRealtimeDashboard();
     
     // Initialize week calendar (will use loaded data)
     renderWeekCalendar();
     
     // Load reservations for selected date (default: today)
     await loadReservations();
-    
-    // Load pending request counts
-    loadPendingCounts();
-    
-    // Load inventory counts
-    loadInventoryCounts();
     
     // Setup sidebar dropdown toggles
     setupSidebarDropdowns();
@@ -7066,6 +7269,122 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
 
   // Store selected date globally
   let selectedDate = new Date();
+
+  /**
+   * Setup real-time listeners for admin dashboard
+   */
+  function setupRealtimeDashboard() {
+    console.log('[Real-Time Dashboard] 🔄 Setting up listeners...');
+    
+    // Listener 1: Conference room bookings (for weekly reservations)
+    const conferenceQuery = query(
+      collection(db, 'conferenceRoomBookings'),
+      where('status', 'in', ['approved', 'in-progress'])
+    );
+    
+    const conferenceUnsubscribe = onSnapshot(conferenceQuery,
+      (snapshot) => {
+        console.log('[Real-Time Dashboard] 🏛️ Conference bookings updated:', snapshot.size);
+        
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added" && allReservationsData.length > 0) {
+            const data = change.doc.data();
+            console.log('[Real-Time Dashboard]   ➕ New conference booking:', data.purpose || 'Conference');
+          }
+        });
+        
+        // Reload reservations to update calendar
+        loadAllReservationsData().then(() => {
+          renderWeekCalendar();
+          loadReservations();
+        });
+      },
+      (error) => {
+        console.error('[Real-Time Dashboard] ❌ Conference listener error:', error);
+      }
+    );
+    
+    // Listener 2: Tents & chairs bookings (for weekly reservations)
+    const tentsQuery = query(
+      collection(db, 'tentsChairsBookings'),
+      where('status', 'in', ['approved', 'in-progress'])
+    );
+    
+    const tentsUnsubscribe = onSnapshot(tentsQuery,
+      (snapshot) => {
+        console.log('[Real-Time Dashboard] 🎪 Tents bookings updated:', snapshot.size);
+        
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added" && allReservationsData.length > 0) {
+            const data = change.doc.data();
+            console.log('[Real-Time Dashboard]   ➕ New tents booking: Tents:', data.quantityTents, 'Chairs:', data.quantityChairs);
+          }
+        });
+        
+        // Reload reservations and inventory
+        loadAllReservationsData().then(() => {
+          renderWeekCalendar();
+          loadReservations();
+        });
+        loadInventoryCounts();
+      },
+      (error) => {
+        console.error('[Real-Time Dashboard] ❌ Tents listener error:', error);
+      }
+    );
+    
+    // Listener 3: Pending conference requests (for badge count)
+    const pendingConferenceQuery = query(
+      collection(db, 'conferenceRoomBookings'),
+      where('status', '==', 'pending')
+    );
+    
+    const pendingConferenceUnsubscribe = onSnapshot(pendingConferenceQuery,
+      (snapshot) => {
+        const count = snapshot.size;
+        console.log('[Real-Time Dashboard] 📊 Pending conference requests:', count);
+        
+        const badge = document.getElementById('conferenceRoomBadge');
+        if (badge) {
+          badge.textContent = count === 1 ? '1 Pending' : `${count} Pending`;
+          badge.style.backgroundColor = count > 0 ? '#ef4444' : '#9ca3af';
+        }
+      },
+      (error) => {
+        console.error('[Real-Time Dashboard] ❌ Pending conference listener error:', error);
+      }
+    );
+    
+    // Listener 4: Pending tents requests (for badge count)
+    const pendingTentsQuery = query(
+      collection(db, 'tentsChairsBookings'),
+      where('status', '==', 'pending')
+    );
+    
+    const pendingTentsUnsubscribe = onSnapshot(pendingTentsQuery,
+      (snapshot) => {
+        const count = snapshot.size;
+        console.log('[Real-Time Dashboard] 📊 Pending tents requests:', count);
+        
+        const badge = document.getElementById('tentsChairsBadge');
+        if (badge) {
+          badge.textContent = count === 1 ? '1 Pending' : `${count} Pending`;
+          badge.style.backgroundColor = count > 0 ? '#ef4444' : '#9ca3af';
+        }
+      },
+      (error) => {
+        console.error('[Real-Time Dashboard] ❌ Pending tents listener error:', error);
+      }
+    );
+    
+    // Add all listeners to manager
+    realtimeManager.addListener('dashboardConference', conferenceUnsubscribe);
+    realtimeManager.addListener('dashboardTents', tentsUnsubscribe);
+    realtimeManager.addListener('dashboardPendingConference', pendingConferenceUnsubscribe);
+    realtimeManager.addListener('dashboardPendingTents', pendingTentsUnsubscribe);
+    
+    console.log('[Real-Time Dashboard] ✅ All listeners active');
+  }
 
   /**
    * Load all reservations data from Firestore
@@ -9582,7 +9901,74 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   }
 
   /**
-   * Load all tents & chairs requests from Firestore
+   * Setup real-time listener for tents & chairs requests
+   */
+  function setupRealtimeTentsRequests() {
+    console.log('[Real-Time Admin Tents] 🔄 Setting up listener...');
+    
+    const bookingsRef = collection(db, 'tentsChairsBookings');
+    const q = query(bookingsRef, orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(q,
+      (snapshot) => {
+        console.log('[Real-Time Admin Tents] 📦 Requests updated:', snapshot.size);
+        
+        // Check for changes
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added") {
+            // Only show toast for new requests after initial load
+            if (allRequests.length > 0) {
+              const data = change.doc.data();
+              const userName = data.fullName || `${data.firstName} ${data.lastName}`;
+              console.log('[Real-Time Admin Tents]   ➕ New request from:', userName);
+              showToast(`📬 New tents request from ${userName}`, true, 3000);
+            }
+          } else if (change.type === "modified") {
+            console.log('[Real-Time Admin Tents]   ✏️ Request modified:', change.doc.id);
+          } else if (change.type === "removed") {
+            console.log('[Real-Time Admin Tents]   ➖ Request removed:', change.doc.id);
+          }
+        });
+        
+        // Process the snapshot
+        processAdminTentsSnapshot(snapshot);
+      },
+      (error) => {
+        console.error('[Real-Time Admin Tents] ❌ Listener error:', error);
+        showToast('Real-time updates disconnected', false);
+      }
+    );
+    
+    realtimeManager.addListener('adminTentsRequests', unsubscribe);
+    console.log('[Real-Time Admin Tents] ✅ Listener active');
+  }
+  
+  /**
+   * Process tents requests snapshot
+   */
+  function processAdminTentsSnapshot(querySnapshot) {
+    allRequests = [];
+    querySnapshot.forEach((docSnapshot) => {
+      allRequests.push({
+        id: docSnapshot.id,
+        ...docSnapshot.data()
+      });
+    });
+
+    console.log(`[Real-Time Admin Tents] ✅ Processed ${allRequests.length} requests`);
+    
+    // Update status filter counts after data is loaded
+    updateStatusFilterOptions();
+    
+    // Update inventory in use
+    updateInventoryInUse();
+    
+    // Render the content
+    renderContent();
+  }
+
+  /**
+   * Load all tents & chairs requests from Firestore (initial load fallback)
    */
   async function loadAllRequests() {
     console.log('📦 Loading all tents & chairs requests...');
@@ -9591,20 +9977,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       const q = query(bookingsRef, orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
 
-      allRequests = [];
-      querySnapshot.forEach((docSnapshot) => {
-        allRequests.push({
-          id: docSnapshot.id,
-          ...docSnapshot.data()
-        });
-      });
-
-      console.log(`✅ Loaded ${allRequests.length} requests`);
-      
-      // Update status filter counts after data is loaded
-      updateStatusFilterOptions();
-      
-      renderContent();
+      processAdminTentsSnapshot(querySnapshot);
     } catch (error) {
       console.error('❌ Error loading requests:', error);
       showToast('Failed to load requests', false);
@@ -12427,7 +12800,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       await checkAndUpdateEventStatuses(); // Check for status transitions before loading
       console.log('[Admin Tents v2] ✅ Status check complete, loading data...');
       await loadInventoryStats();
-      await loadAllRequests();
+      
+      // Setup real-time listener instead of single load
+      console.log('[Admin Tents v2] 🔄 Setting up REAL-TIME listener...');
+      setupRealtimeTentsRequests();
       
       // Check for highlighting from notification
       const urlParams = new URLSearchParams(window.location.search);
@@ -12905,7 +13281,73 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   // ========================================
 
   /**
-   * Load all conference room requests from Firestore
+   * Setup real-time listener for conference room requests
+   */
+  function setupRealtimeConferenceRequests() {
+    console.log('[Real-Time Admin Conference] 🔄 Setting up listener...');
+    
+    const requestsRef = collection(db, 'conferenceRoomBookings');
+    
+    const unsubscribe = onSnapshot(requestsRef,
+      (snapshot) => {
+        console.log('[Real-Time Admin Conference] 🏛️ Requests updated:', snapshot.size);
+        
+        // Check for changes
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added") {
+            // Only show toast for new requests after initial load
+            if (allRequests.length > 0) {
+              const data = change.doc.data();
+              const userName = data.fullName || `${data.firstName} ${data.lastName}`;
+              console.log('[Real-Time Admin Conference]   ➕ New request from:', userName);
+              showToast(`📬 New conference room request from ${userName}`, true, 3000);
+            }
+          } else if (change.type === "modified") {
+            console.log('[Real-Time Admin Conference]   ✏️ Request modified:', change.doc.id);
+          } else if (change.type === "removed") {
+            console.log('[Real-Time Admin Conference]   ➖ Request removed:', change.doc.id);
+          }
+        });
+        
+        // Process the snapshot
+        processAdminConferenceSnapshot(snapshot);
+      },
+      (error) => {
+        console.error('[Real-Time Admin Conference] ❌ Listener error:', error);
+        showToast('Real-time updates disconnected', false);
+      }
+    );
+    
+    realtimeManager.addListener('adminConferenceRequests', unsubscribe);
+    console.log('[Real-Time Admin Conference] ✅ Listener active');
+  }
+  
+  /**
+   * Process conference requests snapshot
+   */
+  function processAdminConferenceSnapshot(snapshot) {
+    allRequests = [];
+    snapshot.forEach(doc => {
+      allRequests.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+
+    console.log(`[Real-Time Admin Conference] ✅ Processed ${allRequests.length} requests`);
+    
+    // Update UI
+    updateStatistics();
+    
+    // Update status filter counts after data is loaded
+    updateStatusFilterOptions();
+    
+    // Render the content
+    renderContent();
+  }
+
+  /**
+   * Load all conference room requests from Firestore (initial load fallback)
    * Called on page load and after any data changes
    */
   async function loadAllRequests() {
@@ -12914,23 +13356,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       const requestsRef = collection(db, 'conferenceRoomBookings');
       const snapshot = await getDocs(requestsRef);
       
-      allRequests = [];
-      snapshot.forEach(doc => {
-        allRequests.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-
-      console.log(`✅ Loaded ${allRequests.length} conference room requests`);
-      
-      // Update UI
-      updateStatistics();
-      
-      // Update status filter counts after data is loaded
-      updateStatusFilterOptions();
-      
-      renderContent();
+      processAdminConferenceSnapshot(snapshot);
     } catch (error) {
       console.error('❌ Error loading requests:', error);
       showToast('Error loading requests. Please refresh the page.', false);
@@ -15494,8 +15920,8 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   (async () => {
     console.log('[Admin Conference] 🔄 Running status transition check...');
     await checkAndUpdateEventStatuses(); // Check for status transitions before loading
-    console.log('[Admin Conference] ✅ Status check complete, loading requests...');
-    loadAllRequests();
+    console.log('[Admin Conference] ✅ Status check complete, setting up real-time listener...');
+    setupRealtimeConferenceRequests();
   })();
 
   console.log('✅ Conference Room Admin initialized');
