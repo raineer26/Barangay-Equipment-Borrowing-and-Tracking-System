@@ -4799,16 +4799,83 @@ input[type="number"]::-webkit-outer-spin-button {
   top: 0;
   z-index: 1000;
   overflow-y: auto;
+  overflow-x: hidden;
   box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Collapsed sidebar state */
+.admin-sidebar.collapsed {
+  width: 70px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0.15s; /* Delay collapse to prevent flicker */
+}
+
+/* Hover-to-expand: Expand immediately when hovering over collapsed sidebar */
+.admin-sidebar.collapsed:hover {
+  width: 280px;
+  transition-delay: 0s; /* Expand immediately on hover */
+}
+
+/* Sidebar Toggle Button - Positioned at bottom-right for visibility */
+.sidebar-toggle-btn {
+  position: fixed;
+  bottom: 90px; /* Above logout button */
+  left: 265px; /* Right edge of expanded sidebar (280px - 15px for centering) */
+  width: 30px;
+  height: 30px;
+  background: #FFCB05;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, transform 0.2s ease;
+  z-index: 1002; /* Above sidebar */
+  color: #281ABC;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* Move button when sidebar is collapsed - center on right edge of collapsed sidebar */
+body.sidebar-collapsed .sidebar-toggle-btn,
+.admin-sidebar.collapsed ~ * .sidebar-toggle-btn {
+  left: 55px; /* Center on right edge of collapsed sidebar (70px - 15px for centering) */
+}
+
+.sidebar-toggle-btn:hover {
+  background: #ffd633;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-toggle-btn:active {
+  transform: scale(0.95);
 }
 
 .sidebar-header {
   padding: 30px 20px 25px 20px;
   text-align: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
 }
 
 .sidebar-logo {
+  width: 70px;
+  height: 70px;
+  margin-bottom: 12px;
+  transition: all 0.3s ease;
+}
+
+.admin-sidebar.collapsed .sidebar-logo {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 0;
+}
+
+/* Restore logo size on hover when collapsed */
+.admin-sidebar.collapsed:hover .sidebar-logo {
   width: 70px;
   height: 70px;
   margin-bottom: 12px;
@@ -4819,6 +4886,23 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 1rem;
   font-weight: 700;
   margin: 0 0 3px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.2s ease, max-height 0.3s ease;
+  max-height: 50px;
+}
+
+.admin-sidebar.collapsed .sidebar-header h3 {
+  opacity: 0;
+  max-height: 0;
+  margin: 0;
+}
+
+/* Show header text on hover when collapsed */
+.admin-sidebar.collapsed:hover .sidebar-header h3 {
+  opacity: 1;
+  max-height: 50px;
+  margin: 0 0 3px 0;
 }
 
 .sidebar-header p {
@@ -4827,6 +4911,21 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 0;
   opacity: 0.9;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.2s ease, max-height 0.3s ease;
+  max-height: 30px;
+}
+
+.admin-sidebar.collapsed .sidebar-header p {
+  opacity: 0;
+  max-height: 0;
+}
+
+/* Show header subtitle on hover when collapsed */
+.admin-sidebar.collapsed:hover .sidebar-header p {
+  opacity: 0.9;
+  max-height: 30px;
 }
 
 /* Sidebar Navigation */
@@ -4847,6 +4946,44 @@ input[type="number"]::-webkit-outer-spin-button {
   border-left: 4px solid transparent;
   gap: 12px;
   position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Collapsed sidebar - center icons and hide text */
+.admin-sidebar.collapsed .sidebar-link {
+  padding: 15px 0;
+  justify-content: center;
+  gap: 0;
+}
+
+/* Keep link layout expanded on hover */
+.admin-sidebar.collapsed:hover .sidebar-link {
+  padding: 15px 25px;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.admin-sidebar.collapsed .sidebar-link span:not(.dropdown-arrow):not(.admin-notif-badge) {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  transition: opacity 0.2s ease, width 0.3s ease;
+}
+
+/* Show link text on hover when collapsed */
+.admin-sidebar.collapsed:hover .sidebar-link span:not(.dropdown-arrow):not(.admin-notif-badge) {
+  opacity: 1;
+  width: auto;
+}
+
+.admin-sidebar.collapsed .dropdown-arrow {
+  display: none;
+}
+
+/* Show dropdown arrows on hover when collapsed */
+.admin-sidebar.collapsed:hover .dropdown-arrow {
+  display: inline-block;
 }
 
 .sidebar-link:hover {
@@ -4901,7 +5038,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .dropdown-arrow {
   font-size: 0.7rem;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.2s ease;
   margin-left: auto;
 }
 
@@ -4920,6 +5057,16 @@ input[type="number"]::-webkit-outer-spin-button {
   max-height: 200px;
 }
 
+/* Hide dropdown content when sidebar is collapsed */
+.admin-sidebar.collapsed .dropdown-content {
+  max-height: 0 !important;
+}
+
+/* Show dropdown content on hover when collapsed and dropdown is open */
+.admin-sidebar.collapsed:hover .dropdown-content.open {
+  max-height: 200px !important;
+}
+
 .dropdown-link {
   display: block;
   padding: 12px 25px 12px 67px;
@@ -4929,6 +5076,8 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 0.9rem;
   transition: all 0.2s ease;
   border-left: 4px solid transparent;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .dropdown-link:hover {
@@ -4948,6 +5097,11 @@ input[type="number"]::-webkit-outer-spin-button {
 .sidebar-footer {
   padding: 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
+  transition: padding 0.3s ease;
+}
+
+.admin-sidebar.collapsed .sidebar-footer {
+  padding: 15px 10px;
 }
 
 .logout-btn {
@@ -4966,6 +5120,67 @@ input[type="number"]::-webkit-outer-spin-button {
   align-items: center;
   justify-content: center;
   gap: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.admin-sidebar.collapsed .logout-btn {
+  padding: 10px;
+  font-size: 0;
+  gap: 0;
+  background-image: url('Assets/logout.png');
+  background-size: 24px 24px;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 44px;
+}
+
+/* Show only icon when collapsed - hide ::before */
+.admin-sidebar.collapsed .logout-btn::before {
+  content: '';
+  display: none;
+}
+
+/* Show logout text on hover when collapsed */
+.admin-sidebar.collapsed:hover .logout-btn {
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  gap: 10px;
+  background-image: none; /* Remove background icon on hover */
+}
+
+/* Hide icon on hover when collapsed */
+.admin-sidebar.collapsed:hover .logout-btn::before {
+  display: none;
+}
+
+/* Collapsed state for sidebar-logout-btn class variant */
+.admin-sidebar.collapsed .sidebar-logout-btn {
+  padding: 10px;
+  font-size: 0;
+  gap: 0;
+  background-image: url('Assets/logout.png');
+  background-size: 24px 24px;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 44px;
+}
+
+.admin-sidebar.collapsed .sidebar-logout-btn .logout-icon,
+.admin-sidebar.collapsed .sidebar-logout-btn .logout-text {
+  display: none;
+}
+
+.admin-sidebar.collapsed:hover .sidebar-logout-btn {
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  gap: 10px;
+  background-image: none;
+}
+
+.admin-sidebar.collapsed:hover .sidebar-logout-btn .logout-icon,
+.admin-sidebar.collapsed:hover .sidebar-logout-btn .logout-text {
+  display: inline;
 }
 
 .logout-btn:hover {
@@ -5001,6 +5216,13 @@ input[type="number"]::-webkit-outer-spin-button {
   overflow-x: hidden;
   overflow-y: auto; /* Allow vertical scrolling when content overflows */
   max-width: calc(100vw - 280px);
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Adjust main content when sidebar is collapsed */
+.admin-main.sidebar-collapsed {
+  margin-left: 70px;
+  max-width: calc(100vw - 70px);
 }
 
 /* Dashboard Page Specific - Removed non-scrollable restriction */
@@ -11996,10 +12218,22 @@ input[type="number"]::-webkit-outer-spin-button {
   margin-left: auto;
   min-width: 18px;
   text-align: center;
+  transition: all 0.3s ease;
 }
 
 .admin-notif-badge.active {
   display: inline-block;
+}
+
+/* Position notification badge on icon when sidebar is collapsed */
+.admin-sidebar.collapsed .admin-notif-badge {
+  position: absolute;
+  top: 8px;
+  right: 18px;
+  margin-left: 0;
+  padding: 2px 5px;
+  font-size: 0.6rem;
+  min-width: 16px;
 }
 
 .admin-notif-badge.pulse {

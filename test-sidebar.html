@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sidebar Test - No Auth</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="admin-body">
+    <!-- SIDEBAR -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-header">
+        <img src="Assets/BrgyLogo.png" alt="Barangay Logo" class="sidebar-logo" />
+        <h3>BARANGAY MAPULANG LUPA</h3>
+        <p>OFFICIAL SITE</p>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="admin.html" class="sidebar-link">
+          <img src="Assets/dashboard.png" alt="Dashboard Icon" class="nav-icon" />
+          <span>Dashboard</span>
+        </a>
+
+        <div class="sidebar-dropdown">
+          <a href="#" class="sidebar-link dropdown-toggle open">
+            <img src="Assets/review.png" alt="Review Icon" class="nav-icon" />
+            <span>Review Requests</span>
+            <span class="dropdown-arrow">▼</span>
+          </a>
+          <div class="dropdown-content open">
+            <a href="admin-conference-requests.html" class="dropdown-link">Conference Room</a>
+            <a href="admin-tents-requests.html" class="dropdown-link active">Tents & Chairs</a>
+          </div>
+        </div>
+
+        <a href="admin-user-manager.html" class="sidebar-link">
+          <img src="Assets/umicon-black.png" alt="Users Icon" class="nav-icon" />
+          <span>Manage Accounts</span>
+        </a>
+
+        <a href="admin-manage-inventory.html" class="sidebar-link">
+          <img src="Assets/inventory.png" alt="Inventory Icon" class="nav-icon" />
+          <span>Manage Inventory</span>
+        </a>
+
+        <a href="admin-notifications.html" class="sidebar-link">
+          <img src="Assets/notification.png" alt="Notifications Icon" class="nav-icon" />
+          <span>Notifications</span>
+        </a>
+      </nav>
+
+      <button class="sidebar-logout-btn" onclick="alert('Logout test')">
+        <span class="logout-icon">🚪</span>
+        <span class="logout-text">Log Out</span>
+      </button>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="admin-main">
+      <h1>Sidebar Test Page</h1>
+      <p>This page tests the collapsible sidebar without authentication.</p>
+      <div style="padding: 20px; background: white; border-radius: 8px; margin-top: 20px;">
+        <h2>Test Instructions:</h2>
+        <ol>
+          <li><strong>Look for the toggle button</strong> - Should appear as a yellow circle at the bottom-right of the sidebar</li>
+          <li><strong>Click the toggle button</strong> - Sidebar should collapse to 70px width</li>
+          <li><strong>Hover over collapsed sidebar</strong> - Sidebar should expand to 280px on hover</li>
+          <li><strong>Click dropdown when collapsed+hover</strong> - Should be able to access Review Requests dropdown</li>
+          <li><strong>Check localStorage</strong> - Collapsed state should persist on page reload</li>
+        </ol>
+        <p style="margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107;">
+          <strong>Console Logs:</strong> Open DevTools Console to see initialization and toggle logs
+        </p>
+      </div>
+    </main>
+
+    <!-- Minimal JavaScript for sidebar only -->
+    <script type="module">
+      console.log('[Sidebar Test] Page loaded');
+
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('[Sidebar Test] DOM ready, initializing sidebar...');
+
+        const sidebar = document.querySelector('.admin-sidebar');
+        const mainContent = document.querySelector('.admin-main');
+
+        if (!sidebar) {
+          console.error('[Sidebar Test] Sidebar element not found!');
+          return;
+        }
+
+        if (!mainContent) {
+          console.error('[Sidebar Test] Main content element not found!');
+          return;
+        }
+
+        console.log('[Sidebar Test] Found sidebar and main content elements');
+
+        // Create toggle button
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'sidebar-toggle-btn';
+        toggleBtn.innerHTML = '◀'; // Left arrow when expanded
+        toggleBtn.setAttribute('aria-label', 'Collapse sidebar');
+        
+        console.log('[Sidebar Test] Created toggle button:', toggleBtn);
+
+        // Append button to sidebar
+        sidebar.appendChild(toggleBtn);
+        console.log('[Sidebar Test] Appended button to sidebar');
+
+        // Check localStorage for saved state
+        const savedState = localStorage.getItem('sidebarCollapsed');
+        console.log('[Sidebar Test] Saved state from localStorage:', savedState);
+        
+        if (savedState === 'true') {
+          sidebar.classList.add('collapsed');
+          mainContent.classList.add('sidebar-collapsed');
+          document.body.classList.add('sidebar-collapsed');
+          toggleBtn.innerHTML = '▶'; // Right arrow when collapsed
+          console.log('[Sidebar Test] Applied collapsed state from localStorage');
+        }
+
+        // Toggle sidebar function
+        function toggleSidebar() {
+          console.log('[Sidebar Test] Toggle button clicked!');
+          
+          const isCollapsed = sidebar.classList.toggle('collapsed');
+          mainContent.classList.toggle('sidebar-collapsed');
+          document.body.classList.toggle('sidebar-collapsed');
+          
+          // Update button icon
+          toggleBtn.innerHTML = isCollapsed ? '▶' : '◀';
+          
+          // Save state to localStorage
+          localStorage.setItem('sidebarCollapsed', isCollapsed);
+          
+          // Update aria-label for accessibility
+          toggleBtn.setAttribute('aria-label', isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+          
+          console.log(`[Sidebar Test] Sidebar ${isCollapsed ? 'collapsed' : 'expanded'}`);
+          console.log('[Sidebar Test] Body classes:', document.body.classList.toString());
+          console.log('[Sidebar Test] Sidebar classes:', sidebar.classList.toString());
+          console.log('[Sidebar Test] Button position should be:', isCollapsed ? 'left: 40px' : 'left: 250px');
+        }
+
+        // Add click event listener
+        toggleBtn.addEventListener('click', toggleSidebar);
+
+        console.log('[Sidebar Test] ✅ Collapsible sidebar initialized successfully!');
+        console.log('[Sidebar Test] Button element:', toggleBtn);
+        console.log('[Sidebar Test] Button in DOM:', document.contains(toggleBtn));
+      });
+    </script>
+  </body>
+</html>

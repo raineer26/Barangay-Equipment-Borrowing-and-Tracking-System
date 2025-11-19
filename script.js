@@ -135,6 +135,68 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // =============================
+// COLLAPSIBLE SIDEBAR FUNCTIONALITY
+// =============================
+/**
+ * Initialize collapsible sidebar for admin pages
+ * - Adds toggle button to sidebar
+ * - Handles sidebar collapse/expand animation
+ * - Adjusts main content area width
+ * - Persists state in localStorage
+ */
+document.addEventListener('DOMContentLoaded', function() {
+  const sidebar = document.querySelector('.admin-sidebar');
+  const mainContent = document.querySelector('.admin-main');
+  
+  // Only initialize if sidebar exists (admin pages only)
+  if (!sidebar || !mainContent) {
+    return;
+  }
+
+  // Create toggle button
+  const toggleBtn = document.createElement('button');
+  toggleBtn.className = 'sidebar-toggle-btn';
+  toggleBtn.setAttribute('aria-label', 'Toggle sidebar');
+  toggleBtn.setAttribute('title', 'Toggle sidebar');
+  toggleBtn.innerHTML = '◀'; // Left arrow when expanded
+  
+  // Append toggle button to sidebar (will be positioned via CSS fixed positioning)
+  sidebar.appendChild(toggleBtn);
+
+  // Check localStorage for saved state
+  const savedState = localStorage.getItem('sidebarCollapsed');
+  if (savedState === 'true') {
+    sidebar.classList.add('collapsed');
+    mainContent.classList.add('sidebar-collapsed');
+    document.body.classList.add('sidebar-collapsed'); // Add body class for toggle button positioning
+    toggleBtn.innerHTML = '▶'; // Right arrow when collapsed
+  }
+
+  // Toggle sidebar function
+  function toggleSidebar() {
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+    mainContent.classList.toggle('sidebar-collapsed');
+    document.body.classList.toggle('sidebar-collapsed'); // Add body class for toggle button positioning
+    
+    // Update button icon
+    toggleBtn.innerHTML = isCollapsed ? '▶' : '◀';
+    
+    // Save state to localStorage
+    localStorage.setItem('sidebarCollapsed', isCollapsed);
+    
+    // Update aria-label for accessibility
+    toggleBtn.setAttribute('aria-label', isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+    
+    console.log(`[Sidebar Toggle] Sidebar ${isCollapsed ? 'collapsed' : 'expanded'}`);
+  }
+
+  // Add click event listener
+  toggleBtn.addEventListener('click', toggleSidebar);
+
+  console.log('[Sidebar Toggle] Collapsible sidebar initialized');
+});
+
+// =============================
 // 2. Unique Custom Alert Function (no naming conflicts FOR BACKEND)
 // =============================
 function showBookingFormAlert(message, type = "success") {
@@ -9828,9 +9890,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         <table class="tents-requests-table">
           <thead>
             <tr>
+              <th>Status</th>
+              <th>Actions</th>
               <th>Submitted On</th>
-              <th>First Name</th>
-              <th>Last Name</th>
+              <th>Full Name</th>
               <th>Contact Number</th>
               <th>Purpose</th>
               <th>Start Date</th>
@@ -9839,8 +9902,6 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
               <th>Tents</th>
               <th>Delivery Mode</th>
               <th>Address</th>
-              <th>Status</th>
-              <th>Actions</th>
               ${currentTab === 'history' || currentTab === 'archives' ? '<th>Remarks</th>' : ''}
               ${currentTab === 'history' ? '<th>Completed on</th>' : (currentTab === 'archives' ? '<th>Archived on</th>' : ''/* '<th>Notify User</th>' */)}
             </tr>
@@ -9876,9 +9937,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
 
       tableHTML += `
         <tr>
+          <td>${renderStatusBadge(req.status)}</td>
+          <td>${renderActionButtons(req)}</td>
           <td>${submittedDateTime}</td>
-          <td>${sanitizeInput(firstName)}</td>
-          <td>${sanitizeInput(lastName)}</td>
+          <td>${sanitizeInput(firstName + ' ' + lastName)}</td>
           <td>${contactNumber}</td>
           <td>${purpose}</td>
           <td>${startDate}</td>
@@ -9887,8 +9949,6 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           <td>${req.quantityTents || 0}</td>
           <td>${sanitizeInput(req.modeOfReceiving || 'N/A')}</td>
           <td>${sanitizeInput(req.completeAddress || 'N/A')}</td>
-          <td>${renderStatusBadge(req.status)}</td>
-          <td>${renderActionButtons(req)}</td>
           ${currentTab === 'history' || currentTab === 'archives' ? `<td>${renderRemarks(req)}</td>` : ''}
           ${/* currentTab === 'history' ? renderCompletedOn(req) : (currentTab === 'archives' ? renderArchivedOn(req) : renderNotifyButtons(req)) */''}
           ${currentTab === 'history' ? `<td>${renderCompletedOn(req)}</td>` : ''}
@@ -13183,16 +13243,15 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         <table class="tents-requests-table">
           <thead>
             <tr>
+              <th>Status</th>
+              <th>Actions</th>
               <th>Submitted On</th>
-              <th>First Name</th>
-              <th>Last Name</th>
+              <th>Full Name</th>
               <th>Contact Number</th>
               <th>Purpose</th>
               <th>Event Date</th>
               <th>Start Time</th>
               <th>End Time</th>
-              <th>Status</th>
-              <th>Actions</th>
               ${currentTab !== 'all' ? `<th>${notifyOrRemarksHeader}</th>` : ''}
               ${trailingHeader}
             </tr>
@@ -13276,19 +13335,18 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
 
       tableHTML += `
         <tr>
+          <td>${renderStatusBadge(req.status)}</td>
+          <td>${renderActionButtons(req)}</td>
           <td>
             ${submittedDate}<br>
             <span style="font-size: 11px; color: #6b7280; font-style: italic;">${submittedTime}</span>
           </td>
-          <td>${sanitizeInput(firstName)}</td>
-          <td>${sanitizeInput(lastName)}</td>
+          <td>${sanitizeInput(firstName + ' ' + lastName)}</td>
           <td>${sanitizeInput(req.contactNumber || '')}</td>
           <td style="max-width: 250px; overflow-wrap: break-word;">${sanitizeInput(req.purpose || '')}</td>
           <td>${eventDate}</td>
           <td>${startTime}</td>
           <td>${endTime}</td>
-          <td>${renderStatusBadge(req.status)}</td>
-          <td>${renderActionButtons(req)}</td>
           ${/* currentTab === 'all' ? renderNotifyButtons(req) : remarks */ ''}
           ${currentTab !== 'all' ? `<td>${remarks}</td>` : ''}
           ${currentTab !== 'all' ? `<td style="text-align: right;">${completedDate}${completedTime ? `<br><span style="font-size:11px;color:#6b7280;font-style:italic;">${completedTime}</span>` : ''}</td>` : ''}
