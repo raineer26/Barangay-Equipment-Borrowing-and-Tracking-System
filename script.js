@@ -312,8 +312,15 @@ if (hasError) {
 
 
     try {
+      // Split fullName into firstName and lastName for sorting compatibility
+      const nameParts = fullName.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || nameParts[0] || '';
+      
       const docRef = await addDoc(collection(db, "tentsChairsBookings"), {
         fullName,
+        firstName,
+        lastName,
         contactNumber,
         completeAddress,
         modeOfReceiving,
@@ -6842,6 +6849,7 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
       // ✅ NO CONFLICTS - Proceed with submission
       const docRef = await addDoc(collection(db, 'conferenceRoomBookings'), {
         ...formData,
+        fullName: `${formData.firstName} ${formData.lastName}`, // Add combined name for sorting compatibility
         userId: user.uid,
         userEmail: user.email,
         status: 'pending',
@@ -9744,15 +9752,15 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           return bArchivedDate2 - aArchivedDate2;
           
         case 'name-asc':
-          // Last Name (A-Z)
-          const lastNameA = getLastName(a.fullName);
-          const lastNameB = getLastName(b.fullName);
-          return lastNameA.localeCompare(lastNameB);
+          // Last Name (A-Z) - Handle both data formats
+          const lastNameA = a.lastName || getLastName(a.fullName || '');
+          const lastNameB = b.lastName || getLastName(b.fullName || '');
+          return lastNameA.toLowerCase().localeCompare(lastNameB.toLowerCase());
         case 'name-desc':
-          // Last Name (Z-A)
-          const lastNameA2 = getLastName(a.fullName);
-          const lastNameB2 = getLastName(b.fullName);
-          return lastNameB2.localeCompare(lastNameA2);
+          // Last Name (Z-A) - Handle both data formats
+          const lastNameA2 = a.lastName || getLastName(a.fullName || '');
+          const lastNameB2 = b.lastName || getLastName(b.fullName || '');
+          return lastNameB2.toLowerCase().localeCompare(lastNameA2.toLowerCase());
         default:
           return 0;
       }
@@ -13011,13 +13019,14 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
           if (!bHasArchived2) return -1;
           return (a.archivedAt?.toMillis() || 0) - (b.archivedAt?.toMillis() || 0);
         case 'name-asc':
-          // Sort by last name (extract last word from fullName)
-          const aLast = (a.fullName || '').split(' ').pop().toLowerCase();
-          const bLast = (b.fullName || '').split(' ').pop().toLowerCase();
+          // Sort by last name - Handle both data formats
+          const aLast = (a.lastName || (a.fullName || '').split(' ').pop() || '').toLowerCase();
+          const bLast = (b.lastName || (b.fullName || '').split(' ').pop() || '').toLowerCase();
           return aLast.localeCompare(bLast);
         case 'name-desc':
-          const aLastDesc = (a.fullName || '').split(' ').pop().toLowerCase();
-          const bLastDesc = (b.fullName || '').split(' ').pop().toLowerCase();
+          // Sort by last name descending - Handle both data formats
+          const aLastDesc = (a.lastName || (a.fullName || '').split(' ').pop() || '').toLowerCase();
+          const bLastDesc = (b.lastName || (b.fullName || '').split(' ').pop() || '').toLowerCase();
           return bLastDesc.localeCompare(aLastDesc);
         default:
           return 0;
