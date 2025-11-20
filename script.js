@@ -8883,6 +8883,9 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
         <table class="tents-table">
           <thead>
             <tr>
+              <th style="width: 40px;">
+                <input type="checkbox" id="selectAllCheckbox" onchange="window.toggleSelectAll()" style="cursor: pointer;">
+              </th>
               <th>Submitted On</th>
               <th>Name</th>
               <th>Start Date</th>
@@ -8911,6 +8914,9 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
 
       tableHTML += `
         <tr>
+          <td>
+            <input type="checkbox" class="row-checkbox" data-request-id="${req.id}" data-status="${status}" onchange="window.updateBulkActionBar()" style="cursor: pointer;">
+          </td>
           <td>${submittedDate}</td>
           <td>${fullName}</td>
           <td>${startDate}</td>
@@ -8928,6 +8934,20 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
     tableHTML += `
           </tbody>
         </table>
+      </div>
+      <!-- Bulk Action Toolbar -->
+      <div class="tents-bulk-action-bar" id="bulkActionBar" style="display: none;">
+        <div class="bulk-action-info">
+          <span id="selectedCount">0</span> item(s) selected
+        </div>
+        <div class="bulk-action-buttons">
+          <button class="tents-btn tents-btn-approve" id="bulkApproveBtn" onclick="window.bulkApprove()" style="display: none;">Approve Selected</button>
+          <button class="tents-btn tents-btn-deny" id="bulkDenyBtn" onclick="window.bulkDeny()" style="display: none;">Deny Selected</button>
+          <button class="tents-btn tents-btn-complete" id="bulkCompleteBtn" onclick="window.bulkComplete()" style="display: none;">Complete Selected</button>
+          <button class="tents-btn tents-btn-archive" id="bulkArchiveBtn" onclick="window.bulkArchive()" style="display: none;">Archive Selected</button>
+          <button class="tents-btn tents-btn-delete" id="bulkDeleteBtn" onclick="window.bulkDelete()" style="display: none;">Delete Selected</button>
+          <button class="tents-btn tents-btn-secondary" onclick="window.clearSelection()">Clear Selection</button>
+        </div>
       </div>
     `;
 
@@ -9924,6 +9944,308 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
     loadTentsRequests();
     updateStats();
   });
+
+  // ============================================================================
+  // CHECKBOX SELECTION & BULK ACTIONS
+  // ============================================================================
+
+  // Toggle select all checkboxes
+  window.toggleSelectAll = function() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    const isChecked = selectAllCheckbox.checked;
+    
+    rowCheckboxes.forEach(checkbox => {
+      checkbox.checked = isChecked;
+    });
+    
+    updateBulkActionBar();
+  };
+
+  // Update bulk action bar based on selected items
+  window.updateBulkActionBar = function() {
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+    const bulkActionBar = document.getElementById('bulkActionBar');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    
+    if (!bulkActionBar) return;
+    
+    const count = rowCheckboxes.length;
+    selectedCount.textContent = count;
+    
+    // Update select-all checkbox state
+    const allCheckboxes = document.querySelectorAll('.row-checkbox');
+    if (selectAllCheckbox) {
+      selectAllCheckbox.checked = count > 0 && count === allCheckboxes.length;
+      selectAllCheckbox.indeterminate = count > 0 && count < allCheckboxes.length;
+    }
+    
+    if (count > 0) {
+      bulkActionBar.style.display = 'flex';
+      
+      // Show/hide buttons based on selected statuses and current tab
+      const selectedStatuses = Array.from(rowCheckboxes).map(cb => cb.dataset.status);
+      const allPending = selectedStatuses.every(s => s === 'pending');
+      const allApprovedOrInProgress = selectedStatuses.every(s => s === 'approved' || s === 'in-progress');
+      
+      if (currentTab === 'history') {
+        // History tab: show archive/delete
+        document.getElementById('bulkApproveBtn').style.display = 'none';
+        document.getElementById('bulkDenyBtn').style.display = 'none';
+        document.getElementById('bulkCompleteBtn').style.display = 'none';
+        document.getElementById('bulkArchiveBtn').style.display = 'inline-block';
+        document.getElementById('bulkDeleteBtn').style.display = 'inline-block';
+      } else {
+        // Active requests tab
+        document.getElementById('bulkArchiveBtn').style.display = 'none';
+        document.getElementById('bulkDeleteBtn').style.display = 'none';
+        
+        if (allPending) {
+          document.getElementById('bulkApproveBtn').style.display = 'inline-block';
+          document.getElementById('bulkDenyBtn').style.display = 'inline-block';
+          document.getElementById('bulkCompleteBtn').style.display = 'none';
+        } else if (allApprovedOrInProgress) {
+          document.getElementById('bulkApproveBtn').style.display = 'none';
+          document.getElementById('bulkDenyBtn').style.display = 'none';
+          document.getElementById('bulkCompleteBtn').style.display = 'inline-block';
+        } else {
+          // Mixed statuses - hide all action buttons
+          document.getElementById('bulkApproveBtn').style.display = 'none';
+          document.getElementById('bulkDenyBtn').style.display = 'none';
+          document.getElementById('bulkCompleteBtn').style.display = 'none';
+        }
+      }
+    } else {
+      bulkActionBar.style.display = 'none';
+    }
+  };
+
+  // Clear selection
+  window.clearSelection = function() {
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    rowCheckboxes.forEach(checkbox => {
+      checkbox.checked = false;
+    });
+    updateBulkActionBar();
+  };
+
+  // Bulk approve requests
+  window.bulkApprove = async function() {
+    const selected = Array.from(document.querySelectorAll('.row-checkbox:checked'));
+    const requestIds = selected.map(cb => cb.dataset.requestId);
+    
+    if (requestIds.length === 0) return;
+    
+    const confirmed = await showConfirmModal(
+      'Bulk Approve',
+      `Are you sure you want to approve ${requestIds.length} request(s)?<br><br>` +
+      `This will check inventory availability for each request and approve those with sufficient stock.`
+    );
+    
+    if (!confirmed) return;
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const requestId of requestIds) {
+      try {
+        await approveRequest(requestId);
+        successCount++;
+      } catch (error) {
+        console.error('Failed to approve request:', requestId, error);
+        failCount++;
+      }
+    }
+    
+    await showConfirmModal(
+      'Bulk Approve Complete',
+      `Successfully approved: ${successCount}<br>Failed: ${failCount}`,
+      null,
+      true
+    );
+    
+    clearSelection();
+    loadTentsRequests();
+  };
+
+  // Bulk deny requests
+  window.bulkDeny = async function() {
+    const selected = Array.from(document.querySelectorAll('.row-checkbox:checked'));
+    const requestIds = selected.map(cb => cb.dataset.requestId);
+    
+    if (requestIds.length === 0) return;
+    
+    const reason = await showConfirmModal(
+      'Bulk Deny',
+      `Please provide a reason for denying ${requestIds.length} request(s):`,
+      null,
+      false,
+      { placeholder: 'Enter reason for denial...', defaultValue: '', multiline: true }
+    );
+    
+    if (reason === false) return;
+    
+    const reasonText = typeof reason === 'string' && reason.trim() ? reason.trim() : 'No reason provided';
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const requestId of requestIds) {
+      try {
+        const requestRef = doc(db, 'tentsChairsBookings', requestId);
+        await updateDoc(requestRef, {
+          status: 'rejected',
+          rejectedAt: new Date(),
+          rejectionReason: reasonText
+        });
+        successCount++;
+      } catch (error) {
+        console.error('Failed to deny request:', requestId, error);
+        failCount++;
+      }
+    }
+    
+    await showConfirmModal(
+      'Bulk Deny Complete',
+      `Successfully denied: ${successCount}<br>Failed: ${failCount}`,
+      null,
+      true
+    );
+    
+    clearSelection();
+    loadTentsRequests();
+  };
+
+  // Bulk complete requests
+  window.bulkComplete = async function() {
+    const selected = Array.from(document.querySelectorAll('.row-checkbox:checked'));
+    const requestIds = selected.map(cb => cb.dataset.requestId);
+    
+    if (requestIds.length === 0) return;
+    
+    const confirmed = await showConfirmModal(
+      'Bulk Complete',
+      `Are you sure you want to mark ${requestIds.length} request(s) as completed?<br><br>` +
+      `This will return the equipment to available inventory.`
+    );
+    
+    if (!confirmed) return;
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const requestId of requestIds) {
+      try {
+        await completeRequest(requestId);
+        successCount++;
+      } catch (error) {
+        console.error('Failed to complete request:', requestId, error);
+        failCount++;
+      }
+    }
+    
+    await showConfirmModal(
+      'Bulk Complete Complete',
+      `Successfully completed: ${successCount}<br>Failed: ${failCount}`,
+      null,
+      true
+    );
+    
+    clearSelection();
+    loadTentsRequests();
+  };
+
+  // Bulk archive requests
+  window.bulkArchive = async function() {
+    const selected = Array.from(document.querySelectorAll('.row-checkbox:checked'));
+    const requestIds = selected.map(cb => cb.dataset.requestId);
+    
+    if (requestIds.length === 0) return;
+    
+    const confirmed = await showConfirmModal(
+      'Bulk Archive',
+      `Are you sure you want to archive ${requestIds.length} request(s)?`
+    );
+    
+    if (!confirmed) return;
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const requestId of requestIds) {
+      try {
+        await archiveRequest(requestId);
+        successCount++;
+      } catch (error) {
+        console.error('Failed to archive request:', requestId, error);
+        failCount++;
+      }
+    }
+    
+    await showConfirmModal(
+      'Bulk Archive Complete',
+      `Successfully archived: ${successCount}<br>Failed: ${failCount}`,
+      null,
+      true
+    );
+    
+    clearSelection();
+    loadTentsRequests();
+  };
+
+  // Bulk delete requests
+  window.bulkDelete = async function() {
+    const selected = Array.from(document.querySelectorAll('.row-checkbox:checked'));
+    const requestIds = selected.map(cb => cb.dataset.requestId);
+    
+    if (requestIds.length === 0) return;
+    
+    const confirmed = await showConfirmModal(
+      'Bulk Delete',
+      `⚠️ Are you sure you want to PERMANENTLY delete ${requestIds.length} request(s)?<br><br>` +
+      `This action cannot be undone!`
+    );
+    
+    if (!confirmed) return;
+    
+    // Second confirmation for delete
+    const confirmText = await showConfirmModal(
+      'Confirm Deletion',
+      `Please confirm by typing "DELETE":`,
+      null,
+      false,
+      { placeholder: 'Type DELETE to confirm...', defaultValue: '', multiline: false }
+    );
+    
+    if (confirmText === false || confirmText !== 'DELETE') {
+      await showConfirmModal('Error', 'Deletion cancelled. You must type "DELETE" to confirm.', null, true);
+      return;
+    }
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const requestId of requestIds) {
+      try {
+        await deleteRequest(requestId);
+        successCount++;
+      } catch (error) {
+        console.error('Failed to delete request:', requestId, error);
+        failCount++;
+      }
+    }
+    
+    await showConfirmModal(
+      'Bulk Delete Complete',
+      `Successfully deleted: ${successCount}<br>Failed: ${failCount}`,
+      null,
+      true
+    );
+    
+    clearSelection();
+    loadTentsRequests();
+  };
 }
 
 /* ========================================
@@ -10462,6 +10784,9 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         <table class="tents-requests-table">
           <thead>
             <tr>
+              <th style="width: 50px;">
+                <input type="checkbox" id="selectAllCheckbox" onchange="window.toggleSelectAll(this.checked)" style="cursor: pointer;">
+              </th>
               <th>Status</th>
               <th>Actions</th>
               <th>Submitted On</th>
@@ -10509,6 +10834,9 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
 
       tableHTML += `
         <tr>
+          <td>
+            <input type="checkbox" class="row-checkbox" data-request-id="${req.id}" data-status="${req.status}" onchange="window.updateBulkActionBar()" style="cursor: pointer;">
+          </td>
           <td>${renderStatusBadge(req.status)}</td>
           <td>${renderActionButtons(req)}</td>
           <td>${submittedDateTime}</td>
@@ -10532,6 +10860,17 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     tableHTML += `
           </tbody>
         </table>
+      </div>
+      
+      <!-- Bulk Action Toolbar -->
+      <div class="tents-bulk-action-bar" id="bulkActionBar" style="display: none;">
+        <span id="selectedCount">0 selected</span>
+        <button class="tents-bulk-btn tents-bulk-approve" onclick="window.bulkApprove()" id="bulkApproveBtn" style="display: none;">Approve Selected</button>
+        <button class="tents-bulk-btn tents-bulk-deny" onclick="window.bulkDeny()" id="bulkDenyBtn" style="display: none;">Deny Selected</button>
+        <button class="tents-bulk-btn tents-bulk-complete" onclick="window.bulkComplete()" id="bulkCompleteBtn" style="display: none;">Mark Selected as Completed</button>
+        <button class="tents-bulk-btn tents-bulk-archive" onclick="window.bulkArchive()" id="bulkArchiveBtn" style="display: none;">Archive Selected</button>
+        <button class="tents-bulk-btn tents-bulk-unarchive" onclick="window.bulkUnarchive()" id="bulkUnarchiveBtn" style="display: none;">Unarchive Selected</button>
+        <button class="tents-bulk-btn tents-bulk-clear" onclick="window.clearSelection()">Clear Selection</button>
       </div>
     `;
 
@@ -12964,7 +13303,498 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
 
   // Start initialization
   initPage();
-}
+
+  // ========== CHECKBOX SELECTION & BULK ACTIONS ==========
+
+  // Toggle select all checkboxes
+  window.toggleSelectAll = function(checked) {
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(cb => cb.checked = checked);
+    window.updateBulkActionBar();
+  };
+
+  // Update bulk action bar visibility and button states
+  window.updateBulkActionBar = function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    const count = checkboxes.length;
+    const bulkBar = document.getElementById('bulkActionBar');
+    const selectedCountSpan = document.getElementById('selectedCount');
+
+    if (count === 0) {
+      if (bulkBar) bulkBar.style.display = 'none';
+      return;
+    }
+
+    // Show bulk action bar
+    if (bulkBar) {
+      bulkBar.style.display = 'flex';
+      if (selectedCountSpan) selectedCountSpan.textContent = `${count} selected`;
+    }
+
+    // Get statuses of selected requests
+    const statuses = Array.from(checkboxes).map(cb => cb.getAttribute('data-status'));
+    const uniqueStatuses = [...new Set(statuses)];
+    
+    const hasOnlyPending = statuses.every(s => s === 'pending');
+    const hasOnlyApprovedOrInProgress = statuses.every(s => s === 'approved' || s === 'in-progress');
+    const hasOnlyHistory = statuses.every(s => ['completed', 'rejected', 'cancelled'].includes(s));
+    
+    // Check for mixed incompatible statuses
+    const hasPending = statuses.includes('pending');
+    const hasApprovedOrInProgress = statuses.some(s => s === 'approved' || s === 'in-progress');
+    const hasHistory = statuses.some(s => ['completed', 'rejected', 'cancelled'].includes(s));
+    const hasMixedStatuses = (hasPending && (hasApprovedOrInProgress || hasHistory)) ||
+                             (hasApprovedOrInProgress && (hasPending || hasHistory)) ||
+                             (hasHistory && (hasPending || hasApprovedOrInProgress));
+
+    // Get current tab from the tents admin page
+    const tentsTabs = document.querySelectorAll('.tents-tabs .tents-tab');
+    let currentTentsTab = 'all';
+    tentsTabs.forEach(tab => {
+      if (tab.classList.contains('active')) {
+        const tabText = tab.textContent.toLowerCase();
+        if (tabText.includes('history')) {
+          currentTentsTab = 'history';
+        } else if (tabText.includes('archive')) {
+          currentTentsTab = 'archives';
+        } else {
+          currentTentsTab = 'all';
+        }
+      }
+    });
+
+    // Show/hide buttons based on current tab and selected statuses
+    const approveBtn = document.getElementById('bulkApproveBtn');
+    const denyBtn = document.getElementById('bulkDenyBtn');
+    const completeBtn = document.getElementById('bulkCompleteBtn');
+    const archiveBtn = document.getElementById('bulkArchiveBtn');
+    const unarchiveBtn = document.getElementById('bulkUnarchiveBtn');
+
+    if (currentTentsTab === 'all') {
+      // All Requests tab - only show action buttons if compatible statuses
+      if (hasMixedStatuses) {
+        // Mixed incompatible statuses - only Clear Selection available
+        if (approveBtn) approveBtn.style.display = 'none';
+        if (denyBtn) denyBtn.style.display = 'none';
+        if (completeBtn) completeBtn.style.display = 'none';
+      } else {
+        // Show appropriate buttons based on status
+        if (approveBtn) approveBtn.style.display = hasOnlyPending ? 'inline-block' : 'none';
+        if (denyBtn) denyBtn.style.display = hasOnlyPending ? 'inline-block' : 'none';
+        if (completeBtn) completeBtn.style.display = hasOnlyApprovedOrInProgress ? 'inline-block' : 'none';
+      }
+      if (archiveBtn) archiveBtn.style.display = 'none';
+      if (unarchiveBtn) unarchiveBtn.style.display = 'none';
+    } else if (currentTentsTab === 'history') {
+      // History tab - only Archive Selected
+      if (approveBtn) approveBtn.style.display = 'none';
+      if (denyBtn) denyBtn.style.display = 'none';
+      if (completeBtn) completeBtn.style.display = 'none';
+      if (archiveBtn) archiveBtn.style.display = 'inline-block';
+      if (unarchiveBtn) unarchiveBtn.style.display = 'none';
+    } else if (currentTentsTab === 'archives') {
+      // Archives tab - only Unarchive Selected
+      if (approveBtn) approveBtn.style.display = 'none';
+      if (denyBtn) denyBtn.style.display = 'none';
+      if (completeBtn) completeBtn.style.display = 'none';
+      if (archiveBtn) archiveBtn.style.display = 'none';
+      if (unarchiveBtn) unarchiveBtn.style.display = 'inline-block';
+    }
+  };
+
+  // Clear all selections
+  window.clearSelection = function() {
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
+    const selectAll = document.getElementById('selectAllCheckbox');
+    if (selectAll) selectAll.checked = false;
+    window.updateBulkActionBar();
+  };
+
+  // Bulk approve selected requests
+  window.bulkApprove = async function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    const requestIds = Array.from(checkboxes).map(cb => cb.getAttribute('data-request-id'));
+
+    if (requestIds.length === 0) return;
+
+    // Get the actual request objects from allRequests
+    const requestsToApprove = requestIds.map(id => allRequests.find(r => r.id === id)).filter(r => r);
+
+    if (requestsToApprove.length === 0) {
+      showToast('No valid requests found', false);
+      return;
+    }
+
+    // VALIDATION: Check total inventory needed
+    const inventoryRef = doc(db, 'inventory', 'equipment');
+    const inventorySnap = await getDoc(inventoryRef);
+    
+    let currentTents = 0;
+    let currentChairs = 0;
+    
+    if (inventorySnap.exists()) {
+      const inventoryData = inventorySnap.data();
+      currentTents = inventoryData.availableTents || 0;
+      currentChairs = inventoryData.availableChairs || 0;
+    }
+
+    // Calculate total needed
+    let totalTentsNeeded = 0;
+    let totalChairsNeeded = 0;
+    
+    requestsToApprove.forEach(req => {
+      totalTentsNeeded += parseInt(req.quantityTents) || 0;
+      totalChairsNeeded += parseInt(req.quantityChairs) || 0;
+    });
+
+    const newTents = currentTents - totalTentsNeeded;
+    const newChairs = currentChairs - totalChairsNeeded;
+
+    // Block if insufficient inventory
+    if (newTents < 0 || newChairs < 0) {
+      let errorMessage = 'Cannot approve: Insufficient inventory for all selected requests.\n\n';
+      errorMessage += `Total requests: ${requestsToApprove.length}\n\n`;
+      
+      if (newTents < 0) {
+        errorMessage += `Tents: Need ${totalTentsNeeded}, but only ${currentTents} available (shortage: ${Math.abs(newTents)})\n`;
+      }
+      
+      if (newChairs < 0) {
+        errorMessage += `Chairs: Need ${totalChairsNeeded}, but only ${currentChairs} available (shortage: ${Math.abs(newChairs)})`;
+      }
+      
+      await showConfirmModal('Insufficient Inventory', errorMessage.trim(), null, true);
+      return;
+    }
+
+    // Show confirmation with inventory preview
+    const confirmed = await showConfirmModal(
+      'Bulk Approve',
+      `Approve ${requestsToApprove.length} request(s)? Inventory will be updated.`,
+      {
+        tents: totalTentsNeeded > 0 ? { old: currentTents, new: newTents } : null,
+        chairs: totalChairsNeeded > 0 ? { old: currentChairs, new: newChairs } : null
+      }
+    );
+    if (!confirmed) return;
+
+    try {
+      console.log(`✅ Bulk approving ${requestsToApprove.length} requests...`);
+
+      let successCount = 0;
+      let failCount = 0;
+
+      // Process each request
+      for (const request of requestsToApprove) {
+        try {
+          const requestRef = doc(db, 'tentsChairsBookings', request.id);
+          await updateDoc(requestRef, {
+            status: 'approved',
+            approvedAt: new Date()
+          });
+
+          // Create notification for user
+          try {
+            await createStatusChangeNotification(
+              request.id,
+              'tents-chairs',
+              request.userId,
+              'pending',
+              'approved',
+              request
+            );
+            console.log(`✅ Notification sent to user: ${request.userId}`);
+          } catch (notifError) {
+            console.error('❌ Notification failed for:', request.id, notifError);
+            // Don't block approval if notification fails
+          }
+
+          successCount++;
+        } catch (error) {
+          console.error(`❌ Failed to approve request ${request.id}:`, error);
+          failCount++;
+        }
+      }
+
+      console.log(`✅ Bulk approval complete: ${successCount} succeeded, ${failCount} failed`);
+      window.clearSelection();
+      
+      // Reload data using correct function
+      await loadAllRequests();
+      await updateInventoryInUse();
+      
+      if (failCount === 0) {
+        showToast(`${successCount} request(s) approved successfully!`, true);
+      } else {
+        showToast(`Approved ${successCount}/${requestsToApprove.length} requests. ${failCount} failed.`, false);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error in bulk approval:', error);
+      showToast('Failed to approve requests. Please try again.', false);
+    }
+  };
+
+  // Bulk deny selected requests
+  window.bulkDeny = async function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    const requestIds = Array.from(checkboxes).map(cb => cb.getAttribute('data-request-id'));
+
+    if (requestIds.length === 0) return;
+
+    // Get the actual request objects
+    const requestsToDeny = requestIds.map(id => allRequests.find(r => r.id === id)).filter(r => r);
+
+    if (requestsToDeny.length === 0) {
+      showToast('No valid requests found', false);
+      return;
+    }
+
+    const reasonInput = await showConfirmModal(
+      'Bulk Deny',
+      `Deny ${requestsToDeny.length} request(s)? Please provide a reason (optional):`,
+      null,
+      false,
+      { placeholder: 'Enter reason (optional)...', defaultValue: '', multiline: true }
+    );
+    if (reasonInput === false) return;
+
+    const reason = typeof reasonInput === 'string' ? reasonInput : 'No reason provided';
+
+    try {
+      console.log(`❌ Bulk denying ${requestsToDeny.length} requests...`);
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const request of requestsToDeny) {
+        try {
+          const requestRef = doc(db, 'tentsChairsBookings', request.id);
+          await updateDoc(requestRef, {
+            status: 'rejected',
+            rejectedAt: new Date(),
+            rejectionReason: reason
+          });
+
+          // Create notification for user
+          try {
+            await createStatusChangeNotification(
+              request.id,
+              'tents-chairs',
+              request.userId,
+              request.status || 'pending',
+              'rejected',
+              request
+            );
+            console.log(`✅ Notification sent to user: ${request.userId}`);
+          } catch (notifError) {
+            console.error('❌ Notification failed for:', request.id, notifError);
+          }
+
+          successCount++;
+        } catch (error) {
+          console.error(`❌ Failed to deny request ${request.id}:`, error);
+          failCount++;
+        }
+      }
+
+      console.log(`✅ Bulk denial complete: ${successCount} succeeded, ${failCount} failed`);
+      window.clearSelection();
+      
+      // Reload data using correct function
+      await loadAllRequests();
+      
+      if (failCount === 0) {
+        showToast(`${successCount} request(s) denied successfully!`, true);
+      } else {
+        showToast(`Denied ${successCount}/${requestsToDeny.length} requests. ${failCount} failed.`, false);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error in bulk denial:', error);
+      showToast('Failed to deny requests. Please try again.', false);
+    }
+  };
+
+  // Bulk complete selected requests
+  window.bulkComplete = async function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    const requestIds = Array.from(checkboxes).map(cb => cb.getAttribute('data-request-id'));
+
+    if (requestIds.length === 0) return;
+
+    // Get the actual request objects
+    const requestsToComplete = requestIds.map(id => allRequests.find(r => r.id === id)).filter(r => r);
+
+    if (requestsToComplete.length === 0) {
+      showToast('No valid requests found', false);
+      return;
+    }
+
+    const confirmed = await showConfirmModal(
+      'Bulk Complete',
+      `Mark ${requestsToComplete.length} request(s) as completed?`
+    );
+    if (!confirmed) return;
+
+    try {
+      console.log(`✓ Bulk completing ${requestsToComplete.length} requests...`);
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const request of requestsToComplete) {
+        try {
+          const requestRef = doc(db, 'tentsChairsBookings', request.id);
+          await updateDoc(requestRef, {
+            status: 'completed',
+            completedAt: new Date()
+          });
+
+          // Create notification for user
+          try {
+            await createStatusChangeNotification(
+              request.id,
+              'tents-chairs',
+              request.userId,
+              request.status || 'approved',
+              'completed',
+              request
+            );
+            console.log(`✅ Notification sent to user: ${request.userId}`);
+          } catch (notifError) {
+            console.error('❌ Notification failed for:', request.id, notifError);
+          }
+
+          successCount++;
+        } catch (error) {
+          console.error(`❌ Failed to complete request ${request.id}:`, error);
+          failCount++;
+        }
+      }
+
+      console.log(`✅ Bulk completion done: ${successCount} succeeded, ${failCount} failed`);
+      window.clearSelection();
+      
+      // Reload data and update inventory using correct functions
+      await loadAllRequests();
+      await updateInventoryInUse();
+      
+      if (failCount === 0) {
+        showToast(`${successCount} request(s) marked as completed!`, true);
+      } else {
+        showToast(`Completed ${successCount}/${requestsToComplete.length} requests. ${failCount} failed.`, false);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error in bulk completion:', error);
+      showToast('Failed to complete requests. Please try again.', false);
+    }
+  };
+
+  // Bulk archive selected requests
+  window.bulkArchive = async function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    const requestIds = Array.from(checkboxes).map(cb => cb.getAttribute('data-request-id'));
+
+    if (requestIds.length === 0) return;
+
+    const confirmed = await showConfirmModal(
+      'Bulk Archive',
+      `Archive ${requestIds.length} request(s)?`
+    );
+    if (!confirmed) return;
+
+    try {
+      console.log(`📦 Bulk archiving ${requestIds.length} requests...`);
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const id of requestIds) {
+        try {
+          const requestRef = doc(db, 'tentsChairsBookings', id);
+          await updateDoc(requestRef, {
+            archived: true,
+            archivedAt: new Date().toISOString()
+          });
+          successCount++;
+        } catch (error) {
+          console.error(`❌ Failed to archive request ${id}:`, error);
+          failCount++;
+        }
+      }
+
+      console.log(`✅ Bulk archive complete: ${successCount} succeeded, ${failCount} failed`);
+      window.clearSelection();
+      
+      // Reload data using correct function
+      await loadAllRequests();
+      
+      if (failCount === 0) {
+        showToast(`${successCount} request(s) archived successfully!`, true);
+      } else {
+        showToast(`Archived ${successCount}/${requestIds.length} requests. ${failCount} failed.`, false);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error in bulk archive:', error);
+      showToast('Failed to archive requests. Please try again.', false);
+    }
+  };
+
+  // Bulk unarchive selected requests
+  window.bulkUnarchive = async function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    const requestIds = Array.from(checkboxes).map(cb => cb.getAttribute('data-request-id'));
+
+    if (requestIds.length === 0) return;
+
+    const confirmed = await showConfirmModal(
+      'Bulk Unarchive',
+      `Unarchive ${requestIds.length} request(s)? They will be moved back to History.`
+    );
+    if (!confirmed) return;
+
+    try {
+      console.log(`📤 Bulk unarchiving ${requestIds.length} requests...`);
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const id of requestIds) {
+        try {
+          const requestRef = doc(db, 'tentsChairsBookings', id);
+          await updateDoc(requestRef, {
+            archived: false,
+            unarchivedAt: new Date()
+          });
+          successCount++;
+        } catch (error) {
+          console.error(`❌ Failed to unarchive request ${id}:`, error);
+          failCount++;
+        }
+      }
+
+      console.log(`✅ Bulk unarchive complete: ${successCount} succeeded, ${failCount} failed`);
+      window.clearSelection();
+      
+      // Reload data using correct function
+      await loadAllRequests();
+      
+      if (failCount === 0) {
+        showToast(`${successCount} request(s) unarchived successfully!`, true);
+      } else {
+        showToast(`Unarchived ${successCount}/${requestIds.length} requests. ${failCount} failed.`, false);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error in bulk unarchive:', error);
+      showToast('Failed to unarchive requests. Please try again.', false);
+    }
+  };
+
+} // END: Tents & Chairs Admin Page
 
 /* =====================================================
    GLOBAL MODAL CONFIRMATION HANDLER - REMOVED
@@ -13904,6 +14734,9 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         <table class="tents-requests-table">
           <thead>
             <tr>
+              <th style="width: 40px;">
+                <input type="checkbox" id="selectAllCheckboxConference" onchange="window.toggleSelectAllConference(this.checked)" style="cursor: pointer;">
+              </th>
               <th>Status</th>
               <th>Actions</th>
               <th>Submitted On</th>
@@ -13996,6 +14829,9 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
 
       tableHTML += `
         <tr>
+          <td>
+            <input type="checkbox" class="row-checkbox-conference" data-request-id="${req.id}" data-status="${req.status}" onchange="window.updateBulkActionBarConference()" style="cursor: pointer;">
+          </td>
           <td>${renderStatusBadge(req.status)}</td>
           <td>${renderActionButtons(req)}</td>
           <td>
@@ -14018,6 +14854,17 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     tableHTML += `
           </tbody>
         </table>
+      </div>
+      
+      <!-- Bulk Action Toolbar -->
+      <div class="tents-bulk-action-bar" id="bulkActionBarConference" style="display: none;">
+        <span id="selectedCountConference">0 selected</span>
+        <button class="tents-bulk-btn tents-bulk-approve" onclick="window.bulkApproveConference()" id="bulkApproveBtnConference" style="display: none;">Approve Selected</button>
+        <button class="tents-bulk-btn tents-bulk-deny" onclick="window.bulkDenyConference()" id="bulkDenyBtnConference" style="display: none;">Deny Selected</button>
+        <button class="tents-bulk-btn tents-bulk-complete" onclick="window.bulkCompleteConference()" id="bulkCompleteBtnConference" style="display: none;">Mark Selected as Completed</button>
+        <button class="tents-bulk-btn tents-bulk-archive" onclick="window.bulkArchiveConference()" id="bulkArchiveBtnConference" style="display: none;">Archive Selected</button>
+        <button class="tents-bulk-btn tents-bulk-unarchive" onclick="window.bulkUnarchiveConference()" id="bulkUnarchiveBtnConference" style="display: none;">Unarchive Selected</button>
+        <button class="tents-bulk-btn tents-bulk-clear" onclick="window.clearSelectionConference()">Clear Selection</button>
       </div>
     `;
 
@@ -16107,6 +16954,569 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   })();
 
   console.log('✅ Conference Room Admin initialized');
+
+  // ========================================
+  // BULK ACTION FUNCTIONS FOR CONFERENCE ROOM
+  // ========================================
+
+  /**
+   * Toggle select all checkboxes for conference room
+   */
+  window.toggleSelectAllConference = function(checked) {
+    const checkboxes = document.querySelectorAll('.row-checkbox-conference');
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = checked;
+    });
+    window.updateBulkActionBarConference();
+  };
+
+  /**
+   * Update bulk action bar visibility and button states for conference room
+   */
+  window.updateBulkActionBarConference = function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox-conference:checked');
+    const bulkBar = document.getElementById('bulkActionBarConference');
+    const selectedCount = document.getElementById('selectedCountConference');
+    const selectAllCheckbox = document.getElementById('selectAllCheckboxConference');
+    
+    const count = checkboxes.length;
+    
+    if (count > 0) {
+      bulkBar.style.display = 'flex';
+      selectedCount.textContent = `${count} selected`;
+      
+      // Determine which statuses are selected
+      const statuses = Array.from(checkboxes).map(cb => cb.dataset.status);
+      const uniqueStatuses = [...new Set(statuses)];
+      
+      const hasPending = statuses.includes('pending');
+      const hasApprovedOrInProgress = statuses.some(s => s === 'approved' || s === 'in-progress');
+      const hasHistory = statuses.some(s => ['completed', 'rejected', 'cancelled'].includes(s));
+      
+      // Check for mixed incompatible statuses
+      const hasMixedStatuses = (hasPending && (hasApprovedOrInProgress || hasHistory)) ||
+                               (hasApprovedOrInProgress && (hasPending || hasHistory)) ||
+                               (hasHistory && (hasPending || hasApprovedOrInProgress));
+      
+      // Show/hide buttons based on tab and statuses
+      const approveBtnConference = document.getElementById('bulkApproveBtnConference');
+      const denyBtnConference = document.getElementById('bulkDenyBtnConference');
+      const completeBtnConference = document.getElementById('bulkCompleteBtnConference');
+      const archiveBtnConference = document.getElementById('bulkArchiveBtnConference');
+      const unarchiveBtnConference = document.getElementById('bulkUnarchiveBtnConference');
+      
+      if (currentTab === 'all') {
+        // All Requests tab
+        if (hasMixedStatuses) {
+          // Mixed incompatible statuses - only Clear Selection available
+          if (approveBtnConference) approveBtnConference.style.display = 'none';
+          if (denyBtnConference) denyBtnConference.style.display = 'none';
+          if (completeBtnConference) completeBtnConference.style.display = 'none';
+        } else {
+          // Show appropriate buttons based on status
+          if (approveBtnConference) approveBtnConference.style.display = hasPending ? 'block' : 'none';
+          if (denyBtnConference) denyBtnConference.style.display = hasPending ? 'block' : 'none';
+          if (completeBtnConference) completeBtnConference.style.display = hasApprovedOrInProgress ? 'block' : 'none';
+        }
+        if (archiveBtnConference) archiveBtnConference.style.display = 'none';
+        if (unarchiveBtnConference) unarchiveBtnConference.style.display = 'none';
+      } else if (currentTab === 'history') {
+        // History tab - only Archive Selected
+        if (approveBtnConference) approveBtnConference.style.display = 'none';
+        if (denyBtnConference) denyBtnConference.style.display = 'none';
+        if (completeBtnConference) completeBtnConference.style.display = 'none';
+        if (archiveBtnConference) archiveBtnConference.style.display = 'block';
+        if (unarchiveBtnConference) unarchiveBtnConference.style.display = 'none';
+      } else if (currentTab === 'archives') {
+        // Archives tab - only Unarchive Selected
+        if (approveBtnConference) approveBtnConference.style.display = 'none';
+        if (denyBtnConference) denyBtnConference.style.display = 'none';
+        if (completeBtnConference) completeBtnConference.style.display = 'none';
+        if (archiveBtnConference) archiveBtnConference.style.display = 'none';
+        if (unarchiveBtnConference) unarchiveBtnConference.style.display = 'block';
+      }
+    } else {
+      bulkBar.style.display = 'none';
+    }
+    
+    // Update select-all checkbox state
+    if (selectAllCheckbox) {
+      const allCheckboxes = document.querySelectorAll('.row-checkbox-conference');
+      selectAllCheckbox.checked = allCheckboxes.length > 0 && count === allCheckboxes.length;
+      selectAllCheckbox.indeterminate = count > 0 && count < allCheckboxes.length;
+    }
+  };
+
+  /**
+   * Clear all selections for conference room
+   */
+  window.clearSelectionConference = function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox-conference');
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = false;
+    });
+    const selectAllCheckbox = document.getElementById('selectAllCheckboxConference');
+    if (selectAllCheckbox) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+    }
+    window.updateBulkActionBarConference();
+  };
+
+  /**
+   * Bulk approve selected conference room requests
+   */
+  window.bulkApproveConference = async function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox-conference:checked');
+    const pendingCheckboxes = Array.from(checkboxes).filter(cb => cb.dataset.status === 'pending');
+    
+    if (pendingCheckboxes.length === 0) {
+      await showConfirmModal('No Pending Requests', 'Please select pending requests to approve.', null, true);
+      return;
+    }
+    
+    const confirmed = await showConfirmModal(
+      'Confirm Bulk Approve',
+      `Are you sure you want to approve ${pendingCheckboxes.length} conference room request(s)?`,
+      null,
+      false
+    );
+    
+    if (!confirmed) return;
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Process each request
+    for (const checkbox of pendingCheckboxes) {
+      const requestId = checkbox.dataset.requestId;
+      
+      try {
+        const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+        const requestSnap = await getDoc(requestRef);
+        
+        if (!requestSnap.exists()) {
+          console.error(`Request ${requestId} not found`);
+          failCount++;
+          continue;
+        }
+        
+        const requestData = requestSnap.data();
+        
+        // Check for time overlaps with existing approved/in-progress bookings
+        const eventDate = requestData.eventDate;
+        const startTime = requestData.startTime;
+        const endTime = requestData.endTime;
+        
+        // Query for overlapping bookings
+        const bookingsRef = collection(db, 'conferenceRoomBookings');
+        const q = query(
+          bookingsRef,
+          where('eventDate', '==', eventDate),
+          where('status', 'in', ['approved', 'in-progress'])
+        );
+        
+        const querySnapshot = await getDocs(q);
+        let hasOverlap = false;
+        
+        querySnapshot.forEach((doc) => {
+          if (doc.id !== requestId) {
+            const existingBooking = doc.data();
+            // Check if times overlap
+            if (timeRangesOverlap(startTime, endTime, existingBooking.startTime, existingBooking.endTime)) {
+              hasOverlap = true;
+            }
+          }
+        });
+        
+        if (hasOverlap) {
+          console.error(`Request ${requestId} has time overlap with existing booking`);
+          failCount++;
+          continue;
+        }
+        
+        // Update request to approved
+        await updateDoc(requestRef, {
+          status: 'approved',
+          approvedAt: new Date()
+        });
+        
+        // Create notification for user
+        if (requestData.userId) {
+          await createStatusChangeNotification(
+            requestData.userId,
+            'conference-room',
+            requestId,
+            'pending',
+            'approved'
+          );
+        }
+        
+        successCount++;
+        console.log(`✅ Approved conference request ${requestId}`);
+        
+      } catch (error) {
+        console.error(`Error approving request ${requestId}:`, error);
+        failCount++;
+      }
+    }
+    
+    // Show results
+    let message = '';
+    if (successCount > 0) {
+      message += `Successfully approved ${successCount} request(s).`;
+    }
+    if (failCount > 0) {
+      if (message) message += '\n';
+      message += `Failed to approve ${failCount} request(s) (may have time conflicts).`;
+    }
+    
+    await showConfirmModal(
+      'Bulk Approve Complete',
+      message,
+      null,
+      true
+    );
+    
+    // Reload data
+    await loadAllConferenceRequests();
+    window.clearSelectionConference();
+  };
+
+  /**
+   * Bulk deny selected conference room requests
+   */
+  window.bulkDenyConference = async function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox-conference:checked');
+    const pendingCheckboxes = Array.from(checkboxes).filter(cb => cb.dataset.status === 'pending');
+    
+    if (pendingCheckboxes.length === 0) {
+      await showConfirmModal('No Pending Requests', 'Please select pending requests to deny.', null, true);
+      return;
+    }
+    
+    const confirmed = await showConfirmModal(
+      'Confirm Bulk Deny',
+      `Are you sure you want to deny ${pendingCheckboxes.length} conference room request(s)?`,
+      null,
+      false
+    );
+    
+    if (!confirmed) return;
+    
+    // Ask for rejection reason
+    const reason = prompt('Please provide a reason for rejection (will be sent to all selected users):');
+    if (!reason || reason.trim() === '') {
+      await showConfirmModal('Rejection Cancelled', 'Rejection reason is required.', null, true);
+      return;
+    }
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Process each request
+    for (const checkbox of pendingCheckboxes) {
+      const requestId = checkbox.dataset.requestId;
+      
+      try {
+        const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+        const requestSnap = await getDoc(requestRef);
+        
+        if (!requestSnap.exists()) {
+          console.error(`Request ${requestId} not found`);
+          failCount++;
+          continue;
+        }
+        
+        const requestData = requestSnap.data();
+        
+        // Update request to rejected
+        await updateDoc(requestRef, {
+          status: 'rejected',
+          rejectedAt: new Date(),
+          rejectionReason: reason.trim()
+        });
+        
+        // Create notification for user
+        if (requestData.userId) {
+          await createStatusChangeNotification(
+            requestData.userId,
+            'conference-room',
+            requestId,
+            'pending',
+            'rejected',
+            reason.trim()
+          );
+        }
+        
+        successCount++;
+        console.log(`✅ Rejected conference request ${requestId}`);
+        
+      } catch (error) {
+        console.error(`Error rejecting request ${requestId}:`, error);
+        failCount++;
+      }
+    }
+    
+    // Show results
+    let message = '';
+    if (successCount > 0) {
+      message += `Successfully denied ${successCount} request(s).`;
+    }
+    if (failCount > 0) {
+      if (message) message += '\n';
+      message += `Failed to deny ${failCount} request(s).`;
+    }
+    
+    await showConfirmModal(
+      'Bulk Deny Complete',
+      message,
+      null,
+      true
+    );
+    
+    // Reload data
+    await loadAllConferenceRequests();
+    window.clearSelectionConference();
+  };
+
+  /**
+   * Bulk complete selected conference room requests
+   */
+  window.bulkCompleteConference = async function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox-conference:checked');
+    const approvedCheckboxes = Array.from(checkboxes).filter(cb => 
+      cb.dataset.status === 'approved' || cb.dataset.status === 'in-progress'
+    );
+    
+    if (approvedCheckboxes.length === 0) {
+      await showConfirmModal('No Approved Requests', 'Please select approved or in-progress requests to complete.', null, true);
+      return;
+    }
+    
+    const confirmed = await showConfirmModal(
+      'Confirm Bulk Complete',
+      `Are you sure you want to mark ${approvedCheckboxes.length} conference room request(s) as completed?`,
+      null,
+      false
+    );
+    
+    if (!confirmed) return;
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Process each request
+    for (const checkbox of approvedCheckboxes) {
+      const requestId = checkbox.dataset.requestId;
+      
+      try {
+        const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+        const requestSnap = await getDoc(requestRef);
+        
+        if (!requestSnap.exists()) {
+          console.error(`Request ${requestId} not found`);
+          failCount++;
+          continue;
+        }
+        
+        const requestData = requestSnap.data();
+        
+        // Update request to completed
+        await updateDoc(requestRef, {
+          status: 'completed',
+          completedAt: new Date()
+        });
+        
+        // Create notification for user
+        if (requestData.userId) {
+          await createStatusChangeNotification(
+            requestData.userId,
+            'conference-room',
+            requestId,
+            requestData.status,
+            'completed'
+          );
+        }
+        
+        successCount++;
+        console.log(`✅ Completed conference request ${requestId}`);
+        
+      } catch (error) {
+        console.error(`Error completing request ${requestId}:`, error);
+        failCount++;
+      }
+    }
+    
+    // Show results
+    let message = '';
+    if (successCount > 0) {
+      message += `Successfully completed ${successCount} request(s).`;
+    }
+    if (failCount > 0) {
+      if (message) message += '\n';
+      message += `Failed to complete ${failCount} request(s).`;
+    }
+    
+    await showConfirmModal(
+      'Bulk Complete Complete',
+      message,
+      null,
+      true
+    );
+    
+    // Reload data
+    await loadAllConferenceRequests();
+    window.clearSelectionConference();
+  };
+
+  /**
+   * Bulk archive selected conference room requests
+   */
+  window.bulkArchiveConference = async function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox-conference:checked');
+    
+    if (checkboxes.length === 0) {
+      await showConfirmModal('No Requests Selected', 'Please select requests to archive.', null, true);
+      return;
+    }
+    
+    const confirmed = await showConfirmModal(
+      'Confirm Bulk Archive',
+      `Are you sure you want to archive ${checkboxes.length} conference room request(s)?\nArchived requests can be restored later.`,
+      null,
+      false
+    );
+    
+    if (!confirmed) return;
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Process each request
+    for (const checkbox of checkboxes) {
+      const requestId = checkbox.dataset.requestId;
+      
+      try {
+        const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+        const requestSnap = await getDoc(requestRef);
+        
+        if (!requestSnap.exists()) {
+          console.error(`Request ${requestId} not found`);
+          failCount++;
+          continue;
+        }
+        
+        // Update request to archived
+        await updateDoc(requestRef, {
+          archived: true,
+          archivedAt: new Date()
+        });
+        
+        successCount++;
+        console.log(`✅ Archived conference request ${requestId}`);
+        
+      } catch (error) {
+        console.error(`Error archiving request ${requestId}:`, error);
+        failCount++;
+      }
+    }
+    
+    // Show results
+    let message = '';
+    if (successCount > 0) {
+      message += `Successfully archived ${successCount} request(s).`;
+    }
+    if (failCount > 0) {
+      if (message) message += '\n';
+      message += `Failed to archive ${failCount} request(s).`;
+    }
+    
+    await showConfirmModal(
+      'Bulk Archive Complete',
+      message,
+      null,
+      true
+    );
+    
+    // Reload data
+    await loadAllConferenceRequests();
+    window.clearSelectionConference();
+  };
+
+  /**
+   * Bulk unarchive selected conference room requests
+   */
+  window.bulkUnarchiveConference = async function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox-conference:checked');
+    
+    if (checkboxes.length === 0) {
+      await showConfirmModal('No Requests Selected', 'Please select requests to unarchive.', null, true);
+      return;
+    }
+    
+    const confirmed = await showConfirmModal(
+      'Confirm Bulk Unarchive',
+      `Are you sure you want to unarchive ${checkboxes.length} conference room request(s)?\nThey will be moved back to History.`,
+      null,
+      false
+    );
+    
+    if (!confirmed) return;
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Process each request
+    for (const checkbox of checkboxes) {
+      const requestId = checkbox.dataset.requestId;
+      
+      try {
+        const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+        const requestSnap = await getDoc(requestRef);
+        
+        if (!requestSnap.exists()) {
+          console.error(`Request ${requestId} not found`);
+          failCount++;
+          continue;
+        }
+        
+        // Update request to unarchived
+        await updateDoc(requestRef, {
+          archived: false,
+          unarchivedAt: new Date()
+        });
+        
+        successCount++;
+        console.log(`✅ Unarchived conference request ${requestId}`);
+        
+      } catch (error) {
+        console.error(`Error unarchiving request ${requestId}:`, error);
+        failCount++;
+      }
+    }
+    
+    // Show results
+    let message = '';
+    if (successCount > 0) {
+      message += `Successfully unarchived ${successCount} request(s).`;
+    }
+    if (failCount > 0) {
+      if (message) message += '\n';
+      message += `Failed to unarchive ${failCount} request(s).`;
+    }
+    
+    await showConfirmModal(
+      'Bulk Unarchive Complete',
+      message,
+      null,
+      true
+    );
+    
+    // Reload data
+    await loadAllConferenceRequests();
+    window.clearSelectionConference();
+  };
 }
 
 /* ========================================================================================================

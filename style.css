@@ -6608,7 +6608,7 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   width: 100%;
   border-collapse: collapse;
   table-layout: auto;
-  min-width: 1600px;
+  min-width: 1400px;
 }
 
 .tents-requests-table thead {
@@ -6628,20 +6628,21 @@ body.sidebar-collapsed .sidebar-toggle-btn,
 }
 
 /* Column-specific widths for headers */
-.tents-requests-table th:nth-child(1) { min-width: 120px; max-width: 140px; } /* Submitted On */
-.tents-requests-table th:nth-child(2),
-.tents-requests-table th:nth-child(3) { min-width: 110px; max-width: 140px; } /* First/Last Name */
-.tents-requests-table th:nth-child(4) { min-width: 110px; max-width: 130px; } /* Contact Number */
-.tents-requests-table th:nth-child(5) { min-width: 150px; max-width: 250px; } /* Purpose */
-.tents-requests-table th:nth-child(6),
-.tents-requests-table th:nth-child(7) { min-width: 110px; max-width: 130px; } /* Start/End Date */
+.tents-requests-table th:nth-child(1) { width: 40px; min-width: 40px; max-width: 40px; text-align: center; padding: 8px 4px; } /* Checkbox */
+.tents-requests-table th:nth-child(2) { min-width: 100px; max-width: 120px; } /* Status */
+.tents-requests-table th:nth-child(3) { min-width: 140px; max-width: 180px; } /* Actions */
+.tents-requests-table th:nth-child(4) { min-width: 110px; max-width: 130px; } /* Submitted On */
+.tents-requests-table th:nth-child(5) { min-width: 100px; max-width: 120px; } /* Full Name */
+.tents-requests-table th:nth-child(6) { min-width: 100px; max-width: 120px; } /* Contact Number */
+.tents-requests-table th:nth-child(7) { min-width: 100px; max-width: 150px; } /* Purpose */
 .tents-requests-table th:nth-child(8),
-.tents-requests-table th:nth-child(9) { min-width: 70px; max-width: 80px; text-align: center; } /* Chairs/Tents */
-.tents-requests-table th:nth-child(10) { min-width: 110px; max-width: 130px; } /* Delivery Mode */
-.tents-requests-table th:nth-child(11) { min-width: 150px; max-width: 200px; } /* Address */
-.tents-requests-table th:nth-child(12) { min-width: 100px; max-width: 120px; } /* Status */
-.tents-requests-table th:nth-child(13) { min-width: 180px; max-width: 200px; } /* Actions */
-.tents-requests-table th:nth-child(14) { min-width: 140px; max-width: 160px; } /* Notify User or Remarks */
+.tents-requests-table th:nth-child(9) { min-width: 95px; max-width: 115px; } /* Start/End Date */
+.tents-requests-table th:nth-child(10),
+.tents-requests-table th:nth-child(11) { min-width: 60px; max-width: 70px; text-align: center; } /* Chairs/Tents */
+.tents-requests-table th:nth-child(12) { min-width: 90px; max-width: 110px; } /* Delivery Mode */
+.tents-requests-table th:nth-child(13) { min-width: 130px; max-width: 180px; } /* Address */
+.tents-requests-table th:nth-child(14) { min-width: 120px; max-width: 160px; } /* Remarks or other */
+.tents-requests-table th:nth-child(15) { min-width: 100px; max-width: 140px; } /* Completed/Archived on */
 
 .tents-requests-table td {
   padding: 12px 16px;
@@ -6664,68 +6665,80 @@ body.sidebar-collapsed .sidebar-toggle-btn,
 }
 
 /* Table Column Specific Styling */
-.tents-requests-table td:nth-child(1) { /* Submitted On */
-  min-width: 120px;
-  max-width: 140px;
-}
-
-.tents-requests-table td:nth-child(2),
-.tents-requests-table td:nth-child(3) { /* First Name, Last Name */
-  min-width: 110px;
-  max-width: 140px;
-}
-
-.tents-requests-table td:nth-child(4) { /* Contact Number */
-  min-width: 110px;
-  max-width: 130px;
-}
-
-.tents-requests-table td:nth-child(5) { /* Purpose */
-  min-width: 150px;
-  max-width: 250px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.tents-requests-table td:nth-child(6),
-.tents-requests-table td:nth-child(7) { /* Start Date, End Date */
-  min-width: 110px;
-  max-width: 130px;
-}
-
-.tents-requests-table td:nth-child(8),
-.tents-requests-table td:nth-child(9) { /* Chairs, Tents */
+.tents-requests-table td:nth-child(1) { /* Checkbox */
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
   text-align: center;
-  min-width: 70px;
-  max-width: 80px;
+  padding: 8px 4px;
 }
 
-.tents-requests-table td:nth-child(10) { /* Delivery Mode */
-  min-width: 110px;
-  max-width: 130px;
-}
-
-.tents-requests-table td:nth-child(11) { /* Address */
-  min-width: 150px;
-  max-width: 200px;
-}
-
-.tents-requests-table td:nth-child(12) { /* Status */
+.tents-requests-table td:nth-child(2) { /* Status */
   min-width: 100px;
   max-width: 120px;
 }
 
-.tents-requests-table td:nth-child(13) { /* Actions */
-  min-width: 180px;
-  max-width: 200px;
-  white-space: nowrap;
+.tents-requests-table td:nth-child(3) { /* Actions */
+  min-width: 140px;
+  max-width: 180px;
 }
 
-.tents-requests-table td:nth-child(14) { /* Notify User or Remarks */
-  min-width: 140px;
-  max-width: 160px;
-  white-space: nowrap;
+.tents-requests-table td:nth-child(4) { /* Submitted On */
+  min-width: 110px;
+  max-width: 130px;
+}
+
+.tents-requests-table td:nth-child(5) { /* Full Name */
+  min-width: 100px;
+  max-width: 120px;
+}
+
+.tents-requests-table td:nth-child(6) { /* Contact Number */
+  min-width: 100px;
+  max-width: 120px;
+}
+
+.tents-requests-table td:nth-child(7) { /* Purpose */
+  min-width: 80px;
+  max-width: 200px;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.tents-requests-table td:nth-child(8),
+.tents-requests-table td:nth-child(9) { /* Start Date, End Date */
+  min-width: 95px;
+  max-width: 115px;
+}
+
+.tents-requests-table td:nth-child(10),
+.tents-requests-table td:nth-child(11) { /* Chairs, Tents */
+  text-align: center;
+  min-width: 60px;
+  max-width: 70px;
+}
+
+.tents-requests-table td:nth-child(12) { /* Delivery Mode */
+  min-width: 90px;
+  max-width: 110px;
+}
+
+.tents-requests-table td:nth-child(13) { /* Address */
+  min-width: 100px;
+  max-width: 250px;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.tents-requests-table td:nth-child(14),
+.tents-requests-table td:nth-child(15) { /* Remarks or Completed/Archived on */
+  min-width: 80px;
+  max-width: 300px;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Remarks column (history & archives). Allow long text to wrap and break safely. */
@@ -7738,6 +7751,162 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   background: #dc2626;
   transform: translateY(-1px);
   box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
+}
+
+/* ==========================================
+   BULK ACTION BAR
+   ========================================== */
+.tents-bulk-action-bar {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  color: #1f2937;
+  padding: 20px 32px;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  z-index: 999;
+  animation: slideUp 0.3s ease-out;
+  border: 2px solid #e5e7eb;
+  max-width: 95%;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, 100px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.tents-bulk-action-bar #selectedCount,
+.tents-bulk-action-bar #selectedCountConference {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  padding-right: 24px;
+  border-right: 2px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.tents-bulk-action-bar button {
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.tents-bulk-action-bar button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.tents-bulk-action-bar button:active {
+  transform: translateY(0);
+}
+
+/* Approve Button - Green */
+.tents-bulk-action-bar .tents-bulk-approve {
+  background: #10b981;
+  color: white;
+}
+
+.tents-bulk-action-bar .tents-bulk-approve:hover {
+  background: #059669;
+}
+
+/* Deny Button - Red */
+.tents-bulk-action-bar .tents-bulk-deny {
+  background: #ef4444;
+  color: white;
+}
+
+.tents-bulk-action-bar .tents-bulk-deny:hover {
+  background: #dc2626;
+}
+
+/* Complete Button - Indigo */
+.tents-bulk-action-bar .tents-bulk-complete {
+  background: #4f46e5;
+  color: white;
+}
+
+.tents-bulk-action-bar .tents-bulk-complete:hover {
+  background: #4338ca;
+}
+
+/* Archive Button - Orange */
+.tents-bulk-action-bar .tents-bulk-archive {
+  background: #f97316;
+  color: white;
+}
+
+.tents-bulk-action-bar .tents-bulk-archive:hover {
+  background: #ea580c;
+}
+
+/* Unarchive Button - Purple */
+.tents-bulk-action-bar .tents-bulk-unarchive {
+  background: #8b5cf6;
+  color: white;
+}
+
+.tents-bulk-action-bar .tents-bulk-unarchive:hover {
+  background: #7c3aed;
+}
+
+/* Clear Selection Button - Gray */
+.tents-bulk-action-bar .tents-bulk-clear {
+  background: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #d1d5db;
+}
+
+.tents-bulk-action-bar .tents-bulk-clear:hover {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .tents-bulk-action-bar {
+    flex-wrap: wrap;
+    padding: 16px 24px;
+    gap: 12px;
+  }
+  
+  .tents-bulk-action-bar #selectedCount,
+  .tents-bulk-action-bar #selectedCountConference {
+    border-right: none;
+    padding-right: 0;
+    width: 100%;
+    text-align: center;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  
+  .tents-bulk-action-bar button {
+    font-size: 12px;
+    padding: 8px 16px;
+  }
+}
+
+.bulk-action-buttons .tents-btn-secondary:hover {
+  background: rgba(107, 114, 128, 0.4);
 }
 
 /* Inventory Card */
