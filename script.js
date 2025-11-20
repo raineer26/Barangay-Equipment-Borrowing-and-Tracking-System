@@ -5184,29 +5184,78 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     updateAuthNav(user);
   });
 
-  // TODO: In production, fetch booked dates from Firebase
-  // Example of how to fetch booked dates:
-  /*
-  async function getBookedDates() {
-    const bookingsRef = collection(db, "bookings");
-    const q = query(bookingsRef, 
-      where("type", "==", "conference-room"),
-      where("status", "in", ["pending", "approved"])
-    );
-    const querySnapshot = await getDocs(q);
-    const booked = {};
-    querySnapshot.forEach(doc => {
-      const data = doc.data();
-      booked[data.date] = data.status;
-    });
-    return booked;
-  }
-  */
-  
+  // Month names array - MUST BE DECLARED FIRST
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
   // Booked dates object - populated from Firestore
   let bookedDates = {};
 
-  // Load booked dates from Firestore for the current month
+  /**
+   * Setup real-time listener for conference calendar bookings
+   * Automatically updates calendar when bookings change
+   */
+  function setupRealtimeConferenceCalendar(month, year) {
+    console.log('[Real-Time Conference Calendar] 🔄 Setting up listener...');
+    
+    const bookingsRef = collection(db, 'conferenceRoomBookings');
+    const q = query(
+      bookingsRef,
+      where('status', 'in', ['approved', 'in-progress'])
+    );
+    
+    const unsubscribe = onSnapshot(q,
+      (snapshot) => {
+        console.log('[Real-Time Conference Calendar] 🏛️ Bookings updated:', snapshot.size);
+        processConferenceBookingsSnapshot(snapshot, month, year);
+      },
+      (error) => {
+        console.error('[Real-Time Conference Calendar] ❌ Listener error:', error);
+      }
+    );
+    
+    realtimeManager.addListener('userConferenceCalendar', unsubscribe);
+    console.log('[Real-Time Conference Calendar] ✅ Listener active');
+  }
+
+  /**
+   * Process conference bookings snapshot and update calendar
+   */
+  function processConferenceBookingsSnapshot(querySnapshot, month, year) {
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+    
+    console.log(`[Real-Time Conference Calendar] 📅 Processing ${monthNames[month]} ${year}`);
+    
+    bookedDates = {};
+    let foundCount = 0;
+    
+    querySnapshot.forEach(doc => {
+      const data = doc.data();
+      const eventDate = data.eventDate;
+      
+      if (eventDate >= startDate && eventDate <= endDate) {
+        if (!bookedDates[eventDate]) {
+          bookedDates[eventDate] = [];
+        }
+        bookedDates[eventDate].push({
+          startTime: data.startTime,
+          endTime: data.endTime,
+          purpose: data.purpose,
+          status: data.status
+        });
+        foundCount++;
+      }
+    });
+    
+    console.log(`[Real-Time Conference Calendar] ✅ Processed ${foundCount} bookings`);
+    renderCalendar(month, year);
+  }
+
+  // Load booked dates from Firestore for the current month (fallback)
   async function loadBookedDates(month, year) {
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -5264,11 +5313,6 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
   let currentDate = new Date();
   let currentMonth = currentDate.getMonth();
   let currentYear = currentDate.getFullYear();
-
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
 
   /**
    * Check if a date is fully booked (no 2-hour continuous gap available)
@@ -5364,15 +5408,15 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
     }
   }
 
-  // Initialize calendar on page load
+  // Initialize calendar on page load with real-time listener
   document.addEventListener('DOMContentLoaded', function() {
-    renderCalendar(currentMonth, currentYear);
+    setupRealtimeConferenceCalendar(currentMonth, currentYear);
     setupEventListeners();
   });
 
   async function renderCalendar(month, year) {
-    // Load booked dates first
-    await loadBookedDates(month, year);
+    // Real-time listener already populated bookedDates
+    // No need to reload - data is always current
     
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -5550,7 +5594,8 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
         currentMonth = 11;
         currentYear--;
       }
-      renderCalendar(currentMonth, currentYear);
+      realtimeManager.removeListener('userConferenceCalendar');
+      setupRealtimeConferenceCalendar(currentMonth, currentYear);
     });
 
     // Next month button (now in Today controls)
@@ -5560,7 +5605,8 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
         currentMonth = 0;
         currentYear++;
       }
-      renderCalendar(currentMonth, currentYear);
+      realtimeManager.removeListener('userConferenceCalendar');
+      setupRealtimeConferenceCalendar(currentMonth, currentYear);
     });
 
     // Form submission - now redirects to conference-room-request.html
@@ -5741,10 +5787,86 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
     updateAuthNav(user);
   });
 
+  // Month names array - MUST BE DECLARED FIRST
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
   // Store booked dates (date ranges for tents/chairs)
   let bookedDates = {};
 
-  // Load booked dates from Firestore for the current month
+  /**
+   * Setup real-time listener for tents calendar bookings
+   * Automatically updates calendar when bookings change
+   */
+  function setupRealtimeTentsCalendar(month, year) {
+    console.log('[Real-Time Tents Calendar] 🔄 Setting up listener...');
+    
+    const bookingsRef = collection(db, 'tentsChairsBookings');
+    const q = query(
+      bookingsRef,
+      where('status', 'in', ['approved', 'in-progress'])
+    );
+    
+    const unsubscribe = onSnapshot(q,
+      (snapshot) => {
+        console.log('[Real-Time Tents Calendar] 🎪 Bookings updated:', snapshot.size);
+        processBookingsSnapshot(snapshot, month, year);
+      },
+      (error) => {
+        console.error('[Real-Time Tents Calendar] ❌ Listener error:', error);
+      }
+    );
+    
+    realtimeManager.addListener('userTentsCalendar', unsubscribe);
+    console.log('[Real-Time Tents Calendar] ✅ Listener active');
+  }
+
+  /**
+   * Process bookings snapshot and update calendar
+   */
+  function processBookingsSnapshot(querySnapshot, month, year) {
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+    
+    console.log(`[Real-Time Tents Calendar] 📅 Processing ${monthNames[month]} ${year}`);
+    
+    bookedDates = {};
+    let foundCount = 0;
+    
+    querySnapshot.forEach(doc => {
+      const data = doc.data();
+      const bookingStart = data.startDate;
+      const bookingEnd = data.endDate;
+      
+      if (bookingEnd >= startDate && bookingStart <= endDate) {
+        const start = new Date(bookingStart);
+        const end = new Date(bookingEnd);
+        const current = new Date(start);
+        
+        while (current <= end) {
+          const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          
+          if (dateStr >= startDate && dateStr <= endDate) {
+            if (!bookedDates[dateStr]) {
+              bookedDates[dateStr] = [];
+            }
+            bookedDates[dateStr].push(data);
+            foundCount++;
+          }
+          
+          current.setDate(current.getDate() + 1);
+        }
+      }
+    });
+    
+    console.log(`[Real-Time Tents Calendar] ✅ Processed ${foundCount} booking dates`);
+    renderCalendar(month, year);
+  }
+
+  // Load booked dates from Firestore for the current month (fallback)
   async function loadBookedDates(month, year) {
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -5841,20 +5963,15 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
   let currentMonth = currentDate.getMonth();
   let currentYear = currentDate.getFullYear();
 
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-
-  // Initialize calendar on page load
+  // Initialize calendar on page load with real-time listener
   document.addEventListener('DOMContentLoaded', function() {
-    renderCalendar(currentMonth, currentYear);
+    setupRealtimeTentsCalendar(currentMonth, currentYear);
     setupEventListeners();
   });
 
   async function renderCalendar(month, year) {
-    // Load booked dates first
-    await loadBookedDates(month, year);
+    // Real-time listener already populated bookedDates
+    // No need to reload - data is always current
     
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -5983,7 +6100,8 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
         currentMonth = 11;
         currentYear--;
       }
-      renderCalendar(currentMonth, currentYear);
+      realtimeManager.removeListener('userTentsCalendar');
+      setupRealtimeTentsCalendar(currentMonth, currentYear);
     });
 
     // Next month button
@@ -5993,7 +6111,8 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
         currentMonth = 0;
         currentYear++;
       }
-      renderCalendar(currentMonth, currentYear);
+      realtimeManager.removeListener('userTentsCalendar');
+      setupRealtimeTentsCalendar(currentMonth, currentYear);
     });
   }
 
@@ -8579,10 +8698,11 @@ async function submitInternalBooking(data) {
  * - Table renders efficiently with virtualization for 100+ rows
  */
 
+// OLD IMPLEMENTATION - DISABLED (Real-time version is at line ~9936)
 // This code should be added at the end of script.js after line 3895
 
-if (window.location.pathname.endsWith('admin-tents-requests.html')) {
-  console.log('🎪 Admin Tents & Chairs Request Management page loaded');
+if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
+  console.log('🎪 Admin Tents & Chairs Request Management page loaded (OLD VERSION - DISABLED)');
 
   // ========================================
   // GLOBAL STATE
@@ -9823,6 +9943,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   // STATE VARIABLES
   // ========================================
   let allRequests = []; // Store all requests from Firestore
+  let isInitialLoad = true; // Track if this is the first data load
   let currentTab = 'all'; // 'all' or 'history'
   let currentView = 'table'; // 'table' or 'calendar'
   let currentMonth = new Date().getMonth(); // Current month for calendar
@@ -9912,26 +10033,56 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     const unsubscribe = onSnapshot(q,
       (snapshot) => {
         console.log('[Real-Time Admin Tents] 📦 Requests updated:', snapshot.size);
+        console.log('[Real-Time Admin Tents] From cache:', snapshot.metadata.fromCache);
+        console.log('[Real-Time Admin Tents] isInitialLoad:', isInitialLoad);
         
-        // Check for changes
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === "added") {
-            // Only show toast for new requests after initial load
-            if (allRequests.length > 0) {
-              const data = change.doc.data();
-              const userName = data.fullName || `${data.firstName} ${data.lastName}`;
-              console.log('[Real-Time Admin Tents]   ➕ New request from:', userName);
-              showToast(`📬 New tents request from ${userName}`, true, 3000);
-            }
-          } else if (change.type === "modified") {
-            console.log('[Real-Time Admin Tents]   ✏️ Request modified:', change.doc.id);
-          } else if (change.type === "removed") {
-            console.log('[Real-Time Admin Tents]   ➖ Request removed:', change.doc.id);
-          }
-        });
-        
-        // Process the snapshot
+        // Process the snapshot first
         processAdminTentsSnapshot(snapshot);
+        
+        // Skip notifications if:
+        // 1. This is the initial load flag, OR
+        // 2. This is from cache (prevents double-firing on page load)
+        const shouldSkipNotifications = isInitialLoad || snapshot.metadata.fromCache;
+        
+        // Check for changes and count new requests (skip on initial load)
+        if (!shouldSkipNotifications) {
+          let newRequestCount = 0;
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === "added") {
+              newRequestCount++;
+              const data = change.doc.data();
+              // Handle multiple name formats for logging
+              let userName = data.fullName || data.fullname;
+              if (!userName && data.firstName && data.lastName) {
+                userName = `${data.firstName} ${data.lastName}`;
+              }
+              if (!userName) {
+                userName = data.userEmail || 'Unknown User';
+              }
+              console.log('[Real-Time Admin Tents]   ➕ New request from:', userName);
+            } else if (change.type === "modified") {
+              console.log('[Real-Time Admin Tents]   ✏️ Request modified:', change.doc.id);
+            } else if (change.type === "removed") {
+              console.log('[Real-Time Admin Tents]   ➖ Request removed:', change.doc.id);
+            }
+          });
+          
+          // Show consolidated notification for new requests
+          if (newRequestCount > 0) {
+            if (newRequestCount === 1) {
+              showToast(`📬 There is 1 new submitted request for Tents and Chairs. Kindly review it.`, true, 4000);
+            } else {
+              showToast(`📬 There are ${newRequestCount} new submitted requests for Tents and Chairs. Kindly review them.`, true, 4000);
+            }
+          }
+        } else {
+          console.log('[Real-Time Admin Tents] 🔄 Initial load - skipping notifications (fromCache:', snapshot.metadata.fromCache, ')');
+          // Only clear initial load flag after server data arrives (not cache)
+          if (!snapshot.metadata.fromCache) {
+            isInitialLoad = false;
+            console.log('[Real-Time Admin Tents] ✅ Initial load complete, notifications enabled');
+          }
+        }
       },
       (error) => {
         console.error('[Real-Time Admin Tents] ❌ Listener error:', error);
@@ -12863,7 +13014,7 @@ let originalValues = {
 
 // --- Load Real-time Data ---
 function loadInventoryRealtime() {
-  onSnapshot(doc(db, "inventory", "equipment"), (docSnap) => {
+  const unsubscribe = onSnapshot(doc(db, "inventory", "equipment"), (docSnap) => {
     if (docSnap.exists()) {
       const data = docSnap.data();
       
@@ -12898,6 +13049,10 @@ function loadInventoryRealtime() {
       initializeInventory();
     }
   });
+  
+  // Register with RealtimeManager for proper cleanup
+  realtimeManager.addListener('adminInventory', unsubscribe);
+  console.log('[Real-Time Inventory] ✅ Listener active');
 }
 
 // --- Initialize Default Data ---
@@ -13271,6 +13426,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   // STATE VARIABLES
   // ========================================
   let allRequests = []; // All conference room requests from Firestore
+  let isInitialLoad = true; // Track if this is the first data load
   let currentTab = 'all'; // 'all' (active requests) or 'history' (completed/rejected/cancelled) or 'archives'
   let currentView = 'table'; // 'table' or 'calendar' (calendar is future feature)
   let currentMonth = new Date().getMonth(); // for calendar
@@ -13291,26 +13447,56 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     const unsubscribe = onSnapshot(requestsRef,
       (snapshot) => {
         console.log('[Real-Time Admin Conference] 🏛️ Requests updated:', snapshot.size);
+        console.log('[Real-Time Admin Conference] From cache:', snapshot.metadata.fromCache);
+        console.log('[Real-Time Admin Conference] isInitialLoad:', isInitialLoad);
         
-        // Check for changes
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === "added") {
-            // Only show toast for new requests after initial load
-            if (allRequests.length > 0) {
-              const data = change.doc.data();
-              const userName = data.fullName || `${data.firstName} ${data.lastName}`;
-              console.log('[Real-Time Admin Conference]   ➕ New request from:', userName);
-              showToast(`📬 New conference room request from ${userName}`, true, 3000);
-            }
-          } else if (change.type === "modified") {
-            console.log('[Real-Time Admin Conference]   ✏️ Request modified:', change.doc.id);
-          } else if (change.type === "removed") {
-            console.log('[Real-Time Admin Conference]   ➖ Request removed:', change.doc.id);
-          }
-        });
-        
-        // Process the snapshot
+        // Process the snapshot first
         processAdminConferenceSnapshot(snapshot);
+        
+        // Skip notifications if:
+        // 1. This is the initial load flag, OR
+        // 2. This is from cache (prevents double-firing on page load)
+        const shouldSkipNotifications = isInitialLoad || snapshot.metadata.fromCache;
+        
+        // Check for changes and count new requests (skip on initial load)
+        if (!shouldSkipNotifications) {
+          let newRequestCount = 0;
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === "added") {
+              newRequestCount++;
+              const data = change.doc.data();
+              // Handle multiple name formats for logging
+              let userName = data.fullName || data.fullname;
+              if (!userName && data.firstName && data.lastName) {
+                userName = `${data.firstName} ${data.lastName}`;
+              }
+              if (!userName) {
+                userName = data.userEmail || 'Unknown User';
+              }
+              console.log('[Real-Time Admin Conference]   ➕ New request from:', userName);
+            } else if (change.type === "modified") {
+              console.log('[Real-Time Admin Conference]   ✏️ Request modified:', change.doc.id);
+            } else if (change.type === "removed") {
+              console.log('[Real-Time Admin Conference]   ➖ Request removed:', change.doc.id);
+            }
+          });
+          
+          // Show consolidated notification for new requests
+          if (newRequestCount > 0) {
+            if (newRequestCount === 1) {
+              showToast(`📬 There is 1 new submitted request for Conference Room. Kindly review it.`, true, 4000);
+            } else {
+              showToast(`📬 There are ${newRequestCount} new submitted requests for Conference Room. Kindly review them.`, true, 4000);
+            }
+          }
+        } else {
+          console.log('[Real-Time Admin Conference] 🔄 Initial load - skipping notifications (fromCache:', snapshot.metadata.fromCache, ')');
+          // Only clear initial load flag after server data arrives (not cache)
+          if (!snapshot.metadata.fromCache) {
+            isInitialLoad = false;
+            console.log('[Real-Time Admin Conference] ✅ Initial load complete, notifications enabled');
+          }
+        }
       },
       (error) => {
         console.error('[Real-Time Admin Conference] ❌ Listener error:', error);
@@ -15953,7 +16139,7 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
       const usersRef = collection(db, 'users');
       
       // Set up real-time listener
-      onSnapshot(usersRef, (snapshot) => {
+      const unsubscribeCount = onSnapshot(usersRef, (snapshot) => {
         // Count total users
         const totalUsers = snapshot.size;
         
@@ -15974,6 +16160,10 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
           totalUsersCountElement.textContent = '—';
         }
       });
+      
+      // Register with RealtimeManager for proper cleanup
+      realtimeManager.addListener('adminUsersCount', unsubscribeCount);
+      console.log('[Real-Time User Manager] ✅ Count listener active');
       
     } catch (error) {
       console.error('❌ Error setting up real-time listener:', error);
@@ -16046,7 +16236,7 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
       const usersRef = collection(db, 'users');
       
       // Set up real-time listener
-      onSnapshot(usersRef, async (snapshot) => {
+      const unsubscribeUsers = onSnapshot(usersRef, async (snapshot) => {
         allUsersData = [];
         
         snapshot.forEach((doc) => {
@@ -16072,6 +16262,10 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
       }, (error) => {
         console.error('❌ Error loading users:', error);
       });
+      
+      // Register with RealtimeManager for proper cleanup
+      realtimeManager.addListener('adminUsersData', unsubscribeUsers);
+      console.log('[Real-Time User Manager] ✅ Data listener active');
       
     } catch (error) {
       console.error('❌ Error setting up users listener:', error);
