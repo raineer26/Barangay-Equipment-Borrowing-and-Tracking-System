@@ -1937,9 +1937,8 @@ window.logout = async function() {
     console.warn('Failed to clear sessionStorage', e);
   }
 
-  // Show a toast message for feedback, then redirect.
+  // Persist a flash toast so it appears on the login page after redirect
   try {
-    // Persist a flash toast so it survives the navigation to index.html
     const flash = signOutSucceeded
       ? { message: 'Logged out successfully', isSuccess: true, duration: TOAST_DURATION }
       : { message: 'Logout failed — redirecting', isSuccess: false, duration: TOAST_DURATION };
@@ -1948,15 +1947,12 @@ window.logout = async function() {
     } catch (e) {
       console.warn('Failed to set flashToast in sessionStorage', e);
     }
-
-    // Also show it immediately on the current page for immediate feedback
-    try { showToast(flash.message, flash.isSuccess, flash.duration); } catch (e) { console.warn('showToast error', e); }
   } catch (e) {
-    console.warn('Toast/flash failed', e);
+    console.warn('Flash toast setup failed', e);
   }
 
-  // Wait for the toast to be visible before redirecting so user sees feedback
-  const waitMs = (typeof TOAST_DURATION !== 'undefined') ? TOAST_DURATION : 1200;
+  // Brief delay before redirect to ensure Firebase sign-out completes
+  const waitMs = 800;
   setTimeout(() => {
     // Replace history entry so Back button won't return to an authenticated page
     try {
