@@ -4739,14 +4739,16 @@ input[type="number"]::-webkit-outer-spin-button {
   align-items: center;
   gap: 5px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
   font-family: leauge spartan, sans-serif;
   font-size: 1rem;
   border: 2px solid #281abc;
+  box-shadow: 0 2px 4px rgba(40, 26, 188, 0.15);
 }
 .logout-btn:hover, .logout-btn.edit-profile-btn:hover {
   background: #1f148d;
   color: white;
+  box-shadow: 0 4px 8px rgba(31, 20, 141, 0.25);
 }
 
 /* Responsive layout for filter and Make New Request button */
@@ -7909,6 +7911,201 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   background: rgba(107, 114, 128, 0.4);
 }
 
+/* ===================================
+   PAGINATION STYLES
+   =================================== */
+
+/* Pagination Info Bar (top of table) */
+.pagination-info-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: -1px; /* Merge with table border */
+  font-size: 14px;
+  color: #374151;
+}
+
+.pagination-info {
+  font-weight: 500;
+}
+
+.pagination-info strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+/* Items Per Page Selector */
+.pagination-per-page {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pagination-per-page label {
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.pagination-per-page select,
+#itemsPerPageSelect,
+#itemsPerPageSelectConference {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pagination-per-page select:hover,
+#itemsPerPageSelect:hover,
+#itemsPerPageSelectConference:hover {
+  border-color: #9ca3af;
+}
+
+.pagination-per-page select:focus,
+#itemsPerPageSelect:focus,
+#itemsPerPageSelectConference:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* Pagination Navigation Controls (bottom of table) */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  margin-bottom: 20px;
+}
+
+/* Pagination Buttons (First, Previous, Next, Last) */
+.pagination-btn {
+  padding: 8px 16px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.pagination-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.pagination-btn:disabled {
+  background: #f9fafb;
+  color: #d1d5db;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Page Number Buttons */
+.pagination-page {
+  min-width: 40px;
+  height: 40px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagination-page:hover:not(.pagination-page-active) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.pagination-page:active:not(.pagination-page-active) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Active Page Number */
+.pagination-page-active {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: default;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+}
+
+/* Ellipsis Separator */
+.pagination-ellipsis {
+  padding: 8px 4px;
+  color: #9ca3af;
+  font-size: 14px;
+  font-weight: 600;
+  user-select: none;
+}
+
+/* Responsive Pagination */
+@media (max-width: 768px) {
+  .pagination-info-bar {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+
+  .pagination-controls {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 16px;
+  }
+
+  .pagination-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .pagination-page {
+    min-width: 36px;
+    height: 36px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  /* Hide First/Last buttons on mobile to save space */
+  .pagination-btn:first-child,
+  .pagination-btn:last-child {
+    display: none;
+  }
+}
+
 /* Inventory Card */
 .inventory-card {
   background: #F5F3FF;
@@ -9973,8 +10170,9 @@ body.sidebar-collapsed .sidebar-toggle-btn,
     padding: 12px 20px;
     justify-content: center;
     font-size: 0.95rem;
-    border: #000 1px solid;
+    border: 2px solid #281abc;
     border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(40, 26, 188, 0.15);
   }
 
   /* Profile Content - Stack Cards Vertically */

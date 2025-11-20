@@ -10266,6 +10266,8 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   let currentView = 'table'; // 'table' or 'calendar'
   let currentMonth = new Date().getMonth(); // Current month for calendar
   let currentYear = new Date().getFullYear(); // Current year for calendar
+  let currentPage = 1; // Current page for pagination
+  let itemsPerPage = 25; // Items per page (10, 25, 50, 100, or -1 for all)
 
   // Normalize delivery/mode strings to canonical values for comparison
   function normalizeMode(str) {
@@ -10779,7 +10781,36 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       return;
     }
 
+    // Pagination calculations
+    const totalItems = requests.length;
+    const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage);
+    
+    // Ensure current page is valid
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    
+    // Get items for current page
+    const startIndex = itemsPerPage === -1 ? 0 : (currentPage - 1) * itemsPerPage;
+    const endIndex = itemsPerPage === -1 ? totalItems : Math.min(startIndex + itemsPerPage, totalItems);
+    const pageRequests = itemsPerPage === -1 ? requests : requests.slice(startIndex, endIndex);
+
     let tableHTML = `
+      <!-- Pagination Info Bar -->\n      <div class="pagination-info-bar">
+        <div class="pagination-info">
+          Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${totalItems}</strong> requests
+        </div>
+        <div class="pagination-per-page">
+          <label for="itemsPerPageSelect">Items per page:</label>
+          <select id="itemsPerPageSelect" onchange="window.changeItemsPerPage(this.value)">
+            <option value="10" ${itemsPerPage === 10 ? 'selected' : ''}>10</option>
+            <option value="25" ${itemsPerPage === 25 ? 'selected' : ''}>25</option>
+            <option value="50" ${itemsPerPage === 50 ? 'selected' : ''}>50</option>
+            <option value="100" ${itemsPerPage === 100 ? 'selected' : ''}>100</option>
+            <option value="-1" ${itemsPerPage === -1 ? 'selected' : ''}>All</option>
+          </select>
+        </div>
+      </div>
+
       <div class="tents-table-container">
         <table class="tents-requests-table">
           <thead>
@@ -10806,7 +10837,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           <tbody>
     `;
 
-    requests.forEach(req => {
+    pageRequests.forEach(req => {
       // Format submitted date and time
       let submittedDateTime = 'N/A';
       if (req.createdAt) {
@@ -10862,6 +10893,27 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         </table>
       </div>
       
+      <!-- Pagination Navigation -->
+      <div class="pagination-controls" style="${itemsPerPage === -1 ? 'display: none;' : ''}">
+        <button class="pagination-btn" onclick="window.goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>
+          <span>⟨⟨</span> First
+        </button>
+        <button class="pagination-btn" onclick="window.goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+          <span>⟨</span> Previous
+        </button>
+        
+        <div class="pagination-pages">
+          ${generatePageNumbers(currentPage, totalPages)}
+        </div>
+        
+        <button class="pagination-btn" onclick="window.goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+          Next <span>⟩</span>
+        </button>
+        <button class="pagination-btn" onclick="window.goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>
+          Last <span>⟩⟩</span>
+        </button>
+      </div>
+
       <!-- Bulk Action Toolbar -->
       <div class="tents-bulk-action-bar" id="bulkActionBar" style="display: none;">
         <span id="selectedCount">0 selected</span>
@@ -10876,6 +10928,64 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
 
     contentArea.innerHTML = tableHTML;
   }
+
+  /**
+   * Generate page number buttons for pagination
+   */
+  function generatePageNumbers(current, total) {
+    let pages = '';
+    const maxVisible = 7; // Maximum page buttons to show
+    
+    if (total <= maxVisible) {
+      // Show all pages if total is small
+      for (let i = 1; i <= total; i++) {
+        pages += `<button class="pagination-page ${i === current ? 'pagination-page-active' : ''}" onclick="window.goToPage(${i})">${i}</button>`;
+      }
+    } else {
+      // Show smart pagination with ellipsis
+      pages += `<button class="pagination-page ${1 === current ? 'pagination-page-active' : ''}" onclick="window.goToPage(1)">1</button>`;
+      
+      if (current > 3) {
+        pages += `<span class="pagination-ellipsis">...</span>`;
+      }
+      
+      let start = Math.max(2, current - 1);
+      let end = Math.min(total - 1, current + 1);
+      
+      for (let i = start; i <= end; i++) {
+        pages += `<button class="pagination-page ${i === current ? 'pagination-page-active' : ''}" onclick="window.goToPage(${i})">${i}</button>`;
+      }
+      
+      if (current < total - 2) {
+        pages += `<span class="pagination-ellipsis">...</span>`;
+      }
+      
+      pages += `<button class="pagination-page ${total === current ? 'pagination-page-active' : ''}" onclick="window.goToPage(${total})">${total}</button>`;
+    }
+    
+    return pages;
+  }
+
+  /**
+   * Go to specific page
+   */
+  window.goToPage = function(page) {
+    currentPage = page;
+    renderContent();
+    // Clear selections when changing pages
+    window.clearSelection();
+  };
+
+  /**
+   * Change items per page
+   */
+  window.changeItemsPerPage = function(value) {
+    itemsPerPage = parseInt(value);
+    currentPage = 1; // Reset to first page
+    renderContent();
+    // Clear selections when changing items per page
+    window.clearSelection();
+  };
 
   /**
    * Render completion/cancellation/rejection timestamp for history rows
@@ -14257,6 +14367,8 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   let currentView = 'table'; // 'table' or 'calendar' (calendar is future feature)
   let currentMonth = new Date().getMonth(); // for calendar
   let currentYear = new Date().getFullYear(); // for calendar
+  let currentPage = 1; // Current page for pagination
+  let itemsPerPage = 25; // Items per page (10, 25, 50, 100, or -1 for all)
 
   // ========================================
   // DATA LOADING
@@ -14723,6 +14835,17 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       return;
     }
 
+    // Pagination calculations
+    const totalItems = filteredRequests.length;
+    const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage);
+    
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    
+    const startIndex = itemsPerPage === -1 ? 0 : (currentPage - 1) * itemsPerPage;
+    const endIndex = itemsPerPage === -1 ? totalItems : Math.min(startIndex + itemsPerPage, totalItems);
+    const pageRequests = itemsPerPage === -1 ? filteredRequests : filteredRequests.slice(startIndex, endIndex);
+
     // Prepare header labels depending on tab
     // const notifyOrRemarksHeader = currentTab === 'all' ? 'Notify User' : 'Remarks';
     const notifyOrRemarksHeader = 'Remarks'; // Notify User column removed
@@ -14730,6 +14853,23 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
 
     // Build table HTML
     let tableHTML = `
+      <!-- Pagination Info Bar -->
+      <div class="pagination-info-bar">
+        <div class="pagination-info">
+          Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${totalItems}</strong> requests
+        </div>
+        <div class="pagination-per-page">
+          <label for="itemsPerPageSelectConference">Items per page:</label>
+          <select id="itemsPerPageSelectConference" onchange="window.changeItemsPerPageConference(this.value)">
+            <option value="10" ${itemsPerPage === 10 ? 'selected' : ''}>10</option>
+            <option value="25" ${itemsPerPage === 25 ? 'selected' : ''}>25</option>
+            <option value="50" ${itemsPerPage === 50 ? 'selected' : ''}>50</option>
+            <option value="100" ${itemsPerPage === 100 ? 'selected' : ''}>100</option>
+            <option value="-1" ${itemsPerPage === -1 ? 'selected' : ''}>All</option>
+          </select>
+        </div>
+      </div>
+
       <div class="tents-table-container">
         <table class="tents-requests-table">
           <thead>
@@ -14754,9 +14894,9 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     `;
 
     // Render each request row
-    filteredRequests.forEach(req => {
-  // Split name into first and last using robust helper
-  const { firstName, lastName } = getNameParts(req);
+    pageRequests.forEach(req => {
+      // Split name into first and last using robust helper
+      const { firstName, lastName } = getNameParts(req);
 
       // Format submitted date
       const submittedDate = req.createdAt ? 
@@ -14855,6 +14995,17 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
           </tbody>
         </table>
       </div>
+
+      <!-- Pagination Navigation Controls -->
+      ${itemsPerPage !== -1 ? `
+      <div class="pagination-controls">
+        <button class="pagination-btn" onclick="window.goToPageConference(1)" ${currentPage === 1 ? 'disabled' : ''}>First</button>
+        <button class="pagination-btn" onclick="window.goToPageConference(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
+        ${generatePageNumbers(currentPage, totalPages)}
+        <button class="pagination-btn" onclick="window.goToPageConference(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+        <button class="pagination-btn" onclick="window.goToPageConference(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>Last</button>
+      </div>
+      ` : ''}
       
       <!-- Bulk Action Toolbar -->
       <div class="tents-bulk-action-bar" id="bulkActionBarConference" style="display: none;">
@@ -17179,7 +17330,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     );
     
     // Reload data
-    await loadAllConferenceRequests();
+    await loadAllRequests();
     window.clearSelectionConference();
   };
 
@@ -17276,7 +17427,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     );
     
     // Reload data
-    await loadAllConferenceRequests();
+    await loadAllRequests();
     window.clearSelectionConference();
   };
 
@@ -17366,7 +17517,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     );
     
     // Reload data
-    await loadAllConferenceRequests();
+    await loadAllRequests();
     window.clearSelectionConference();
   };
 
@@ -17440,7 +17591,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     );
     
     // Reload data
-    await loadAllConferenceRequests();
+    await loadAllRequests();
     window.clearSelectionConference();
   };
 
@@ -17514,7 +17665,65 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     );
     
     // Reload data
-    await loadAllConferenceRequests();
+    await loadAllRequests();
+    window.clearSelectionConference();
+  };
+
+  // ========================================
+  // PAGINATION FUNCTIONS FOR CONFERENCE ROOM
+  // ========================================
+
+  /**
+   * Generate page number buttons for pagination (Conference)
+   */
+  function generatePageNumbers(current, total) {
+    let pages = '';
+    const maxVisible = 7;
+    
+    if (total <= maxVisible) {
+      for (let i = 1; i <= total; i++) {
+        pages += `<button class="pagination-page ${i === current ? 'pagination-page-active' : ''}" onclick="window.goToPageConference(${i})">${i}</button>`;
+      }
+    } else {
+      pages += `<button class="pagination-page ${1 === current ? 'pagination-page-active' : ''}" onclick="window.goToPageConference(1)">1</button>`;
+      
+      if (current > 3) {
+        pages += `<span class="pagination-ellipsis">...</span>`;
+      }
+      
+      let start = Math.max(2, current - 1);
+      let end = Math.min(total - 1, current + 1);
+      
+      for (let i = start; i <= end; i++) {
+        pages += `<button class="pagination-page ${i === current ? 'pagination-page-active' : ''}" onclick="window.goToPageConference(${i})">${i}</button>`;
+      }
+      
+      if (current < total - 2) {
+        pages += `<span class="pagination-ellipsis">...</span>`;
+      }
+      
+      pages += `<button class="pagination-page ${total === current ? 'pagination-page-active' : ''}" onclick="window.goToPageConference(${total})">${total}</button>`;
+    }
+    
+    return pages;
+  }
+
+  /**
+   * Go to specific page (Conference)
+   */
+  window.goToPageConference = function(page) {
+    currentPage = page;
+    renderContent();
+    window.clearSelectionConference();
+  };
+
+  /**
+   * Change items per page (Conference)
+   */
+  window.changeItemsPerPageConference = function(value) {
+    itemsPerPage = parseInt(value);
+    currentPage = 1;
+    renderContent();
     window.clearSelectionConference();
   };
 }
