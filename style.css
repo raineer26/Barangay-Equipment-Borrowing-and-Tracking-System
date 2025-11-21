@@ -65,11 +65,13 @@ header {
 nav ul {
   list-style: none;
   display: flex;
+  flex-direction: row;
   gap: 40px;
   font-family: 'league spartan', sans-serif;
   margin-right: 20px;
   font-size: 18px; /* Changed from 'large' to explicit 18px for consistency */
   align-items: center;
+  transition: all 0.3s;
 }
 
 nav a {
@@ -77,6 +79,7 @@ nav a {
   text-decoration: none;
   font-weight: bold;
   font-size: 18px; /* Explicit font size for navbar links */
+    transition: font-size 0.3s, padding 0.3s;
 }
 
 /* Dropdown */
@@ -9278,7 +9281,1189 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   background: #dc2626;
   box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
 }
+/* ============================================================================
+   COMPLETE RESPONSIVE MEDIA QUERIES - NO WHITE SPACES
+   From Laptop 1024px → Tablet 768px → Mobile 425px
+   All sections included: Navigation, Hero, Floating Card, Calendar, Services,
+   About, Contact, Footer, Login, Signup, Profile, Request Forms, Calendars
+   ============================================================================ */
 
+/* ===================================
+   LAPTOP: 1024px and below
+   =================================== */
+@media screen and (max-width: 1024px) {
+  
+  /* Navigation */
+  header {
+    padding: 14px 18px;
+  }
+  
+  nav ul {
+    gap: 30px;
+    margin-right: 15px;
+    font-size: 16px;
+  }
+  
+  .logo img {
+    width: 42px;
+    height: 42px;
+  }
+  
+  .logo span {
+    font-size: 13px;
+  }
+  
+  /* Hero Sections */
+  .hero-landing img {
+    height: 350px;
+  }
+  
+  .hero-landingtext {
+    margin-left: 80px;
+  }
+  
+  .hero-landingtext h1 {
+    font-size: 55px;
+    margin-top: -280px;
+  }
+  
+  .hero-landingtext h2 {
+    font-size: 55px;
+  }
+  
+  .hero-landingtext p {
+    font-size: 18px;
+  }
+  
+  /* Floating Card */
+  .floating-card-wrap {
+    margin-top: 70px;
+  }
+  
+  .floating-card {
+    width: 680px;
+    padding: 16px 28px;
+    gap: 32px;
+  }
+  
+  .floating-card .quick-item img {
+    width: 90px;
+    height: 90px;
+  }
+  
+  /* Calendar Section */
+  .calendar-section {
+    padding: 35px 20px 55px 20px;
+  }
+  
+  .calendar-Title {
+    font-size: 2.8rem;
+  }
+  
+  .calendar-desc {
+    font-size: 1.8rem;
+  }
+  
+  .calendar-card {
+    width: 500px;
+    height: 240px;
+  }
+  
+  .calendar-img {
+    width: 170px;
+    height: 170px;
+  }
+  
+  /* Services Section */
+  .services-section {
+    padding: 45px 20px 55px 20px;
+  }
+  
+  .services-title {
+    font-size: 2.8rem;
+  }
+  
+  .service-card {
+    width: 500px;
+    height: 360px;
+  }
+  
+  .service-img {
+    width: 280px;
+    height: 170px;
+  }
+  
+  /* About Section */
+  .about-section {
+    padding: 45px 20px;
+  }
+  
+  .about-title {
+    font-size: 2.8rem;
+  }
+  
+  .about-content {
+    max-width: 1100px;
+    gap: 35px;
+  }
+  
+  .about-img {
+    width: 480px;
+    height: 290px;
+  }
+  
+  /* Contact Section */
+  .contact-section {
+    padding: 45px 20px;
+  }
+  
+  .contact-title {
+    font-size: 2.8rem;
+  }
+  
+  .contact-content {
+    max-width: 680px;
+  }
+  
+  /* Footer */
+  footer {
+    padding: 18px;
+    min-height: 340px;
+  }
+  
+  .footer-container {
+    margin-top: 35px;
+    margin-left: 25px;
+  }
+  
+  .footer-logo {
+    margin-left: 25px;
+  }
+  
+  .footer-logo img {
+    width: 75px;
+  }
+  
+  .footer-logo p {
+    font-size: 23px;
+  }
+  
+  .footer-links h3 {
+    font-size: 28px;
+  }
+  
+  .footer-links li,
+  .footer-links p {
+    font-size: 18px;
+  }
+  
+  /* Request Forms */
+  .request-form-section {
+    max-width: 1300px;
+    padding: 55px 20px;
+  }
+  
+  .request-form-container {
+    max-width: 850px;
+  }
+  
+  .form-title {
+    font-size: 2rem;
+  }
+  
+  /* Calendar Pages */
+  .calendar-container {
+    max-width: 1350px;
+  }
+  
+  .calendar-grid {
+    width: 96%;
+  }
+  
+  .calendar-date {
+    min-height: 105px;
+  }
+}
+
+/* ===================================
+   TABLET: 768px and below
+   =================================== */
+@media screen and (max-width: 768px) {
+  
+  /* Navigation */
+  header {
+    padding: 13px 16px;
+  }
+  
+  nav ul {
+    gap: 25px;
+    margin-right: 12px;
+    font-size: 15px;
+  }
+  
+  .logo img {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .logo span {
+    font-size: 12px;
+  }
+  
+  .dropdown-menu {
+    min-width: 160px;
+  }
+  
+  /* Hero Sections */
+  .hero {
+    height: 180px;
+  }
+  
+  .hero img {
+    height: 180px;
+  }
+  
+  .hero-text h1 {
+    font-size: 70px;
+  }
+  
+  .hero-text p {
+    font-size: 16px;
+  }
+  
+  .hero-landing img {
+    height: 320px;
+  }
+  
+  .hero-landingtext {
+    margin-left: 60px;
+  }
+  
+  .hero-landingtext h1 {
+    font-size: 48px;
+    margin-top: -240px;
+  }
+  
+  .hero-landingtext h2 {
+    font-size: 48px;
+  }
+  
+  .hero-landingtext p {
+    font-size: 16px;
+  }
+  
+  /* Floating Card */
+  .floating-card-wrap {
+    margin-top: 60px;
+    height: 180px;
+  }
+  
+  .floating-card {
+    width: 95%;
+    max-width: 650px;
+    padding: 14px 24px;
+    gap: 28px;
+  }
+  
+  .floating-card .quick-item img {
+    width: 85px;
+    height: 85px;
+  }
+  
+  .floating-card .quick-label {
+    font-size: 12px;
+  }
+  
+  /* Calendar Section */
+  .calendar-section {
+    padding: 32px 18px 50px 18px;
+  }
+  
+  .calendar-Title {
+    font-size: 2.5rem;
+  }
+  
+  .calendar-desc {
+    font-size: 1.5rem;
+  }
+  
+  .calendar-cards {
+    gap: 35px;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .calendar-card {
+    width: 100%;
+    max-width: 500px;
+    height: 230px;
+  }
+  
+  .calendar-img {
+    width: 160px;
+    height: 160px;
+  }
+  
+  .calendar-label-main {
+    font-size: 28px;
+  }
+  
+  .calendar-label-sub {
+    font-size: 18px;
+  }
+  
+  /* Services Section */
+  .services-section {
+    padding: 40px 18px 50px 18px;
+  }
+  
+  .services-title {
+    font-size: 2.5rem;
+  }
+  
+  .services-desc {
+    font-size: 0.95rem;
+  }
+  
+  .services-cards {
+    gap: 35px;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .service-card {
+    width: 100%;
+    max-width: 500px;
+    height: 350px;
+  }
+  
+  .service-img {
+    width: 100%;
+    max-width: 420px;
+    height: 165px;
+  }
+  
+  .service-label-main {
+    font-size: 1.05rem;
+  }
+  
+  .service-label-desc {
+    font-size: 0.95rem;
+  }
+  
+  /* About Section */
+  .about-section {
+    padding: 40px 18px;
+  }
+  
+  .about-title {
+    font-size: 2.5rem;
+  }
+  
+  .about-content {
+    flex-direction: column;
+    gap: 30px;
+    max-width: 500px;
+  }
+  
+  .about-img {
+    width: 100%;
+    height: 280px;
+  }
+  
+  .about-text p {
+    font-size: 0.95rem;
+  }
+  
+  /* Contact Section */
+  .contact-section {
+    padding: 40px 18px;
+  }
+  
+  .contact-title {
+    font-size: 2.5rem;
+  }
+  
+  .contact-content {
+    flex-direction: column;
+    max-width: 500px;
+    gap: 0;
+  }
+  
+  .contact-box {
+    width: 100%;
+    height: auto;
+    padding: 28px 24px;
+  }
+  
+  .contact-box-left {
+    border-radius: 12px 12px 0 0;
+    border-right: none;
+    border-bottom: 2px solid #f3ecfa;
+  }
+  
+  .contact-box-right {
+    border-radius: 0 0 12px 12px;
+  }
+  
+  /* Footer */
+  footer {
+    padding: 16px;
+    min-height: 320px;
+  }
+  
+  .footer-container {
+    margin-top: 30px;
+    margin-left: 20px;
+    gap: 18px;
+  }
+  
+  .footer-logo {
+    margin-left: 20px;
+    max-width: 400px;
+  }
+  
+  .footer-logo img {
+    width: 70px;
+  }
+  
+  .footer-logo p {
+    font-size: 22px;
+  }
+  
+  .footer-links h3 {
+    font-size: 26px;
+  }
+  
+  .footer-links li,
+  .footer-links p {
+    font-size: 17px;
+  }
+  
+  .footer-bottom {
+    font-size: 18px;
+  }
+  
+  /* Login/Signup Forms */
+  .login-section,
+  .signup-section {
+    padding: 35px 20px;
+  }
+  
+  .login-form {
+    width: 380px;
+  }
+  
+  .signup-container {
+    max-width: 850px;
+  }
+  
+  .signup-title {
+    font-size: 45px;
+  }
+  
+  .signup-subtitle {
+    font-size: 18px;
+  }
+  
+  .signup-row-3col {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  
+  .signup-row {
+    margin-bottom: 18px;
+  }
+  
+  /* User Profile */
+  .profile-main-content {
+    padding: 45px 18px;
+  }
+  
+  .user-profile-header {
+    max-width: 850px;
+  }
+  
+  .user-profile-name {
+    font-size: 2rem;
+  }
+  
+  .user-profile-content {
+    max-width: 850px;
+    gap: 28px;
+  }
+  
+  .user-info-card {
+    padding: 26px 28px;
+  }
+  
+  /* Request Forms */
+  .request-hero {
+    height: 180px;
+  }
+  
+  .request-hero-content h1 {
+    font-size: 3rem;
+  }
+  
+  .breadcrumb {
+    font-size: 1rem;
+  }
+  
+  .request-form-section {
+    flex-direction: column;
+    padding: 35px 18px;
+    gap: 25px;
+  }
+  
+  .request-form-sidebar {
+    width: 100%;
+    padding-top: 0;
+  }
+  
+  .back-to-calendar-btn {
+    width: fit-content;
+  }
+  
+  .request-form-container {
+    max-width: 100%;
+    padding: 30px 18px;
+  }
+  
+  .form-title {
+    font-size: 1.8rem;
+  }
+  
+  .form-subtitle {
+    font-size: 0.92rem;
+  }
+  
+  .form-row-2col,
+  .form-row-3col {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+  
+  /* Calendar Pages */
+  .calendar-hero {
+    height: 180px;
+  }
+  
+  .calendar-hero-content h1 {
+    font-size: 2.5rem;
+  }
+  
+  .calendar-hero-content p {
+    font-size: 1rem;
+  }
+  
+  .calendar-top-bar {
+    grid-template-columns: 1fr;
+    padding: 22px 18px;
+    gap: 20px;
+  }
+  
+  .calendar-back-section {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .calendar-center-section,
+  .calendar-right-section {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .calendar-month-display {
+    font-size: 2rem;
+    min-width: 180px;
+  }
+  
+  .month-nav-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 1.7rem;
+  }
+  
+  .legend-inline {
+    gap: 10px;
+    padding: 12px;
+  }
+  
+  .tents-legend-item {
+    font-size: 12px;
+  }
+  
+  .tents-legend-box {
+    width: 26px;
+    height: 26px;
+  }
+  
+  .calendar-grid {
+    width: 98%;
+    margin: 12px auto 22px auto;
+  }
+  
+  .calendar-day-header {
+    font-size: 12px;
+    padding: 12px 6px;
+  }
+  
+  .calendar-date {
+    min-height: 90px;
+    padding: 11px 9px;
+  }
+  
+  .calendar-date .date-number {
+    font-size: 1.25rem;
+  }
+  
+  .booking-label {
+    font-size: 0.75rem;
+  }
+  
+  .tents-booking-preview {
+    padding: 5px 7px;
+    font-size: 10px;
+  }
+  
+  .tents-preview-purpose {
+    font-size: 10px;
+  }
+  
+  .tents-preview-time {
+    font-size: 9px;
+  }
+  
+  .tents-calendar-event {
+    font-size: 10px;
+    padding: 5px 7px;
+  }
+  
+  /* About Page Sections */
+  .about-hero,
+  .contact-hero,
+  .profile-hero {
+    height: 180px;
+  }
+  
+  .about-hero-text h1,
+  .contact-hero-text h1,
+  .profile-hero-text h1 {
+    font-size: 3rem;
+  }
+  
+  .about-hero-text p,
+  .contact-hero-text p,
+  .profile-hero-text p {
+    font-size: 1rem;
+  }
+  
+  .history-section {
+    padding: 38px 18px;
+  }
+  
+  .history-section .about-content {
+    flex-direction: column;
+    gap: 28px;
+  }
+  
+  .history-image {
+    width: 100%;
+    max-width: 500px;
+  }
+  
+  .history-image img {
+    width: 100%;
+    height: 280px;
+  }
+  
+  .history-text {
+    width: 100%;
+  }
+  
+  .history-text h1 {
+    font-size: 1.5rem;
+  }
+  
+  .history-text p {
+    font-size: 0.95rem;
+  }
+  
+  .mission-vision-section {
+    padding: 55px 18px;
+  }
+  
+  .mission-vision-container {
+    flex-direction: column;
+    gap: 35px;
+    max-width: 500px;
+  }
+  
+  .mission-box,
+  .vision-box {
+    max-width: 100%;
+    height: 190px;
+    padding: 38px 32px;
+  }
+  
+  .mv-header {
+    font-size: 2.4rem;
+  }
+  
+  .mv-text {
+    font-size: 1.05rem;
+  }
+  
+  .officials-section {
+    padding: 55px 18px;
+  }
+  
+  .officials-section h2 {
+    font-size: 2.3rem;
+  }
+  
+  .officials-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 28px;
+  }
+  
+  .official-card img {
+    height: 230px;
+  }
+  
+  .official-info h3 {
+    font-size: 1.25rem;
+  }
+  
+  .official-info p {
+    font-size: 0.95rem;
+  }
+  
+  /* Contact Page */
+  .contact-page {
+    padding: 55px 35px;
+  }
+  
+  .contact-page-title {
+    font-size: 2.8rem;
+  }
+  
+  .contact-subtitle {
+    font-size: 1.15rem;
+  }
+  
+  .contact-cards {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  
+  .contact-card {
+    width: 100%;
+    max-width: 500px;
+    height: auto;
+    margin: 0 auto;
+  }
+  
+  .contact-icon {
+    width: 90px;
+    height: 90px;
+    padding: 18px;
+  }
+  
+  .contact-icon img {
+    width: 100%;
+    height: 100%;
+  }
+  
+  .contact-label {
+    font-size: 1.05rem;
+  }
+  
+  .contact-details {
+    font-size: 0.95rem;
+  }
+  
+  /* Modals */
+  .modal-content {
+    width: 92%;
+    max-width: 600px;
+    padding: 32px 38px 90px 38px;
+  }
+  
+  .modal-content h2 {
+    font-size: 1.6rem;
+  }
+  
+  .form-group label {
+    font-size: 0.92rem;
+  }
+  
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 11px 13px;
+    font-size: 0.95rem;
+  }
+}
+
+/* ===================================
+   MOBILE TRANSITION: 640px and below
+   =================================== */
+@media screen and (max-width: 640px) {
+  
+  /* Navigation */
+  nav ul {
+    gap: 20px;
+    font-size: 14px;
+  }
+  
+  /* Hero Sections */
+  .hero-landing img {
+    height: 290px;
+  }
+  
+  .hero-landingtext {
+    margin-left: 40px;
+  }
+  
+  .hero-landingtext h1 {
+    font-size: 40px;
+    margin-top: -210px;
+  }
+  
+  .hero-landingtext h2 {
+    font-size: 40px;
+  }
+  
+  .hero-landingtext p {
+    font-size: 14px;
+  }
+  
+  /* Floating Card */
+  .floating-card-wrap {
+    margin-top: 50px;
+  }
+  
+  .floating-card {
+    flex-direction: row;
+    padding: 12px 18px;
+    gap: 20px;
+  }
+  
+  .floating-card .quick-item img {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .floating-card .quick-label {
+    font-size: 11px;
+  }
+  
+  /* Calendar Section */
+  .calendar-Title {
+    font-size: 2.2rem;
+  }
+  
+  .calendar-desc {
+    font-size: 1.2rem;
+  }
+  
+  .calendar-card {
+    max-width: 420px;
+  }
+  
+  /* Services Section */
+  .services-title {
+    font-size: 2.2rem;
+  }
+  
+  .service-card {
+    max-width: 420px;
+  }
+  
+  /* About/Contact */
+  .about-title,
+  .contact-title {
+    font-size: 2.2rem;
+  }
+  
+  /* Footer */
+  .footer-logo p {
+    font-size: 20px;
+  }
+  
+  .footer-links h3 {
+    font-size: 24px;
+  }
+  
+  .footer-links li,
+  .footer-links p {
+    font-size: 16px;
+  }
+  
+  /* Forms */
+  .signup-title {
+    font-size: 38px;
+  }
+  
+  .signup-row-3col {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Calendar Pages */
+  .calendar-hero-content h1 {
+    font-size: 2.2rem;
+  }
+  
+  .calendar-month-display {
+    font-size: 1.8rem;
+  }
+  
+  .month-nav-btn {
+    width: 46px;
+    height: 46px;
+  }
+  
+  .calendar-date {
+    min-height: 82px;
+  }
+}
+
+/* ===================================
+   MOBILE: 540px and below
+   =================================== */
+@media screen and (max-width: 540px) {
+  
+  /* Navigation */
+  .logo img {
+    width: 38px;
+    height: 38px;
+  }
+  
+  .logo span {
+    font-size: 11px;
+  }
+  
+  /* Hero */
+  .hero-landing img {
+    height: 270px;
+  }
+  
+  .hero-landingtext h1 {
+    font-size: 36px;
+    margin-top: -190px;
+  }
+  
+  .hero-landingtext h2 {
+    font-size: 36px;
+  }
+  
+  /* Floating Card */
+  .floating-card {
+    width: 92%;
+    gap: 16px;
+  }
+  
+  .floating-card .quick-item img {
+    width: 65px;
+    height: 65px;
+  }
+  
+  /* Sections */
+  .calendar-Title,
+  .services-title,
+  .about-title,
+  .contact-title {
+    font-size: 2rem;
+  }
+  
+  .calendar-desc {
+    font-size: 1.1rem;
+  }
+  
+  /* Calendar Pages */
+  .calendar-hero-content h1 {
+    font-size: 2rem;
+  }
+  
+  .calendar-month-display {
+    font-size: 1.65rem;
+  }
+  
+  .month-nav-btn {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .calendar-date {
+    min-height: 76px;
+  }
+}
+
+/* ===================================
+   MOBILE TRANSITION: 480px and below
+   Leads into your 425px breakpoint
+   =================================== */
+@media screen and (max-width: 480px) and (min-width: 426px) {
+  
+  /* Navigation */
+  header {
+    padding: 12px 14px;
+  }
+  
+  .logo img {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .logo span {
+    font-size: 11px;
+  }
+  
+  /* Hero */
+  .hero-landing img {
+    height: 260px;
+  }
+  
+  .hero-landingtext {
+    margin-left: 25px;
+  }
+  
+  .hero-landingtext h1 {
+    font-size: 34px;
+    margin-top: -185px;
+  }
+  
+  .hero-landingtext h2 {
+    font-size: 34px;
+  }
+  
+  .hero-landingtext p {
+    font-size: 12px;
+  }
+  
+  /* Floating Card */
+  .floating-card-wrap {
+    margin-top: 45px;
+  }
+  
+  .floating-card {
+    width: 90%;
+    padding: 16px;
+    gap: 14px;
+  }
+  
+  .floating-card .quick-item img {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .floating-card .quick-label {
+    font-size: 11px;
+  }
+  
+  /* Sections */
+  .calendar-section,
+  .services-section,
+  .about-section,
+  .contact-section {
+    padding: 32px 12px;
+  }
+  
+  .calendar-Title,
+  .services-title,
+  .about-title,
+  .contact-title {
+    font-size: 1.9rem;
+  }
+  
+  .calendar-desc {
+    font-size: 0.95rem;
+  }
+  
+  .services-desc {
+    font-size: 0.87rem;
+  }
+  
+  .calendar-card,
+  .service-card {
+    max-width: 350px;
+  }
+  
+  /* Footer */
+  footer {
+    padding: 15px;
+  }
+  
+  .footer-logo {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .footer-logo img {
+    width: 65px;
+  }
+  
+  .footer-logo p {
+    font-size: 17px;
+  }
+  
+  .footer-container {
+    flex-direction: column;
+    gap: 22px;
+    margin-left: 0;
+  }
+  
+  .footer-links {
+    text-align: center;
+  }
+  
+  .footer-links h3 {
+    font-size: 22px;
+  }
+  
+  .footer-links li,
+  .footer-links p {
+    font-size: 15px;
+    text-align: center;
+  }
+  
+  .footer-bottom {
+    font-size: 13px;
+  }
+  
+  /* Calendar Pages */
+  .calendar-hero-content h1 {
+    font-size: 1.7rem;
+  }
+  
+  .calendar-month-display {
+    font-size: 1.5rem;
+  }
+  
+  .month-nav-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.3rem;
+  }
+  
+  .calendar-date {
+    min-height: 70px;
+    padding: 7px 5px;
+  }
+  
+  .calendar-date .date-number {
+    font-size: 1rem;
+  }
+}
+
+/* ===================================
+   NOTE: Your existing 425px and below 
+   media query takes over after this point
+   =================================== */
 /* ===================================
    MOBILE RESPONSIVE STYLES
    =================================== */
@@ -13165,3 +14350,131 @@ body.sidebar-collapsed .sidebar-toggle-btn,
       0 0 30px rgba(255, 215, 0, 0.5);
   }
 }
+
+/* ============================================================================
+   USER-SIDE: Mid-phone collapse (426px — 693px)
+   Targets user pages with a footer (pages using `body.user-side`)
+   Files: `user.html`, `UserProfile.html`, `tents-calendar.html`,
+          `conference-room.html`, `tents-chairs-request.html`,
+          `conference-request.html`, `ContactPage.html`, etc.
+   Purpose: remove horizontal whitespace/gaps between tablet and mobile
+            without touching the existing 425px rules.
+   ============================================================================ */
+@media screen and (min-width: 426px) and (max-width: 693px) {
+
+  /* Ensure page doesn't create horizontal scroll */
+  html, body, .user-side {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Hide admin/side panels on user pages */
+  .user-side .admin-sidebar,
+  .user-side .sidebar,
+  .user-side .side-panel {
+    display: none !important;
+  }
+
+  /* Make main content stretch full width with modest padding */
+  .user-side .container,
+  .user-side .admin-main,
+  .user-side .admin-content,
+  .user-side .content,
+  .user-side .calendar-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    box-sizing: border-box !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  /* Collapse multi-column cards/grids to a single column */
+  .user-side .request-cards,
+  .user-side .tents-history-cards-grid,
+  .user-side .cards-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Images and calendar visuals should not overflow */
+  .user-side img,
+  .user-side .calendar-grid,
+  .user-side .calendar-hero,
+  .user-side .hero-landing img {
+    max-width: 100% !important;
+    height: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Reduce large horizontal paddings on specific components */
+  .user-side .page-header,
+  .user-side .page-actions,
+  .user-side .filters-row {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+}
+
+  /* Responsive Navbar: Minimize text and ensure visibility when collapsed */
+  @media (max-width: 900px) {
+    nav ul {
+      gap: 18px;
+      font-size: 15px;
+    }
+    nav a {
+      font-size: 15px;
+      padding: 8px 10px;
+    }
+    .logo span {
+      font-size: 12px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    nav ul {
+      gap: 3px;
+      font-size: 14px;
+      width: 100%;
+      background: #281ABC;
+      padding: 0 4px;
+      margin: 0;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 8px 24px rgba(40,26,188,0.08);
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    nav a {
+      font-size: 14px;
+      padding: 8px 6px;
+      width: auto;
+      box-sizing: border-box;
+      display: block;
+      text-align: left;
+    }
+    .logo span {
+      font-size: 11px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    nav ul {
+      font-size: 12px;
+      gap: 2px;
+    }
+    nav a {
+      font-size: 12px;
+      padding: 6px 2px;
+    }
+    .logo span {
+      font-size: 9px;
+    }
+  }
