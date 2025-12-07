@@ -2241,45 +2241,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const user = auth.currentUser;
     if (!user) return;
 
-    // Clear previous errors
-    [errorEditFirstname, errorEditLastname, errorEditContact, errorEditAddress].forEach(el => {
+    // Clear previous errors (firstName and lastName are readonly, so no validation needed)
+    [errorEditContact, errorEditAddress].forEach(el => {
       if (el) clearErrorSignup(el);
     });
 
-    const firstName = document.getElementById('editFirstName').value.trim();
-    const lastName = document.getElementById('editLastName').value.trim();
     const contact = document.getElementById('editContactNumber').value.trim();
     const address = document.getElementById('editAddress').value.trim();
 
     let valid = true;
-
-    // First Name validation
-    if (!firstName) {
-      setErrorSignup(errorEditFirstname, "First Name can't be blank");
-      valid = false;
-    } else if (firstName.length < 2) {
-      setErrorSignup(errorEditFirstname, "First Name must be at least 2 characters");
-      valid = false;
-    } else if (!/^[a-zA-Z\s'-]+$/.test(firstName)) {
-      setErrorSignup(errorEditFirstname, "First Name can only contain letters, spaces, hyphens, and apostrophes");
-      valid = false;
-    } else {
-      setSuccessSignup(errorEditFirstname);
-    }
-
-    // Last Name validation
-    if (!lastName) {
-      setErrorSignup(errorEditLastname, "Last Name can't be blank");
-      valid = false;
-    } else if (lastName.length < 2) {
-      setErrorSignup(errorEditLastname, "Last Name must be at least 2 characters");
-      valid = false;
-    } else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) {
-      setErrorSignup(errorEditLastname, "Last Name can only contain letters, spaces, hyphens, and apostrophes");
-      valid = false;
-    } else {
-      setSuccessSignup(errorEditLastname);
-    }
 
     // Contact validation
     if (!contact) {
@@ -2310,8 +2280,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!valid) return;
 
     const updates = {
-      firstName: firstName,
-      lastName: lastName,
       contactNumber: contact,
       address: address
     };
@@ -2372,9 +2340,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (errorConfirmPassword) clearErrorSignup(errorConfirmPassword);
   });
 
-  // Also clear edit-profile errors while typing
-  document.getElementById('editFirstName')?.addEventListener('input', () => { if (errorEditFirstname) clearErrorSignup(errorEditFirstname); });
-  document.getElementById('editLastName')?.addEventListener('input', () => { if (errorEditLastname) clearErrorSignup(errorEditLastname); });
+  // Also clear edit-profile errors while typing (firstName and lastName are readonly)
   document.getElementById('editContactNumber')?.addEventListener('input', () => { if (errorEditContact) clearErrorSignup(errorEditContact); });
   document.getElementById('editAddress')?.addEventListener('input', () => { if (errorEditAddress) clearErrorSignup(errorEditAddress); });
 
@@ -10033,7 +9999,7 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
   // Bulk approve requests
   window.bulkApprove = async function() {
     const selected = Array.from(document.querySelectorAll('.row-checkbox:checked'));
-    const requestIds = selected.map(cb => cb.dataset.requestId);
+    const requestIds = selected.map(cb => cb.getAttribute('data-request-id'));
     
     if (requestIds.length === 0) return;
     
@@ -10072,7 +10038,7 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
   // Bulk deny requests
   window.bulkDeny = async function() {
     const selected = Array.from(document.querySelectorAll('.row-checkbox:checked'));
-    const requestIds = selected.map(cb => cb.dataset.requestId);
+    const requestIds = selected.map(cb => cb.getAttribute('data-request-id'));
     
     if (requestIds.length === 0) return;
     
@@ -10120,7 +10086,7 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
   // Bulk complete requests
   window.bulkComplete = async function() {
     const selected = Array.from(document.querySelectorAll('.row-checkbox:checked'));
-    const requestIds = selected.map(cb => cb.dataset.requestId);
+    const requestIds = selected.map(cb => cb.getAttribute('data-request-id'));
     
     if (requestIds.length === 0) return;
     
@@ -10159,7 +10125,7 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
   // Bulk archive requests
   window.bulkArchive = async function() {
     const selected = Array.from(document.querySelectorAll('.row-checkbox:checked'));
-    const requestIds = selected.map(cb => cb.dataset.requestId);
+    const requestIds = selected.map(cb => cb.getAttribute('data-request-id'));
     
     if (requestIds.length === 0) return;
     
@@ -10197,7 +10163,7 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
   // Bulk delete requests
   window.bulkDelete = async function() {
     const selected = Array.from(document.querySelectorAll('.row-checkbox:checked'));
-    const requestIds = selected.map(cb => cb.dataset.requestId);
+    const requestIds = selected.map(cb => cb.getAttribute('data-request-id'));
     
     if (requestIds.length === 0) return;
     
@@ -10563,12 +10529,24 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       console.log(`✅ Found ${filtered.length} matches (from ${beforeCount} requests)`);
     }
 
-    // Filter by date
-    const dateFilter = document.getElementById('dateFilter')?.value;
-    if (dateFilter) {
-      filtered = filtered.filter(req => 
-        req.startDate === dateFilter || req.endDate === dateFilter
-      );
+    // Filter by date range - event overlaps if (eventStart <= rangeEnd && eventEnd >= rangeStart)
+    const dateFilterStart = document.getElementById('dateFilterStart')?.value;
+    const dateFilterEnd = document.getElementById('dateFilterEnd')?.value;
+    
+    if (dateFilterStart && dateFilterEnd) {
+      // Both dates selected: filter events that overlap with date range
+      filtered = filtered.filter(req => {
+        const eventStart = req.startDate; // YYYY-MM-DD
+        const eventEnd = req.endDate;     // YYYY-MM-DD
+        // Event overlaps with range if: eventStart <= rangeEnd AND eventEnd >= rangeStart
+        return eventStart <= dateFilterEnd && eventEnd >= dateFilterStart;
+      });
+    } else if (dateFilterStart) {
+      // Only start date: filter events that end on or after start date
+      filtered = filtered.filter(req => req.endDate >= dateFilterStart);
+    } else if (dateFilterEnd) {
+      // Only end date: filter events that start on or before end date
+      filtered = filtered.filter(req => req.startDate <= dateFilterEnd);
     }
 
     // Filter by delivery mode (use normalization to match variations like "Self-Pickup"/"Pick-up")
@@ -10922,6 +10900,25 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         <button class="tents-bulk-btn tents-bulk-complete" onclick="window.bulkComplete()" id="bulkCompleteBtn" style="display: none;">Mark Selected as Completed</button>
         <button class="tents-bulk-btn tents-bulk-archive" onclick="window.bulkArchive()" id="bulkArchiveBtn" style="display: none;">Archive Selected</button>
         <button class="tents-bulk-btn tents-bulk-unarchive" onclick="window.bulkUnarchive()" id="bulkUnarchiveBtn" style="display: none;">Unarchive Selected</button>
+        
+        <!-- Export Dropdown for Selected Records -->
+        <div class="tents-bulk-export-dropdown" id="bulkExportDropdown">
+          <button class="tents-bulk-btn tents-bulk-export" onclick="window.toggleBulkExportMenu()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Export Selected
+          </button>
+          <div class="tents-bulk-export-menu" id="bulkExportMenu" style="display: none;">
+            <button class="tents-dropdown-item" onclick="window.exportSelectedRecords('excel')">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:8px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              Export as Excel
+            </button>
+            <button class="tents-dropdown-item" onclick="window.exportSelectedRecords('csv')">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:8px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              Export as CSV
+            </button>
+          </div>
+        </div>
+        
         <button class="tents-bulk-btn tents-bulk-clear" onclick="window.clearSelection()">Clear Selection</button>
       </div>
     `;
@@ -12460,6 +12457,204 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   }
 
   // ========================================
+  // EXPORT SELECTED FUNCTIONS (BULK TOOLBAR)
+  // ========================================
+
+  /**
+   * Toggle bulk export dropdown menu
+   */
+  function toggleBulkExportMenu() {
+    const menu = document.getElementById('bulkExportMenu');
+    if (menu) {
+      const isVisible = menu.style.display === 'block';
+      menu.style.display = isVisible ? 'none' : 'block';
+    }
+  }
+
+  /**
+   * Get IDs of all selected requests
+   * @returns {Array<string>} Array of selected request IDs
+   */
+  function getSelectedRequestIds() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.getAttribute('data-request-id'));
+  }
+
+  /**
+   * Export selected records in specified format
+   * @param {string} format - 'excel' or 'csv'
+   */
+  function exportSelectedRecords(format) {
+    console.log('📤 Exporting selected records as', format);
+    
+    const selectedIds = getSelectedRequestIds();
+    if (selectedIds.length === 0) {
+      alert('Please select at least one request to export.');
+      return;
+    }
+
+    // Get full data for selected requests
+    const selectedRequests = allRequests.filter(req => selectedIds.includes(req.id));
+    console.log(`✅ Found ${selectedRequests.length} selected requests to export`);
+
+    if (format === 'excel') {
+      exportToExcelSelected(selectedRequests);
+    } else if (format === 'csv') {
+      exportToCSVSelected(selectedRequests);
+    }
+
+    // Close dropdown
+    toggleBulkExportMenu();
+  }
+
+  /**
+   * Export selected requests to Excel
+   * @param {Array} selectedRequests - Array of selected request objects
+   */
+  function exportToExcelSelected(selectedRequests) {
+    console.log('📊 Exporting selected requests to Excel...');
+
+    // Check if XLSX library is loaded
+    if (typeof XLSX === 'undefined') {
+      console.error('❌ XLSX library not loaded');
+      alert('Export library not loaded. Please refresh the page.');
+      return;
+    }
+
+    // Helper to format dates with long month (November 2, 2025)
+    const formatDateLong = (dateStr) => {
+      if (!dateStr) return '';
+      const [year, month, day] = dateStr.split('-');
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    // Prepare data with all fields
+    const data = selectedRequests.map(req => ({
+      'Request ID': req.id,
+      'Status': req.status.toUpperCase(),
+      'First Name': req.firstName || '',
+      'Last Name': req.lastName || '',
+      'Full Name': req.fullName || '',
+      'Contact Number': req.contactNumber || '',
+      'Complete Address': req.completeAddress || req.address || '',
+      'Mode of Receiving': req.modeOfReceiving || '',
+      'Quantity Chairs': req.quantityChairs || 0,
+      'Quantity Tents': req.quantityTents || 0,
+      'Start Date': formatDateLong(req.startDate),
+      'End Date': formatDateLong(req.endDate),
+      'User Email': req.userEmail || '',
+      'Date Submitted': req.createdAt ? new Date(req.createdAt.toDate()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+      'Date Approved': req.approvedAt ? new Date(req.approvedAt.toDate()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+      'Is Internal Booking': req.isInternalBooking ? 'Yes' : 'No'
+    }));
+
+    // Create worksheet and workbook
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Selected Requests');
+
+    // Generate filename with date range if filters are active
+    const dateStart = document.getElementById('dateFilterStart')?.value;
+    const dateEnd = document.getElementById('dateFilterEnd')?.value;
+    let filename = 'tents-chairs-selected';
+    if (dateStart && dateEnd) {
+      filename += `-${dateStart}-to-${dateEnd}`;
+    } else if (dateStart) {
+      filename += `-from-${dateStart}`;
+    } else if (dateEnd) {
+      filename += `-until-${dateEnd}`;
+    }
+    filename += '.xlsx';
+
+    // Download
+    XLSX.writeFile(workbook, filename);
+    console.log('✅ Excel export complete:', filename);
+  }
+
+  /**
+   * Export selected requests to CSV
+   * @param {Array} selectedRequests - Array of selected request objects
+   */
+  function exportToCSVSelected(selectedRequests) {
+    console.log('📄 Exporting selected requests to CSV...');
+
+    // Prepare CSV headers
+    const headers = [
+      'Request ID', 'Status', 'First Name', 'Last Name', 'Full Name', 
+      'Contact Number', 'Complete Address', 'Mode of Receiving',
+      'Quantity Chairs', 'Quantity Tents', 'Start Date', 'End Date',
+      'User Email', 'Date Submitted', 'Date Approved', 'Is Internal Booking'
+    ];
+
+    // Helper to format dates with long month (November 2, 2025)
+    const formatDateLong = (dateStr) => {
+      if (!dateStr) return '';
+      const [year, month, day] = dateStr.split('-');
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    // Prepare CSV rows
+    const rows = selectedRequests.map(req => [
+      req.id,
+      req.status.toUpperCase(),
+      req.firstName || '',
+      req.lastName || '',
+      req.fullName || '',
+      req.contactNumber || '',
+      req.completeAddress || req.address || '',
+      req.modeOfReceiving || '',
+      req.quantityChairs || 0,
+      req.quantityTents || 0,
+      formatDateLong(req.startDate),
+      formatDateLong(req.endDate),
+      req.userEmail || '',
+      req.createdAt ? new Date(req.createdAt.toDate()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+      req.approvedAt ? new Date(req.approvedAt.toDate()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+      req.isInternalBooking ? 'Yes' : 'No'
+    ]);
+
+    // Escape CSV values (handle commas, quotes, newlines)
+    const escapeCSV = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    // Build CSV content
+    let csvContent = headers.map(escapeCSV).join(',') + '\n';
+    rows.forEach(row => {
+      csvContent += row.map(escapeCSV).join(',') + '\n';
+    });
+
+    // Generate filename with date range if filters are active
+    const dateStart = document.getElementById('dateFilterStart')?.value;
+    const dateEnd = document.getElementById('dateFilterEnd')?.value;
+    let filename = 'tents-chairs-selected';
+    if (dateStart && dateEnd) {
+      filename += `-${dateStart}-to-${dateEnd}`;
+    } else if (dateStart) {
+      filename += `-from-${dateStart}`;
+    } else if (dateEnd) {
+      filename += `-until-${dateEnd}`;
+    }
+    filename += '.csv';
+
+    // Create and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    
+    console.log('✅ CSV export complete:', filename);
+  }
+
+  // ========================================
   // EXPORT FUNCTIONS
   // ========================================
 
@@ -12467,11 +12662,12 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Export to Excel with multiple sheets (All Requests, History, Archives)
    */
   function exportToExcel() {
-    console.log('📊 Exporting to Excel with multiple sheets...');
+    console.log('📊 [TENTS EXPORT] Starting Excel export...');
+    console.log('📊 [TENTS EXPORT] Total requests available:', allRequests.length);
     
     // Check if XLSX library is loaded
     if (typeof XLSX === 'undefined') {
-      console.error('❌ XLSX library not loaded');
+      console.error('❌ [TENTS EXPORT] XLSX library not loaded');
       showToast('Excel library not loaded. Please refresh the page and try again.', false);
       return;
     }
@@ -12479,124 +12675,173 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     try {
       // Create a new workbook
       const wb = XLSX.utils.book_new();
+      console.log('✅ [TENTS EXPORT] Workbook created');
       
       // Sheet 1: All Requests (Active)
       const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+      console.log('📋 [TENTS EXPORT] Active requests:', allRequestsData.length);
       const allRequestsSheet = createExcelSheet(allRequestsData, 'all');
       XLSX.utils.book_append_sheet(wb, allRequestsSheet, 'All Requests');
+      console.log('✅ [TENTS EXPORT] All Requests sheet added');
       
       // Sheet 2: History
       const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+      console.log('📋 [TENTS EXPORT] History requests:', historyData.length);
       const historySheet = createExcelSheet(historyData, 'history');
       XLSX.utils.book_append_sheet(wb, historySheet, 'History');
+      console.log('✅ [TENTS EXPORT] History sheet added');
       
       // Sheet 3: Archives
       const archivesData = allRequests.filter(r => r.archived === true);
+      console.log('📋 [TENTS EXPORT] Archived requests:', archivesData.length);
       const archivesSheet = createExcelSheet(archivesData, 'archives');
       XLSX.utils.book_append_sheet(wb, archivesSheet, 'Archives');
+      console.log('✅ [TENTS EXPORT] Archives sheet added');
       
       // Generate filename with timestamp
       const filename = `tents-chairs-requests-${new Date().toISOString().split('T')[0]}.xlsx`;
+      console.log('📁 [TENTS EXPORT] Filename:', filename);
       
       // Write file
       XLSX.writeFile(wb, filename);
       
-      console.log('✅ Excel exported successfully');
+      console.log('✅ [TENTS EXPORT] Excel exported successfully');
       showToast('Excel file exported successfully', true);
     } catch (error) {
-      console.error('❌ Error exporting to Excel:', error);
-      showToast('Failed to export Excel file', false);
+      console.error('❌ [TENTS EXPORT] Error exporting to Excel:', error);
+      console.error('❌ [TENTS EXPORT] Error stack:', error.stack);
+      showToast('Failed to export Excel file: ' + error.message, false);
     }
   }
 
   /**
-   * Create Excel sheet from requests data
+   * Create Excel sheet from requests data (Tents & Chairs)
    * @param {Array} requests - Array of request objects
    * @param {string} sheetType - Type of sheet: 'all', 'history', or 'archives'
    */
   function createExcelSheet(requests, sheetType) {
+    console.log(`🔧 [TENTS EXPORT] Creating ${sheetType} sheet with ${requests.length} requests`);
     const data = [];
     
-    // Headers vary based on sheet type
-    const headers = ['Submitted On', 'First Name', 'Last Name', 'Purpose', 'Start Date', 'End Date', 'Chairs', 'Tents', 'Delivery Mode', 'Address', 'Contact', 'Email', 'Status'];
+    // Headers - Bulk Action Format (User-Friendly & Complete)
+    const headers = ['Request ID', 'Status', 'First Name', 'Last Name', 'Full Name', 'Contact Number', 'Complete Address', 'Purpose', 'Mode of Receiving', 'Quantity Chairs', 'Quantity Tents', 'Start Date', 'End Date', 'User Email', 'Date Submitted', 'Date Approved', 'Is Internal Booking'];
     
+    // Add conditional columns for History/Archives
     if (sheetType === 'history') {
       headers.push('Remarks', 'Completed On');
     } else if (sheetType === 'archives') {
       headers.push('Remarks', 'Archived On');
     }
-    // 'all' type has no extra columns
     
     data.push(headers);
+    console.log(`✅ [TENTS EXPORT] Headers added: ${headers.length} columns`);
     
     // Rows
-    requests.forEach(req => {
-      // Format submitted date with time
-      let submittedDateTime = 'N/A';
-      if (req.createdAt) {
-        const createdDate = req.createdAt.toDate();
-        submittedDateTime = createdDate.toLocaleString('en-US', { 
-          year: 'numeric', 
-          month: 'short', 
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-      }
-      
-      const nameParts = getNameParts(req);
-      const row = [
-        submittedDateTime,
-        nameParts.firstName,
-        nameParts.lastName,
-        req.purposeOfUse || req.purpose || '',
-        formatDateText(req.startDate),
-        formatDateText(req.endDate),
-        req.quantityChairs || 0,
-        req.quantityTents || 0,
-        req.modeOfReceiving || '',
-        req.completeAddress || '',
-        req.contactNumber || '',
-        req.userEmail || '',
-        req.status
-      ];
-      
-      if (sheetType === 'history') {
-        row.push(req.rejectionReason || req.remarks || '');
-        
-        // Completed On (for completed, rejected, cancelled)
-        let completedOn = '';
-        if (req.status === 'completed' && req.completedAt) {
-          completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
-          });
-        } else if (req.status === 'rejected' && req.rejectedAt) {
-          completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
-          });
-        } else if (req.status === 'cancelled' && req.cancelledAt) {
-          completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+    requests.forEach((req, index) => {
+      try {
+        // Format submitted date with time
+        let submittedDateTime = 'N/A';
+        if (req.createdAt) {
+          const createdDate = req.createdAt.toDate();
+          submittedDateTime = createdDate.toLocaleString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
           });
         }
-        row.push(completedOn);
-      } else if (sheetType === 'archives') {
-        row.push(req.rejectionReason || req.remarks || '');
         
-        // Archived On
-        let archivedOn = '';
-        if (req.archivedAt) {
-          archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
-          });
+        const nameParts = getNameParts(req);
+        
+        // Format dates as readable text (e.g., "November 2, 2025")
+        const formatDateLong = (dateStr) => {
+          try {
+            if (!dateStr) return 'N/A';
+            const parts = String(dateStr).split('-');
+            if (parts.length !== 3) return dateStr;
+            const [year, month, day] = parts;
+            const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            if (isNaN(date.getTime())) return dateStr;
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          } catch (err) {
+            console.warn('Date formatting error:', err, dateStr);
+            return dateStr || 'N/A';
+          }
+        };
+        
+        // Format Date Submitted
+        const dateSubmitted = req.createdAt ? req.createdAt.toDate().toLocaleDateString('en-US', { 
+          year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+        }) : '';
+        
+        // Format Date Approved
+        const dateApproved = req.approvedAt ? req.approvedAt.toDate().toLocaleDateString('en-US', { 
+          year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+        }) : '';
+        
+        const row = [
+          req.id || '',
+          req.status ? req.status.toUpperCase() : '',
+          nameParts.firstName,
+          nameParts.lastName,
+          req.fullName || '',
+          req.contactNumber || '',
+          req.completeAddress || req.address || '',
+          req.purposeOfUse || req.purpose || '',
+          req.modeOfReceiving || '',
+          req.quantityChairs || 0,
+          req.quantityTents || 0,
+          formatDateLong(req.startDate),
+          formatDateLong(req.endDate),
+          req.userEmail || '',
+          dateSubmitted,
+          dateApproved,
+          req.isInternalBooking ? 'Yes' : 'No'
+        ];
+        
+        if (sheetType === 'history') {
+          row.push(req.rejectionReason || req.remarks || '');
+          
+          // Completed On (for completed, rejected, cancelled) - long month format
+          let completedOn = '';
+          if (req.status === 'completed' && req.completedAt) {
+            completedOn = req.completedAt.toDate().toLocaleDateString('en-US', { 
+              year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+            });
+          } else if (req.status === 'rejected' && req.rejectedAt) {
+            completedOn = req.rejectedAt.toDate().toLocaleDateString('en-US', { 
+              year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+            });
+          } else if (req.status === 'cancelled' && req.cancelledAt) {
+            completedOn = req.cancelledAt.toDate().toLocaleDateString('en-US', { 
+              year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+            });
+          }
+          row.push(completedOn);
+        } else if (sheetType === 'archives') {
+          row.push(req.rejectionReason || req.remarks || '');
+          
+          // Archived On
+          let archivedOn = '';
+          if (req.archivedAt) {
+            archivedOn = req.archivedAt.toDate().toLocaleDateString('en-US', { 
+              year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+            });
+          }
+          row.push(archivedOn);
         }
-        row.push(archivedOn);
+        
+        data.push(row);
+      } catch (rowError) {
+        console.error(`❌ [TENTS EXPORT] Error processing row ${index + 1}:`, rowError);
+        console.error(`❌ [TENTS EXPORT] Problematic request ID:`, req.id);
+        // Skip problematic row but continue export
       }
-      
-      data.push(row);
     });
     
+    console.log(`✅ [TENTS EXPORT] Sheet created with ${data.length - 1} data rows`);
     return XLSX.utils.aoa_to_sheet(data);
   }
 
@@ -12604,29 +12849,41 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Export to CSV (All Requests in sections)
    */
   function exportToCSVAll() {
-    console.log('💾 Exporting all data to CSV with sections...');
+    console.log('💾 [TENTS CSV] Starting All Requests CSV export...');
+    console.log('💾 [TENTS CSV] Total requests available:', allRequests.length);
     
-    let csv = '';
-    
-    // Section 1: All Requests (Active)
-    csv += '=== ALL REQUESTS (ACTIVE) ===\n';
-    const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
-    csv += buildCSVSection(allRequestsData, 'all');
-    csv += '\n\n';
-    
-    // Section 2: History
-    csv += '=== HISTORY ===\n';
-    const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
-    csv += buildCSVSection(historyData, 'history');
-    csv += '\n\n';
-    
-    // Section 3: Archives
-    csv += '=== ARCHIVES ===\n';
-    const archivesData = allRequests.filter(r => r.archived === true);
-    csv += buildCSVSection(archivesData, 'archives');
-    
-    downloadCSV(csv, `tents-chairs-all-requests-${new Date().toISOString().split('T')[0]}.csv`);
-    showToast('CSV exported successfully (All Data)', true);
+    try {
+      let csv = '';
+      
+      // Section 1: All Requests (Active)
+      csv += '=== ALL REQUESTS (ACTIVE) ===\n';
+      const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
+      console.log('💾 [TENTS CSV] Active requests:', allRequestsData.length);
+      csv += buildCSVSection(allRequestsData, 'all');
+      csv += '\n\n';
+      
+      // Section 2: History
+      csv += '=== HISTORY ===\n';
+      const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+      console.log('💾 [TENTS CSV] History requests:', historyData.length);
+      csv += buildCSVSection(historyData, 'history');
+      csv += '\n\n';
+      
+      // Section 3: Archives
+      csv += '=== ARCHIVES ===\n';
+      const archivesData = allRequests.filter(r => r.archived === true);
+      console.log('💾 [TENTS CSV] Archived requests:', archivesData.length);
+      csv += buildCSVSection(archivesData, 'archives');
+      
+      console.log('💾 [TENTS CSV] CSV content generated, length:', csv.length);
+      downloadCSV(csv, `tents-chairs-all-requests-${new Date().toISOString().split('T')[0]}.csv`);
+      console.log('✅ [TENTS CSV] All Requests CSV exported successfully');
+      showToast('CSV exported successfully (All Data)', true);
+    } catch (error) {
+      console.error('❌ [TENTS CSV] Error in exportToCSVAll:', error);
+      console.error('❌ [TENTS CSV] Error stack:', error.stack);
+      showToast('Failed to export CSV: ' + error.message, false);
+    }
   }
 
   /**
@@ -12651,62 +12908,89 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Export Archives Only to CSV
    */
   function exportToCSVArchives() {
-    console.log('💾 Exporting archives to CSV...');
+    console.log('💾 [TENTS CSV] Starting Archives CSV export...');
+    console.log('💾 [TENTS CSV] Total requests:', allRequests.length);
     
-    const archivesData = allRequests.filter(r => r.archived === true);
-    
-    if (archivesData.length === 0) {
-      showToast('No archives data to export', false);
-      return;
+    try {
+      const archivesData = allRequests.filter(r => r.archived === true);
+      console.log('💾 [TENTS CSV] Archived requests found:', archivesData.length);
+      
+      if (archivesData.length === 0) {
+        console.warn('⚠️ [TENTS CSV] No archives data to export');
+        showToast('No archives data to export', false);
+        return;
+      }
+      
+      const csv = buildCSVSection(archivesData, 'archives');
+      console.log('💾 [TENTS CSV] CSV content generated, length:', csv.length);
+      downloadCSV(csv, `tents-chairs-archives-${new Date().toISOString().split('T')[0]}.csv`);
+      console.log('✅ [TENTS CSV] Archives CSV exported successfully');
+      showToast('CSV exported successfully (Archives)', true);
+    } catch (error) {
+      console.error('❌ [TENTS CSV] Error in exportToCSVArchives:', error);
+      console.error('❌ [TENTS CSV] Error stack:', error.stack);
+      showToast('Failed to export CSV: ' + error.message, false);
     }
-    
-    const csv = buildCSVSection(archivesData, 'archives');
-    downloadCSV(csv, `tents-chairs-archives-${new Date().toISOString().split('T')[0]}.csv`);
-    showToast('CSV exported successfully (Archives)', true);
   }
 
   /**
-   * Build CSV section from requests data
+   * Build CSV section from requests data (Bulk Action Format)
    * @param {Array} requests - Array of request objects
    * @param {string} sheetType - Type of section: 'all', 'history', or 'archives'
    */
   function buildCSVSection(requests, sheetType) {
+    console.log(`🔧 [TENTS CSV] Building ${sheetType} section with ${requests.length} requests`);
     let csv = '';
     
-    // Headers vary based on sheet type
-    csv += 'Submitted On,First Name,Last Name,Purpose,Start Date,End Date,Chairs,Tents,Delivery Mode,Address,Contact,Email,Status';
-    if (sheetType === 'history') {
-      csv += ',Remarks,Completed On';
-    } else if (sheetType === 'archives') {
-      csv += ',Remarks,Archived On';
-    }
-    // 'all' type has no extra columns
-    csv += '\n';
-    
-    // Rows
-    requests.forEach(req => {
-      // Format submitted date with time
-      let submittedDateTime = 'N/A';
-      if (req.createdAt) {
-        const createdDate = req.createdAt.toDate();
-        submittedDateTime = createdDate.toLocaleString('en-US', { 
-          year: 'numeric', 
-          month: 'short', 
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
+    try {
+      // Headers - Bulk Action Format
+      csv += 'Request ID,Status,First Name,Last Name,Full Name,Contact Number,Complete Address,Purpose,Mode of Receiving,Quantity Chairs,Quantity Tents,Start Date,End Date,User Email,Date Submitted,Date Approved,Is Internal Booking';
+      // Add conditional columns for History/Archives
+      if (sheetType === 'history') {
+        csv += ',Remarks,Completed On';
+      } else if (sheetType === 'archives') {
+        csv += ',Remarks,Archived On';
       }
+      csv += '\n';
       
+      // Rows
+      requests.forEach((req, index) => {
+        try {
       const nameParts = getNameParts(req);
-      const startDate = formatDateText(req.startDate);
-      const endDate = formatDateText(req.endDate);
+      
+      // Format dates as readable text (e.g., "November 2, 2025")
+      const formatDateLong = (dateStr) => {
+        try {
+          if (!dateStr) return 'N/A';
+          const parts = String(dateStr).split('-');
+          if (parts.length !== 3) return dateStr; // Return original if not YYYY-MM-DD format
+          const [year, month, day] = parts;
+          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          if (isNaN(date.getTime())) return dateStr; // Return original if invalid date
+          return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        } catch (err) {
+          console.warn('Date formatting error:', err, dateStr);
+          return dateStr || 'N/A';
+        }
+      };
+      
+      // Format Date Submitted
+      const dateSubmitted = req.createdAt ? req.createdAt.toDate().toLocaleDateString('en-US', { 
+        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+      }) : '';
+      
+      // Format Date Approved
+      const dateApproved = req.approvedAt ? req.approvedAt.toDate().toLocaleDateString('en-US', { 
+        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+      }) : '';
+      
       const remarkRaw = (req.rejectionReason || req.remarks || '');
       const remarkEsc = remarkRaw.replace(/"/g, '""');
       const purposeEsc = (req.purposeOfUse || req.purpose || '').replace(/"/g, '""');
+      const fullNameEsc = (req.fullName || '').replace(/"/g, '""');
+      const addressEsc = (req.completeAddress || req.address || '').replace(/"/g, '""');
       
-      csv += `"${submittedDateTime}","${nameParts.firstName}","${nameParts.lastName}","${purposeEsc}","${startDate}","${endDate}",${req.quantityChairs || 0},${req.quantityTents || 0},"${req.modeOfReceiving || ''}","${req.completeAddress || ''}","${req.contactNumber || ''}","${req.userEmail || ''}","${req.status}"`;
+      csv += `"${req.id || ''}","${req.status ? req.status.toUpperCase() : ''}","${nameParts.firstName}","${nameParts.lastName}","${fullNameEsc}","${req.contactNumber || ''}","${addressEsc}","${purposeEsc}","${req.modeOfReceiving || ''}",${req.quantityChairs || 0},${req.quantityTents || 0},"${formatDateLong(req.startDate)}","${formatDateLong(req.endDate)}","${req.userEmail || ''}","${dateSubmitted}","${dateApproved}","${req.isInternalBooking ? 'Yes' : 'No'}"`;
       
       if (sheetType === 'history') {
         csv += `,"${remarkEsc}"`;
@@ -12714,16 +12998,16 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         // Completed On (for completed, rejected, cancelled)
         let completedOn = '';
         if (req.status === 'completed' && req.completedAt) {
-          completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          completedOn = req.completedAt.toDate().toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
           });
         } else if (req.status === 'rejected' && req.rejectedAt) {
-          completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          completedOn = req.rejectedAt.toDate().toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
           });
         } else if (req.status === 'cancelled' && req.cancelledAt) {
-          completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          completedOn = req.cancelledAt.toDate().toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
           });
         }
         csv += `,"${completedOn}"`;
@@ -12733,17 +13017,27 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         // Archived On
         let archivedOn = '';
         if (req.archivedAt) {
-          archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          archivedOn = req.archivedAt.toDate().toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
           });
         }
         csv += `,"${archivedOn}"`;
       }
       
       csv += '\n';
-    });
-    
-    return csv;
+        } catch (rowError) {
+          console.error(`❌ [TENTS CSV] Error processing row ${index + 1}:`, rowError);
+          console.error(`❌ [TENTS CSV] Problematic request ID:`, req.id);
+          // Skip row but continue
+        }
+      });
+      
+      console.log(`✅ [TENTS CSV] Section built successfully with ${requests.length} rows`);
+      return csv;
+    } catch (error) {
+      console.error('❌ [TENTS CSV] Error in buildCSVSection:', error);
+      throw error;
+    }
   }
 
   /**
@@ -12941,7 +13235,8 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     // Filters
     document.getElementById('searchInput')?.addEventListener('input', renderContent);
     document.getElementById('statusFilter')?.addEventListener('change', renderContent);
-    document.getElementById('dateFilter')?.addEventListener('change', renderContent);
+    document.getElementById('dateFilterStart')?.addEventListener('change', renderContent);
+    document.getElementById('dateFilterEnd')?.addEventListener('change', renderContent);
     document.getElementById('deliveryFilter')?.addEventListener('change', renderContent);
     document.getElementById('sortByFilter')?.addEventListener('change', renderContent);
 
@@ -13904,6 +14199,10 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     }
   };
 
+  // Expose export selected functions to window for onclick handlers
+  window.toggleBulkExportMenu = toggleBulkExportMenu;
+  window.exportSelectedRecords = exportSelectedRecords;
+
 } // END: Tents & Chairs Admin Page
 
 /* =====================================================
@@ -14564,9 +14863,19 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       filtered = filtered.filter(r => r.status === statusFilter);
     }
 
-    // Date filter - filter by event date
-    if (dateFilter) {
-      filtered = filtered.filter(r => r.eventDate === dateFilter);
+    // Date filter - filter by event date range
+    const dateFilterStart = document.getElementById('dateFilterStart')?.value;
+    const dateFilterEnd = document.getElementById('dateFilterEnd')?.value;
+    
+    if (dateFilterStart && dateFilterEnd) {
+      // Both dates selected: filter events within date range (inclusive)
+      filtered = filtered.filter(r => r.eventDate >= dateFilterStart && r.eventDate <= dateFilterEnd);
+    } else if (dateFilterStart) {
+      // Only start date: filter events on or after start date
+      filtered = filtered.filter(r => r.eventDate >= dateFilterStart);
+    } else if (dateFilterEnd) {
+      // Only end date: filter events on or before end date
+      filtered = filtered.filter(r => r.eventDate <= dateFilterEnd);
     }
 
     // Sorting
@@ -15015,6 +15324,25 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         <button class="tents-bulk-btn tents-bulk-complete" onclick="window.bulkCompleteConference()" id="bulkCompleteBtnConference" style="display: none;">Mark Selected as Completed</button>
         <button class="tents-bulk-btn tents-bulk-archive" onclick="window.bulkArchiveConference()" id="bulkArchiveBtnConference" style="display: none;">Archive Selected</button>
         <button class="tents-bulk-btn tents-bulk-unarchive" onclick="window.bulkUnarchiveConference()" id="bulkUnarchiveBtnConference" style="display: none;">Unarchive Selected</button>
+        
+        <!-- Export Dropdown for Selected Records -->
+        <div class="tents-bulk-export-dropdown" id="bulkExportDropdownConference">
+          <button class="tents-bulk-btn tents-bulk-export" onclick="window.toggleBulkExportMenuConference()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Export Selected
+          </button>
+          <div class="tents-bulk-export-menu" id="bulkExportMenuConference" style="display: none;">
+            <button class="tents-dropdown-item" onclick="window.exportSelectedRecordsConference('excel')">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:8px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              Export as Excel
+            </button>
+            <button class="tents-dropdown-item" onclick="window.exportSelectedRecordsConference('csv')">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:8px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              Export as CSV
+            </button>
+          </div>
+        </div>
+        
         <button class="tents-bulk-btn tents-bulk-clear" onclick="window.clearSelectionConference()">Clear Selection</button>
       </div>
     `;
@@ -16111,6 +16439,201 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   }
 
   // ========================================
+  // EXPORT SELECTED FUNCTIONS (BULK TOOLBAR)
+  // ========================================
+
+  /**
+   * Toggle bulk export dropdown menu
+   */
+  function toggleBulkExportMenuConference() {
+    const menu = document.getElementById('bulkExportMenuConference');
+    if (menu) {
+      const isVisible = menu.style.display === 'block';
+      menu.style.display = isVisible ? 'none' : 'block';
+    }
+  }
+
+  /**
+   * Get IDs of all selected requests
+   * @returns {Array<string>} Array of selected request IDs
+   */
+  function getSelectedRequestIdsConference() {
+    const checkboxes = document.querySelectorAll('.row-checkbox-conference:checked');
+    return Array.from(checkboxes).map(cb => cb.getAttribute('data-request-id'));
+  }
+
+  /**
+   * Export selected records in specified format
+   * @param {string} format - 'excel' or 'csv'
+   */
+  function exportSelectedRecordsConference(format) {
+    console.log('📤 [CONFERENCE] Exporting selected records as', format);
+    
+    const selectedIds = getSelectedRequestIdsConference();
+    if (selectedIds.length === 0) {
+      alert('Please select at least one request to export.');
+      return;
+    }
+
+    // Get full data for selected requests
+    const selectedRequests = allRequests.filter(req => selectedIds.includes(req.id));
+    console.log(`✅ [CONFERENCE] Found ${selectedRequests.length} selected requests to export`);
+
+    if (format === 'excel') {
+      exportToExcelSelectedConference(selectedRequests);
+    } else if (format === 'csv') {
+      exportToCSVSelectedConference(selectedRequests);
+    }
+
+    // Close dropdown
+    toggleBulkExportMenuConference();
+  }
+
+  /**
+   * Export selected requests to Excel
+   * @param {Array} selectedRequests - Array of selected request objects
+   */
+  function exportToExcelSelectedConference(selectedRequests) {
+    console.log('📊 [CONFERENCE] Exporting selected requests to Excel...');
+
+    // Check if XLSX library is loaded
+    if (typeof XLSX === 'undefined') {
+      console.error('❌ [CONFERENCE] XLSX library not loaded');
+      alert('Export library not loaded. Please refresh the page.');
+      return;
+    }
+
+    // Helper to format dates with long month (November 2, 2025)
+    const formatDateLong = (dateStr) => {
+      if (!dateStr) return '';
+      const [year, month, day] = dateStr.split('-');
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    // Prepare data with all fields
+    const data = selectedRequests.map(req => ({
+      'Request ID': req.id,
+      'Status': req.status.toUpperCase(),
+      'First Name': req.firstName || '',
+      'Last Name': req.lastName || '',
+      'Full Name': req.fullName || '',
+      'Contact Number': req.contactNumber || '',
+      'Address': req.address || '',
+      'Purpose': req.purpose || '',
+      'Event Date': formatDateLong(req.eventDate),
+      'Start Time': req.startTime ? formatTime12Hour(req.startTime) : '',
+      'End Time': req.endTime ? formatTime12Hour(req.endTime) : '',
+      'User Email': req.userEmail || '',
+      'Date Submitted': req.createdAt ? new Date(req.createdAt.toDate()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+      'Date Approved': req.approvedAt ? new Date(req.approvedAt.toDate()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+      'Is Internal Booking': req.isInternalBooking ? 'Yes' : 'No'
+    }));
+
+    // Create worksheet and workbook
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Selected Requests');
+
+    // Generate filename with date range if filters are active
+    const dateStart = document.getElementById('dateFilterStart')?.value;
+    const dateEnd = document.getElementById('dateFilterEnd')?.value;
+    let filename = 'conference-room-selected';
+    if (dateStart && dateEnd) {
+      filename += `-${dateStart}-to-${dateEnd}`;
+    } else if (dateStart) {
+      filename += `-from-${dateStart}`;
+    } else if (dateEnd) {
+      filename += `-until-${dateEnd}`;
+    }
+    filename += '.xlsx';
+
+    // Download
+    XLSX.writeFile(workbook, filename);
+    console.log('✅ [CONFERENCE] Excel export complete:', filename);
+  }
+
+  /**
+   * Export selected requests to CSV
+   * @param {Array} selectedRequests - Array of selected request objects
+   */
+  function exportToCSVSelectedConference(selectedRequests) {
+    console.log('📄 [CONFERENCE] Exporting selected requests to CSV...');
+
+    // Prepare CSV headers
+    const headers = [
+      'Request ID', 'Status', 'First Name', 'Last Name', 'Full Name', 
+      'Contact Number', 'Address', 'Purpose', 'Event Date', 'Start Time', 
+      'End Time', 'User Email', 'Date Submitted', 'Date Approved', 'Is Internal Booking'
+    ];
+
+    // Helper to format dates with long month (November 2, 2025)
+    const formatDateLong = (dateStr) => {
+      if (!dateStr) return '';
+      const [year, month, day] = dateStr.split('-');
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    // Prepare CSV rows
+    const rows = selectedRequests.map(req => [
+      req.id,
+      req.status.toUpperCase(),
+      req.firstName || '',
+      req.lastName || '',
+      req.fullName || '',
+      req.contactNumber || '',
+      req.address || '',
+      req.purpose || '',
+      formatDateLong(req.eventDate),
+      req.startTime ? formatTime12Hour(req.startTime) : '',
+      req.endTime ? formatTime12Hour(req.endTime) : '',
+      req.userEmail || '',
+      req.createdAt ? new Date(req.createdAt.toDate()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+      req.approvedAt ? new Date(req.approvedAt.toDate()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+      req.isInternalBooking ? 'Yes' : 'No'
+    ]);
+
+    // Escape CSV values (handle commas, quotes, newlines)
+    const escapeCSV = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    // Build CSV content
+    let csvContent = headers.map(escapeCSV).join(',') + '\n';
+    rows.forEach(row => {
+      csvContent += row.map(escapeCSV).join(',') + '\n';
+    });
+
+    // Generate filename with date range if filters are active
+    const dateStart = document.getElementById('dateFilterStart')?.value;
+    const dateEnd = document.getElementById('dateFilterEnd')?.value;
+    let filename = 'conference-room-selected';
+    if (dateStart && dateEnd) {
+      filename += `-${dateStart}-to-${dateEnd}`;
+    } else if (dateStart) {
+      filename += `-from-${dateStart}`;
+    } else if (dateEnd) {
+      filename += `-until-${dateEnd}`;
+    }
+    filename += '.csv';
+
+    // Create and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    
+    console.log('✅ [CONFERENCE] CSV export complete:', filename);
+  }
+
+  // ========================================
   // EXPORT FUNCTIONS
   // ========================================
 
@@ -16175,15 +16698,14 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   function createExcelSheet(requests, sheetType) {
     const data = [];
     
-    // Headers vary based on sheet type
-    const headers = ['Submitted On', 'First Name', 'Last Name', 'Event Date', 'Start Time', 'End Time', 'Purpose', 'Contact', 'Email', 'Status'];
+    // Headers - bulk action format (17 base columns)
+    const headers = ['Request ID', 'Status', 'First Name', 'Last Name', 'Full Name', 'Contact Number', 'Complete Address', 'Purpose', 'Event Date', 'Start Time', 'End Time', 'User Email', 'Date Submitted', 'Date Approved', 'Is Internal Booking'];
     
     if (sheetType === 'history') {
       headers.push('Remarks', 'Completed On');
     } else if (sheetType === 'archives') {
       headers.push('Remarks', 'Archived On');
     }
-    // 'all' type has no extra columns
     
     data.push(headers);
     
@@ -16191,13 +16713,35 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     requests.forEach(req => {
       const nameParts = getNameParts(req);
       
-      // Format submitted date with time
-      let submittedDateTime = 'N/A';
+      // Format dates with long month (November 2, 2025)
+      const formatDateLong = (dateStr) => {
+        if (!dateStr) return 'N/A';
+        const [year, month, day] = dateStr.split('-');
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      };
+      
+      // Date Submitted with long month
+      let dateSubmitted = 'N/A';
       if (req.createdAt) {
         const createdDate = req.createdAt.toDate();
-        submittedDateTime = createdDate.toLocaleString('en-US', { 
+        dateSubmitted = createdDate.toLocaleDateString('en-US', { 
           year: 'numeric', 
-          month: 'short', 
+          month: 'long', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      
+      // Date Approved with long month
+      let dateApproved = 'N/A';
+      if (req.approvedAt) {
+        const approvedDate = req.approvedAt.toDate();
+        dateApproved = approvedDate.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
           day: 'numeric',
           hour: '2-digit',
           minute: '2-digit',
@@ -16206,45 +16750,50 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       }
       
       const row = [
-        submittedDateTime,
+        req.id || '',
+        req.status ? req.status.toUpperCase() : '',
         nameParts.firstName,
         nameParts.lastName,
-        formatDateText(req.eventDate),
-        req.startTime || '',
-        req.endTime || '',
-        req.purpose || '',
+        req.fullName || '',
         req.contactNumber || '',
+        req.address || '',
+        req.purpose || '',
+        formatDateLong(req.eventDate),
+        req.startTime ? formatTime12Hour(req.startTime) : '',
+        req.endTime ? formatTime12Hour(req.endTime) : '',
         req.userEmail || '',
-        req.status
+        dateSubmitted,
+        dateApproved,
+        req.isInternalBooking ? 'Yes' : 'No'
       ];
       
       if (sheetType === 'history') {
         row.push(req.rejectionReason || req.remarks || '');
         
-        // Completed On (for completed, rejected, cancelled)
+        // Completed On (for completed, rejected, cancelled) - long month format
         let completedOn = '';
         if (req.status === 'completed' && req.completedAt) {
-          completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          completedOn = req.completedAt.toDate().toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
           });
         } else if (req.status === 'rejected' && req.rejectedAt) {
-          completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          completedOn = req.rejectedAt.toDate().toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
           });
         } else if (req.status === 'cancelled' && req.cancelledAt) {
-          completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          completedOn = req.cancelledAt.toDate().toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
           });
         }
         row.push(completedOn);
       } else if (sheetType === 'archives') {
         row.push(req.rejectionReason || req.remarks || '');
         
-        // Archived On
+        // Archived On - long month format
         let archivedOn = '';
         if (req.archivedAt) {
-          archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          archivedOn = req.archivedAt.toDate().toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
           });
         }
         row.push(archivedOn);
@@ -16335,25 +16884,34 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   function buildCSVSection(requests, sheetType) {
     let csv = '';
     
-    // Headers vary based on sheet type
-    csv += 'Submitted On,First Name,Last Name,Event Date,Start Time,End Time,Purpose,Contact,Email,Status';
+    // Headers - bulk action format (17 base columns)
+    csv += 'Request ID,Status,First Name,Last Name,Full Name,Contact Number,Complete Address,Purpose,Event Date,Start Time,End Time,User Email,Date Submitted,Date Approved,Is Internal Booking';
     if (sheetType === 'history') {
       csv += ',Remarks,Completed On';
     } else if (sheetType === 'archives') {
       csv += ',Remarks,Archived On';
     }
-    // 'all' type has no extra columns
     csv += '\n';
     
     // Rows
     requests.forEach(req => {
-      // Format submitted date with time
-      let submittedDateTime = 'N/A';
+      const nameParts = getNameParts(req);
+      
+      // Format dates with long month (November 2, 2025)
+      const formatDateLong = (dateStr) => {
+        if (!dateStr) return 'N/A';
+        const [year, month, day] = dateStr.split('-');
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      };
+      
+      // Date Submitted with long month
+      let dateSubmitted = 'N/A';
       if (req.createdAt) {
         const createdDate = req.createdAt.toDate();
-        submittedDateTime = createdDate.toLocaleString('en-US', { 
+        dateSubmitted = createdDate.toLocaleDateString('en-US', { 
           year: 'numeric', 
-          month: 'short', 
+          month: 'long', 
           day: 'numeric',
           hour: '2-digit',
           minute: '2-digit',
@@ -16361,41 +16919,56 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         });
       }
       
-      const nameParts = getNameParts(req);
-      const eventDate = formatDateText(req.eventDate);
-      const remarkRaw = (req.rejectionReason || req.remarks || '');
-      const remarkEsc = remarkRaw.replace(/"/g, '""');
-      const purposeEsc = (req.purpose || '').replace(/"/g, '""');
+      // Date Approved with long month
+      let dateApproved = 'N/A';
+      if (req.approvedAt) {
+        const approvedDate = req.approvedAt.toDate();
+        dateApproved = approvedDate.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
       
-      csv += `"${submittedDateTime}","${nameParts.firstName}","${nameParts.lastName}","${eventDate}","${req.startTime || ''}","${req.endTime || ''}","${purposeEsc}","${req.contactNumber || ''}","${req.userEmail || ''}","${req.status}"`;
+      const fullNameEsc = (req.fullName || '').replace(/"/g, '""');
+      const addressEsc = (req.address || '').replace(/"/g, '""');
+      const purposeEsc = (req.purpose || '').replace(/"/g, '""');
+      const remarkEsc = (req.rejectionReason || req.remarks || '').replace(/"/g, '""');
+      const startTime = req.startTime ? formatTime12Hour(req.startTime) : '';
+      const endTime = req.endTime ? formatTime12Hour(req.endTime) : '';
+      
+      csv += `"${req.id || ''}","${req.status ? req.status.toUpperCase() : ''}","${nameParts.firstName}","${nameParts.lastName}","${fullNameEsc}","${req.contactNumber || ''}","${addressEsc}","${purposeEsc}","${formatDateLong(req.eventDate)}","${startTime}","${endTime}","${req.userEmail || ''}","${dateSubmitted}","${dateApproved}","${req.isInternalBooking ? 'Yes' : 'No'}"`;
       
       if (sheetType === 'history') {
         csv += `,"${remarkEsc}"`;
         
-        // Completed On (for completed, rejected, cancelled)
+        // Completed On (for completed, rejected, cancelled) - long month format
         let completedOn = '';
         if (req.status === 'completed' && req.completedAt) {
-          completedOn = req.completedAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          completedOn = req.completedAt.toDate().toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
           });
         } else if (req.status === 'rejected' && req.rejectedAt) {
-          completedOn = req.rejectedAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          completedOn = req.rejectedAt.toDate().toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
           });
         } else if (req.status === 'cancelled' && req.cancelledAt) {
-          completedOn = req.cancelledAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          completedOn = req.cancelledAt.toDate().toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
           });
         }
         csv += `,"${completedOn}"`;
       } else if (sheetType === 'archives') {
         csv += `,"${remarkEsc}"`;
         
-        // Archived On
+        // Archived On - long month format
         let archivedOn = '';
         if (req.archivedAt) {
-          archivedOn = req.archivedAt.toDate().toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
+          archivedOn = req.archivedAt.toDate().toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true 
           });
         }
         csv += `,"${archivedOn}"`;
@@ -17015,7 +17588,8 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   // Filter changes - re-render on any filter change
   document.getElementById('searchInput')?.addEventListener('input', renderContent);
   document.getElementById('statusFilter')?.addEventListener('change', renderContent);
-  document.getElementById('dateFilter')?.addEventListener('change', renderContent);
+  document.getElementById('dateFilterStart')?.addEventListener('change', renderContent);
+  document.getElementById('dateFilterEnd')?.addEventListener('change', renderContent);
   document.getElementById('sortByFilter')?.addEventListener('change', renderContent);
 
   // ========================================
@@ -17240,7 +17814,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     
     // Process each request
     for (const checkbox of pendingCheckboxes) {
-      const requestId = checkbox.dataset.requestId;
+      const requestId = checkbox.getAttribute('data-request-id');
       
       try {
         const requestRef = doc(db, 'conferenceRoomBookings', requestId);
@@ -17367,7 +17941,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     
     // Process each request
     for (const checkbox of pendingCheckboxes) {
-      const requestId = checkbox.dataset.requestId;
+      const requestId = checkbox.getAttribute('data-request-id');
       
       try {
         const requestRef = doc(db, 'conferenceRoomBookings', requestId);
@@ -17459,7 +18033,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     
     // Process each request
     for (const checkbox of approvedCheckboxes) {
-      const requestId = checkbox.dataset.requestId;
+      const requestId = checkbox.getAttribute('data-request-id');
       
       try {
         const requestRef = doc(db, 'conferenceRoomBookings', requestId);
@@ -17546,7 +18120,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     
     // Process each request
     for (const checkbox of checkboxes) {
-      const requestId = checkbox.dataset.requestId;
+      const requestId = checkbox.getAttribute('data-request-id');
       
       try {
         const requestRef = doc(db, 'conferenceRoomBookings', requestId);
@@ -17620,7 +18194,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     
     // Process each request
     for (const checkbox of checkboxes) {
-      const requestId = checkbox.dataset.requestId;
+      const requestId = checkbox.getAttribute('data-request-id');
       
       try {
         const requestRef = doc(db, 'conferenceRoomBookings', requestId);
@@ -17726,6 +18300,10 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     renderContent();
     window.clearSelectionConference();
   };
+
+  // Expose export selected functions to window for onclick handlers
+  window.toggleBulkExportMenuConference = toggleBulkExportMenuConference;
+  window.exportSelectedRecordsConference = exportSelectedRecordsConference;
 }
 
 /* ========================================================================================================

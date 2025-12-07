@@ -6504,7 +6504,7 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: 1.2fr 0.9fr 1.5fr 0.9fr 1.2fr;
   gap: 20px;
   width: 100%;
   box-sizing: border-box;
@@ -6578,6 +6578,43 @@ body.sidebar-collapsed .sidebar-toggle-btn,
 
 .tents-filter-group input:focus,
 .tents-filter-group select:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* Date Range Filter Styles */
+.tents-date-range-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tents-date-input-wrapper {
+  flex: 1;
+}
+
+.tents-date-separator {
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+  padding: 0 4px;
+}
+
+.tents-date-input-wrapper input[type="date"] {
+  width: 100%;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  background: white;
+  height: 36px;
+}
+
+.tents-date-input-wrapper input[type="date"]:focus {
   outline: none;
   border-color: #4f46e5;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
@@ -7884,6 +7921,73 @@ body.sidebar-collapsed .sidebar-toggle-btn,
 .tents-bulk-action-bar .tents-bulk-clear:hover {
   background: #e5e7eb;
   color: #1f2937;
+}
+
+/* Bulk Export Dropdown Styles */
+.tents-bulk-export-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.tents-bulk-action-bar .tents-bulk-export {
+  background: #059669;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tents-bulk-action-bar .tents-bulk-export:hover {
+  background: #047857;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.tents-bulk-action-bar .tents-bulk-export:active {
+  transform: translateY(0);
+}
+
+.tents-bulk-export-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  min-width: 220px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.tents-bulk-export-menu .tents-dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  color: #374151;
+  background: white;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.tents-bulk-export-menu .tents-dropdown-item:hover {
+  background: #f3f4f6;
+}
+
+.tents-bulk-export-menu .tents-dropdown-item:active {
+  background: #e5e7eb;
 }
 
 /* Responsive adjustments */

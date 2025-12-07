@@ -99,7 +99,7 @@
         <!-- Tabs -->
         <div class="tents-tabs-section">
           <div class="tents-tabs">
-            <button class="tents-tab active" id="allRequestsTab" onclick="switchTab('all')">All Requests</button>
+            <button class="tents-tab active" id="allRequestsTab" onclick="switchTab('all')">Active Requests</button>
             <button class="tents-tab" id="historyTab" onclick="switchTab('history')">History</button>
             <button class="tents-tab" id="archivesTab" onclick="switchTab('archives')">Archives</button>
           </div>
@@ -160,8 +160,16 @@
             </select>
           </div>
           <div class="tents-filter-group">
-            <label>Event Date</label>
-            <input type="date" id="dateFilter">
+            <label>Event Date Range</label>
+            <div class="tents-date-range-container">
+              <div class="tents-date-input-wrapper">
+                <input type="date" id="dateFilterStart" placeholder="From">
+              </div>
+              <span class="tents-date-separator">to</span>
+              <div class="tents-date-input-wrapper">
+                <input type="date" id="dateFilterEnd" placeholder="To">
+              </div>
+            </div>
           </div>
           <div class="tents-filter-group">
             <label>Sort By</label>
