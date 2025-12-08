@@ -3399,6 +3399,53 @@ function processNotificationsSnapshot(querySnapshot) {
   console.log('[Notifications] ✓ Notifications processed successfully');
 }
 
+/**
+ * Auto-cleanup: Remove old read user notifications
+ * Automatically removes read notifications older than 90 days
+ * Matches the system-wide 90-day retention policy
+ */
+async function autoCleanupOldUserNotifications() {
+  try {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    
+    const oldReadNotifications = userNotifications.filter(n => {
+      if (!n.isRead) return false; // Only consider read notifications
+      if (!n.createdAt) return false;
+      
+      const notifDate = n.createdAt.toDate ? n.createdAt.toDate() : new Date(n.createdAt);
+      return notifDate < ninetyDaysAgo;
+    });
+    
+    if (oldReadNotifications.length === 0) {
+      console.log('[Notifications] 🧹 No old read notifications to cleanup');
+      return;
+    }
+    
+    console.log(`[Notifications] 🧹 Auto-cleanup: Removing ${oldReadNotifications.length} read notifications older than 90 days`);
+    
+    const deletePromises = oldReadNotifications.map(n => 
+      deleteDoc(doc(db, "notifications", n.id))
+    );
+    
+    await Promise.all(deletePromises);
+    
+    // Remove from local array
+    userNotifications = userNotifications.filter(n => 
+      !oldReadNotifications.some(old => old.id === n.id)
+    );
+    
+    console.log(`[Notifications] ✓ Auto-cleanup completed: ${oldReadNotifications.length} old notifications removed`);
+    
+  } catch (error) {
+    console.error('[Notifications] ⚠️ Auto-cleanup error:', error);
+    // Don't throw - this is a background task
+  }
+}
+
 async function loadNotifications() {
   console.log('[Notifications] ═══════════════════════════════════');
   console.log('[Notifications] Loading notifications from Firestore...');
@@ -3430,6 +3477,9 @@ async function loadNotifications() {
     
     // Process the snapshot using the helper function
     processNotificationsSnapshot(querySnapshot);
+    
+    // Auto-cleanup old read notifications (older than 90 days)
+    await autoCleanupOldUserNotifications();
     
     console.log('[Notifications] ✓ Initial load complete');
     console.log('[Notifications] ═══════════════════════════════════');
@@ -10402,6 +10452,152 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     }
   }
 
+  // ========================================
+  // AUTO-ARCHIVING CONFIGURATION
+  // ========================================
+  
+  /**
+   * Configuration for automatic archiving of old records
+   * Records in History tab older than specified days will be auto-archived
+   * 
+   * @property {boolean} enabled - Enable/disable auto-archiving
+   * @property {number} daysAfterFinalized - Days after completion/rejection/cancellation before auto-archiving
+   * @property {boolean} excludeInternalBookings - Never auto-archive internal barangay bookings
+   * @property {boolean} showNotification - Show toast notification when records are auto-archived
+   * @property {boolean} logActions - Enable console logging for auto-archive actions
+   */
+  const AUTO_ARCHIVE_CONFIG_TENTS = {
+    enabled: true,
+    daysAfterFinalized: 90,        // 90 days (3 months) retention in History tab
+    excludeInternalBookings: true, // Protect internal barangay bookings from auto-archiving
+    showNotification: true,        // Notify admin when auto-archiving occurs
+    logActions: true               // Console logging for transparency
+  };
+
+  /**
+   * Automatically archive old tents & chairs requests from History tab
+   * Runs on page load to clean up records older than configured retention period
+   * 
+   * @returns {Promise<number>} Number of records auto-archived
+   */
+  async function autoArchiveOldTentsRequests() {
+    if (!AUTO_ARCHIVE_CONFIG_TENTS.enabled) {
+      if (AUTO_ARCHIVE_CONFIG_TENTS.logActions) {
+        console.log('[Auto-Archive Tents] ⏭️ Auto-archiving is disabled');
+      }
+      return 0;
+    }
+
+    try {
+      if (AUTO_ARCHIVE_CONFIG_TENTS.logActions) {
+        console.log('[Auto-Archive Tents] 🔍 Checking for records to auto-archive...');
+      }
+
+      const now = Date.now();
+      const retentionPeriodMs = AUTO_ARCHIVE_CONFIG_TENTS.daysAfterFinalized * 24 * 60 * 60 * 1000;
+      let archivedCount = 0;
+
+      // Filter records that should be in History tab (completed/rejected/cancelled, not already archived)
+      const historyRecords = allRequests.filter(req => 
+        ['completed', 'rejected', 'cancelled'].includes(req.status) && !req.archived
+      );
+
+      if (AUTO_ARCHIVE_CONFIG_TENTS.logActions) {
+        console.log(`[Auto-Archive Tents] 📊 Found ${historyRecords.length} records in History tab`);
+      }
+
+      // Check each record for auto-archiving eligibility
+      for (const req of historyRecords) {
+        // Skip internal bookings if configured
+        if (AUTO_ARCHIVE_CONFIG_TENTS.excludeInternalBookings && req.isInternalBooking) {
+          if (AUTO_ARCHIVE_CONFIG_TENTS.logActions) {
+            console.log(`[Auto-Archive Tents] 🔒 Skipping internal booking: ${req.id}`);
+          }
+          continue;
+        }
+
+        // Get finalized timestamp (prefer completedAt, then rejectedAt, then cancelledAt)
+        let finalizedTimestamp = null;
+        if (req.completedAt) {
+          finalizedTimestamp = req.completedAt;
+        } else if (req.rejectedAt) {
+          finalizedTimestamp = req.rejectedAt;
+        } else if (req.cancelledAt) {
+          finalizedTimestamp = req.cancelledAt;
+        }
+
+        if (!finalizedTimestamp) {
+          if (AUTO_ARCHIVE_CONFIG_TENTS.logActions) {
+            console.log(`[Auto-Archive Tents] ⚠️ No finalized timestamp for ${req.id}, skipping`);
+          }
+          continue;
+        }
+
+        // Convert timestamp to milliseconds
+        let finalizedMs = 0;
+        if (typeof finalizedTimestamp.toMillis === 'function') {
+          finalizedMs = finalizedTimestamp.toMillis();
+        } else if (typeof finalizedTimestamp === 'number') {
+          finalizedMs = finalizedTimestamp;
+        } else {
+          try {
+            finalizedMs = new Date(finalizedTimestamp).getTime();
+          } catch (e) {
+            console.error(`[Auto-Archive Tents] ❌ Invalid timestamp for ${req.id}:`, e);
+            continue;
+          }
+        }
+
+        // Check if record is older than retention period
+        const ageMs = now - finalizedMs;
+        const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
+
+        if (ageMs > retentionPeriodMs) {
+          try {
+            // Auto-archive the record
+            const requestRef = doc(db, 'tentsChairsBookings', req.id);
+            await updateDoc(requestRef, {
+              archived: true,
+              archivedAt: new Date(),
+              autoArchived: true  // Flag to distinguish from manual archiving
+            });
+
+            archivedCount++;
+            
+            if (AUTO_ARCHIVE_CONFIG_TENTS.logActions) {
+              console.log(`[Auto-Archive Tents] ✅ Archived ${req.id} (${ageDays} days old, status: ${req.status})`);
+            }
+          } catch (error) {
+            console.error(`[Auto-Archive Tents] ❌ Failed to archive ${req.id}:`, error);
+          }
+        }
+      }
+
+      // Show notification if records were archived
+      if (archivedCount > 0) {
+        if (AUTO_ARCHIVE_CONFIG_TENTS.logActions) {
+          console.log(`[Auto-Archive Tents] 🎉 Auto-archived ${archivedCount} record(s) older than ${AUTO_ARCHIVE_CONFIG_TENTS.daysAfterFinalized} days`);
+        }
+        
+        if (AUTO_ARCHIVE_CONFIG_TENTS.showNotification) {
+          const message = archivedCount === 1 
+            ? `1 old tents & chairs record was automatically archived.`
+            : `${archivedCount} old tents & chairs records were automatically archived.`;
+          showToast(message, true, 3000);
+        }
+      } else {
+        if (AUTO_ARCHIVE_CONFIG_TENTS.logActions) {
+          console.log(`[Auto-Archive Tents] ℹ️ No records need archiving (retention: ${AUTO_ARCHIVE_CONFIG_TENTS.daysAfterFinalized} days)`);
+        }
+      }
+
+      return archivedCount;
+    } catch (error) {
+      console.error('[Auto-Archive Tents] ❌ Error during auto-archiving:', error);
+      return 0;
+    }
+  }
+
   /**
    * Setup real-time listener for tents & chairs requests
    */
@@ -10478,7 +10674,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   /**
    * Process tents requests snapshot
    */
-  function processAdminTentsSnapshot(querySnapshot) {
+  async function processAdminTentsSnapshot(querySnapshot) {
     allRequests = [];
     querySnapshot.forEach((docSnapshot) => {
       allRequests.push({
@@ -10488,6 +10684,12 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     });
 
     console.log(`[Real-Time Admin Tents] ✅ Processed ${allRequests.length} requests`);
+    
+    // Run auto-archiving check on initial load (when data first arrives from server)
+    if (isInitialLoad && !querySnapshot.metadata.fromCache) {
+      console.log('[Real-Time Admin Tents] 🔄 Running auto-archive check on initial load...');
+      await autoArchiveOldTentsRequests();
+    }
     
     // Update status filter counts after data is loaded
     updateStatusFilterOptions();
@@ -14759,6 +14961,152 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   // DATA LOADING
   // ========================================
 
+  // ========================================
+  // AUTO-ARCHIVING CONFIGURATION
+  // ========================================
+  
+  /**
+   * Configuration for automatic archiving of old conference room records
+   * Records in History tab older than specified days will be auto-archived
+   * 
+   * @property {boolean} enabled - Enable/disable auto-archiving
+   * @property {number} daysAfterFinalized - Days after completion/rejection/cancellation before auto-archiving
+   * @property {boolean} excludeInternalBookings - Never auto-archive internal barangay bookings
+   * @property {boolean} showNotification - Show toast notification when records are auto-archived
+   * @property {boolean} logActions - Enable console logging for auto-archive actions
+   */
+  const AUTO_ARCHIVE_CONFIG_CONFERENCE = {
+    enabled: true,
+    daysAfterFinalized: 90,        // 90 days (3 months) retention in History tab
+    excludeInternalBookings: true, // Protect internal barangay bookings from auto-archiving
+    showNotification: true,        // Notify admin when auto-archiving occurs
+    logActions: true               // Console logging for transparency
+  };
+
+  /**
+   * Automatically archive old conference room requests from History tab
+   * Runs on page load to clean up records older than configured retention period
+   * 
+   * @returns {Promise<number>} Number of records auto-archived
+   */
+  async function autoArchiveOldConferenceRequests() {
+    if (!AUTO_ARCHIVE_CONFIG_CONFERENCE.enabled) {
+      if (AUTO_ARCHIVE_CONFIG_CONFERENCE.logActions) {
+        console.log('[Auto-Archive Conference] ⏭️ Auto-archiving is disabled');
+      }
+      return 0;
+    }
+
+    try {
+      if (AUTO_ARCHIVE_CONFIG_CONFERENCE.logActions) {
+        console.log('[Auto-Archive Conference] 🔍 Checking for records to auto-archive...');
+      }
+
+      const now = Date.now();
+      const retentionPeriodMs = AUTO_ARCHIVE_CONFIG_CONFERENCE.daysAfterFinalized * 24 * 60 * 60 * 1000;
+      let archivedCount = 0;
+
+      // Filter records that should be in History tab (completed/rejected/cancelled, not already archived)
+      const historyRecords = allRequests.filter(req => 
+        ['completed', 'rejected', 'cancelled'].includes(req.status) && !req.archived
+      );
+
+      if (AUTO_ARCHIVE_CONFIG_CONFERENCE.logActions) {
+        console.log(`[Auto-Archive Conference] 📊 Found ${historyRecords.length} records in History tab`);
+      }
+
+      // Check each record for auto-archiving eligibility
+      for (const req of historyRecords) {
+        // Skip internal bookings if configured
+        if (AUTO_ARCHIVE_CONFIG_CONFERENCE.excludeInternalBookings && req.isInternalBooking) {
+          if (AUTO_ARCHIVE_CONFIG_CONFERENCE.logActions) {
+            console.log(`[Auto-Archive Conference] 🔒 Skipping internal booking: ${req.id}`);
+          }
+          continue;
+        }
+
+        // Get finalized timestamp (prefer completedAt, then rejectedAt, then cancelledAt)
+        let finalizedTimestamp = null;
+        if (req.completedAt) {
+          finalizedTimestamp = req.completedAt;
+        } else if (req.rejectedAt) {
+          finalizedTimestamp = req.rejectedAt;
+        } else if (req.cancelledAt) {
+          finalizedTimestamp = req.cancelledAt;
+        }
+
+        if (!finalizedTimestamp) {
+          if (AUTO_ARCHIVE_CONFIG_CONFERENCE.logActions) {
+            console.log(`[Auto-Archive Conference] ⚠️ No finalized timestamp for ${req.id}, skipping`);
+          }
+          continue;
+        }
+
+        // Convert timestamp to milliseconds
+        let finalizedMs = 0;
+        if (typeof finalizedTimestamp.toMillis === 'function') {
+          finalizedMs = finalizedTimestamp.toMillis();
+        } else if (typeof finalizedTimestamp === 'number') {
+          finalizedMs = finalizedTimestamp;
+        } else {
+          try {
+            finalizedMs = new Date(finalizedTimestamp).getTime();
+          } catch (e) {
+            console.error(`[Auto-Archive Conference] ❌ Invalid timestamp for ${req.id}:`, e);
+            continue;
+          }
+        }
+
+        // Check if record is older than retention period
+        const ageMs = now - finalizedMs;
+        const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
+
+        if (ageMs > retentionPeriodMs) {
+          try {
+            // Auto-archive the record
+            const requestRef = doc(db, 'conferenceRoomBookings', req.id);
+            await updateDoc(requestRef, {
+              archived: true,
+              archivedAt: new Date(),
+              autoArchived: true  // Flag to distinguish from manual archiving
+            });
+
+            archivedCount++;
+            
+            if (AUTO_ARCHIVE_CONFIG_CONFERENCE.logActions) {
+              console.log(`[Auto-Archive Conference] ✅ Archived ${req.id} (${ageDays} days old, status: ${req.status})`);
+            }
+          } catch (error) {
+            console.error(`[Auto-Archive Conference] ❌ Failed to archive ${req.id}:`, error);
+          }
+        }
+      }
+
+      // Show notification if records were archived
+      if (archivedCount > 0) {
+        if (AUTO_ARCHIVE_CONFIG_CONFERENCE.logActions) {
+          console.log(`[Auto-Archive Conference] 🎉 Auto-archived ${archivedCount} record(s) older than ${AUTO_ARCHIVE_CONFIG_CONFERENCE.daysAfterFinalized} days`);
+        }
+        
+        if (AUTO_ARCHIVE_CONFIG_CONFERENCE.showNotification) {
+          const message = archivedCount === 1 
+            ? `1 old conference room record was automatically archived.`
+            : `${archivedCount} old conference room records were automatically archived.`;
+          showToast(message, true, 3000);
+        }
+      } else {
+        if (AUTO_ARCHIVE_CONFIG_CONFERENCE.logActions) {
+          console.log(`[Auto-Archive Conference] ℹ️ No records need archiving (retention: ${AUTO_ARCHIVE_CONFIG_CONFERENCE.daysAfterFinalized} days)`);
+        }
+      }
+
+      return archivedCount;
+    } catch (error) {
+      console.error('[Auto-Archive Conference] ❌ Error during auto-archiving:', error);
+      return 0;
+    }
+  }
+
   /**
    * Setup real-time listener for conference room requests
    */
@@ -14834,7 +15182,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   /**
    * Process conference requests snapshot
    */
-  function processAdminConferenceSnapshot(snapshot) {
+  async function processAdminConferenceSnapshot(snapshot) {
     allRequests = [];
     snapshot.forEach(doc => {
       allRequests.push({
@@ -14844,6 +15192,12 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     });
 
     console.log(`[Real-Time Admin Conference] ✅ Processed ${allRequests.length} requests`);
+    
+    // Run auto-archiving check on initial load (when data first arrives from server)
+    if (isInitialLoad && !snapshot.metadata.fromCache) {
+      console.log('[Real-Time Admin Conference] 🔄 Running auto-archive check on initial load...');
+      await autoArchiveOldConferenceRequests();
+    }
     
     // Update UI
     updateStatistics();
@@ -20508,19 +20862,20 @@ async function createAdminNotification(notificationData) {
  * ============================================================================
  * AUTO-CLEANUP: REMOVE OLD READ NOTIFICATIONS
  * ============================================================================
- * Automatically removes read notifications older than 7 days
+ * Automatically removes read notifications older than 90 days
+ * Retention period matches the archiving policy for consistency
  */
 async function autoCleanupOldReadNotifications() {
   try {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     
     const oldReadNotifications = allAdminNotifications.filter(n => {
       if (!n.read) return false; // Only consider read notifications
       if (!n.createdAt) return false;
       
       const notifDate = n.createdAt.toDate ? n.createdAt.toDate() : new Date(n.createdAt);
-      return notifDate < sevenDaysAgo;
+      return notifDate < ninetyDaysAgo;
     });
     
     if (oldReadNotifications.length === 0) {
@@ -20528,7 +20883,7 @@ async function autoCleanupOldReadNotifications() {
       return;
     }
     
-    console.log(`[Admin Notifications] 🧹 Auto-cleanup: Removing ${oldReadNotifications.length} read notifications older than 7 days`);
+    console.log(`[Admin Notifications] 🧹 Auto-cleanup: Removing ${oldReadNotifications.length} read notifications older than 90 days`);
     
     const deletePromises = oldReadNotifications.map(n => 
       deleteDoc(doc(db, "notifications", n.id))
