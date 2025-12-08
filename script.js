@@ -432,7 +432,7 @@ if (hasError) {
       }
 
       showAlert('Your tents & chairs request has been submitted successfully! You can check the status in your profile.', true, () => {
-        window.location.href = 'UserProfile.html';
+        window.location.href = 'UserProfile.html?tab=requests';
       });
 
     } catch (error) {
@@ -2031,6 +2031,22 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('[UserProfile] ═══════════════════════════════════════════════════════════');
     console.log('[UserProfile] ✓ ALL INITIALIZATION COMPLETE');
     console.log('[UserProfile] ═══════════════════════════════════════════════════════════');
+    
+    // Check URL parameter for tab switching (e.g., after form submission)
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetTab = urlParams.get('tab');
+    if (targetTab) {
+      console.log(`[UserProfile] URL parameter detected: tab=${targetTab}`);
+      setTimeout(() => {
+        const tabButton = document.querySelector(`.profile-tab[data-tab="${targetTab}"]`);
+        if (tabButton) {
+          console.log(`[UserProfile] Auto-switching to ${targetTab} tab`);
+          tabButton.click();
+          // Clean URL without reloading page
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }, 100); // Small delay to ensure tabs are initialized
+    }
   });
 
   // Status Filter Event Listener
@@ -3462,6 +3478,28 @@ function updateNotificationCounts() {
     tabBadge.setAttribute('data-count', unreadCount);
   }
   
+  // Update profile badge (desktop)
+  const profileBadge = document.getElementById('profileNotifBadge');
+  if (profileBadge) {
+    profileBadge.textContent = unreadCount;
+    if (unreadCount > 0) {
+      profileBadge.classList.add('active');
+    } else {
+      profileBadge.classList.remove('active');
+    }
+  }
+  
+  // Update profile badge (mobile)
+  const profileBadgeMobile = document.getElementById('profileNotifBadgeMobile');
+  if (profileBadgeMobile) {
+    profileBadgeMobile.textContent = unreadCount;
+    if (unreadCount > 0) {
+      profileBadgeMobile.classList.add('active');
+    } else {
+      profileBadgeMobile.classList.remove('active');
+    }
+  }
+  
   // Enable/disable "Mark All as Read" button
   const markAllBtn = document.getElementById('markAllReadBtn');
   if (markAllBtn) {
@@ -3469,6 +3507,7 @@ function updateNotificationCounts() {
   }
   
   console.log(`[Notifications] Counts - Total: ${totalCount}, Unread: ${unreadCount}, Read: ${readCount}`);
+  console.log(`[Notifications] Profile badge updated:`, unreadCount > 0 ? 'visible' : 'hidden');
 }
 
 /**
@@ -3596,7 +3635,7 @@ function createNotificationElement(notification) {
       } else if (action === 'view-request') {
         const requestId = btn.dataset.requestId;
         const requestType = btn.dataset.requestType;
-        await viewRequestFromNotification(requestId, requestType);
+        await viewRequestFromNotification(requestId, requestType, notification.id);
       } else if (action === 'delete') {
         await deleteNotification(notification.id);
       }
@@ -3702,26 +3741,48 @@ async function deleteNotification(notificationId) {
 /**
  * View request from notification
  */
-async function viewRequestFromNotification(requestId, requestType) {
+async function viewRequestFromNotification(requestId, requestType, notificationId) {
   console.log(`[Notifications] 👁️ Opening request: ${requestId} (${requestType})`);
+  
+  // Mark notification as read first
+  if (notificationId) {
+    try {
+      await updateDoc(doc(db, "notifications", notificationId), {
+        read: true
+      });
+      console.log('[Notifications] ✓ Notification marked as read');
+    } catch (error) {
+      console.error('[Notifications] ⚠️ Error marking as read:', error);
+    }
+  }
   
   // Switch to Requests tab
   const requestsTab = document.querySelector('.profile-tab[data-tab="requests"]');
   if (requestsTab) {
     requestsTab.click();
     
-    // Wait for tab to switch, then find and click request card
+    // Wait for tab to switch, then find and highlight request card
     setTimeout(() => {
       const requestCard = document.querySelector(`.request-card[data-id="${requestId}"]`);
       if (requestCard) {
+        // Add highlight class
+        requestCard.classList.add('highlighted-request');
         requestCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Open modal
         requestCard.click();
-        console.log('[Notifications] ✓ Request card opened');
+        console.log('[Notifications] ✓ Request card opened and highlighted');
+        
+        // Remove highlight after 6 seconds
+        setTimeout(() => {
+          requestCard.classList.remove('highlighted-request');
+          console.log('[Notifications] ✓ Highlight removed after 6 seconds');
+        }, 6000);
       } else {
         console.warn('[Notifications] ⚠️ Request card not found');
         showToast('Request not found in your list', false);
       }
-    }, 300);
+    }, 500);
   }
 }
 
@@ -4600,7 +4661,7 @@ function createRequestCard(request) {
   const card = document.createElement('div');
   card.className = 'request-card';
   
-  // Add data-id attribute for "View Request" functionality
+  // Add data-id attribute for "View Request" functionality and highlighting
   if (request.id) {
     card.dataset.id = request.id;
   }
@@ -5069,6 +5130,9 @@ if (window.location.pathname.endsWith('about.html') || window.location.pathname.
   onAuthStateChanged(auth, (user) => {
     // Use centralized helper
     updateAuthNav(user);
+    if (user) {
+      setupRealtimeNotifications(user.uid);
+    }
   });
 
     // Set initial styles
@@ -5099,6 +5163,12 @@ if (window.location.pathname.endsWith('user.html') || window.location.pathname.e
   onAuthStateChanged(auth, (user) => {
     // Use centralized helper
     updateAuthNav(user);
+    
+    // Setup real-time notifications listener for profile badge
+    if (user) {
+      console.log('[user.html] Setting up real-time notifications for profile badge');
+      setupRealtimeNotifications(user.uid);
+    }
   });
 
   const animElements = document.querySelectorAll('.animate-on-scroll');
@@ -5127,6 +5197,9 @@ if (window.location.pathname.endsWith('ContactPage.html') || window.location.pat
   onAuthStateChanged(auth, (user) => {
     // Use centralized helper
     updateAuthNav(user);
+    if (user) {
+      setupRealtimeNotifications(user.uid);
+    }
   });
 }
 
@@ -5144,6 +5217,9 @@ if (window.location.pathname.endsWith('conference-room.html') || window.location
   onAuthStateChanged(auth, (user) => {
     // Use centralized helper
     updateAuthNav(user);
+    if (user) {
+      setupRealtimeNotifications(user.uid);
+    }
   });
 
   // Month names array - MUST BE DECLARED FIRST
@@ -5747,6 +5823,9 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
   // Use centralized helper to update nav visibility
   onAuthStateChanged(auth, (user) => {
     updateAuthNav(user);
+    if (user) {
+      setupRealtimeNotifications(user.uid);
+    }
   });
 
   // Month names array - MUST BE DECLARED FIRST
@@ -6220,6 +6299,14 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
 
 if (window.location.pathname.endsWith('tents-chairs-request.html') || window.location.pathname.endsWith('/tents-chairs-request')) {
 
+  // Handle navigation visibility and setup real-time notifications
+  onAuthStateChanged(auth, (user) => {
+    updateAuthNav(user);
+    if (user) {
+      setupRealtimeNotifications(user.uid);
+    }
+  });
+
   document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('tentsChairsForm');
     const summaryModal = document.getElementById('confirmationModal');
@@ -6494,7 +6581,7 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       }
       
       showAlert('Your tents & chairs request has been submitted successfully!', true, () => {
-        window.location.href = 'UserProfile.html';
+        window.location.href = 'UserProfile.html?tab=requests';
       });
 
     } catch (err) {
@@ -6640,6 +6727,14 @@ onAuthStateChanged(auth, (user) => {
 ===================================================== */
 
 if (window.location.pathname.endsWith('conference-request.html') || window.location.pathname.endsWith('/conference-request')) {
+
+  // Handle navigation visibility and setup real-time notifications
+  onAuthStateChanged(auth, (user) => {
+    updateAuthNav(user);
+    if (user) {
+      setupRealtimeNotifications(user.uid);
+    }
+  });
 
   // Store bookings for the selected date
   let dateBookings = [];
@@ -7210,7 +7305,7 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
       }
       
       showAlert('Your conference room reservation has been submitted successfully!', true, () => {
-        window.location.href = 'UserProfile.html';
+        window.location.href = 'UserProfile.html?tab=requests';
       });
     } catch (error) {
       console.error('❌ [User Submit] Error submitting request:', error);
@@ -10842,7 +10937,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       const purpose = sanitizeInput(req.purposeOfUse || req.purpose || 'N/A');
 
       tableHTML += `
-        <tr>
+        <tr data-request-id="${req.id}">
           <td>
             <input type="checkbox" class="row-checkbox" data-request-id="${req.id}" data-status="${req.status}" onchange="window.updateBulkActionBar()" style="cursor: pointer;">
           </td>
@@ -11013,26 +11108,12 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     }
     
     console.log(`🎯 [Tents Highlight] Attempting to highlight request: ${requestId}`);
+    console.log(`🎯 [Tents Highlight] Request type: ${requestType}`);
     
-    // Find the request in our data
-    const request = allRequests.find(r => r.id === requestId);
-    if (!request) {
-      console.warn(`⚠️ [Tents Highlight] Request ${requestId} not found`);
-      return;
-    }
-    
-    // Wait for DOM to be ready
+    // Wait for DOM to be ready with longer timeout
     setTimeout(() => {
-      const rows = document.querySelectorAll('.tents-requests-table tbody tr');
-      let targetRow = null;
-      
-      // Find row by contact number (unique identifier)
-      rows.forEach(row => {
-        const contactCell = row.cells[3]?.textContent.trim();
-        if (contactCell === (request.contactNumber || '').trim()) {
-          targetRow = row;
-        }
-      });
+      // Find row by data-request-id attribute (direct lookup)
+      const targetRow = document.querySelector(`.tents-requests-table tbody tr[data-request-id="${requestId}"]`);
       
       if (targetRow) {
         console.log(`✅ [Tents Highlight] Found row, applying highlight`);
@@ -11041,11 +11122,16 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         
         setTimeout(() => {
           targetRow.classList.remove('highlighted-request');
+          console.log(`🎯 [Tents Highlight] Highlight removed after 6 seconds`);
         }, 6000);
         
+        // Clean URL after highlighting
         window.history.replaceState({}, document.title, window.location.pathname);
+      } else {
+        console.warn(`⚠️ [Tents Highlight] Row not found for request ID: ${requestId}`);
+        console.warn(`⚠️ [Tents Highlight] Available rows:`, document.querySelectorAll('.tents-requests-table tbody tr').length);
       }
-    }, 500);
+    }, 1000);
   }
 
   /**
@@ -15277,7 +15363,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       }
 
       tableHTML += `
-        <tr>
+        <tr data-request-id="${req.id}">
           <td>
             <input type="checkbox" class="row-checkbox-conference" data-request-id="${req.id}" data-status="${req.status}" onchange="window.updateBulkActionBarConference()" style="cursor: pointer;">
           </td>
@@ -15421,33 +15507,30 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     }
     
     console.log(`🎯 [Conference Highlight] Highlighting request: ${requestId}`);
+    console.log(`🎯 [Conference Highlight] Request type: ${requestType}`);
     
-    const request = allRequests.find(r => r.id === requestId);
-    if (!request) {
-      console.warn(`⚠️ [Conference Highlight] Request not found`);
-      return;
-    }
-    
+    // Wait for DOM to be ready with longer timeout
     setTimeout(() => {
-      const rows = document.querySelectorAll('.tents-requests-table tbody tr');
-      let targetRow = null;
-      
-      rows.forEach(row => {
-        const contactCell = row.cells[3]?.textContent.trim();
-        if (contactCell === (request.contactNumber || '').trim()) {
-          targetRow = row;
-        }
-      });
+      // Find row by data-request-id attribute (direct lookup)
+      const targetRow = document.querySelector(`.tents-requests-table tbody tr[data-request-id="${requestId}"]`);
       
       if (targetRow) {
         console.log(`✅ [Conference Highlight] Row found, highlighting`);
         targetRow.classList.add('highlighted-request');
         targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
-        setTimeout(() => targetRow.classList.remove('highlighted-request'), 6000);
+        setTimeout(() => {
+          targetRow.classList.remove('highlighted-request');
+          console.log(`🎯 [Conference Highlight] Highlight removed after 6 seconds`);
+        }, 6000);
+        
+        // Clean URL after highlighting
         window.history.replaceState({}, document.title, window.location.pathname);
+      } else {
+        console.warn(`⚠️ [Conference Highlight] Row not found for request ID: ${requestId}`);
+        console.warn(`⚠️ [Conference Highlight] Available rows:`, document.querySelectorAll('.tents-requests-table tbody tr').length);
       }
-    }, 500);
+    }, 1000);
   }
 
   /**

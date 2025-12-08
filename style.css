@@ -2024,6 +2024,7 @@ footer {
 
 .request-cards {
   margin-bottom: 16px;
+  padding-top: 20px; /* Space for notification badge that appears above cards */
   padding-right: 8px;
   height: 400px; /* Fixed height to prevent layout shift */
   overflow-y: auto; /* Always allow scrolling if content exceeds height */
@@ -13909,6 +13910,30 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   }
 }
 
+/* Profile notification badge (user navbar) */
+.profile-notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #dc2626;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+  display: none;
+  line-height: 1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.profile-notif-badge.active {
+  display: inline-block;
+  animation: notifPulse 2s infinite;
+}
+
 /* Stats Grid */
 .admin-notif-stats-grid {
   display: grid;
@@ -14412,7 +14437,8 @@ body.sidebar-collapsed .sidebar-toggle-btn,
 /* ============================================================================
    REQUEST HIGHLIGHTING (From Notifications)
    ============================================================================ */
-.highlighted-request {
+/* User-side request cards - full effects with badge */
+.request-card.highlighted-request {
   animation: highlightPulse 2s ease-in-out 3;
   background: linear-gradient(90deg, 
     rgba(255, 215, 0, 0.15) 0%, 
@@ -14425,7 +14451,16 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   position: relative;
 }
 
-.highlighted-request::before {
+/* Admin-side table rows - subtle highlight without position shift */
+.tents-requests-table tbody tr.highlighted-request {
+  animation: highlightPulse 2s ease-in-out 3;
+  background: rgba(255, 215, 0, 0.15) !important;
+  box-shadow: inset 0 0 0 2px #ffd700 !important;
+  /* NO position: relative to prevent table layout shift */
+}
+
+/* User-side badge only */
+.request-card.highlighted-request::before {
   content: '👉 From Notification';
   position: absolute;
   top: -12px;
@@ -14438,6 +14473,11 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 10;
+}
+
+/* Hide badge for admin table rows */
+.tents-requests-table tbody tr.highlighted-request::before {
+  display: none;
 }
 
 @keyframes highlightPulse {

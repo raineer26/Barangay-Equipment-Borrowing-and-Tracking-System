@@ -28,7 +28,10 @@
             <li><a href="about.html">ABOUT US</a></li>
             <li><a href="ContactPage.html">CONTACT US</a></li>
             <li class="user-icon-li" id="userIconNav" style="display: none;">
-              <a href="UserProfile.html"><img src="Assets/account.png" alt="User" class="user-icon-btn" width="32" height="32"></a>
+              <a href="UserProfile.html" style="position: relative; display: inline-block;">
+                <img src="Assets/account.png" alt="User" class="user-icon-btn" width="32" height="32">
+                <span class="profile-notif-badge" id="profileNotifBadge">0</span>
+              </a>
             </li>
             <li id="loginButtonNav">
               <a href="index.html" class="login-btn">LOGIN</a>
@@ -65,8 +68,11 @@
         <li><a href="about.html">ABOUT US</a></li>
         <li><a href="ContactPage.html">CONTACT US</a></li>
         <li class="user-icon-li" id="userIconMobile" style="display: none;">
-          <a href="UserProfile.html">
-            <img src="Assets/account.png" alt="User" class="user-icon-btn" width="32" height="32">
+          <a href="UserProfile.html" style="position: relative; display: flex; align-items: center; gap: 12px;">
+            <div style="position: relative; display: inline-block;">
+              <img src="Assets/account.png" alt="User" class="user-icon-btn" width="32" height="32">
+              <span class="profile-notif-badge" id="profileNotifBadgeMobile">0</span>
+            </div>
             <span>MY PROFILE</span>
           </a>
         </li>
