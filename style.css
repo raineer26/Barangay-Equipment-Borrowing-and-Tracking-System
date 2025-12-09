@@ -771,17 +771,36 @@ input.error {
   margin-top: 18px;
   flex-wrap: wrap;
 }
+
+.service-card-wrapper {
+  text-decoration: none;
+  color: inherit;
+  display: inline-block;
+  width: 580px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.service-card-wrapper:hover {
+  transform: translateY(-8px);
+}
+
+.service-card-wrapper:hover .service-card {
+  box-shadow: 0 12px 30px rgba(40, 26, 188, 0.2);
+}
+
 .service-card {
   background: #fff;
   border-radius: 12px;
   box-shadow: 2px 4px 12px #e0d6f7;
-  width: 580px;
+  width: 100%;
   height: 570px;
   padding: 0 0 24px 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   margin-bottom: 24px;
+  transition: box-shadow 0.3s ease;
+  cursor: pointer;
 }
 .service-info {
   padding: 18px 24px 0 24px;
@@ -806,7 +825,6 @@ input.error {
 }
 .service-btn {
   display: inline-block;
-  text-decoration: none;
   background: #281abc;
   color: #fff;
   font-family: 'Poppins', sans-serif;
@@ -819,9 +837,13 @@ input.error {
   margin-top: 8px;
   box-shadow: 0 2px 8px #d1d1ff;
   transition: background 0.2s, color 0.2s;
- margin-left: 10px;
+  margin-left: 10px;
+  text-decoration: none;
 }
-.service-btn:hover, .service-btn:focus {
+
+.service-card-wrapper:hover .service-btn,
+.service-btn:hover,
+.service-btn:focus {
   background: #fff;
   color: #281abc;
   border: 2px solid #281abc;
@@ -3421,7 +3443,6 @@ footer a:hover {
 }
 
 .calendar-date {
-  aspect-ratio: 1.5;
   border-right: 1px solid #ccc;
   border-bottom: 1px solid #ccc;
   padding: 14px 12px;
@@ -3434,8 +3455,9 @@ footer a:hover {
   justify-content: flex-start;
   align-items: flex-start;
   position: relative;
-  min-height: 110px;
+  min-height: 120px;
   background: white;
+  overflow: visible;
 }
 
 /* Remove right border from last column (7th items) */
@@ -9488,9 +9510,13 @@ body.sidebar-collapsed .sidebar-toggle-btn,
     font-size: 2.8rem;
   }
   
-  .service-card {
+  .service-card-wrapper {
     width: 500px;
-    height: 360px;
+  }
+  
+  .service-card {
+    width: 100%;
+    height: 460px;
   }
   
   .service-img {
@@ -9577,6 +9603,9 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   }
   
   /* Calendar Pages */
+  .calendar-center-section{
+    margin-bottom: 90px;
+  }
   .calendar-container {
     max-width: 1350px;
   }
@@ -9586,7 +9615,17 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   }
   
   .calendar-date {
-    min-height: 105px;
+    min-height: 120px;
+  }
+  .contact-cards {
+    width: 800px;
+  }
+  .contact-card {
+    width: 340px;
+    height: 200px;
+}
+.contact-details  {
+    font-size: 10px;
   }
 }
 
@@ -9736,8 +9775,14 @@ body.sidebar-collapsed .sidebar-toggle-btn,
     align-items: center;
   }
   
+  .service-card-wrapper {
+    width: 100%;
+    max-width: 500px;
+  }
+  
   .service-card {
     width: 100%;
+    max-width: 500px;
     max-width: 500px;
     height: 350px;
   }
