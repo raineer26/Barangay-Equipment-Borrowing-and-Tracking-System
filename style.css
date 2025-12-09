@@ -685,7 +685,7 @@ input.error {
   font-family: 'League Spartan', sans-serif;
   font-size: 3rem;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-top: -8px;
   letter-spacing: 1px;
 }
 .calendar-desc {
@@ -755,13 +755,13 @@ input.error {
   font-family: 'League Spartan', sans-serif;
   font-size: 3rem;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-top: -60px;
   letter-spacing: 1px;
 }
 .services-desc {
   color: #222;
   font-family: 'Poppins', sans-serif;
-  font-size: 1rem;
+  font-size: 2rem;
   margin-bottom: 32px;
 }
 .services-cards {
@@ -877,7 +877,7 @@ input.error {
   font-family: 'League Spartan', sans-serif;
   font-size: 3rem;
   font-weight: 600;
-  margin-bottom: 24px;
+  margin-top: -60px;
   letter-spacing: 1px;
 }
 .about-content {
@@ -940,7 +940,7 @@ input.error {
   font-family: 'League Spartan', sans-serif;
   font-size: 3rem;
   font-weight: 600;
-  margin-bottom: 24px;
+  margin-top: -60px;
   letter-spacing: 1px;
 }
 .contact-content {
