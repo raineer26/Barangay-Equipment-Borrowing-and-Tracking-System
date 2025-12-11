@@ -4143,6 +4143,63 @@ footer a:hover {
   background: #fff5f5;
 }
 
+/* =============================================
+   FORM SECTION STYLING (Two Distinct Parts)
+   ============================================ */
+.form-section {
+  background: #f9f9ff;
+  border-radius: 12px;
+  padding: 30px;
+  margin-bottom: 30px;
+  border: 2px solid #e8e8ff;
+  transition: all 0.3s ease;
+}
+
+.form-section:hover {
+  border-color: #d0d0ff;
+  box-shadow: 0 4px 12px rgba(40, 26, 188, 0.08);
+}
+
+.form-section-title {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #281ABC;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 3px solid #281ABC;
+  letter-spacing: 0.5px;
+}
+
+/* Input styling with light blue focus borders */
+.form-section .form-group input,
+.form-section .form-group select {
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.form-section .form-group input:focus,
+.form-section .form-group select:focus {
+  outline: none;
+  border-color: #6ba3ff;
+  box-shadow: 0 0 8px rgba(107, 163, 255, 0.3);
+  background: white;
+}
+
+/* Readonly fields styling */
+.form-section .form-group input[readonly] {
+  background: #e8e8ff;
+  color: #281ABC;
+  font-weight: 600;
+  cursor: not-allowed;
+  border-color: #ccc;
+}
+
 /* Autofilled Fields Visual Indicator */
 .form-group input.autofilled,
 .form-group select.autofilled {

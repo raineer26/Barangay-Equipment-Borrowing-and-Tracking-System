@@ -104,77 +104,95 @@
         <p class="form-subtitle">Hosting an event soon? Just fill in the form below with your details and the items you need, and we'll take care of the rest!</p>
 
         <form id="tentsChairsForm" class="request-form">
-          <!-- Row 1 -->
-          <div class="form-row-3col">
-            <div class="form-group">
-              <label for="firstName">FIRST NAME:</label>
-              <!-- Auto-filled from user profile and not editable -->
-              <input type="text" id="firstName" name="firstName" readonly>
-              <div class="error-message" id="errorFirstName"></div>
+          <!-- ============================================
+               PART I: CONTACT DETAILS
+               ============================================ -->
+          <div class="form-section">
+            <h3 class="form-section-title">Contact Details</h3>
+            
+            <!-- First Name and Last Name -->
+            <div class="form-row-2col">
+              <div class="form-group">
+                <label for="firstName">FIRST NAME:</label>
+                <!-- Auto-filled from user profile and not editable -->
+                <input type="text" id="firstName" name="firstName" readonly>
+                <div class="error-message" id="errorFirstName"></div>
+              </div>
+              <div class="form-group">
+                <label for="lastName">LAST NAME:</label>
+                <!-- Auto-filled from user profile and not editable -->
+                <input type="text" id="lastName" name="lastName" readonly>
+                <div class="error-message" id="errorLastName"></div>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="lastName">LAST NAME:</label>
-              <!-- Auto-filled from user profile and not editable -->
-              <input type="text" id="lastName" name="lastName" readonly>
-              <div class="error-message" id="errorLastName"></div>
+
+            <!-- Contact Number and Complete Address -->
+            <div class="form-row-2col">
+              <div class="form-group">
+                <label for="contactNumber">CONTACT NUMBER:</label>
+                <input type="tel" id="contactNumber" name="contactNumber">
+                <div class="error-message" id="errorContactNumber"></div>
+              </div>
+              <div class="form-group">
+                <label for="completeAddress">COMPLETE ADDRESS:</label>
+                <input type="text" id="completeAddress" name="completeAddress">
+                <div class="error-message" id="errorCompleteAddress"></div>
+              </div>
             </div>
           </div>
 
-          <!-- Row 2: Complete Address (left) and Purpose of Use (right) -->
-          <div class="form-row-2col">
-            <div class="form-group">
-              <label for="contactNumber">CONTACT NUMBER:</label>
-              <input type="tel" id="contactNumber" name="contactNumber">
-              <div class="error-message" id="errorContactNumber"></div>
+          <!-- ============================================
+               PART II: REQUEST INFORMATION
+               ============================================ -->
+          <div class="form-section">
+            <h3 class="form-section-title">Request Information</h3>
+            
+            <!-- Start Date and End Date (AT THE TOP) -->
+            <div class="form-row-2col">
+              <div class="form-group">
+                <label for="startDate">START DATE:</label>
+                <input type="date" id="startDate" name="startDate">
+                <div class="error-message" id="errorStartDate"></div>
+              </div>
+              <div class="form-group">
+                <label for="endDate">END DATE:</label>
+                <input type="date" id="endDate" name="endDate">
+                <div class="error-message" id="errorEndDate"></div>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="completeAddress">COMPLETE ADDRESS:</label>
-              <input type="text" id="completeAddress" name="completeAddress">
-              <div class="error-message" id="errorCompleteAddress"></div>
-            </div>
-            <div class="form-group">
-              <label for="purposeOfUse">PURPOSE OF USE:</label>
-              <input type="text" id="purposeOfUse" name="purposeOfUse">
-              <div class="error-message" id="errorPurposeOfUse"></div>
-            </div>
-            <div class="form-group">
-              <label for="modeOfReceiving">MODE OF RECEIVING:</label>
-              <select id="modeOfReceiving" name="modeOfReceiving">
-                <option value="">Select Mode</option>
-                <option value="Delivery">Delivery</option>
-                <option value="Pick-up">Pick-up</option>
-              </select>
-              <div class="error-message" id="errorModeOfReceiving"></div>
-            </div>
-          </div>
 
-          <!-- Row 3-->
-          <div class="form-row-2col">
-            <div class="form-group">
-              <label for="quantityTents">QUANTITY OF TENT/S:</label>
-              <input type="number" id="quantityTents" name="quantityTents" min="0" value="0">
-              <div class="error-message" id="errorQuantityTents"></div>
-              <small class="field-note">*Set the quantity to 0 if not borrowing tents</small>
+            <!-- Purpose of Use and Mode of Receiving (IN THE MIDDLE) -->
+            <div class="form-row-2col">
+              <div class="form-group">
+                <label for="purposeOfUse">PURPOSE OF USE:</label>
+                <input type="text" id="purposeOfUse" name="purposeOfUse">
+                <div class="error-message" id="errorPurposeOfUse"></div>
+              </div>
+              <div class="form-group">
+                <label for="modeOfReceiving">MODE OF RECEIVING:</label>
+                <select id="modeOfReceiving" name="modeOfReceiving">
+                  <option value="">Select Mode</option>
+                  <option value="Delivery">Delivery</option>
+                  <option value="Pick-up">Pick-up</option>
+                </select>
+                <div class="error-message" id="errorModeOfReceiving"></div>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="quantityChairs">QUANTITY OF CHAIR/S:</label>
-              <input type="number" id="quantityChairs" name="quantityChairs" min="0" value="0">
-              <div class="error-message" id="errorQuantityChairs"></div>
-              <small class="field-note">*Set the quantity to 0 if not borrowing chairs</small>
-            </div>
-          </div>
 
-          <!-- Row 4: Start Date and End Date -->
-          <div class="form-row-2col">
-            <div class="form-group">
-              <label for="startDate">START DATE:</label>
-              <input type="date" id="startDate" name="startDate">
-              <div class="error-message" id="errorStartDate"></div>
-            </div>
-            <div class="form-group">
-              <label for="endDate">END DATE:</label>
-              <input type="date" id="endDate" name="endDate">
-              <div class="error-message" id="errorEndDate"></div>
+            <!-- Quantity of Tents and Chairs (AT THE BOTTOM) -->
+            <div class="form-row-2col">
+              <div class="form-group">
+                <label for="quantityTents">QUANTITY OF TENT/S:</label>
+                <input type="number" id="quantityTents" name="quantityTents" min="0" value="0">
+                <div class="error-message" id="errorQuantityTents"></div>
+                <small class="field-note">*Set the quantity to 0 if not borrowing tents</small>
+              </div>
+              <div class="form-group">
+                <label for="quantityChairs">QUANTITY OF CHAIR/S:</label>
+                <input type="number" id="quantityChairs" name="quantityChairs" min="0" value="0">
+                <div class="error-message" id="errorQuantityChairs"></div>
+                <small class="field-note">*Set the quantity to 0 if not borrowing chairs</small>
+              </div>
             </div>
           </div>
 
