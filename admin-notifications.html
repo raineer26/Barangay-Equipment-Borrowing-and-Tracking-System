@@ -78,7 +78,17 @@
       <section class="admin-hero">
         <div class="admin-hero-overlay"></div>
         <div class="admin-hero-content">
-          <h1>ADMIN <span class="highlight-yellow">NOTIFICATIONS</span></h1>
+          <h1 id="notifHeroTitle">ADMIN <span class="highlight-yellow">NOTIFICATIONS</span></h1>
+          <script>
+            // Set header text immediately using cached role (prevents flicker)
+            (function() {
+              const cachedRole = sessionStorage.getItem('userRole');
+              const titleEl = document.getElementById('notifHeroTitle');
+              if (titleEl && cachedRole === 'superadmin') {
+                titleEl.innerHTML = 'SUPERADMIN <span class="highlight-yellow">NOTIFICATIONS</span>';
+              }
+            })();
+          </script>
           <p>Stay updated on system events, requests, and important alerts</p>
         </div>
       </section>

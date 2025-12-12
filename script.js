@@ -23228,25 +23228,9 @@ if (window.location.pathname.endsWith('admin-notifications.html') ||
   });
   
   // Load notifications when user is authenticated
-  onAuthStateChanged(auth, async (user) => {
+  onAuthStateChanged(auth, (user) => {
     if (user) {
       console.log('[Admin Notifications] 👤 User authenticated, loading notifications...');
-      
-      // Update header text based on user role
-      try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const userRole = userDoc.data()?.role;
-          const headerElement = document.querySelector('.admin-hero-content h1');
-          if (headerElement && userRole === 'superadmin') {
-            headerElement.innerHTML = 'SUPERADMIN <span class="highlight-yellow">NOTIFICATIONS</span>';
-            console.log('[Admin Notifications] ✓ Header updated for super admin');
-          }
-        }
-      } catch (error) {
-        console.error('[Admin Notifications] ⚠️ Error updating header:', error);
-      }
-      
       loadAdminNotifications();
       
       // Auto-refresh every 2 minutes
