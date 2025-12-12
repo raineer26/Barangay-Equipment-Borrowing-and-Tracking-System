@@ -22226,59 +22226,68 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     }
     
     // Add event delegation for dropdown menu actions
+    // Handler for both registered users and system admin tables
+    const handleDropdownActions = (e) => {
+      const menuBtn = e.target.closest('.um-actions-menu-btn');
+      
+      if (menuBtn) {
+        e.stopPropagation();
+        const dropdown = menuBtn.nextElementSibling;
+        const allDropdowns = document.querySelectorAll('.um-actions-menu');
+        
+        // Close all other dropdowns
+        allDropdowns.forEach(menu => {
+          if (menu !== dropdown) {
+            menu.classList.remove('active');
+          }
+        });
+        
+        // Toggle current dropdown
+        dropdown.classList.toggle('active');
+        return;
+      }
+      
+      // Handle dropdown item clicks
+      const dropdownItem = e.target.closest('.um-dropdown-item');
+      if (dropdownItem) {
+        e.preventDefault();
+        const action = dropdownItem.getAttribute('data-action');
+        const userId = dropdownItem.getAttribute('data-user-id');
+        
+        // Close dropdown
+        const menu = dropdownItem.closest('.um-actions-menu');
+        if (menu) menu.classList.remove('active');
+        
+        // Execute action
+        if (action === 'view') {
+          viewUserDetails(userId);
+        } else if (action === 'disable') {
+          disableUser(userId);
+        } else if (action === 'enable') {
+          enableUser(userId);
+        }
+      }
+    };
+    
+    // Attach event delegation to registered users table
     const tbody = document.querySelector('.um-users-table tbody');
     if (tbody) {
-      // Handle dropdown toggle
-      tbody.addEventListener('click', (e) => {
-        const menuBtn = e.target.closest('.um-actions-menu-btn');
-        
-        if (menuBtn) {
-          e.stopPropagation();
-          const dropdown = menuBtn.nextElementSibling;
-          const allDropdowns = document.querySelectorAll('.um-actions-menu');
-          
-          // Close all other dropdowns
-          allDropdowns.forEach(menu => {
-            if (menu !== dropdown) {
-              menu.classList.remove('active');
-            }
-          });
-          
-          // Toggle current dropdown
-          dropdown.classList.toggle('active');
-          return;
-        }
-        
-        // Handle dropdown item clicks
-        const dropdownItem = e.target.closest('.um-dropdown-item');
-        if (dropdownItem) {
-          e.preventDefault();
-          const action = dropdownItem.getAttribute('data-action');
-          const userId = dropdownItem.getAttribute('data-user-id');
-          
-          // Close dropdown
-          const menu = dropdownItem.closest('.um-actions-menu');
-          if (menu) menu.classList.remove('active');
-          
-          // Execute action
-          if (action === 'view') {
-            viewUserDetails(userId);
-          } else if (action === 'disable') {
-            disableUser(userId);
-          } else if (action === 'enable') {
-            enableUser(userId);
-          }
-        }
-      });
-      
-      // Close dropdowns when clicking outside
-      document.addEventListener('click', (e) => {
-        if (!e.target.closest('.um-actions-dropdown')) {
-          const allDropdowns = document.querySelectorAll('.um-actions-menu');
-          allDropdowns.forEach(menu => menu.classList.remove('active'));
-        }
-      });
+      tbody.addEventListener('click', handleDropdownActions);
     }
+    
+    // Attach event delegation to system admin table
+    const systemAdminTbody = document.getElementById('systemAdminTableBody');
+    if (systemAdminTbody) {
+      systemAdminTbody.addEventListener('click', handleDropdownActions);
+    }
+    
+    // Close dropdowns when clicking outside (only attach once)
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.um-actions-dropdown')) {
+        const allDropdowns = document.querySelectorAll('.um-actions-menu');
+        allDropdowns.forEach(menu => menu.classList.remove('active'));
+      }
+    });
   });
   
 } // End of admin-user-manager.html conditional
