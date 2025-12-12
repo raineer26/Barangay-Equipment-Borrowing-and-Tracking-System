@@ -19095,6 +19095,205 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
   }
   
   /**
+   * Load system administrators (admin role users) from Firestore with real-time updates
+   * Only shows users with role 'admin' or 'superadmin'
+   */
+  function loadSystemAdmins() {
+    try {
+      console.log('👑 Setting up real-time listener for system administrators...');
+      
+      // Reference to the users collection
+      const usersRef = collection(db, 'users');
+      
+      // Set up real-time listener
+      const unsubscribeAdmins = onSnapshot(usersRef, async (snapshot) => {
+        const systemAdminsData = [];
+        
+        snapshot.forEach((doc) => {
+          const userData = doc.data();
+          // Only include admin and superadmin roles
+          if (userData.role === 'admin' || userData.role === 'superadmin') {
+            systemAdminsData.push({
+              id: doc.id,
+              firstName: userData.firstName || '',
+              lastName: userData.lastName || '',
+              fullName: userData.fullName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+              email: userData.email || '',
+              contactNumber: userData.contactNumber || '',
+              address: userData.address || '',
+              role: userData.role || 'admin',
+              createdAt: userData.createdAt?.toDate() || new Date(),
+              status: userData.status || 'active'
+            });
+          }
+        });
+        
+        console.log(`✅ Loaded ${systemAdminsData.length} system administrators`);
+        
+        // Render system admins table
+        renderSystemAdminsTable(systemAdminsData);
+      }, (error) => {
+        console.error('❌ Error loading system administrators:', error);
+      });
+      
+      // Register with RealtimeManager for proper cleanup
+      realtimeManager.addListener('systemAdminsData', unsubscribeAdmins);
+      console.log('[Real-Time User Manager] ✅ System admins listener active');
+      
+    } catch (error) {
+      console.error('❌ Error setting up system admins listener:', error);
+    }
+  }
+  
+  /**
+   * Render system administrators table with filtering and sorting
+   */
+  function renderSystemAdminsTable(adminsData) {
+    const tableBody = document.getElementById('systemAdminTableBody');
+    if (!tableBody) return;
+    
+    // Apply filters
+    let filteredAdmins = [...adminsData];
+    
+    // Filter by search
+    const searchTerm = document.getElementById('searchSystemAdmins')?.value.toLowerCase().trim();
+    if (searchTerm) {
+      filteredAdmins = filteredAdmins.filter(admin => 
+        admin.fullName.toLowerCase().includes(searchTerm) ||
+        admin.firstName.toLowerCase().includes(searchTerm) ||
+        admin.lastName.toLowerCase().includes(searchTerm) ||
+        admin.email.toLowerCase().includes(searchTerm) ||
+        admin.address.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Filter by status
+    const statusFilter = document.getElementById('filterSystemAdminStatus')?.value;
+    if (statusFilter) {
+      filteredAdmins = filteredAdmins.filter(admin => admin.status === statusFilter);
+    }
+    
+    // Filter by date
+    const dateFilter = document.getElementById('filterSystemAdminDate')?.value;
+    if (dateFilter) {
+      const filterDate = new Date(dateFilter);
+      filterDate.setHours(0, 0, 0, 0);
+      filteredAdmins = filteredAdmins.filter(admin => {
+        const adminDate = new Date(admin.createdAt);
+        adminDate.setHours(0, 0, 0, 0);
+        return adminDate.getTime() === filterDate.getTime();
+      });
+    }
+    
+    // Sort
+    const sortBy = document.getElementById('sortSystemAdminsBy')?.value;
+    if (sortBy) {
+      switch(sortBy) {
+        case 'name-asc':
+          filteredAdmins.sort((a, b) => a.lastName.localeCompare(b.lastName));
+          break;
+        case 'name-desc':
+          filteredAdmins.sort((a, b) => b.lastName.localeCompare(a.lastName));
+          break;
+        case 'date-newest':
+          filteredAdmins.sort((a, b) => b.createdAt - a.createdAt);
+          break;
+        case 'date-oldest':
+          filteredAdmins.sort((a, b) => a.createdAt - b.createdAt);
+          break;
+      }
+    }
+    
+    // Clear table
+    tableBody.innerHTML = '';
+    
+    // Show empty state if no admins
+    if (filteredAdmins.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
+            No system administrators found.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+    
+    // Render each admin row
+    filteredAdmins.forEach(admin => {
+      const row = document.createElement('tr');
+      
+      // Get initials for avatar
+      const initials = `${admin.firstName.charAt(0)}${admin.lastName.charAt(0)}`.toUpperCase() || 'A';
+      
+      // Format date
+      const formattedDate = admin.createdAt.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      
+      // Status badge
+      const statusClass = admin.status === 'active' ? 'um-status-active' : '';
+      const statusStyle = admin.status !== 'active' ? 'background:#f8d7da;color:#dc3545;border:1.5px solid #eb8a90;' : '';
+      const statusText = admin.status.charAt(0).toUpperCase() + admin.status.slice(1);
+      
+      // Role badge
+      const roleBadgeStyle = admin.role === 'superadmin' ? 'background:#6610f2;color:#fff;' : 'background:#ddd5f5;color:#6f42c1;border:1.5px solid #c1a9e8;';
+      const roleText = admin.role === 'superadmin' ? 'SUPERADMIN' : 'ADMIN';
+      
+      row.innerHTML = `
+        <td>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="um-user-avatar">${initials}</div>
+            <div>
+              <div style="font-weight:600;color:#222;">${admin.fullName}</div>
+              <div style="font-size:13px;color:#888;">${admin.email}</div>
+            </div>
+          </div>
+        </td>
+        <td>${admin.contactNumber}</td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${admin.address}</td>
+        <td>${formattedDate}</td>
+        <td>
+          <span class="um-status-label ${statusClass}" style="${statusStyle}">
+            ${statusText}
+          </span>
+        </td>
+        <td style="text-align:center;">
+          <span class="um-role-badge" style="${roleBadgeStyle}">
+            ${roleText}
+          </span>
+        </td>
+        <td style="text-align:center;">
+          <div class="um-actions-dropdown">
+            <button class="um-actions-menu-btn" data-user-id="${admin.id}" aria-label="Actions menu">
+              <span>⋮</span>
+            </button>
+            <div class="um-actions-menu">
+              <a href="#" class="um-dropdown-item" data-action="view" data-user-id="${admin.id}">
+                <span>👁️</span> View Details
+              </a>
+              ${admin.status === 'active' ? 
+                `<a href="#" class="um-dropdown-item" data-action="disable" data-user-id="${admin.id}">
+                  <span>🚫</span> Disable Account
+                </a>` :
+                `<a href="#" class="um-dropdown-item" data-action="enable" data-user-id="${admin.id}">
+                  <span>✅</span> Enable Account
+                </a>`
+              }
+            </div>
+          </div>
+        </td>
+      `;
+      
+      tableBody.appendChild(row);
+    });
+    
+    console.log(`✅ Rendered ${filteredAdmins.length} system administrators in table`);
+  }
+  
+  /**
    * Get filtered and sorted users based on current filter values
    */
   function getFilteredUsers() {
@@ -20421,21 +20620,28 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
   document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Admin User Manager page loaded');
     
-    // Track if admin profile has been loaded
+    // Track if admin profile and system admins have been loaded
     let adminProfileLoaded = false;
+    let systemAdminsLoaded = false;
     
-    // Setup tab switching for All Registered Users and Admin tabs
+    // Setup tab switching for All Registered Users, System Admin, and Admin tabs
     const allTab = document.getElementById('tab-all');
+    const systemAdminTab = document.getElementById('tab-system-admin');
     const adminTab = document.getElementById('tab-admin');
     const allTabPanel = document.getElementById('tabpanel-all');
+    const systemAdminTabPanel = document.getElementById('tabpanel-system-admin');
     const adminTabPanel = document.getElementById('tabpanel-admin');
     
-    if (allTab && adminTab && allTabPanel && adminTabPanel) {
+    if (allTab && systemAdminTab && adminTab && allTabPanel && systemAdminTabPanel && adminTabPanel) {
       allTab.addEventListener('click', () => {
         // Switch to All Registered Users tab
         allTab.classList.add('um-active');
         allTab.setAttribute('aria-selected', 'true');
         allTab.setAttribute('tabindex', '0');
+        
+        systemAdminTab.classList.remove('um-active');
+        systemAdminTab.setAttribute('aria-selected', 'false');
+        systemAdminTab.setAttribute('tabindex', '-1');
         
         adminTab.classList.remove('um-active');
         adminTab.setAttribute('aria-selected', 'false');
@@ -20444,8 +20650,42 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
         allTabPanel.hidden = false;
         allTabPanel.setAttribute('tabindex', '0');
         
+        systemAdminTabPanel.hidden = true;
+        systemAdminTabPanel.setAttribute('tabindex', '-1');
+        
         adminTabPanel.hidden = true;
         adminTabPanel.setAttribute('tabindex', '-1');
+      });
+      
+      systemAdminTab.addEventListener('click', () => {
+        // Switch to System Admin tab
+        systemAdminTab.classList.add('um-active');
+        systemAdminTab.setAttribute('aria-selected', 'true');
+        systemAdminTab.setAttribute('tabindex', '0');
+        
+        allTab.classList.remove('um-active');
+        allTab.setAttribute('aria-selected', 'false');
+        allTab.setAttribute('tabindex', '-1');
+        
+        adminTab.classList.remove('um-active');
+        adminTab.setAttribute('aria-selected', 'false');
+        adminTab.setAttribute('tabindex', '-1');
+        
+        systemAdminTabPanel.hidden = false;
+        systemAdminTabPanel.setAttribute('tabindex', '0');
+        
+        allTabPanel.hidden = true;
+        allTabPanel.setAttribute('tabindex', '-1');
+        
+        adminTabPanel.hidden = true;
+        adminTabPanel.setAttribute('tabindex', '-1');
+        
+        // Load system admins only when tab is clicked (and only once)
+        if (!systemAdminsLoaded) {
+          console.log('👑 Loading system administrators for first time...');
+          loadSystemAdmins();
+          systemAdminsLoaded = true;
+        }
       });
       
       adminTab.addEventListener('click', () => {
@@ -20458,11 +20698,18 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
         allTab.setAttribute('aria-selected', 'false');
         allTab.setAttribute('tabindex', '-1');
         
+        systemAdminTab.classList.remove('um-active');
+        systemAdminTab.setAttribute('aria-selected', 'false');
+        systemAdminTab.setAttribute('tabindex', '-1');
+        
         adminTabPanel.hidden = false;
         adminTabPanel.setAttribute('tabindex', '0');
         
         allTabPanel.hidden = true;
         allTabPanel.setAttribute('tabindex', '-1');
+        
+        systemAdminTabPanel.hidden = true;
+        systemAdminTabPanel.setAttribute('tabindex', '-1');
         
         // Load admin profile only when tab is clicked (and only once)
         if (!adminProfileLoaded) {
@@ -20481,6 +20728,20 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     
     // Setup filter listeners
     setupFilters();
+    
+    // Setup filter listeners for System Admin tab
+    document.getElementById('searchSystemAdmins')?.addEventListener('input', () => {
+      if (systemAdminsLoaded) loadSystemAdmins();
+    });
+    document.getElementById('filterSystemAdminStatus')?.addEventListener('change', () => {
+      if (systemAdminsLoaded) loadSystemAdmins();
+    });
+    document.getElementById('filterSystemAdminDate')?.addEventListener('change', () => {
+      if (systemAdminsLoaded) loadSystemAdmins();
+    });
+    document.getElementById('sortSystemAdminsBy')?.addEventListener('change', () => {
+      if (systemAdminsLoaded) loadSystemAdmins();
+    });
     
     // Setup table scroll sync
     setupTableScroll();
