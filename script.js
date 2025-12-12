@@ -32,7 +32,7 @@ const inventoryRef = collection(db, "inventory");
 (function() {
   const cachedRole = sessionStorage.getItem('userRole');
   if (cachedRole === 'superadmin') {
-    // Superadmin: Hide Dashboard, Review Requests, and Manage Inventory
+    // Superadmin: Hide Dashboard, Review Requests, and Manage Inventory (only sees Manage Accounts + Notifications)
     const style = document.createElement('style');
     style.id = 'hide-admin-only-links';
     style.textContent = `
@@ -42,10 +42,17 @@ const inventoryRef = collection(db, "inventory");
     `;
     document.head.appendChild(style);
   } else if (cachedRole === 'admin') {
-    // Admin: Hide Manage Accounts
+    // Admin: Hide "All Registered Users" tab and content, show admin panel with spinner
     const style = document.createElement('style');
-    style.id = 'hide-superadmin-only-links';
-    style.textContent = 'a[href="admin-user-manager.html"] { display: none !important; }';
+    style.id = 'hide-all-users-tab';
+    style.textContent = `
+      #tab-all { display: none !important; }
+      #tabpanel-all { display: none !important; }
+      #tabpanel-admin { display: block !important; }
+      #adminContent { display: none !important; }
+      #adminLoadingSpinner { display: flex !important; }
+      .um-stats-card { display: none !important; }
+    `;
     document.head.appendChild(style);
   }
 })();
@@ -18876,13 +18883,67 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
 // Check if we're on the admin user manager page
 if (window.location.pathname.endsWith('admin-user-manager.html') || window.location.pathname.endsWith('/admin-user-manager')) {
   
-  // Check user role - only superadmin can access
+  // Store current user's role
+  let currentUserRole = null;
+  let currentUserId = null;
+  
+  // Check user role and adjust page content accordingly
   onAuthStateChanged(auth, async (user) => {
     if (user) {
+      currentUserId = user.uid;
       const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (userDoc.exists() && userDoc.data().role !== 'superadmin') {
-        alert('\u26a0\ufe0f Access Denied\n\nOnly super administrators can access Manage Accounts.');
-        window.location.href = 'admin.html';
+      if (userDoc.exists()) {
+        currentUserRole = userDoc.data().role;
+        
+        // Admin can only view their own account
+        if (currentUserRole === 'admin') {
+          // Hide "All Registered Users" tab for admin
+          const allTab = document.getElementById('tab-all');
+          const adminTab = document.getElementById('tab-admin');
+          const allTabPanel = document.getElementById('tabpanel-all');
+          const adminTabPanel = document.getElementById('tabpanel-admin');
+          
+          if (allTab) allTab.style.display = 'none';
+          if (adminTab) {
+            adminTab.classList.add('um-active');
+            adminTab.setAttribute('aria-selected', 'true');
+          }
+          if (allTabPanel) {
+            allTabPanel.hidden = true;
+            allTabPanel.setAttribute('tabindex', '-1');
+          }
+          if (adminTabPanel) {
+            adminTabPanel.hidden = false;
+            adminTabPanel.setAttribute('tabindex', '0');
+          }
+          
+          // Update header for admin (already done by inline script, just remove visibility restoration)
+          const heroTitle = document.querySelector('.admin-hero-content h1');
+          const heroDesc = document.querySelector('.admin-hero-content p');
+          
+          // Content already updated by inline script, no need to update again
+          // Just ensure it's visible (in case CSS hid it)
+          const heroContent = document.querySelector('.admin-hero-content');
+          if (heroContent) {
+            heroContent.style.visibility = '';
+          }
+          
+          // Hide stats card for admin
+          const statsCard = document.querySelector('.um-stats-card');
+          if (statsCard) statsCard.style.display = 'none';
+          
+          // Load admin's own profile
+          loadAdminProfile();
+        } else if (currentUserRole === 'superadmin') {
+          // Superadmin has full access - load all users
+          loadTotalUsersCount();
+          loadAllUsers();
+          loadAdminProfile();
+        } else {
+          // Regular users cannot access this page
+          alert('\u26a0\ufe0f Access Denied\n\nYou do not have permission to access this page.');
+          window.location.href = 'user.html';
+        }
       }
     }
   });
@@ -19804,6 +19865,17 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
           contactNumber,
           initials
         });
+        
+        // Hide loading spinner and show admin content with important flag to override CSS
+        const loadingSpinner = document.getElementById('adminLoadingSpinner');
+        if (loadingSpinner) {
+          loadingSpinner.style.setProperty('display', 'none', 'important');
+        }
+        
+        const adminContent = document.getElementById('adminContent');
+        if (adminContent) {
+          adminContent.style.setProperty('display', 'block', 'important');
+        }
         
       } else {
         console.warn('⚠️ Admin user document not found');

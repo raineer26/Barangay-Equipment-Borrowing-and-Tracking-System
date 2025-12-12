@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Manage User Accounts - Admin Dashboard</title>
     <link rel="stylesheet" href="style.css" />
+    <style>
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body class="admin-body">
     <!-- SIDEBAR -->
@@ -69,8 +75,18 @@
         <section class="admin-hero">
           <div class="admin-hero-overlay"></div>
           <div class="admin-hero-content">
-            <h1><span class="highlight-yellow">USER ACCOUNTS</span> MANAGEMENT</h1>
-            <p>View and manage all registered user accounts, including their contact details, registration date, and account status.</p>
+            <h1 id="umHeroTitle"><span class="highlight-yellow">USER ACCOUNTS</span> MANAGEMENT</h1>
+            <p id="umHeroDesc">View and manage all registered user accounts, including their contact details, registration date, and account status.</p>
+            <script>
+              // Update header immediately based on cached role
+              (function() {
+                const cachedRole = sessionStorage.getItem('userRole');
+                if (cachedRole === 'admin') {
+                  document.getElementById('umHeroTitle').innerHTML = '<span class="highlight-yellow">MY ACCOUNT</span> INFORMATION';
+                  document.getElementById('umHeroDesc').textContent = 'View and manage your account details, contact information, and account status.';
+                }
+              })();
+            </script>
           </div>
         </section>
 
@@ -155,8 +171,16 @@
         </div>
 
         <!-- Admin Tab Panel -->
-        <div id="tabpanel-admin" role="tabpanel" aria-labelledby="tab-admin" tabindex="0" hidden>
-          <section style="background:#d8e7ff;border-radius:6px;padding:20px 30px; margin-top: 20px; user-select:none;">
+        <div id="tabpanel-admin" role="tabpanel" aria-labelledby="tab-admin" tabindex="0">
+          <!-- Loading Spinner -->
+          <div id="adminLoadingSpinner" style="display:flex;justify-content:center;align-items:center;padding:60px 20px;">
+            <div style="text-align:center;">
+              <div style="border:4px solid #f3f3f3;border-top:4px solid #2f21a1;border-radius:50%;width:50px;height:50px;animation:spin 1s linear infinite;margin:0 auto 15px;"></div>
+              <div style="color:#555;font-size:14px;font-weight:500;">Loading account information...</div>
+            </div>
+          </div>
+          <!-- Admin Content -->
+          <section id="adminContent" style="background:#d8e7ff;border-radius:6px;padding:20px 30px; margin-top: 20px; user-select:none; display:none;">
             <div style="display:flex; align-items:center; gap: 20px; margin-bottom:14px;">
               <div class="um-user-avatar" id="adminAvatar" aria-hidden="true" style="background:#2f21a1; font-weight: 700; font-size: 24px;">AD</div>
               <div>
@@ -169,7 +193,6 @@
                 </div>
               </div>
               <div style="margin-left:auto; display:flex; gap: 12px;">
-                <button type="button" id="adminEditProfileBtn" style="border:1.5px solid #444; background:#fff; color:#444; font-size:14px; font-weight:600; padding:8px 16px; border-radius:6px; cursor:pointer;">✏️ Edit Profile</button>
                 <button type="button" id="adminChangePasswordBtn" style="background:#2f21a1; border:none; color:#fff; font-size:14px; font-weight:700; padding:8px 16px; border-radius:6px; cursor:pointer;">🔑 Change Password</button>
               </div>
             </div>
