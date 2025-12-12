@@ -27,13 +27,24 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const inventoryRef = collection(db, "inventory");
 
-// IMMEDIATE: Hide Manage Accounts link via CSS if not superadmin (cached check)
+// IMMEDIATE: Hide links based on role via CSS (cached check)
 // This runs synchronously before any rendering to prevent flash
 (function() {
   const cachedRole = sessionStorage.getItem('userRole');
-  if (cachedRole !== 'superadmin') {
+  if (cachedRole === 'superadmin') {
+    // Superadmin: Hide Dashboard, Review Requests, and Manage Inventory
     const style = document.createElement('style');
-    style.id = 'hide-manage-accounts';
+    style.id = 'hide-admin-only-links';
+    style.textContent = `
+      a[href="admin.html"] { display: none !important; }
+      .sidebar-dropdown { display: none !important; }
+      a[href="admin-manage-inventory.html"] { display: none !important; }
+    `;
+    document.head.appendChild(style);
+  } else if (cachedRole === 'admin') {
+    // Admin: Hide Manage Accounts
+    const style = document.createElement('style');
+    style.id = 'hide-superadmin-only-links';
     style.textContent = 'a[href="admin-user-manager.html"] { display: none !important; }';
     document.head.appendChild(style);
   }
@@ -690,7 +701,7 @@ loginForm?.addEventListener("submit", async (e) => {
             sessionStorage.setItem('flashToast', JSON.stringify(flash));
             sessionStorage.setItem('userRole', 'superadmin');
           } catch (e) { /* ignore */ }
-          window.location.href = "admin.html";
+          window.location.href = "admin-user-manager.html";
         } else if (userData.role === "admin") {
           console.log('[Login] Redirecting to admin dashboard...');
           try {
@@ -1890,7 +1901,7 @@ document.addEventListener('DOMContentLoaded', function() {
    - onAuthStateChanged prevents access to protected pages when not authenticated
    - window.logout signs the current user out and redirects to login
 ====================== */
-// Show Manage Accounts link only for superadmin
+// Show/hide sidebar links based on role (admin vs superadmin)
 (function() {
   let hasChecked = false;
   
@@ -1906,15 +1917,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Cache the role for immediate access on next page load
         if (role) sessionStorage.setItem('userRole', role);
         
-        if (role === 'superadmin') {
-          // Remove the CSS hide rule
-          const styleEl = document.getElementById('hide-manage-accounts');
-          if (styleEl) styleEl.remove();
-          
-          // Show the link
-          const link = document.querySelector('a[href="admin-user-manager.html"]');
-          if (link) link.style.display = 'flex';
-        }
+        // Don't remove CSS - it will stay hidden for the correct role
+        // CSS injection on page load already handles visibility correctly
+        
       } catch (error) {
         console.error('Error checking role for sidebar:', error);
       }
@@ -7493,15 +7498,19 @@ if (window.location.pathname.endsWith('admin.html')) {
           const userData = userDoc.data();
           const userRole = userData.role;
           
-          if (userRole === 'admin' || userRole === 'superadmin') {
-            // Admin or superadmin confirmed - show profile icon, hide LOGIN button
+          if (userRole === 'admin') {
+            // Admin confirmed - show profile icon, hide LOGIN button
             updateAuthNav(user);
             
-            // Update greeting based on role
+            // Update greeting
             const greetingSpan = document.querySelector('.admin-hero-content h1 .highlight-yellow');
             if (greetingSpan) {
-              greetingSpan.textContent = userRole === 'superadmin' ? 'SUPER ADMIN!' : 'ADMIN!';
+              greetingSpan.textContent = 'ADMIN!';
             }
+          } else if (userRole === 'superadmin') {
+            // Superadmin should not access admin.html - redirect to user manager
+            console.warn('Superadmin attempted to access admin.html, redirecting to user manager');
+            window.location.href = 'admin-user-manager.html';
           } else {
             // Not an admin - redirect to user page
             console.warn('Non-admin user attempted to access admin.html');
@@ -10442,6 +10451,17 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
 
 if (window.location.pathname.endsWith('admin-tents-requests.html') || 
     window.location.pathname.endsWith('/admin-tents-requests')) {
+  
+  // Protect page - admin only (not superadmin)
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists() && userDoc.data().role === 'superadmin') {
+        alert('\u26a0\ufe0f Access Denied\n\nThis page is for administrators only. Super administrators should use Manage Accounts and Notifications.');
+        window.location.href = 'admin-user-manager.html';
+      }
+    }
+  });
   
   console.log('🎪 Tents & Chairs Admin Page loaded');
 
@@ -14582,6 +14602,18 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    This code only runs on admin-manage-inventory.html to prevent errors on other pages
 ===================================================== */
 if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.location.pathname.endsWith('/admin-manage-inventory')) {
+  
+  // Protect page - admin only (not superadmin)
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists() && userDoc.data().role === 'superadmin') {
+        alert('\u26a0\ufe0f Access Denied\n\nThis page is for administrators only. Super administrators should use Manage Accounts and Notifications.');
+        window.location.href = 'admin-user-manager.html';
+      }
+    }
+  });
+  
   console.log('📦 Inventory Manager loaded');
   
   // ===== Inventory Manager with Real-Time Firestore Sync =====
@@ -15019,6 +15051,17 @@ if (confirmYes) {
 
 if (window.location.pathname.endsWith('admin-conference-requests.html') || 
     window.location.pathname.endsWith('/admin-conference-requests')) {
+  
+  // Protect page - admin only (not superadmin)
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists() && userDoc.data().role === 'superadmin') {
+        alert('\u26a0\ufe0f Access Denied\n\nThis page is for administrators only. Super administrators should use Manage Accounts and Notifications.');
+        window.location.href = 'admin-user-manager.html';
+      }
+    }
+  });
   
   console.log('🏛️ Conference Room Admin Page loaded');
 
@@ -19060,16 +19103,16 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     
     const filteredUsers = getFilteredUsers();
     
-    // Filter out admin users for the "All Registered Users" tab
-    const regularUsers = filteredUsers.filter(user => user.role !== 'admin');
+    // Filter out only superadmin users (superadmin can see and manage all other users including admins)
+    const displayUsers = filteredUsers.filter(user => user.role !== 'superadmin');
     
     // Clear existing rows
     tbody.innerHTML = '';
     
-    if (regularUsers.length === 0) {
+    if (displayUsers.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
+          <td colspan="8" style="text-align: center; padding: 40px; color: #666;">
             No users found matching your filters.
           </td>
         </tr>
@@ -19078,7 +19121,7 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     }
     
     // Render each user row
-    regularUsers.forEach(user => {
+    displayUsers.forEach(user => {
       const row = document.createElement('tr');
       
       // Get initials for avatar
@@ -19099,6 +19142,13 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
       // Get total requests count for this user
       const totalRequests = userRequestCounts[user.id] || 0;
       
+      // Role badge
+      const roleText = user.role === 'admin' ? 'Admin' : (user.role === 'superadmin' ? 'Super Admin' : 'User');
+      const roleClass = user.role === 'admin' ? 'um-role-admin' : (user.role === 'superadmin' ? 'um-role-superadmin' : 'um-role-user');
+      
+      // Debug log for role
+      console.log(`[User ${user.fullName}] Role from Firebase:`, user.role, '| Display:', roleText, '| Class:', roleClass);
+      
       // Action button (Enable/Disable based on status)
       const actionBtn = user.status === 'active' 
         ? '<button class="um-action-btn um-btn-disable" type="button" style="background:#dc3545;border-color:#dc3545;" data-user-id="' + user.id + '">Disable</button>'
@@ -19118,6 +19168,7 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
         <td>${user.address}</td>
         <td>${formattedDate}</td>
         <td><span class="um-status-label ${statusClass}" style="${statusStyle}">${statusText}</span></td>
+        <td style="text-align: center;"><span class="um-role-badge ${roleClass}">${roleText}</span></td>
         <td style="text-align: center;">${totalRequests}</td>
         <td class="um-table-actions">
           <button class="um-action-btn um-btn-view" type="button" data-user-id="${user.id}">View</button>
@@ -19168,6 +19219,52 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     }
     
     console.log('✅ Filter event listeners setup complete');
+  }
+  
+  /**
+   * Setup synchronized horizontal scrolling for table
+   * Syncs top scrollbar with main table container
+   */
+  function setupTableScroll() {
+    const topScroll = document.querySelector('.um-table-scroll-top');
+    const tableContainer = document.getElementById('umTableContainer');
+    const table = document.querySelector('.um-users-table');
+    
+    if (!topScroll || !tableContainer || !table) return;
+    
+    // Set the width of the top scroll div to match table width
+    const syncWidth = () => {
+      const topScrollInner = topScroll.querySelector('div');
+      if (topScrollInner) {
+        topScrollInner.style.width = table.offsetWidth + 'px';
+      }
+    };
+    
+    // Initial width sync
+    syncWidth();
+    
+    // Sync width on window resize
+    window.addEventListener('resize', syncWidth);
+    
+    // Sync scroll positions
+    let isTopScrolling = false;
+    let isTableScrolling = false;
+    
+    topScroll.addEventListener('scroll', () => {
+      if (isTableScrolling) return;
+      isTopScrolling = true;
+      tableContainer.scrollLeft = topScroll.scrollLeft;
+      setTimeout(() => { isTopScrolling = false; }, 10);
+    });
+    
+    tableContainer.addEventListener('scroll', () => {
+      if (isTopScrolling) return;
+      isTableScrolling = true;
+      topScroll.scrollLeft = tableContainer.scrollLeft;
+      setTimeout(() => { isTableScrolling = false; }, 10);
+    });
+    
+    console.log('✅ Table scroll sync setup complete');
   }
   
   // View user details in modal
@@ -19257,6 +19354,20 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
           <span><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: 600;">${statusText}</span></span>
+        </div>
+        
+        <div class="um-user-detail-row">
+          <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
+          <span><strong>Role:</strong> <span style="font-weight: 600; color: ${user.role === 'admin' ? '#2f21a1' : (user.role === 'superadmin' ? '#d97706' : '#059669')};">${user.role === 'admin' ? 'Admin' : (user.role === 'superadmin' ? 'Super Admin' : 'User')}</span></span>
+        </div>
+        
+        <div class="um-user-detail-row" id="roleChangeRow-${userId}" style="display: none;">
+          <svg style="width: 16px; height: 16px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+          </svg>
+          <span><strong>Promote Role:</strong> <button class="um-btn-change-role" onclick="showRoleChangeModal('${userId}')">Promote to ${user.role === 'admin' ? 'Super Admin' : 'Admin'}</button></span>
         </div>
         
         <div class="um-user-detail-row">
@@ -19397,6 +19508,21 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     
     modalBody.innerHTML = bodyHTML;
     modal.classList.add('active');
+    
+    // Check if current user is superadmin and show change role button
+    if (auth.currentUser) {
+      const currentUserDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      const currentUserRole = currentUserDoc.exists() ? currentUserDoc.data().role : null;
+      
+      // Show change role button only if:
+      // 1. Current user is superadmin
+      // 2. Target user is not superadmin
+      // 3. Not changing own role
+      if (currentUserRole === 'superadmin' && user.role !== 'superadmin' && auth.currentUser.uid !== userId) {
+        const roleChangeRow = document.getElementById(`roleChangeRow-${userId}`);
+        if (roleChangeRow) roleChangeRow.style.display = 'flex';
+      }
+    }
     
     console.log('✅ User details modal displayed');
   }
@@ -19824,6 +19950,100 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     });
   }
   
+  // Show role change modal
+  window.showRoleChangeModal = async function(userId) {
+    console.log('🔄 Opening role change modal for:', userId);
+    
+    const user = allUsersData.find(u => u.id === userId);
+    if (!user) {
+      console.error('❌ User not found:', userId);
+      showToast('User not found', false);
+      return;
+    }
+    
+    // Prevent changing superadmin roles
+    if (user.role === 'superadmin') {
+      showToast('Cannot change superadmin roles', false);
+      return;
+    }
+    
+    // Prevent changing own role
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.uid === userId) {
+      showToast('Cannot change your own role', false);
+      return;
+    }
+    
+    // Determine current and new roles
+    let currentRole, newRole, newRoleText;
+    
+    if (user.role === 'admin') {
+      currentRole = 'Admin';
+      newRole = 'superadmin';
+      newRoleText = 'Super Admin';
+    } else {
+      // Default to user
+      currentRole = 'User';
+      newRole = 'admin';
+      newRoleText = 'Admin';
+    }
+    
+    const confirmed = await showConfirmModal(
+      'Promote User Role',
+      `Promote ${user.fullName} from ${currentRole} to ${newRoleText}?\n\nThis will grant them additional access permissions.`,
+      false
+    );
+    
+    if (!confirmed) {
+      console.log('ℹ️ Role change cancelled');
+      return;
+    }
+    
+    await changeUserRole(userId, newRole);
+  };
+  
+  // Change user role
+  async function changeUserRole(userId, newRole) {
+    console.log('🔄 Changing user role:', userId, 'to', newRole);
+    
+    // Validate role
+    if (!['user', 'admin', 'superadmin'].includes(newRole)) {
+      console.error('❌ Invalid role:', newRole);
+      showToast('Invalid role specified', false);
+      return;
+    }
+    
+    const user = allUsersData.find(u => u.id === userId);
+    if (!user) {
+      console.error('❌ User not found:', userId);
+      showToast('User not found', false);
+      return;
+    }
+    
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        role: newRole,
+        roleChangedAt: new Date(),
+        roleChangedBy: auth.currentUser?.uid || 'unknown'
+      });
+      
+      console.log('✅ User role changed successfully');
+      const roleDisplayName = newRole === 'superadmin' ? 'Super Admin' : (newRole === 'admin' ? 'Admin' : 'User');
+      showToast(`Role promoted to ${roleDisplayName} successfully`, true);
+      
+      // Close user details modal if open
+      closeUserDetailsModal();
+      
+      // Refresh table
+      await renderUsersTable();
+      
+    } catch (error) {
+      console.error('❌ Error changing user role:', error);
+      showToast('Failed to change user role', false);
+    }
+  }
+  
   // Disable user account
   async function disableUser(userId) {
     console.log('🔒 Disabling user account:', userId);
@@ -19981,6 +20201,9 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     
     // Setup filter listeners
     setupFilters();
+    
+    // Setup table scroll sync
+    setupTableScroll();
     
     // Setup sidebar dropdown toggles
     setupSidebarDropdownsUM();
@@ -20722,7 +20945,7 @@ if (window.location.pathname.endsWith('index.html') || window.location.pathname 
               window.location.href = decodeURIComponent(redirectTo);
             } else if (userData.role === "superadmin") {
               sessionStorage.setItem('userRole', 'superadmin');
-              window.location.href = "admin.html";
+              window.location.href = "admin-user-manager.html";
             } else if (userData.role === "admin") {
               sessionStorage.setItem('userRole', 'admin');
               window.location.href = "admin.html";

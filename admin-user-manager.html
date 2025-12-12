@@ -123,8 +123,10 @@
           </div>
 
           <!-- Users Table -->
-          <div class="um-table-container">
-            <table class="um-users-table" role="table" aria-label="Registered users list">
+          <div class="um-table-scroll-wrapper">
+            <div class="um-table-scroll-top"><div></div></div>
+            <div class="um-table-container" id="umTableContainer">
+              <table class="um-users-table" role="table" aria-label="Registered users list">
               <thead>
                 <tr>
                   <th scope="col">User</th>
@@ -132,6 +134,7 @@
                   <th scope="col">Address</th>
                   <th scope="col">Created</th>
                   <th scope="col">Status</th>
+                  <th scope="col" style="text-align: center;">Role</th>
                   <th scope="col" style="text-align: center;">Total Requests</th>
                   <th scope="col" style="text-align: center;">Actions</th>
                 </tr>
@@ -139,7 +142,7 @@
               <tbody>
                 <!-- User rows will be dynamically populated by JavaScript -->
                 <tr>
-                  <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
+                  <td colspan="8" style="text-align: center; padding: 40px; color: #666;">
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
                       <div class="spinner" style="border: 3px solid #f3f3f3; border-top: 3px solid #2f21a1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
                       <span>Loading users...</span>
@@ -149,6 +152,7 @@
               </tbody>
             </table>
           </div>
+        </div>
         </div>
 
         <!-- Admin Tab Panel -->
