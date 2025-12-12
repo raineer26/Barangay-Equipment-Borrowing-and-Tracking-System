@@ -19112,7 +19112,7 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     if (displayUsers.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="8" style="text-align: center; padding: 40px; color: #666;">
+          <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
             No users found matching your filters.
           </td>
         </tr>
@@ -19149,10 +19149,12 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
       // Debug log for role
       console.log(`[User ${user.fullName}] Role from Firebase:`, user.role, '| Display:', roleText, '| Class:', roleClass);
       
-      // Action button (Enable/Disable based on status)
-      const actionBtn = user.status === 'active' 
-        ? '<button class="um-action-btn um-btn-disable" type="button" style="background:#dc3545;border-color:#dc3545;" data-user-id="' + user.id + '">Disable</button>'
-        : '<button class="um-action-btn um-btn-enable" type="button" data-user-id="' + user.id + '">Enable</button>';
+      // Action dropdown menu
+      const actionItems = user.status === 'active'
+        ? `<a href="#" class="um-dropdown-item" data-action="view" data-user-id="${user.id}">👁️ View Details</a>
+           <a href="#" class="um-dropdown-item" data-action="disable" data-user-id="${user.id}" style="color: #dc2626;">🚫 Disable Account</a>`
+        : `<a href="#" class="um-dropdown-item" data-action="view" data-user-id="${user.id}">👁️ View Details</a>
+           <a href="#" class="um-dropdown-item" data-action="enable" data-user-id="${user.id}" style="color: #16a34a;">✅ Enable Account</a>`;
       
       row.innerHTML = `
         <td>
@@ -19169,17 +19171,24 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
         <td>${formattedDate}</td>
         <td><span class="um-status-label ${statusClass}" style="${statusStyle}">${statusText}</span></td>
         <td style="text-align: center;"><span class="um-role-badge ${roleClass}">${roleText}</span></td>
-        <td style="text-align: center;">${totalRequests}</td>
-        <td class="um-table-actions">
-          <button class="um-action-btn um-btn-view" type="button" data-user-id="${user.id}">View</button>
-          ${actionBtn}
+        <td class="um-table-actions" style="text-align: center;">
+          <div class="um-actions-dropdown">
+            <button class="um-actions-menu-btn" type="button" aria-label="Actions menu">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+              </svg>
+            </button>
+            <div class="um-actions-menu">
+              ${actionItems}
+            </div>
+          </div>
         </td>
       `;
       
       tbody.appendChild(row);
     });
     
-    console.log(`📋 Rendered ${regularUsers.length} users in table`);
+    console.log(`📋 Rendered ${displayUsers.length} users in table`);
   }
   
   /**
@@ -19509,23 +19518,175 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     modalBody.innerHTML = bodyHTML;
     modal.classList.add('active');
     
-    // Check if current user is superadmin and show change role button
+    // Check if current user is superadmin and show edit/change role buttons
     if (auth.currentUser) {
       const currentUserDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
       const currentUserRole = currentUserDoc.exists() ? currentUserDoc.data().role : null;
       
-      // Show change role button only if:
-      // 1. Current user is superadmin
-      // 2. Target user is not superadmin
-      // 3. Not changing own role
-      if (currentUserRole === 'superadmin' && user.role !== 'superadmin' && auth.currentUser.uid !== userId) {
-        const roleChangeRow = document.getElementById(`roleChangeRow-${userId}`);
-        if (roleChangeRow) roleChangeRow.style.display = 'flex';
+      if (currentUserRole === 'superadmin') {
+        // Show edit user button for all users (can edit anyone)
+        const editBtn = document.getElementById('umBtnEditUser');
+        if (editBtn) {
+          editBtn.style.display = 'flex';
+          // Store current viewing user ID for edit function
+          editBtn.setAttribute('data-user-id', userId);
+        }
+        
+        // Show change role button only if:
+        // 1. Current user is superadmin
+        // 2. Target user is not superadmin
+        // 3. Not changing own role
+        if (user.role !== 'superadmin' && auth.currentUser.uid !== userId) {
+          const roleChangeRow = document.getElementById(`roleChangeRow-${userId}`);
+          if (roleChangeRow) roleChangeRow.style.display = 'flex';
+        }
       }
     }
     
     console.log('✅ User details modal displayed');
   }
+  
+  // Open Edit User Modal
+  window.openEditUserModal = function() {
+    const editBtn = document.getElementById('umBtnEditUser');
+    const userId = editBtn ? editBtn.getAttribute('data-user-id') : null;
+    
+    if (!userId) {
+      console.error('❌ No user ID found');
+      return;
+    }
+    
+    const user = allUsersData.find(u => u.id === userId);
+    if (!user) {
+      console.error('❌ User not found:', userId);
+      return;
+    }
+    
+    // Populate form fields
+    document.getElementById('editUserId').value = userId;
+    document.getElementById('editFullName').value = user.fullName || '';
+    document.getElementById('editContactNumber').value = user.contactNumber || '';
+    document.getElementById('editAddress').value = user.address || '';
+    document.getElementById('editStatus').value = user.status || 'active';
+    
+    // Clear error messages
+    document.querySelectorAll('.um-error-message').forEach(el => el.textContent = '');
+    
+    // Show edit modal
+    const editModal = document.getElementById('umEditUserModal');
+    if (editModal) {
+      editModal.classList.add('active');
+    }
+    
+    console.log('📝 Edit user modal opened for:', userId);
+  };
+  
+  // Close Edit User Modal
+  window.closeEditUserModal = function() {
+    const modal = document.getElementById('umEditUserModal');
+    if (modal) {
+      modal.classList.remove('active');
+      // Reset form
+      document.getElementById('umEditUserForm').reset();
+      // Clear error messages
+      document.querySelectorAll('.um-error-message').forEach(el => el.textContent = '');
+    }
+  };
+  
+  // Close modal when clicking on overlay
+  window.closeEditUserModalOnOverlay = function(event) {
+    if (event.target.id === 'umEditUserModal') {
+      closeEditUserModal();
+    }
+  };
+  
+  // Handle Edit User Form Submit
+  window.handleEditUserSubmit = async function(event) {
+    event.preventDefault();
+    
+    const userId = document.getElementById('editUserId').value;
+    const fullName = document.getElementById('editFullName').value.trim();
+    const contactNumber = document.getElementById('editContactNumber').value.trim();
+    const address = document.getElementById('editAddress').value.trim();
+    const status = document.getElementById('editStatus').value;
+    
+    // Clear previous errors
+    document.querySelectorAll('.um-error-message').forEach(el => el.textContent = '');
+    
+    let hasError = false;
+    
+    // Validate full name
+    if (!fullName || fullName.length < 2) {
+      document.getElementById('errorEditFullName').textContent = 'Full name must be at least 2 characters';
+      hasError = true;
+    }
+    
+    // Validate contact number (Philippine format: 09XXXXXXXXX)
+    const phoneRegex = /^09\d{9}$/;
+    if (!phoneRegex.test(contactNumber)) {
+      document.getElementById('errorEditContactNumber').textContent = 'Contact number must be 11 digits starting with 09';
+      hasError = true;
+    }
+    
+    // Validate address
+    if (!address || address.length < 5) {
+      document.getElementById('errorEditAddress').textContent = 'Address must be at least 5 characters';
+      hasError = true;
+    }
+    
+    if (hasError) return;
+    
+    // Show loading state
+    const saveBtn = document.getElementById('umBtnSaveUser');
+    const btnText = saveBtn.querySelector('.um-btn-text');
+    const btnSpinner = saveBtn.querySelector('.um-btn-spinner');
+    
+    saveBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnSpinner.style.display = 'flex';
+    
+    try {
+      // Update user in Firestore
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        fullName: fullName,
+        contactNumber: contactNumber,
+        address: address,
+        status: status,
+        updatedAt: new Date(),
+        updatedBy: auth.currentUser.uid
+      });
+      
+      console.log('✅ User updated successfully:', userId);
+      
+      // Show success message
+      showToast('User information updated successfully', true);
+      
+      // Close edit modal
+      closeEditUserModal();
+      
+      // Refresh the user details modal with updated data
+      // First close the details modal
+      closeUserDetailsModal();
+      
+      // Reload all users to get fresh data
+      await loadAllUsers();
+      
+      // Reopen the details modal with updated data
+      setTimeout(() => {
+        viewUserDetails(userId);
+      }, 300);
+      
+    } catch (error) {
+      console.error('❌ Error updating user:', error);
+      showToast('Failed to update user information. Please try again.', false);
+    } finally {
+      // Reset button state
+      saveBtn.disabled = false;
+      btnText.style.display = 'inline';
+      btnSpinner.style.display = 'none';
+    }
+  };
   
   // Close user details modal
   window.closeUserDetailsModal = function() {
@@ -19545,9 +19706,14 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
   // Close modal on ESC key
   document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
-      const modal = document.getElementById('umUserDetailsModal');
-      if (modal && modal.classList.contains('active')) {
+      const detailsModal = document.getElementById('umUserDetailsModal');
+      if (detailsModal && detailsModal.classList.contains('active')) {
         closeUserDetailsModal();
+      }
+      
+      const editModal = document.getElementById('umEditUserModal');
+      if (editModal && editModal.classList.contains('active')) {
+        closeEditUserModal();
       }
     }
   });
@@ -20326,21 +20492,57 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
       });
     }
     
-    // Add event delegation for view, disable, and enable buttons
+    // Add event delegation for dropdown menu actions
     const tbody = document.querySelector('.um-users-table tbody');
     if (tbody) {
+      // Handle dropdown toggle
       tbody.addEventListener('click', (e) => {
-        const target = e.target;
-        const userId = target.getAttribute('data-user-id');
+        const menuBtn = e.target.closest('.um-actions-menu-btn');
         
-        if (!userId) return;
+        if (menuBtn) {
+          e.stopPropagation();
+          const dropdown = menuBtn.nextElementSibling;
+          const allDropdowns = document.querySelectorAll('.um-actions-menu');
+          
+          // Close all other dropdowns
+          allDropdowns.forEach(menu => {
+            if (menu !== dropdown) {
+              menu.classList.remove('active');
+            }
+          });
+          
+          // Toggle current dropdown
+          dropdown.classList.toggle('active');
+          return;
+        }
         
-        if (target.classList.contains('um-btn-view')) {
-          viewUserDetails(userId);
-        } else if (target.classList.contains('um-btn-disable')) {
-          disableUser(userId);
-        } else if (target.classList.contains('um-btn-enable')) {
-          enableUser(userId);
+        // Handle dropdown item clicks
+        const dropdownItem = e.target.closest('.um-dropdown-item');
+        if (dropdownItem) {
+          e.preventDefault();
+          const action = dropdownItem.getAttribute('data-action');
+          const userId = dropdownItem.getAttribute('data-user-id');
+          
+          // Close dropdown
+          const menu = dropdownItem.closest('.um-actions-menu');
+          if (menu) menu.classList.remove('active');
+          
+          // Execute action
+          if (action === 'view') {
+            viewUserDetails(userId);
+          } else if (action === 'disable') {
+            disableUser(userId);
+          } else if (action === 'enable') {
+            enableUser(userId);
+          }
+        }
+      });
+      
+      // Close dropdowns when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.um-actions-dropdown')) {
+          const allDropdowns = document.querySelectorAll('.um-actions-menu');
+          allDropdowns.forEach(menu => menu.classList.remove('active'));
         }
       });
     }

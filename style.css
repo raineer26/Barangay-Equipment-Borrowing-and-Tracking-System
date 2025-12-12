@@ -8686,7 +8686,7 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   border: 3px solid #2f21a1;
   border-radius: 20px 20px 20px 20px;
   margin: 25px auto;
-  max-width: 1200px;
+  max-width: 1400px;
   text-align: left;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
   overflow: hidden;
@@ -8723,7 +8723,7 @@ body.sidebar-collapsed .sidebar-toggle-btn,
 
 /* Admin Content Card Container */
 .admin-content-card {
-  max-width: 1130px;
+  max-width: 1400px;
   margin: 0 auto;
   background: #fff;
   border-radius: 12px;
@@ -8907,6 +8907,18 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   border-radius: 12px;
   box-shadow: 0 0 14px rgb(0 0 0 / 0.04);
   margin-top: 20px;
+  width: 100%;
+}
+
+/* Hide horizontal scrollbar when table fits */
+.um-table-scroll-top {
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 20px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  background: #f8f9fa;
+  display: none; /* Hide top scrollbar since we removed the need for horizontal scroll */
 }
 
 /* Custom scrollbar for table container */
@@ -8934,6 +8946,7 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: auto;
 }
 
 .um-users-table thead {
@@ -8953,13 +8966,42 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   white-space: nowrap;
 }
 
-.um-users-table thead th:nth-child(6),
-.um-users-table thead th:nth-child(7) {
+/* Column width optimization */
+.um-users-table thead th:nth-child(1) { /* User */
+  width: 30%;
+  min-width: 220px;
+}
+
+.um-users-table thead th:nth-child(2) { /* Contact Number */
+  width: 14%;
+  min-width: 130px;
+}
+
+.um-users-table thead th:nth-child(3) { /* Address */
+  width: 16%;
+  min-width: 130px;
+}
+
+.um-users-table thead th:nth-child(4) { /* Created */
+  width: 16%;
+  min-width: 140px;
+}
+
+.um-users-table thead th:nth-child(5) { /* Status */
+  width: 12%;
+  min-width: 100px;
   text-align: center;
 }
 
-.um-users-table thead th:last-child {
-  border-right: none;
+.um-users-table thead th:nth-child(6) { /* Role */
+  width: 12%;
+  min-width: 100px;
+  text-align: center;
+}
+
+.um-users-table thead th:nth-child(7) { /* Actions */
+  width: 80px;
+  text-align: center;
 }
 
 .um-users-table tbody tr {
@@ -8984,12 +9026,19 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   line-height: 1.4;
 }
 
-.um-users-table tbody td:nth-child(6) {
+/* Align specific columns */
+.um-users-table tbody td:nth-child(5), /* Status */
+.um-users-table tbody td:nth-child(6), /* Role */
+.um-users-table tbody td:nth-child(7) { /* Actions */
   text-align: center;
 }
 
-.um-users-table tbody td:nth-child(7) {
-  text-align: center;
+/* Address column - add ellipsis for very long addresses */
+.um-users-table tbody td:nth-child(3) {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .um-user-avatar {
@@ -9031,14 +9080,16 @@ body.sidebar-collapsed .sidebar-toggle-btn,
 
 /* Status labels */
 .um-status-label {
-  padding: 5px 14px;
-  border-radius: 18px;
-  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   user-select: none;
   display: inline-block;
   text-align: center;
-  min-width: 75px;
+  min-width: 65px;
 }
 
 .um-status-active {
@@ -9062,6 +9113,8 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   text-transform: uppercase;
   letter-spacing: 0.5px;
   display: inline-block;
+  min-width: 65px;
+  text-align: center;
 }
 
 .um-role-user {
@@ -9097,44 +9150,119 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   background: #1e1570;
 }
 
-/* Action buttons */
-.um-action-btn {
-  padding: 6px 16px;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 4px;
-  cursor: pointer;
+/* Edit user button */
+.um-btn-edit-user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #2563eb;
+  color: white;
   border: none;
-  color: #fff;
-  min-width: 70px;
-  margin-left: 6px;
-  transition: all 0.2s ease;
-  user-select: none;
-  display: inline-flex;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-right: 10px;
+}
+
+.um-btn-edit-user:hover {
+  background: #1d4ed8;
+}
+
+.um-btn-edit-user svg {
+  flex-shrink: 0;
+}
+
+/* Modal header actions container */
+.um-modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Actions Dropdown Menu */
+.um-actions-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.um-actions-menu-btn {
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #6b7280;
 }
 
-.um-btn-view {
-  background-color: #0d6efd;
-  border: none;
+.um-actions-menu-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  color: #374151;
 }
 
-.um-btn-view:hover {
-  background-color: #0b5ed7;
-  transform: translateY(-1px);
+.um-actions-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  min-width: 180px;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.2s ease;
 }
 
-.um-btn-enable {
-  background-color: #198754;
-  border: none;
+.um-actions-menu.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
 }
 
-.um-btn-enable:hover {
-  background-color: #157347;
-  transform: translateY(-1px);
+.um-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  color: #374151;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s ease;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.um-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.um-dropdown-item:hover {
+  background: #f9fafb;
+}
+
+.um-dropdown-item:first-child {
+  border-radius: 8px 8px 0 0;
+}
+
+.um-dropdown-item:last-child {
+  border-radius: 0 0 8px 8px;
+}
+
+/* Old action buttons - kept for backwards compatibility but hidden */
+.um-action-btn {
+  display: none;
 }
 
 .um-btn-disable {
@@ -9438,6 +9566,119 @@ body.sidebar-collapsed .sidebar-toggle-btn,
 .um-no-requests p {
   margin: 0;
   font-size: 14px;
+}
+
+/* Edit User Form Styles */
+.um-form-group {
+  margin-bottom: 20px;
+}
+
+.um-form-group label {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 6px;
+  font-family: 'League Spartan', sans-serif;
+}
+
+.um-form-group input[type="text"],
+.um-form-group input[type="tel"],
+.um-form-group select,
+.um-form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #374151;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: 'Poppins', sans-serif;
+}
+
+.um-form-group input:focus,
+.um-form-group select:focus,
+.um-form-group textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.um-form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.um-error-message {
+  display: block;
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 4px;
+  min-height: 16px;
+}
+
+.um-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.um-btn-cancel,
+.um-btn-save {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'League Spartan', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.um-btn-cancel {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.um-btn-cancel:hover {
+  background: #e5e7eb;
+}
+
+.um-btn-save {
+  background: #2563eb;
+  color: white;
+  min-width: 140px;
+  justify-content: center;
+}
+
+.um-btn-save:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.um-btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.um-btn-spinner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* User Manager Confirmation Modal */
