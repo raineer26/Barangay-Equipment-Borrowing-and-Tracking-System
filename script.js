@@ -7975,6 +7975,19 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
         return;
       }
       
+      // Check if duration is valid (minimum 2 hours) before showing availability
+      const startMinutes = conferenceTimeToMinutes(startTime);
+      const endMinutes = conferenceTimeToMinutes(endTime);
+      const durationMinutes = endMinutes - startMinutes;
+      const MIN_DURATION_MINUTES = 120; // 2 hours
+      
+      if (durationMinutes < MIN_DURATION_MINUTES) {
+        // Duration is invalid - hide availability feedback
+        availabilityFeedback.style.display = 'none';
+        console.log('[Conference Validation] Duration too short, hiding availability feedback');
+        return;
+      }
+      
       console.log('[Conference Validation] Checking availability for:', { eventDate, startTime, endTime });
       
       try {
