@@ -4849,6 +4849,21 @@ function createRequestCard(request) {
   // Add relative timestamp
   const relativeTime = getRelativeTime(request.timestamp);
 
+  // Calculate cancellation deadline badge for approved requests
+  let deadlineBadgeHTML = '';
+  if (request.status?.toLowerCase() === 'approved') {
+    const eventDate = new Date(request.startDate || request.eventDate);
+    const now = new Date();
+    const hoursUntilEvent = (eventDate - now) / (1000 * 60 * 60);
+    
+    if (hoursUntilEvent >= 48) {
+      const daysLeft = Math.floor(hoursUntilEvent / 24);
+      deadlineBadgeHTML = `<div class="cancellation-deadline-badge available">✅ Can cancel (${daysLeft}d ${Math.round(hoursUntilEvent % 24)}h left)</div>`;
+    } else if (hoursUntilEvent > 0 && hoursUntilEvent < 48) {
+      deadlineBadgeHTML = `<div class="cancellation-deadline-badge warning">⚠️ Deadline passed (⏰ ${Math.round(hoursUntilEvent)}h until event)</div>`;
+    }
+  }
+
   card.innerHTML = `
     <div class="request-card-header">
       <h3>${cardTitle}</h3>
@@ -4857,6 +4872,7 @@ function createRequestCard(request) {
     <div class="request-card-body">
       <p>${cardSubtitle.replace(/\n/g, '<br>')}</p>
       <p class="request-timestamp">Submitted ${relativeTime}</p>
+      ${deadlineBadgeHTML}
     </div>
     <div class="request-card-footer">
       <a href="#" class="view-details-link">View</a>
@@ -5045,10 +5061,10 @@ function showRequestDetailsModal(request) {
   console.log('🔍 [Modal] Request type:', request.type);
   console.log('🔍 [Modal] Request ID:', request.id);
   console.log('🔍 [Modal] Status lowercase:', request.status?.toLowerCase());
-  console.log('🔍 [Modal] Is pending?', request.status?.toLowerCase() === 'pending');
+  console.log('🔍 [Modal] Is pending or approved?', ['pending', 'approved'].includes(request.status?.toLowerCase()));
   
-  if (request.status?.toLowerCase() === 'pending') {
-    console.log('✅ [Modal] Status is PENDING - Adding Cancel button');
+  if (request.status?.toLowerCase() === 'pending' || request.status?.toLowerCase() === 'approved') {
+    console.log('✅ [Modal] Status is PENDING or APPROVED - Adding Cancel button');
     modalActions.innerHTML = `
       <button type="button" class="cancel-request-btn" data-request-id="${request.id}" data-request-type="${request.type}">Cancel Request</button>
       <button type="button" class="close-details-btn">Close</button>
@@ -5087,26 +5103,217 @@ function showRequestDetailsModal(request) {
   modal.style.display = 'block';
 }
 
+/**
+ * Show styled modal to get cancellation reason from user
+ * Uses the same modal design as admin pages for consistency
+ * @returns {Promise<string|null>} The reason text or null if cancelled
+ */
+function showCancellationReasonModal() {
+  return new Promise((resolve) => {
+    // Create modal elements using admin-style modal structure
+    const overlay = document.createElement('div');
+    overlay.className = 'tents-confirm-modal-overlay';
+    overlay.style.display = 'flex';
+    overlay.style.zIndex = '10000';
+    
+    const modal = document.createElement('div');
+    modal.className = 'tents-confirm-modal';
+    
+    modal.innerHTML = `
+      <div class="tents-confirm-modal-header">
+        <h3>Cancellation Reason Required</h3>
+      </div>
+      <div class="tents-confirm-modal-body">
+        <p style="margin-bottom: 16px; color: #4b5563; line-height: 1.6; font-size: 14px;">
+          Please provide a reason for cancelling this request. This helps us improve our service and maintain records.
+        </p>
+        <div class="tents-confirm-input" style="display: block;">
+          <label for="cancellationReasonTextarea" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">Cancellation Reason</label>
+          <textarea 
+            id="cancellationReasonTextarea" 
+            placeholder="Enter your reason for cancellation..."
+            style="width: 100%; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-family: 'Poppins', sans-serif; font-size: 14px; color: #111827; resize: vertical; min-height: 100px;"
+            rows="4"
+          ></textarea>
+          <div id="cancellationReasonError" style="color: #dc2626; font-size: 13px; margin-top: 6px; display: none;">
+            ⚠️ Please enter a reason for cancellation
+          </div>
+        </div>
+      </div>
+      <div class="tents-confirm-modal-footer">
+        <button class="tents-confirm-btn-no" id="cancelReasonBtn">Cancel</button>
+        <button class="tents-confirm-btn-yes" id="submitReasonBtn">Continue</button>
+      </div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    const textarea = modal.querySelector('#cancellationReasonTextarea');
+    const errorEl = modal.querySelector('#cancellationReasonError');
+    const submitBtn = modal.querySelector('#submitReasonBtn');
+    const cancelBtn = modal.querySelector('#cancelReasonBtn');
+    
+    // Focus textarea after a short delay for better UX
+    setTimeout(() => textarea.focus(), 150);
+    
+    // Clear error on input
+    textarea.addEventListener('input', () => {
+      errorEl.style.display = 'none';
+      textarea.style.borderColor = '#e5e7eb';
+    });
+    
+    // Handle submit
+    submitBtn.addEventListener('click', () => {
+      const value = textarea.value.trim();
+      if (!value) {
+        errorEl.style.display = 'block';
+        textarea.style.borderColor = '#dc2626';
+        textarea.focus();
+        return;
+      }
+      overlay.remove();
+      resolve(value);
+    });
+    
+    // Handle cancel
+    cancelBtn.addEventListener('click', () => {
+      overlay.remove();
+      resolve(null);
+    });
+    
+    // Handle Enter key (with Shift+Enter for new line)
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        submitBtn.click();
+      }
+    });
+    
+    // Handle escape key
+    document.addEventListener('keydown', function escapeHandler(e) {
+      if (e.key === 'Escape') {
+        overlay.remove();
+        resolve(null);
+        document.removeEventListener('keydown', escapeHandler);
+      }
+    });
+  });
+}
+
 // Function to handle request cancellation
 async function handleCancelRequest(request) {
   console.log('🚫 [Cancel] handleCancelRequest called');
   console.log('🚫 [Cancel] Request:', request);
   console.log('🚫 [Cancel] Request ID:', request.id);
   console.log('🚫 [Cancel] Request Type:', request.type);
+  console.log('🚫 [Cancel] Request Status:', request.status);
   
-  const confirmMessage = `Are you sure you want to cancel this ${request.type === 'conference-room' ? 'Conference Room Reservation' : 'Tents & Chairs Borrowing'} request?\n\nThis action cannot be undone, but you can submit a new request afterwards.`;
+  // Check if approved and validate 48-hour policy
+  if (request.status?.toLowerCase() === 'approved') {
+    const eventDate = new Date(request.startDate || request.eventDate);
+    const now = new Date();
+    const hoursUntilEvent = (eventDate - now) / (1000 * 60 * 60);
+    
+    console.log('🚫 [Cancel] Event date:', eventDate);
+    console.log('🚫 [Cancel] Hours until event:', hoursUntilEvent);
+    
+    if (hoursUntilEvent < 48) {
+      console.log('⏰ [Cancel] BLOCKED - Less than 48 hours until event');
+      // Show helpful contact message instead of blocking
+      showAlert(
+        `⏰ Cancellation Deadline Passed\n\n` +
+        `Your event is in ${Math.round(hoursUntilEvent)} hours.\n\n` +
+        `Cancellations require at least 48 hours notice.\n\n` +
+        `Please contact the Barangay Office:\n` +
+        `📞 Landline: (02) 8807-1557\n` +
+        `📱 Mobile: 09773848341\n` +
+        `🚨 Hotline: 09628362152\n` +
+        `🏢 Visit: 3S Center, Orosco St. Mapulang Lupa, Valenzuela City\n` +
+        `⏰ Office Hours: Monday - Sunday, 8:00 AM - 5:00 PM`,
+        false
+      );
+      return; // Stop cancellation
+    }
+    console.log('✅ [Cancel] ALLOWED - More than 48 hours until event');
+  }
   
-  console.log('🚫 [Cancel] Showing confirmation dialog');
+  // Show styled modal to get cancellation reason FIRST (before confirmation)
+  const reason = await showCancellationReasonModal();
+  
+  if (!reason || reason.trim() === '') {
+    console.log('❌ [Cancel] No reason provided - cancellation aborted');
+    return;
+  }
+  
+  console.log('📝 [Cancel] Cancellation reason provided:', reason.trim());
+  
+  // Build confirmation message with request details
+  const requestType = request.type === 'conference-room' ? 'Conference Room Reservation' : 'Tents & Chairs Borrowing';
+  let confirmMessage = `Are you sure you want to cancel this ${requestType}?\n\n`;
+  
+  if (request.type === 'tents-chairs') {
+    confirmMessage += `Event: ${request.startDate} to ${request.endDate}\n`;
+    confirmMessage += `Tents: ${request.quantityTents || 0}\n`;
+    confirmMessage += `Chairs: ${request.quantityChairs || 0}\n\n`;
+  } else {
+    confirmMessage += `Event Date: ${request.eventDate}\n`;
+    confirmMessage += `Time: ${request.startTime} - ${request.endTime}\n`;
+    confirmMessage += `Purpose: ${request.purpose || 'N/A'}\n\n`;
+  }
+  
+  confirmMessage += `Reason: ${reason.trim()}\n\n`;
+  confirmMessage += `This action cannot be undone.`;
+  
+  console.log('🚫 [Cancel] Showing final confirmation dialog');
   showConfirm(confirmMessage, async () => {
     console.log('🚫 [Cancel] User confirmed cancellation');
+    
     try {
       const collectionName = request.type === 'conference-room' ? 'conferenceRoomBookings' : 'tentsChairsBookings';
       
       // Update request status to 'cancelled'
       await updateDoc(doc(db, collectionName, request.id), {
         status: 'cancelled',
-        cancelledAt: serverTimestamp()
+        cancelledAt: serverTimestamp(),
+        cancelledBy: 'user',
+        cancellationReason: reason.trim()
       });
+
+    // Return inventory if approved tents/chairs booking
+    if (request.type === 'tents-chairs' && request.status?.toLowerCase() === 'approved') {
+      console.log('📦 [Cancel] Returning inventory for approved booking');
+      try {
+        const inventoryRef = doc(db, 'inventory', 'equipment');
+        const inventorySnap = await getDoc(inventoryRef);
+        
+        if (inventorySnap.exists()) {
+          const currentInventory = inventorySnap.data();
+          const tentsToReturn = parseInt(request.quantityTents) || 0;
+          const chairsToReturn = parseInt(request.quantityChairs) || 0;
+          
+          const newAvailableTents = (currentInventory.availableTents || 0) + tentsToReturn;
+          const newAvailableChairs = (currentInventory.availableChairs || 0) + chairsToReturn;
+          const newTentsInUse = Math.max(0, (currentInventory.tentsInUse || 0) - tentsToReturn);
+          const newChairsInUse = Math.max(0, (currentInventory.chairsInUse || 0) - chairsToReturn);
+          
+          await updateDoc(inventoryRef, {
+            availableTents: newAvailableTents,
+            availableChairs: newAvailableChairs,
+            tentsInUse: newTentsInUse,
+            chairsInUse: newChairsInUse,
+            lastUpdated: serverTimestamp()
+          });
+          
+          console.log('✅ [Cancel] Inventory returned successfully');
+          console.log('   Tents returned:', tentsToReturn, '| New available:', newAvailableTents);
+          console.log('   Chairs returned:', chairsToReturn, '| New available:', newAvailableChairs);
+        }
+      } catch (invError) {
+        console.error('❌ [Cancel] Error returning inventory:', invError);
+        // Don't block cancellation if inventory update fails
+      }
+    }
 
       // Create admin notification for cancellation
       try {
@@ -5130,9 +5337,12 @@ async function handleCancelRequest(request) {
       });
 
     } catch (error) {
-      console.error('Error cancelling request:', error);
+      console.error('❌ [Cancel] Error in cancellation flow:', error);
       showAlert('Failed to cancel request. Please try again.', false);
     }
+  }, () => {
+    // User clicked "No" on confirmation
+    console.log('🚫 [Cancel] User cancelled the cancellation');
   });
 }
 
@@ -11450,18 +11660,34 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   }
 
   /**
-   * Render remarks column (rejection reason or other admin notes)
+   * Render remarks column (rejection reason, cancellation reason, or other admin notes)
    */
   function renderRemarks(req) {
-    const reason = req.rejectionReason || req.remarks || '';
-    if (!reason) return '<span class="text-muted">—</span>';
-    // Prepare display and encoded payloads for safe attributes
-    const displayRaw = (reason || '').replace(/\n/g, ' ');
-    const displayShort = displayRaw.length > 140 ? displayRaw.slice(0, 140) + '…' : displayRaw;
-    const encFull = encodeURIComponent(reason);
-    const encTrunc = encodeURIComponent(displayShort);
-    // Use data attributes and an inline click handler that calls toggleRemark(this)
-    return `<span class="remarks-text collapsed" data-full="${encFull}" data-trunc="${encTrunc}" onclick="toggleRemark(this)">${sanitizeInput(displayShort)}</span>`;
+    let reason = '';
+    
+    // Handle cancelled requests specially to show who cancelled
+    if (req.status === 'cancelled') {
+      if (req.cancelledBy === 'admin' && req.cancellationReason) {
+        // Admin cancelled - show admin's name in parentheses
+        const adminName = req.cancelledByAdmin || 'Admin';
+        reason = `<strong>Cancelled by Admin (${adminName})</strong><br>${sanitizeInput(req.cancellationReason)}`;
+      } else if (req.cancelledBy === 'user' && req.cancellationReason) {
+        // User cancelled - show user's full name in parentheses
+        const userName = req.fullName || 'User';
+        reason = `<strong>Cancelled by User (${userName})</strong><br>${sanitizeInput(req.cancellationReason)}`;
+      } else {
+        // Fallback for old data without cancellation details
+        reason = req.cancelledBy === 'admin' ? 'Cancelled by Admin' : 'Cancelled by User';
+      }
+    } else {
+      // For non-cancelled requests, show rejection reason or general remarks
+      reason = sanitizeInput(req.rejectionReason || req.remarks || '');
+    }
+    
+    if (!reason) return '—';
+    
+    // Return HTML directly (don't sanitize cancellation messages since they contain <strong> tags)
+    return reason;
   }
 
   // Toggle inline remark expand/collapse (attached to window for onclick usage)
@@ -11557,19 +11783,19 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           <button class="tents-btn-deny" onclick="window.tentsAdmin.handleDeny('${req.id}')">Deny</button>
         `;
       } else if (req.status === 'approved') {
-        // Add Cancel button for internal bookings
+        // Add Cancel button for internal bookings AND regular user requests
         const cancelBtn = isInternal ? 
           `<button class="tents-btn-cancel" onclick="window.tentsAdmin.handleCancelInternal('${req.id}')">Cancel</button>` : 
-          '';
+          `<button class="tents-btn-cancel-user" onclick="window.tentsAdmin.handleAdminCancelUserRequest('${req.id}')">Cancel Booking</button>`;
         return `
           <button class="tents-btn-complete" onclick="window.tentsAdmin.handleComplete('${req.id}')">Mark as Completed</button>
           ${cancelBtn}
         `;
       } else if (req.status === 'in-progress') {
-        // Add Cancel button for internal bookings
+        // Add Cancel button for internal bookings AND regular user requests
         const cancelBtn = isInternal ? 
           `<button class="tents-btn-cancel" onclick="window.tentsAdmin.handleCancelInternal('${req.id}')">Cancel</button>` : 
-          '';
+          `<button class="tents-btn-cancel-user" onclick="window.tentsAdmin.handleAdminCancelUserRequest('${req.id}')">Cancel Booking</button>`;
         return `
           <button class="tents-btn-complete" onclick="window.tentsAdmin.handleComplete('${req.id}')">Mark as Completed</button>
           ${cancelBtn}
@@ -12068,10 +12294,27 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    */
   async function handleDeny(requestId) {
     console.log(`❌ Denying request: ${requestId}`);
+    
+    // Get request data first to show in modal
+    const request = allRequests.find(r => r.id === requestId);
+    if (!request) {
+      showToast('Request not found', false);
+      return;
+    }
+    
+    // Build confirmation message
+    const confirmMessage = 
+      `Are you sure you want to reject this request?\n\n` +
+      `User: ${request.fullName}\n` +
+      `Event: ${request.startDate} to ${request.endDate}\n` +
+      `Tents: ${request.quantityTents}\n` +
+      `Chairs: ${request.quantityChairs}\n\n` +
+      `Please provide a reason for rejection (optional):`;
+    
     // Use unified modal to both confirm and collect optional rejection reason
     const reasonInput = await showConfirmModal(
       'Reject Request',
-      'Please provide a reason for rejection (optional):',
+      confirmMessage,
       null,
       false,
       { placeholder: 'Enter rejection reason (optional)...', defaultValue: '', multiline: true }
@@ -12083,12 +12326,6 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     const reason = typeof reasonInput === 'string' ? reasonInput : '';
 
     try {
-      // Get request data first for notification
-      const request = allRequests.find(r => r.id === requestId);
-      if (!request) {
-        showToast('Request not found', false);
-        return;
-      }
 
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await updateDoc(requestRef, {
@@ -12335,6 +12572,185 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       
     } catch (error) {
       console.error('❌ [Cancel Internal Booking v2] Error:', error);
+      await showConfirmModal('Error', `Failed to cancel booking: ${error.message}`, null, true);
+    }
+  }
+
+  /**
+   * Handle admin cancellation of user request (approved/in-progress)
+   */
+  async function handleAdminCancelUserRequest(requestId) {
+    console.log('🚫 [Admin Cancel User Request] Starting cancellation for:', requestId);
+    
+    try {
+      // Get request data first
+      const request = allRequests.find(r => r.id === requestId);
+      if (!request) {
+        await showConfirmModal('Error', 'Request not found.', null, true);
+        return;
+      }
+      
+      // Verify it's NOT an internal booking (internal bookings use handleCancelInternal)
+      if (request.isInternalBooking) {
+        await showConfirmModal(
+          'Not Allowed', 
+          'Internal bookings should use the regular Cancel button.',
+          null,
+          true
+        );
+        return;
+      }
+      
+      // Verify status is approved or in-progress
+      if (request.status !== 'approved' && request.status !== 'in-progress') {
+        await showConfirmModal(
+          'Cannot Cancel', 
+          `Only approved or in-progress requests can be cancelled.\n\nCurrent status: ${request.status}\n\nUse "Deny" for pending requests instead.`,
+          null,
+          true
+        );
+        return;
+      }
+      
+      // Show confirmation with request details and reason input
+      const detailsMessage = 
+        `Are you sure you want to cancel this booking?\n\n` +
+        `User: ${request.fullName}\n` +
+        `Event: ${request.startDate} to ${request.endDate}\n` +
+        `Tents: ${request.quantityTents}\n` +
+        `Chairs: ${request.quantityChairs}\n\n` +
+        `⚠️ This will return the equipment to available inventory and notify the user.\n\n` +
+        `Please provide a reason for cancellation (required):`;
+      
+      // Use modal with input field for cancellation reason (REQUIRED)
+      const reason = await showConfirmModal(
+        'Cancel User Booking',
+        detailsMessage,
+        null,
+        false,
+        { placeholder: 'Enter cancellation reason (required)...', defaultValue: '', multiline: true }
+      );
+      
+      // If user clicked No or closed modal
+      if (reason === false) {
+        console.log('❌ [Admin Cancel User Request] Cancelled by admin');
+        return;
+      }
+      
+      // Validate that reason is provided
+      if (!reason || reason.trim() === '') {
+        await showConfirmModal('Cancellation Reason Required', 'You must provide a reason for cancelling this booking.', null, true);
+        return;
+      }
+      
+      // Get admin info
+      let adminName = 'Admin';
+      try {
+        const adminUser = auth.currentUser;
+        if (adminUser) {
+          const adminDoc = await getDoc(doc(db, 'users', adminUser.uid));
+          if (adminDoc.exists()) {
+            adminName = adminDoc.data().fullName || adminDoc.data().fullname || 'Admin';
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ Could not fetch admin name:', err);
+      }
+      
+      // Get inventory document (if status is approved or in-progress, equipment is in use)
+      const inventoryRef = doc(db, 'inventory', 'equipment');
+      const inventorySnap = await getDoc(inventoryRef);
+      
+      if (!inventorySnap.exists()) {
+        await showConfirmModal('Error', 'Inventory document not found. Cannot update inventory.', null, true);
+        return;
+      }
+      
+      const currentInventory = inventorySnap.data();
+      const tentsToReturn = parseInt(request.quantityTents) || 0;
+      const chairsToReturn = parseInt(request.quantityChairs) || 0;
+      
+      // Calculate new inventory
+      const newAvailableTents = (currentInventory.availableTents || 0) + tentsToReturn;
+      const newAvailableChairs = (currentInventory.availableChairs || 0) + chairsToReturn;
+      const newTentsInUse = Math.max(0, (currentInventory.tentsInUse || 0) - tentsToReturn);
+      const newChairsInUse = Math.max(0, (currentInventory.chairsInUse || 0) - chairsToReturn);
+      
+      console.log('📦 [Admin Cancel User Request] Inventory changes:', {
+        tentsReturned: tentsToReturn,
+        chairsReturned: chairsToReturn,
+        newAvailableTents,
+        newAvailableChairs,
+        newTentsInUse,
+        newChairsInUse
+      });
+      
+      // Update request status
+      const requestRef = doc(db, 'tentsChairsBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+        cancelledBy: 'admin',
+        cancellationReason: reason.trim(),
+        cancelledByAdmin: adminName
+      });
+      
+      console.log('✅ [Admin Cancel User Request] Request status updated to cancelled');
+      
+      // Update inventory
+      await updateDoc(inventoryRef, {
+        availableTents: newAvailableTents,
+        availableChairs: newAvailableChairs,
+        tentsInUse: newTentsInUse,
+        chairsInUse: newChairsInUse,
+        lastUpdated: new Date()
+      });
+      
+      console.log('✅ [Admin Cancel User Request] Inventory updated successfully');
+      
+      // Create notification for user
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔔 [ADMIN → USER NOTIFICATION] Booking Cancelled by Admin');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('📋 Request ID:', requestId);
+      console.log('👤 User ID:', request.userId);
+      console.log('👥 User Name:', request.fullName || 'N/A');
+      console.log('👨‍💼 Admin:', adminName);
+      console.log('📝 Reason:', reason.trim());
+      console.log('⏰ Timestamp:', new Date().toISOString());
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      try {
+        // Create notification with admin-specific message
+        const notificationData = {
+          userId: request.userId,
+          type: 'admin_cancelled',
+          requestType: 'tents-chairs',
+          requestId: requestId,
+          title: '❌ Booking Cancelled by Admin',
+          message: `Your booking for ${request.quantityTents} tent(s) and ${request.quantityChairs} chair(s) from ${request.startDate} to ${request.endDate} has been cancelled by ${adminName}.\n\nReason: ${reason.trim()}\n\nIf you have questions, please contact the barangay office.`,
+          isRead: false,
+          createdAt: new Date()
+        };
+        
+        await addDoc(collection(db, 'notifications'), notificationData);
+        console.log('✅ [ADMIN → USER NOTIFICATION] SUCCESS! User notified of cancellation.');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      } catch (notifError) {
+        console.error('❌ [ADMIN → USER NOTIFICATION] FAILED!');
+        console.error('Error details:', notifError);
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      }
+      
+      // Show success message
+      showToast(`Booking cancelled. User has been notified.`, true);
+      
+      // Reload data
+      await loadAllRequests();
+      await updateInventoryInUse();
+      
+    } catch (error) {
+      console.error('❌ [Admin Cancel User Request] Error:', error);
       await showConfirmModal('Error', `Failed to cancel booking: ${error.message}`, null, true);
     }
   }
@@ -13647,6 +14063,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     handleDeny,
     handleComplete,
     handleCancelInternal,
+    handleAdminCancelUserRequest,
     handleArchive,
     handleDelete,
     handleUnarchive,
@@ -15837,7 +16254,19 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         if (req.status === 'rejected' && req.rejectionReason) {
           remarks = sanitizeInput(req.rejectionReason);
         } else if (req.status === 'cancelled') {
-          remarks = 'Cancelled by user';
+          // Check who cancelled the request
+          if (req.cancelledBy === 'admin' && req.cancellationReason) {
+            // Admin cancelled - show admin's name in parentheses
+            const adminName = req.cancelledByAdmin || 'Admin';
+            remarks = `<strong>Cancelled by Admin (${adminName})</strong><br>${sanitizeInput(req.cancellationReason)}`;
+          } else if (req.cancelledBy === 'user' && req.cancellationReason) {
+            // User cancelled - show user's name in parentheses
+            const userName = `${firstName} ${lastName}`.trim() || 'User';
+            remarks = `<strong>Cancelled by User (${userName})</strong><br>${sanitizeInput(req.cancellationReason)}`;
+          } else {
+            // Fallback for old data without cancellation details
+            remarks = req.cancelledBy === 'admin' ? 'Cancelled by Admin' : 'Cancelled by User';
+          }
         } else {
           remarks = '—';
         }
@@ -15940,10 +16369,10 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
           <button class="tents-btn-deny" onclick="handleDeny('${req.id}')">Deny</button>
         `;
       } else if (req.status === 'approved' || req.status === 'in-progress') {
-        // Add Cancel button for internal bookings
+        // Add Cancel button for internal bookings AND regular user requests
         const cancelBtn = isInternal ? 
           `<button class="tents-btn-cancel" onclick="handleCancelInternal('${req.id}')">Cancel</button>` : 
-          '';
+          `<button class="tents-btn-cancel-user" onclick="handleAdminCancelConferenceUserRequest('${req.id}')">Cancel Booking</button>`;
         return `
           <button class="tents-btn-complete" onclick="handleComplete('${req.id}')">Mark as Completed</button>
           ${cancelBtn}
@@ -16619,6 +17048,147 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       
     } catch (error) {
       console.error('❌ [Cancel Internal Conference] Error:', error);
+      await showConfirmModal('Error', `Failed to cancel booking: ${error.message}`, null, true);
+    }
+  };
+
+  /**
+   * Handle admin cancellation of user conference room request (approved/in-progress)
+   */
+  window.handleAdminCancelConferenceUserRequest = async function(requestId) {
+    console.log('🚫 [Admin Cancel Conference User Request] Starting cancellation for:', requestId);
+    
+    try {
+      // Get request data first
+      const request = allRequests.find(r => r.id === requestId);
+      if (!request) {
+        await showConfirmModal('Error', 'Request not found.', null, true);
+        return;
+      }
+      
+      // Verify it's NOT an internal booking (internal bookings use handleCancelInternal)
+      if (request.isInternalBooking) {
+        await showConfirmModal(
+          'Not Allowed', 
+          'Internal bookings should use the regular Cancel button.',
+          null,
+          true
+        );
+        return;
+      }
+      
+      // Verify status is approved or in-progress
+      if (request.status !== 'approved' && request.status !== 'in-progress') {
+        await showConfirmModal(
+          'Cannot Cancel', 
+          `Only approved or in-progress requests can be cancelled.\n\nCurrent status: ${request.status}\n\nUse "Deny" for pending requests instead.`,
+          null,
+          true
+        );
+        return;
+      }
+      
+      // Build display name
+      const np = getNameParts(request);
+      const nameDisplay = (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.fullName || request.fullname || 'User');
+      
+      // Show confirmation with request details and reason input
+      const detailsMessage = 
+        `Are you sure you want to cancel this conference room booking?\n\n` +
+        `User: ${nameDisplay}\n` +
+        `Event: ${request.eventDate}\n` +
+        `Time: ${request.startTime} - ${request.endTime}\n` +
+        `Purpose: ${sanitizeInput(request.purpose || 'N/A')}\n\n` +
+        `⚠️ This will free up the conference room for that time slot and notify the user.\n\n` +
+        `Please provide a reason for cancellation (required):`;
+      
+      // Use modal with input field for cancellation reason (REQUIRED)
+      const reason = await showConfirmModalWithInput(
+        'Cancel User Booking',
+        detailsMessage,
+        'Enter cancellation reason (required)...'
+      );
+      
+      // If user clicked Cancel or closed modal
+      if (reason === null || reason === false) {
+        console.log('❌ [Admin Cancel Conference User Request] Cancelled by admin');
+        return;
+      }
+      
+      // Validate that reason is provided (showConfirmModalWithInput already validates, but double-check)
+      if (!reason || reason.trim() === '') {
+        await showConfirmModal('Cancellation Reason Required', 'You must provide a reason for cancelling this booking.', null, true);
+        return;
+      }
+      
+      // Get admin info
+      let adminName = 'Admin';
+      try {
+        const adminUser = auth.currentUser;
+        if (adminUser) {
+          const adminDoc = await getDoc(doc(db, 'users', adminUser.uid));
+          if (adminDoc.exists()) {
+            adminName = adminDoc.data().fullName || adminDoc.data().fullname || 'Admin';
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ Could not fetch admin name:', err);
+      }
+      
+      // Update request status
+      const requestRef = doc(db, 'conferenceRoomBookings', requestId);
+      await updateDoc(requestRef, {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+        cancelledBy: 'admin',
+        cancellationReason: reason.trim(),
+        cancelledByAdmin: adminName
+      });
+      
+      console.log('✅ [Admin Cancel Conference User Request] Request status updated to cancelled');
+      
+      // Create notification for user
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔔 [ADMIN → USER NOTIFICATION] Conference Booking Cancelled by Admin');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('📋 Request ID:', requestId);
+      console.log('👤 User ID:', request.userId);
+      console.log('👥 User Name:', request.fullName || 'N/A');
+      console.log('👨‍💼 Admin:', adminName);
+      console.log('📝 Reason:', reason.trim());
+      console.log('⏰ Timestamp:', new Date().toISOString());
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      try {
+        // Create notification with admin-specific message
+        const notificationData = {
+          userId: request.userId,
+          type: 'admin_cancelled',
+          requestType: 'conference-room',
+          requestId: requestId,
+          title: '❌ Conference Room Booking Cancelled by Admin',
+          message: `Your conference room booking for ${request.eventDate} from ${request.startTime} to ${request.endTime} has been cancelled by ${adminName}.\n\nReason: ${reason.trim()}\n\nIf you have questions, please contact the barangay office.`,
+          isRead: false,
+          createdAt: new Date()
+        };
+        
+        await addDoc(collection(db, 'notifications'), notificationData);
+        console.log('✅ [ADMIN → USER NOTIFICATION] SUCCESS! User notified of cancellation.');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      } catch (notifError) {
+        console.error('❌ [ADMIN → USER NOTIFICATION] FAILED!');
+        console.error('Error details:', notifError);
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      }
+      
+      // Show success message
+      showToast('Booking cancelled. User has been notified.', true);
+      
+      // Reload data
+      await loadAllRequests();
+      
+    } catch (error) {
+      console.error('❌ [Admin Cancel Conference User Request] Error:', error);
       await showConfirmModal('Error', `Failed to cancel booking: ${error.message}`, null, true);
     }
   };
