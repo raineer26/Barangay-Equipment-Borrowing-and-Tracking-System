@@ -20,7 +20,9 @@
         if (cachedRole === 'superadmin') {
           document.write('<style id="superadmin-hide">a[href="admin.html"]{display:none!important}.sidebar-dropdown{display:none!important}a[href="admin-manage-inventory.html"]{display:none!important}</style>');
         } else if (cachedRole === 'admin') {
-          document.write('<style id="admin-hide">#tab-all{display:none!important}#tabpanel-all{display:none!important}#tabpanel-admin{display:block!important}#adminContent{display:none!important}#adminLoadingSpinner{display:flex!important}.um-stats-card{display:none!important}</style>');
+          document.write('<style id="admin-hide">#tab-all{display:none!important}#tabpanel-all{display:none!important}#tab-system-admin{display:none!important}#tabpanel-system-admin{display:none!important}#tabpanel-admin{display:block!important}#adminContent{display:none!important}#adminLoadingSpinner{display:flex!important}.um-stats-card{display:none!important}#adminEditProfileBtn{display:none!important}</style>');
+        } else {
+          document.write('<style id="user-hide">#tab-system-admin{display:none!important}#tabpanel-system-admin{display:none!important}</style>');
         }
       })();
     </script>
@@ -113,7 +115,8 @@
         <div class="admin-content-card">
         <nav class="um-tabs-nav" role="tablist" aria-label="Manage User Accounts Tabs">
           <button type="button" role="tab" aria-selected="true" id="tab-all" class="um-tabs-btn um-active" aria-controls="tabpanel-all" tabindex="0">All Registered Users</button>
-          <button type="button" role="tab" aria-selected="false" id="tab-admin" class="um-tabs-btn" aria-controls="tabpanel-admin" tabindex="-1">Admin</button>
+          <button type="button" role="tab" aria-selected="false" id="tab-system-admin" class="um-tabs-btn" aria-controls="tabpanel-system-admin" tabindex="-1">System Admin</button>
+          <button type="button" role="tab" aria-selected="false" id="tab-admin" class="um-tabs-btn" aria-controls="tabpanel-admin" tabindex="-1">My Account</button>
         </nav>
 
         <!-- All Registered Users Tab Panel -->
@@ -183,6 +186,73 @@
         </div>
         </div>
 
+        <!-- System Admin Tab Panel -->
+        <div id="tabpanel-system-admin" role="tabpanel" aria-labelledby="tab-system-admin" tabindex="-1" hidden>
+          <!-- Filters -->
+          <div class="um-filters-row" aria-label="Search and filter system admins">
+            <div class="um-filter-group">
+              <label for="searchSystemAdmins">Search</label>
+              <input id="searchSystemAdmins" type="text" class="um-filter-input" placeholder="Search by name, email, or address..." />
+            </div>
+
+            <div class="um-filter-group">
+              <label for="filterSystemAdminStatus">Status</label>
+              <select id="filterSystemAdminStatus" class="um-filter-select">
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
+            <div class="um-filter-group">
+              <label for="filterSystemAdminDate">Date</label>
+              <input id="filterSystemAdminDate" type="date" class="um-filter-date" placeholder="dd/mm/yyyy" />
+            </div>
+
+            <div class="um-filter-group">
+              <label for="sortSystemAdminsBy">Sort By</label>
+              <select id="sortSystemAdminsBy" class="um-filter-select">
+                <option value="">Select Sort</option>
+                <option value="name-asc">Last Name (A-Z)</option>
+                <option value="name-desc">Last Name (Z-A)</option>
+                <option value="date-newest">Date (Newest First)</option>
+                <option value="date-oldest">Date (Oldest First)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- System Admins Table -->
+          <div class="um-table-scroll-wrapper">
+            <div class="um-table-scroll-top"><div></div></div>
+            <div class="um-table-container" id="umSystemAdminTableContainer">
+              <table class="um-users-table" role="table" aria-label="System administrators list">
+              <thead>
+                <tr>
+                  <th scope="col">User</th>
+                  <th scope="col">Contact Number</th>
+                  <th scope="col">Address</th>
+                  <th scope="col">Created</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" style="text-align: center;">Role</th>
+                  <th scope="col" style="text-align: center; width: 80px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="systemAdminTableBody">
+                <!-- Admin user rows will be dynamically populated by JavaScript -->
+                <tr>
+                  <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                      <div class="spinner" style="border: 3px solid #f3f3f3; border-top: 3px solid #2f21a1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
+                      <span>Loading administrators...</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        </div>
+
         <!-- Admin Tab Panel -->
         <div id="tabpanel-admin" role="tabpanel" aria-labelledby="tab-admin" tabindex="-1" hidden>
           <!-- Loading Spinner -->
@@ -206,6 +276,7 @@
                 </div>
               </div>
               <div style="margin-left:auto; display:flex; gap: 12px;">
+                <button type="button" id="adminEditProfileBtn" style="background:#fff; border:2px solid #2f21a1; color:#2f21a1; font-size:14px; font-weight:700; padding:8px 16px; border-radius:6px; cursor:pointer;">✏️ Edit Profile</button>
                 <button type="button" id="adminChangePasswordBtn" style="background:#2f21a1; border:none; color:#fff; font-size:14px; font-weight:700; padding:8px 16px; border-radius:6px; cursor:pointer;">🔑 Change Password</button>
               </div>
             </div>
