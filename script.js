@@ -6991,17 +6991,236 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
     const preselectedDate = urlParams.get('date');
     if (preselectedDate) document.getElementById('startDate').value = preselectedDate;
 
-    // Setup date limits
+    // ========== STRICT DATE VALIDATION SETUP ==========
     const today = new Date().toISOString().split('T')[0];
-    document.getElementById('startDate').min = today;
-    document.getElementById('endDate').min = today;
-
-    document.getElementById('startDate').addEventListener('change', function() {
+    const startDateField = document.getElementById('startDate');
+    const endDateField = document.getElementById('endDate');
+    const quantityTentsField = document.getElementById('quantityTents');
+    const quantityChairsField = document.getElementById('quantityChairs');
+    
+    // Set minimum date to today
+    startDateField.min = today;
+    endDateField.min = today;
+    
+    // RULE 1: Disable End Date until Start Date is selected
+    endDateField.disabled = true;
+    endDateField.style.cursor = 'not-allowed';
+    endDateField.style.opacity = '0.6';
+    endDateField.title = 'Please select Start Date first';
+    
+    // RULE 2: Disable quantity fields until both dates are selected
+    quantityTentsField.disabled = true;
+    quantityTentsField.style.cursor = 'not-allowed';
+    quantityTentsField.style.opacity = '0.6';
+    quantityChairsField.disabled = true;
+    quantityChairsField.style.cursor = 'not-allowed';
+    quantityChairsField.style.opacity = '0.6';
+    
+    // Real-time validation for Start Date
+    startDateField.addEventListener('change', function() {
       const start = this.value;
-      document.getElementById('endDate').min = start;
-      if (document.getElementById('endDate').value < start)
-        document.getElementById('endDate').value = '';
+      clearFieldError(startDateField);
+      
+      if (!start) {
+        // If start date cleared, disable end date and quantities again
+        endDateField.disabled = true;
+        endDateField.style.cursor = 'not-allowed';
+        endDateField.style.opacity = '0.6';
+        endDateField.value = '';
+        
+        quantityTentsField.disabled = true;
+        quantityTentsField.style.cursor = 'not-allowed';
+        quantityTentsField.style.opacity = '0.6';
+        quantityChairsField.disabled = true;
+        quantityChairsField.style.cursor = 'not-allowed';
+        quantityChairsField.style.opacity = '0.6';
+        return;
+      }
+      
+      // Validate start date is not in the past
+      const selectedStart = new Date(start + 'T00:00:00');
+      const todayDate = new Date(today + 'T00:00:00');
+      
+      if (selectedStart < todayDate) {
+        setFieldError('startDate', 'Start date cannot be in the past');
+        endDateField.disabled = true;
+        endDateField.value = '';
+        return;
+      }
+      
+      // ENABLE End Date picker and set minimum to ONE DAY AFTER Start Date
+      endDateField.disabled = false;
+      endDateField.style.cursor = 'pointer';
+      endDateField.style.opacity = '1';
+      endDateField.title = '';
+      
+      // Set min to one day after start date (no same-day bookings)
+      const startDateObj = new Date(start + 'T00:00:00');
+      const minEndDate = new Date(startDateObj);
+      minEndDate.setDate(minEndDate.getDate() + 1);
+      const minEndDateStr = minEndDate.toISOString().split('T')[0];
+      endDateField.min = minEndDateStr;
+      
+      // If end date exists and is not after start date, clear it
+      if (endDateField.value && endDateField.value <= start) {
+        endDateField.value = '';
+        setFieldError('endDate', 'End date must be at least one day after start date');
+        
+        // Keep quantities disabled until valid end date
+        quantityTentsField.disabled = true;
+        quantityTentsField.style.cursor = 'not-allowed';
+        quantityTentsField.style.opacity = '0.6';
+        quantityChairsField.disabled = true;
+        quantityChairsField.style.cursor = 'not-allowed';
+        quantityChairsField.style.opacity = '0.6';
+      } else if (endDateField.value) {
+        // Valid date range exists, enable quantities
+        quantityTentsField.disabled = false;
+        quantityTentsField.style.cursor = 'pointer';
+        quantityTentsField.style.opacity = '1';
+        quantityChairsField.disabled = false;
+        quantityChairsField.style.cursor = 'pointer';
+        quantityChairsField.style.opacity = '1';
+      }
     });
+    
+    // Real-time validation for End Date
+    endDateField.addEventListener('change', function() {
+      const start = startDateField.value;
+      const end = this.value;
+      clearFieldError(endDateField);
+      
+      if (!end) {
+        // If end date cleared, disable quantities
+        quantityTentsField.disabled = true;
+        quantityTentsField.style.cursor = 'not-allowed';
+        quantityTentsField.style.opacity = '0.6';
+        quantityChairsField.disabled = true;
+        quantityChairsField.style.cursor = 'not-allowed';
+        quantityChairsField.style.opacity = '0.6';
+        return;
+      }
+      
+      // Validate end date is not before or equal to start date (prevent same-day bookings)
+      const selectedStart = new Date(start + 'T00:00:00');
+      const selectedEnd = new Date(end + 'T00:00:00');
+      
+      if (selectedEnd <= selectedStart) {
+        setFieldError('endDate', '❌ Invalid: End date must be at least one day after start date');
+        this.value = ''; // Clear invalid selection
+        
+        // Keep quantities disabled
+        quantityTentsField.disabled = true;
+        quantityTentsField.style.cursor = 'not-allowed';
+        quantityTentsField.style.opacity = '0.6';
+        quantityChairsField.disabled = true;
+        quantityChairsField.style.cursor = 'not-allowed';
+        quantityChairsField.style.opacity = '0.6';
+        return;
+      }
+      
+      // Check 14-day maximum duration in real-time
+      const timeDiff = selectedEnd.getTime() - selectedStart.getTime();
+      const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+      const MAX_DURATION_DAYS = 14;
+      
+      if (daysDiff > MAX_DURATION_DAYS) {
+        setFieldError('endDate', `⚠️ Maximum borrowing period is ${MAX_DURATION_DAYS} days (2 weeks). Current duration: ${daysDiff} day${daysDiff !== 1 ? 's' : ''}`);
+        // Don't clear value, let user see their selection and adjust
+        
+        // Keep quantities disabled for invalid duration
+        quantityTentsField.disabled = true;
+        quantityTentsField.style.cursor = 'not-allowed';
+        quantityTentsField.style.opacity = '0.6';
+        quantityChairsField.disabled = true;
+        quantityChairsField.style.cursor = 'not-allowed';
+        quantityChairsField.style.opacity = '0.6';
+        return;
+      }
+      
+      // Valid date range - ENABLE quantity fields
+      quantityTentsField.disabled = false;
+      quantityTentsField.style.cursor = 'pointer';
+      quantityTentsField.style.opacity = '1';
+      quantityTentsField.title = '';
+      quantityChairsField.disabled = false;
+      quantityChairsField.style.cursor = 'pointer';
+      quantityChairsField.style.opacity = '1';
+      quantityChairsField.title = '';
+      
+      console.log(`✅ [Date Validation] Valid date range: ${daysDiff} day(s) from ${start} to ${end}`);
+    });
+    
+    // CRITICAL FIX: Check if start date is already filled (from URL parameter)
+    // and manually trigger the enable logic
+    if (startDateField.value) {
+      console.log('[Date Validation] Start date already filled on load:', startDateField.value);
+      
+      // Enable End Date field with minimum one day after start
+      const startDateObj = new Date(startDateField.value + 'T00:00:00');
+      const minEndDate = new Date(startDateObj);
+      minEndDate.setDate(minEndDate.getDate() + 1);
+      const minEndDateStr = minEndDate.toISOString().split('T')[0];
+      
+      endDateField.disabled = false;
+      endDateField.style.cursor = 'pointer';
+      endDateField.style.opacity = '1';
+      endDateField.title = '';
+      endDateField.min = minEndDateStr;
+      
+      console.log('✅ [Date Validation] End date field enabled (min:', minEndDateStr, ')');
+    }
+    // ========== END OF STRICT DATE VALIDATION ==========
+
+    // ========== REAL-TIME CONTACT NUMBER VALIDATION ==========
+    const contactNumberField = document.getElementById('contactNumber');
+    if (contactNumberField) {
+      // Prevent non-numeric characters and limit to 11 digits
+      contactNumberField.addEventListener('input', function(e) {
+        // Remove any non-digit characters
+        let value = this.value.replace(/\D/g, '');
+        
+        // Limit to 11 digits
+        if (value.length > 11) {
+          value = value.slice(0, 11);
+        }
+        
+        // Update the field value
+        this.value = value;
+        
+        // Clear error if user is typing
+        clearFieldError(contactNumberField);
+      });
+      
+      // Prevent pasting non-numeric content
+      contactNumberField.addEventListener('paste', function(e) {
+        e.preventDefault();
+        const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+        const numbersOnly = pastedText.replace(/\D/g, '').slice(0, 11);
+        this.value = numbersOnly;
+        
+        // Trigger input event to clear errors
+        const inputEvent = new Event('input', { bubbles: true });
+        this.dispatchEvent(inputEvent);
+      });
+      
+      // Prevent keyboard entry of non-numeric characters
+      contactNumberField.addEventListener('keypress', function(e) {
+        // Allow only digits (0-9)
+        const charCode = e.which ? e.which : e.keyCode;
+        if (charCode < 48 || charCode > 57) {
+          e.preventDefault();
+          return false;
+        }
+        
+        // Prevent typing if already at 11 digits
+        if (this.value.length >= 11) {
+          e.preventDefault();
+          return false;
+        }
+      });
+    }
+    // ========== END OF CONTACT NUMBER VALIDATION ==========
 
     // ========== PHASE 2: REAL-TIME AVAILABILITY VALIDATION ==========
     const startDateInput = document.getElementById('startDate');
@@ -7587,11 +7806,135 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
       }
     });
 
-    // Listen for start time changes to filter end time options
+    // ========== STRICT TIME VALIDATION SETUP ==========
     const startTimeSelect = document.getElementById('startTime');
+    const endTimeSelect = document.getElementById('endTime');
+    
+    // Real-time validation for start time change
     startTimeSelect.addEventListener('change', function() {
       updateEndTimeOptions();
+      
+      // Clear previous errors
+      clearFieldError(startTimeSelect);
+      clearFieldError(endTimeSelect);
+      
+      // If both times selected, validate 2-hour minimum
+      if (this.value && endTimeSelect.value) {
+        validateMinimumDuration();
+      }
     });
+    
+    // Real-time validation for end time change
+    endTimeSelect.addEventListener('change', function() {
+      clearFieldError(endTimeSelect);
+      
+      // If both times selected, validate 2-hour minimum immediately
+      if (startTimeSelect.value && this.value) {
+        validateMinimumDuration();
+      }
+    });
+    
+    // Validate 2-hour minimum duration in real-time
+    function validateMinimumDuration() {
+      const startTime = startTimeSelect.value;
+      const endTime = endTimeSelect.value;
+      
+      if (!startTime || !endTime) return true;
+      
+      // Convert time strings to minutes
+      const startMinutes = conferenceTimeToMinutes(startTime);
+      const endMinutes = conferenceTimeToMinutes(endTime);
+      const durationMinutes = endMinutes - startMinutes;
+      const MIN_DURATION_HOURS = 2;
+      const MIN_DURATION_MINUTES = MIN_DURATION_HOURS * 60;
+      
+      if (durationMinutes < MIN_DURATION_MINUTES) {
+        const actualHours = Math.floor(durationMinutes / 60);
+        const actualMinutes = durationMinutes % 60;
+        const durationText = actualMinutes > 0 
+          ? `${actualHours} hour${actualHours !== 1 ? 's' : ''} and ${actualMinutes} minute${actualMinutes !== 1 ? 's' : ''}`
+          : `${actualHours} hour${actualHours !== 1 ? 's' : ''}`;
+        
+        setFieldError('endTime', `❌ Minimum booking duration is ${MIN_DURATION_HOURS} hours. Current duration: ${durationText}`);
+        
+        // Disable submit button
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.style.opacity = '0.6';
+          submitBtn.style.cursor = 'not-allowed';
+          submitBtn.title = 'Please select a valid time range (minimum 2 hours)';
+        }
+        
+        return false;
+      } else {
+        // Valid duration - enable submit
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '1';
+          submitBtn.style.cursor = 'pointer';
+          submitBtn.title = '';
+        }
+        
+        console.log(`✅ [Time Validation] Valid duration: ${Math.floor(durationMinutes / 60)} hours ${durationMinutes % 60} minutes`);
+        return true;
+      }
+    }
+    
+    // Helper: Convert time string (HH:mm) to minutes since midnight
+    function conferenceTimeToMinutes(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+    // ========== END OF STRICT TIME VALIDATION ==========
+
+    // ========== CONTACT NUMBER VALIDATION (REAL-TIME) ==========
+    const contactNumberField = document.getElementById('contactNumber');
+    if (contactNumberField) {
+      // Prevent typing non-numeric characters in real-time
+      contactNumberField.addEventListener('keypress', function(e) {
+        const charCode = e.which ? e.which : e.keyCode;
+        // Allow only digits (0-9)
+        if (charCode < 48 || charCode > 57) {
+          e.preventDefault();
+          return false;
+        }
+      });
+
+      // Strip non-digits and limit to 11 characters in real-time
+      contactNumberField.addEventListener('input', function(e) {
+        // Remove all non-digit characters
+        let value = this.value.replace(/\D/g, '');
+        // Limit to 11 digits
+        if (value.length > 11) {
+          value = value.slice(0, 11);
+        }
+        this.value = value;
+        
+        // Clear any error when user starts typing
+        clearFieldError(this);
+      });
+
+      // Handle paste event - only allow numbers
+      contactNumberField.addEventListener('paste', function(e) {
+        e.preventDefault();
+        // Get pasted text from clipboard
+        const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+        // Extract only digits
+        const digitsOnly = pastedText.replace(/\D/g, '');
+        // Limit to 11 digits
+        const limitedDigits = digitsOnly.slice(0, 11);
+        // Set the value
+        this.value = limitedDigits;
+        
+        // Clear any error
+        clearFieldError(this);
+      });
+
+      console.log('✅ [Conference Form] Contact number validation initialized (numeric only, max 11 digits)');
+    }
+    // ========== END OF CONTACT NUMBER VALIDATION ==========
 
     // Auto-fill user data
     onAuthStateChanged(auth, (user) => {
