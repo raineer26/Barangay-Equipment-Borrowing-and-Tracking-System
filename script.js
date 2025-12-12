@@ -27,6 +27,18 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const inventoryRef = collection(db, "inventory");
 
+// IMMEDIATE: Hide Manage Accounts link via CSS if not superadmin (cached check)
+// This runs synchronously before any rendering to prevent flash
+(function() {
+  const cachedRole = sessionStorage.getItem('userRole');
+  if (cachedRole !== 'superadmin') {
+    const style = document.createElement('style');
+    style.id = 'hide-manage-accounts';
+    style.textContent = 'a[href="admin-user-manager.html"] { display: none !important; }';
+    document.head.appendChild(style);
+  }
+})();
+
 // =============================
 // REAL-TIME UPDATE MANAGER
 // Handles Firestore onSnapshot listeners with proper cleanup
@@ -667,6 +679,16 @@ loginForm?.addEventListener("submit", async (e) => {
           } catch (e) { /* ignore */ }
           // Decode and redirect to the original page
           window.location.href = decodeURIComponent(redirectTo);
+        } else if (userData.role === "superadmin") {
+          console.log('[Login] Redirecting to super admin dashboard...');
+          try {
+            const name = userData.fullName || '';
+            const welcome = name ? `Welcome back, ${name.split(' ')[0]}` : 'Logged in successfully';
+            const flash = { message: welcome, isSuccess: true, duration: TOAST_DURATION };
+            sessionStorage.setItem('flashToast', JSON.stringify(flash));
+            sessionStorage.setItem('userRole', 'superadmin');
+          } catch (e) { /* ignore */ }
+          window.location.href = "admin.html";
         } else if (userData.role === "admin") {
           console.log('[Login] Redirecting to admin dashboard...');
           try {
@@ -674,6 +696,7 @@ loginForm?.addEventListener("submit", async (e) => {
             const welcome = name ? `Welcome back, ${name.split(' ')[0]}` : 'Logged in successfully';
             const flash = { message: welcome, isSuccess: true, duration: TOAST_DURATION };
             sessionStorage.setItem('flashToast', JSON.stringify(flash));
+            sessionStorage.setItem('userRole', 'admin');
           } catch (e) { /* ignore */ }
           window.location.href = "admin.html";
         } else if (userData.role === "user") {
@@ -683,6 +706,7 @@ loginForm?.addEventListener("submit", async (e) => {
             const welcome = name ? `Welcome back, ${name.split(' ')[0]}` : 'Logged in successfully';
             const flash = { message: welcome, isSuccess: true, duration: TOAST_DURATION };
             sessionStorage.setItem('flashToast', JSON.stringify(flash));
+            sessionStorage.setItem('userRole', 'user');
           } catch (e) { /* ignore */ }
           window.location.href = "user.html";
         } else {
@@ -1864,6 +1888,40 @@ document.addEventListener('DOMContentLoaded', function() {
    - onAuthStateChanged prevents access to protected pages when not authenticated
    - window.logout signs the current user out and redirects to login
 ====================== */
+// Show Manage Accounts link only for superadmin
+(function() {
+  let hasChecked = false;
+  
+  onAuthStateChanged(auth, async (user) => {
+    if (hasChecked) return;
+    hasChecked = true;
+    
+    if (user) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const role = userDoc.exists() ? userDoc.data().role : null;
+        
+        // Cache the role for immediate access on next page load
+        if (role) sessionStorage.setItem('userRole', role);
+        
+        if (role === 'superadmin') {
+          // Remove the CSS hide rule
+          const styleEl = document.getElementById('hide-manage-accounts');
+          if (styleEl) styleEl.remove();
+          
+          // Show the link
+          const link = document.querySelector('a[href="admin-user-manager.html"]');
+          if (link) link.style.display = 'flex';
+        }
+      } catch (error) {
+        console.error('Error checking role for sidebar:', error);
+      }
+    } else {
+      // Clear cached role on logout
+      sessionStorage.removeItem('userRole');
+    }
+  });
+})();
 // Protect specific pages by pathname
 // user.html is public (browsing allowed), but transactions require login
 const protectedPaths = [
@@ -7433,9 +7491,15 @@ if (window.location.pathname.endsWith('admin.html')) {
           const userData = userDoc.data();
           const userRole = userData.role;
           
-          if (userRole === 'admin') {
-            // Admin confirmed - show profile icon, hide LOGIN button
+          if (userRole === 'admin' || userRole === 'superadmin') {
+            // Admin or superadmin confirmed - show profile icon, hide LOGIN button
             updateAuthNav(user);
+            
+            // Update greeting based on role
+            const greetingSpan = document.querySelector('.admin-hero-content h1 .highlight-yellow');
+            if (greetingSpan) {
+              greetingSpan.textContent = userRole === 'superadmin' ? 'SUPER ADMIN!' : 'ADMIN!';
+            }
           } else {
             // Not an admin - redirect to user page
             console.warn('Non-admin user attempted to access admin.html');
@@ -18767,6 +18831,17 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
 // Check if we're on the admin user manager page
 if (window.location.pathname.endsWith('admin-user-manager.html') || window.location.pathname.endsWith('/admin-user-manager')) {
   
+  // Check user role - only superadmin can access
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists() && userDoc.data().role !== 'superadmin') {
+        alert('\u26a0\ufe0f Access Denied\n\nOnly super administrators can access Manage Accounts.');
+        window.location.href = 'admin.html';
+      }
+    }
+  });
+  
   /**
    * Load total registered users count from Firestore with real-time updates
    * Uses onSnapshot to listen for changes in 'users' collection
@@ -20643,9 +20718,14 @@ if (window.location.pathname.endsWith('index.html') || window.location.pathname 
             
             if (redirectTo) {
               window.location.href = decodeURIComponent(redirectTo);
+            } else if (userData.role === "superadmin") {
+              sessionStorage.setItem('userRole', 'superadmin');
+              window.location.href = "admin.html";
             } else if (userData.role === "admin") {
+              sessionStorage.setItem('userRole', 'admin');
               window.location.href = "admin.html";
             } else if (userData.role === "user") {
+              sessionStorage.setItem('userRole', 'user');
               window.location.href = "user.html";
             } else {
               console.error("Unknown role:", userData.role);

@@ -69,7 +69,18 @@
       <section class="admin-hero">
         <div class="admin-hero-overlay"></div>
         <div class="admin-hero-content">
-          <h1>WELCOME, <span class="highlight-yellow">ADMIN!</span></h1>
+          <h1>WELCOME, <span class="highlight-yellow" id="adminRoleGreeting" style="visibility: hidden;">ADMIN!</span></h1>
+          <script>
+            // Set greeting immediately using cached role (prevents flicker)
+            (function() {
+              const cachedRole = sessionStorage.getItem('userRole');
+              const greetingEl = document.getElementById('adminRoleGreeting');
+              if (greetingEl) {
+                greetingEl.textContent = cachedRole === 'superadmin' ? 'SUPER ADMIN!' : 'ADMIN!';
+                greetingEl.style.visibility = 'visible';
+              }
+            })();
+          </script>
           <p>Manage requests, inventory and barangay schedules from here.</p>
         </div>
       </section>
