@@ -7975,6 +7975,19 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
         return;
       }
       
+      // Check if duration is valid (minimum 2 hours) before showing availability
+      const startMinutes = conferenceTimeToMinutes(startTime);
+      const endMinutes = conferenceTimeToMinutes(endTime);
+      const durationMinutes = endMinutes - startMinutes;
+      const MIN_DURATION_MINUTES = 120; // 2 hours
+      
+      if (durationMinutes < MIN_DURATION_MINUTES) {
+        // Duration is invalid - hide availability feedback
+        availabilityFeedback.style.display = 'none';
+        console.log('[Conference Validation] Duration too short, hiding availability feedback');
+        return;
+      }
+      
       console.log('[Conference Validation] Checking availability for:', { eventDate, startTime, endTime });
       
       try {
@@ -9397,13 +9410,48 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
       let tentsInUse = 0;
       let chairsInUse = 0;
 
+      // Get today's date for comparison (YYYY-MM-DD format) - USE LOCAL DATE
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+
+      console.log(`[Inventory] Calculating usage for TODAY: ${todayStr}`);
+      console.log(`[Inventory] Total approved/in-progress bookings: ${querySnapshot.size}`);
+
       querySnapshot.forEach((doc) => {
         const booking = doc.data();
-        tentsInUse += parseInt(booking.quantityTents || 0);
-        chairsInUse += parseInt(booking.quantityChairs || 0);
+        const startDate = booking.startDate; // YYYY-MM-DD
+        const endDate = booking.endDate;     // YYYY-MM-DD
+
+        console.log(`[Inventory] Checking booking ${doc.id}:`, {
+          startDate,
+          endDate,
+          todayStr,
+          status: booking.status,
+          comparison: {
+            'todayStr >= startDate': todayStr >= startDate,
+            'todayStr <= endDate': todayStr <= endDate,
+            'both': startDate && endDate && todayStr >= startDate && todayStr <= endDate
+          }
+        });
+
+        // Only count bookings where TODAY falls within the date range
+        if (startDate && endDate && todayStr >= startDate && todayStr <= endDate) {
+          const tents = parseInt(booking.quantityTents || 0);
+          const chairs = parseInt(booking.quantityChairs || 0);
+          
+          tentsInUse += tents;
+          chairsInUse += chairs;
+
+          console.log(`   ✅ COUNTED - Tents: ${tents}, Chairs: ${chairs}`);
+        } else {
+          console.log(`   ⊘ SKIPPED - Not active today`);
+        }
       });
 
-      console.log(`[Inventory] In Use - Tents: ${tentsInUse}, Chairs: ${chairsInUse}`);
+      console.log(`[Inventory] In Use TODAY - Tents: ${tentsInUse}, Chairs: ${chairsInUse}`);
 
       // Calculate available inventory
       const availableTents = totalTents - tentsInUse;
@@ -10766,8 +10814,11 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
 
       console.log('✅ [Admin Approve Tents/Chairs] No identical requests found');
 
-      // 🔍 STEP 2: Validate inventory availability
-      console.log('🔍 [Admin Approve Tents/Chairs] Validating inventory availability...');
+      // 🔍 STEP 2: Validate inventory availability FOR THE REQUESTED DATE RANGE
+      console.log('🔍 [Admin Approve Tents/Chairs] Validating inventory availability for dates:', {
+        startDate: request.startDate,
+        endDate: request.endDate
+      });
       
       const inventoryRef = doc(db, 'inventory', 'equipment');
       const inventorySnap = await getDoc(inventoryRef);
@@ -10784,25 +10835,65 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
       }
 
       const inventory = inventorySnap.data();
-      const availableTents = inventory.availableTents || 0;
-      const availableChairs = inventory.availableChairs || 0;
+      const totalTents = inventory.totalTents || 24;
+      const totalChairs = inventory.totalChairs || 600;
 
-      console.log('📦 [Admin Approve Tents/Chairs] Current inventory:', {
+      // Calculate available stock for the REQUESTED DATE RANGE (not today)
+      const availabilityBookingsRef = collection(db, 'tentsChairsBookings');
+      const bookingsQuery = query(availabilityBookingsRef, where('status', 'in', ['approved', 'in-progress']));
+      const bookingsSnapshot = await getDocs(bookingsQuery);
+
+      let tentsInUseForRequestedDates = 0;
+      let chairsInUseForRequestedDates = 0;
+
+      console.log(`📅 [Inventory Check] Checking overlaps with requested dates: ${request.startDate} to ${request.endDate}`);
+
+      bookingsSnapshot.forEach((doc) => {
+        const booking = doc.data();
+        const bookingStart = booking.startDate;
+        const bookingEnd = booking.endDate;
+
+        // Check if this booking overlaps with the REQUESTED date range
+        // Two ranges overlap if: (start1 <= end2) AND (end1 >= start2)
+        const overlaps = (request.startDate <= bookingEnd) && (request.endDate >= bookingStart);
+
+        if (overlaps) {
+          const tents = parseInt(booking.quantityTents || 0);
+          const chairs = parseInt(booking.quantityChairs || 0);
+          
+          tentsInUseForRequestedDates += tents;
+          chairsInUseForRequestedDates += chairs;
+
+          console.log(`   ⚠️ OVERLAP: Booking ${doc.id} (${bookingStart} to ${bookingEnd}) - Tents: ${tents}, Chairs: ${chairs}`);
+        } else {
+          console.log(`   ✓ No overlap: Booking ${doc.id} (${bookingStart} to ${bookingEnd})`);
+        }
+      });
+
+      const availableTents = totalTents - tentsInUseForRequestedDates;
+      const availableChairs = totalChairs - chairsInUseForRequestedDates;
+
+      console.log('📦 [Admin Approve Tents/Chairs] Inventory for requested dates:', {
+        totalTents,
+        totalChairs,
+        tentsInUseForRequestedDates,
+        chairsInUseForRequestedDates,
         availableTents,
         availableChairs,
         requestedTents: request.quantityTents,
         requestedChairs: request.quantityChairs
       });
 
-      // Check if requested quantities exceed available stock
+      // Check if requested quantities exceed available stock FOR THOSE DATES
       const tentsShortage = request.quantityTents - availableTents;
       const chairsShortage = request.quantityChairs - availableChairs;
       const hasShortage = tentsShortage > 0 || chairsShortage > 0;
 
       if (hasShortage) {
-        console.error('❌ [Admin Approve Tents/Chairs] Approval BLOCKED due to insufficient inventory');
+        console.error('❌ [Admin Approve Tents/Chairs] Approval BLOCKED due to insufficient inventory for requested dates');
         
-        let shortageMessage = '<strong>📦 Current Inventory:</strong><br>' +
+        let shortageMessage = `<strong>📅 Requested Dates:</strong> ${request.startDate} to ${request.endDate}<br><br>` +
+          '<strong>📦 Available Inventory for These Dates:</strong><br>' +
           `   Available Tents: ${availableTents}<br>` +
           `   Available Chairs: ${availableChairs}<br><br>` +
           `<strong>📋 This Request:</strong><br>` +
@@ -10818,7 +10909,12 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
           shortageMessage += ` <span style="color:#dc2626;">(Shortage: ${chairsShortage})</span>`;
         }
 
-        shortageMessage += '<br><br>Cannot approve - insufficient inventory. Please wait for other bookings to complete or ask user to reduce quantities.';
+        shortageMessage += `<br><br><strong>💡 Note:</strong> This shortage is specific to the requested dates (${request.startDate} to ${request.endDate}). ` +
+          `Other bookings may be using equipment during this period. ` +
+          `Consider asking the user to:<br>` +
+          `• Choose different dates<br>` +
+          `• Reduce quantities<br>` +
+          `• Wait for conflicting bookings to complete`;
         
         await showConfirmModal(
           '❌ Insufficient Inventory',
@@ -10854,25 +10950,25 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
         approvedAt: new Date()
       });
 
-      // Update inventory (deduct approved quantities)
+      // NOTE: Inventory is now calculated dynamically based on date overlaps.
+      // No need to manually update availableTents/Chairs or tentsInUse/chairsInUse.
+      // Just update the lastUpdated timestamp for tracking purposes.
       await updateDoc(inventoryRef, {
-        availableTents: availableTents - request.quantityTents,
-        availableChairs: availableChairs - request.quantityChairs,
-        tentsInUse: (inventory.tentsInUse || 0) + request.quantityTents,
-        chairsInUse: (inventory.chairsInUse || 0) + request.quantityChairs,
         lastUpdated: new Date()
       });
 
-      console.log('✅ [Admin Approve Tents/Chairs] Request approved and inventory updated successfully!');
+      console.log('✅ [Admin Approve Tents/Chairs] Request approved successfully! Inventory will be calculated dynamically based on active bookings.');
       await loadTentsRequests(); // Reload data
       
       // Show success message
       await showConfirmModal(
         '✅ Request Approved',
         `Request has been approved successfully!<br><br>` +
-        `<strong>Updated Inventory:</strong><br>` +
-        `   Available Tents: ${availableTents - request.quantityTents}<br>` +
-        `   Available Chairs: ${availableChairs - request.quantityChairs}`,
+        `<strong>Booking Details:</strong><br>` +
+        `   Dates: ${request.startDate} to ${request.endDate}<br>` +
+        `   Tents: ${request.quantityTents}<br>` +
+        `   Chairs: ${request.quantityChairs}<br><br>` +
+        `<em>Inventory will automatically reflect these reservations during the booking period.</em>`,
         null,
         true
       );
@@ -10920,7 +11016,7 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
   window.completeRequest = async function(requestId) {
     const confirmed = await showConfirmModal(
       'Mark as Completed',
-      'Mark this request as completed? Equipment will be returned to available inventory.'
+      'Mark this request as completed? Inventory will automatically become available after the booking period.'
     );
     if (!confirmed) return;
 
@@ -10938,102 +11034,47 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
       }
       
       const requestData = requestSnap.data();
-      const tentsToReturn = requestData.quantityTents || 0;
-      const chairsToReturn = requestData.quantityChairs || 0;
+      const tentsReturned = requestData.quantityTents || 0;
+      const chairsReturned = requestData.quantityChairs || 0;
       
       console.log(`📋 Request Details:
-        Tents: ${tentsToReturn}
-        Chairs: ${chairsToReturn}
-        Status: ${requestData.status}`);
+        Tents: ${tentsReturned}
+        Chairs: ${chairsReturned}
+        Status: ${requestData.status}
+        Dates: ${requestData.startDate} to ${requestData.endDate}`);
       
-      // STEP 2: Only restore inventory if request was approved/in-progress
-      // (Don't restore for rejected/cancelled requests that never took inventory)
-      if (requestData.status === 'approved' || requestData.status === 'in-progress') {
-        console.log('📦 Restoring inventory for approved/in-progress booking...');
-        
-        // Get current inventory
-        const inventoryRef = doc(db, 'inventory', 'equipment');
-        const inventorySnap = await getDoc(inventoryRef);
-        
-        if (!inventorySnap.exists()) {
-          console.warn('⚠️ Inventory document does not exist. Creating with default values...');
-          await setDoc(inventoryRef, {
-            availableTents: tentsToReturn,
-            availableChairs: chairsToReturn,
-            tentsInUse: 0,
-            chairsInUse: 0,
-            totalTents: tentsToReturn,
-            totalChairs: chairsToReturn,
-            lastUpdated: new Date()
-          });
-        } else {
-          const inventoryData = inventorySnap.data();
-          const currentAvailableTents = inventoryData.availableTents || 0;
-          const currentAvailableChairs = inventoryData.availableChairs || 0;
-          const currentTentsInUse = inventoryData.tentsInUse || 0;
-          const currentChairsInUse = inventoryData.chairsInUse || 0;
-          
-          console.log(`📊 Current Inventory:
-            Available Tents: ${currentAvailableTents}
-            Available Chairs: ${currentAvailableChairs}
-            Tents In Use: ${currentTentsInUse}
-            Chairs In Use: ${currentChairsInUse}`);
-          
-          // Calculate new inventory (return items to available, remove from in-use)
-          const newAvailableTents = currentAvailableTents + tentsToReturn;
-          const newAvailableChairs = currentAvailableChairs + chairsToReturn;
-          const newTentsInUse = Math.max(0, currentTentsInUse - tentsToReturn);
-          const newChairsInUse = Math.max(0, currentChairsInUse - chairsToReturn);
-          
-          console.log(`📦 New Inventory After Return:
-            Available Tents: ${newAvailableTents} (was ${currentAvailableTents})
-            Available Chairs: ${newAvailableChairs} (was ${currentAvailableChairs})
-            Tents In Use: ${newTentsInUse} (was ${currentTentsInUse})
-            Chairs In Use: ${newChairsInUse} (was ${currentChairsInUse})`);
-          
-          // Update inventory
-          await updateDoc(inventoryRef, {
-            availableTents: newAvailableTents,
-            availableChairs: newAvailableChairs,
-            tentsInUse: newTentsInUse,
-            chairsInUse: newChairsInUse,
-            lastUpdated: new Date()
-          });
-          
-          console.log('✅ Inventory restored successfully');
-        }
-      } else {
-        console.log(`ℹ️ Skipping inventory restoration (status: ${requestData.status})`);
-      }
+      // NOTE: With date-based inventory calculation, we DON'T need to manually
+      // restore inventory. The system automatically calculates availability based
+      // on active (approved/in-progress) bookings for specific dates.
+      // Once status changes to 'completed', the booking is excluded from calculations.
       
-      // STEP 3: Mark request as completed
+      console.log('ℹ️ Inventory will be automatically recalculated - no manual update needed');
+      
+      // STEP 2: Mark request as completed
       await updateDoc(requestRef, {
         status: 'completed',
         completedAt: new Date()
       });
 
+      // Update lastUpdated for inventory tracking
+      const inventoryRef = doc(db, 'inventory', 'equipment');
+      await updateDoc(inventoryRef, {
+        lastUpdated: new Date()
+      });
+
       console.log('✅ Request marked as completed');
       
-      // Show success confirmation with inventory update info
-      if (requestData.status === 'approved' || requestData.status === 'in-progress') {
-        await showConfirmModal(
-          'Request Completed',
-          `Request has been marked as completed.<br><br>` +
-          `<strong>Equipment Returned:</strong><br>` +
-          `Tents: ${tentsToReturn}<br>` +
-          `Chairs: ${chairsToReturn}<br><br>` +
-          `Inventory has been updated.`,
-          null,
-          true
-        );
-      } else {
-        await showConfirmModal(
-          'Request Completed',
-          'Request has been marked as completed.',
-          null,
-          true
-        );
-      }
+      // Show success confirmation
+      await showConfirmModal(
+        'Request Completed',
+        `Request has been marked as completed.<br><br>` +
+        `<strong>Equipment Returned:</strong><br>` +
+        `Tents: ${tentsReturned}<br>` +
+        `Chairs: ${chairsReturned}<br><br>` +
+        `<em>Inventory will automatically reflect availability for these dates.</em>`,
+        null,
+        true
+      );
       
       await loadTentsRequests(); // Reload
       
@@ -11083,35 +11124,14 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
         return;
       }
       
-      // Get inventory document
-      const inventoryRef = doc(db, 'inventory', 'equipment');
-      const inventorySnap = await getDoc(inventoryRef);
+      // NOTE: With date-based inventory calculation, we DON'T need to manually
+      // return inventory to available stock. The system automatically calculates
+      // availability based on active (approved/in-progress) bookings.
+      // Once status changes to 'cancelled', the booking is excluded from calculations.
       
-      if (!inventorySnap.exists()) {
-        await showConfirmModal('Error', 'Inventory document not found. Cannot update inventory.', null, true);
-        return;
-      }
+      console.log('ℹ️ [Cancel Internal Booking] Inventory will be automatically recalculated');
       
-      const currentInventory = inventorySnap.data();
-      const tentsToReturn = parseInt(request.quantityTents) || 0;
-      const chairsToReturn = parseInt(request.quantityChairs) || 0;
-      
-      // Calculate new inventory
-      const newAvailableTents = (currentInventory.availableTents || 0) + tentsToReturn;
-      const newAvailableChairs = (currentInventory.availableChairs || 0) + chairsToReturn;
-      const newTentsInUse = Math.max(0, (currentInventory.tentsInUse || 0) - tentsToReturn);
-      const newChairsInUse = Math.max(0, (currentInventory.chairsInUse || 0) - chairsToReturn);
-      
-      console.log('📦 [Cancel Internal Booking] Inventory changes:', {
-        tentsReturned: tentsToReturn,
-        chairsReturned: chairsToReturn,
-        newAvailableTents,
-        newAvailableChairs,
-        newTentsInUse,
-        newChairsInUse
-      });
-      
-      // Update request status
+      // Update request status to cancelled
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await updateDoc(requestRef, {
         status: 'cancelled',
@@ -11122,16 +11142,13 @@ if (false && window.location.pathname.endsWith('admin-tents-requests.html')) {
       
       console.log('✅ [Cancel Internal Booking] Request status updated to cancelled');
       
-      // Update inventory
+      // Update inventory lastUpdated timestamp for tracking
+      const inventoryRef = doc(db, 'inventory', 'equipment');
       await updateDoc(inventoryRef, {
-        availableTents: newAvailableTents,
-        availableChairs: newAvailableChairs,
-        tentsInUse: newTentsInUse,
-        chairsInUse: newChairsInUse,
         lastUpdated: new Date()
       });
       
-      console.log('✅ [Cancel Internal Booking] Inventory updated successfully');
+      console.log('✅ [Cancel Internal Booking] Inventory timestamp updated');
       
       // Create notification if notification function exists
       if (request.userId && typeof createStatusChangeNotification === 'function') {
@@ -12276,7 +12293,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * Update inventory "In Use" counts based on approved requests
    */
   async function updateInventoryInUse() {
-    console.log('🔄 Updating inventory "In Use" counts...');
+    console.log('🔄 Updating inventory "In Use" counts (date-aware)...');
     try {
       // Get all approved AND in-progress requests
       const activeRequests = allRequests.filter(req => 
@@ -12286,13 +12303,47 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       let tentsInUse = 0;
       let chairsInUse = 0;
 
-      // Calculate total in use
+      // Get today's date for comparison (YYYY-MM-DD format) - USE LOCAL DATE
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+
+      console.log(`📅 Calculating usage for TODAY: ${todayStr}`);
+      console.log(`📋 Total active requests to check: ${activeRequests.length}`);
+
+      // Calculate total in use ONLY for bookings active TODAY
       activeRequests.forEach(req => {
-        tentsInUse += parseInt(req.quantityTents || 0);
-        chairsInUse += parseInt(req.quantityChairs || 0);
+        const startDate = req.startDate; // YYYY-MM-DD
+        const endDate = req.endDate;     // YYYY-MM-DD
+
+        console.log(`🔍 Checking booking ${req.id}:`, {
+          startDate,
+          endDate,
+          todayStr,
+          comparison: {
+            'todayStr >= startDate': todayStr >= startDate,
+            'todayStr <= endDate': todayStr <= endDate,
+            'both': startDate && endDate && todayStr >= startDate && todayStr <= endDate
+          }
+        });
+
+        // Only count if TODAY falls within the booking date range
+        if (startDate && endDate && todayStr >= startDate && todayStr <= endDate) {
+          const tents = parseInt(req.quantityTents || 0);
+          const chairs = parseInt(req.quantityChairs || 0);
+          
+          tentsInUse += tents;
+          chairsInUse += chairs;
+          
+          console.log(`   ✅ COUNTED - Tents: ${tents}, Chairs: ${chairs}`);
+        } else {
+          console.log(`   ⊘ SKIPPED - Not active today`);
+        }
       });
 
-      console.log(`📊 In Use - Tents: ${tentsInUse}, Chairs: ${chairsInUse}`);
+      console.log(`📊 In Use TODAY - Tents: ${tentsInUse}, Chairs: ${chairsInUse}`);
 
       // Update Firestore
       const inventoryRef = doc(db, 'inventory', 'equipment');
@@ -12311,7 +12362,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           lastUpdated: new Date()
         });
 
-        console.log('✅ Inventory updated successfully');
+        console.log('✅ Inventory updated successfully (date-aware)');
         
         // Reload stats to update UI
         await loadInventoryStats();
@@ -13547,32 +13598,20 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
 
       console.log('[Phase 3 Approval] ✅ Request status updated successfully');
       
-      // Step 7: Update static inventory for backwards compatibility
-      // NOTE: This is deprecated but kept for hybrid approach during transition
-      console.log('[Phase 3 Approval] 📦 Updating static inventory (backwards compatibility)...');
+      // NOTE: With date-based inventory calculation, we DON'T need to update
+      // static inventory fields. The system automatically calculates availability
+      // based on approved/in-progress bookings for specific dates.
+      console.log('[Phase 3 Approval] ℹ️ Inventory will be calculated dynamically based on booking dates');
       
+      // Update lastUpdated timestamp for tracking
       try {
         const inventoryRef = doc(db, 'inventory', 'equipment');
-        const inventorySnap = await getDoc(inventoryRef);
-        
-        if (inventorySnap.exists()) {
-          const inventoryData = inventorySnap.data();
-          const currentAvailableChairs = inventoryData.availableChairs || 0;
-          const currentAvailableTents = inventoryData.availableTents || 0;
-          
-          await updateDoc(inventoryRef, {
-            availableChairs: currentAvailableChairs - requestedChairs,
-            availableTents: currentAvailableTents - requestedTents,
-            chairsInUse: (inventoryData.chairsInUse || 0) + requestedChairs,
-            tentsInUse: (inventoryData.tentsInUse || 0) + requestedTents,
-            lastUpdated: new Date()
-          });
-          
-          console.log('[Phase 3 Approval] ✅ Static inventory updated');
-        }
+        await updateDoc(inventoryRef, {
+          lastUpdated: new Date()
+        });
+        console.log('[Phase 3 Approval] ✅ Inventory timestamp updated');
       } catch (inventoryError) {
-        console.warn('[Phase 3 Approval] ⚠️ Failed to update static inventory:', inventoryError);
-        // Don't block approval if static inventory update fails
+        console.warn('[Phase 3 Approval] ⚠️ Failed to update inventory timestamp:', inventoryError);
       }
       
       // Step 8: Create notification for user
