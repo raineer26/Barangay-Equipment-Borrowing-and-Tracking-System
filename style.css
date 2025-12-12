@@ -832,13 +832,14 @@ input.error {
   font-family: 'League Spartan', sans-serif;
   font-size: 3rem;
   font-weight: 600;
-  margin-top: -8px;
+  margin-top: 0;
+  margin-bottom: 16px;
   letter-spacing: 1px;
 }
 .calendar-desc {
   color: #222;
   font-family: 'Poppins', sans-serif;
-  font-size: 2rem;
+  font-size: 1rem;
   margin-bottom: 32px;
 }
 .calendar-cards {
@@ -902,13 +903,14 @@ input.error {
   font-family: 'League Spartan', sans-serif;
   font-size: 3rem;
   font-weight: 600;
-  margin-top: -60px;
+  margin-top: 0;
+  margin-bottom: 16px;
   letter-spacing: 1px;
 }
 .services-desc {
   color: #222;
   font-family: 'Poppins', sans-serif;
-  font-size: 2rem;
+  font-size: 1rem;
   margin-bottom: 32px;
 }
 .services-cards {
@@ -1024,7 +1026,8 @@ input.error {
   font-family: 'League Spartan', sans-serif;
   font-size: 3rem;
   font-weight: 600;
-  margin-top: -60px;
+  margin-top: 0;
+  margin-bottom: 16px;
   letter-spacing: 1px;
 }
 .about-content {
@@ -1087,7 +1090,8 @@ input.error {
   font-family: 'League Spartan', sans-serif;
   font-size: 3rem;
   font-weight: 600;
-  margin-top: -60px;
+  margin-top: 0;
+  margin-bottom: 16px;
   letter-spacing: 1px;
 }
 .contact-content {
@@ -10099,11 +10103,12 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   }
   
   .calendar-Title {
-    font-size: 2.8rem;
+    font-size: 2.5rem;
+    margin-bottom: 14px;
   }
   
   .calendar-desc {
-    font-size: 1.8rem;
+    font-size: 0.95rem;
   }
   
   .calendar-card {
@@ -10122,7 +10127,8 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   }
   
   .services-title {
-    font-size: 2.8rem;
+    font-size: 2.5rem;
+    margin-bottom: 14px;
   }
   
   .service-card-wrapper {
@@ -10145,7 +10151,8 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   }
   
   .about-title {
-    font-size: 2.8rem;
+    font-size: 2.5rem;
+    margin-bottom: 14px;
   }
   
   .about-content {
@@ -10164,7 +10171,8 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   }
   
   .contact-title {
-    font-size: 2.8rem;
+    font-size: 2.5rem;
+    margin-bottom: 14px;
   }
   
   .contact-content {
@@ -10339,11 +10347,12 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   }
   
   .calendar-Title {
-    font-size: 2.5rem;
+    font-size: 2rem;
+    margin-bottom: 12px;
   }
   
   .calendar-desc {
-    font-size: 1.5rem;
+    font-size: 0.9rem;
   }
   
   .calendar-cards {
@@ -10377,11 +10386,12 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   }
   
   .services-title {
-    font-size: 2.5rem;
+    font-size: 2rem;
+    margin-bottom: 12px;
   }
   
   .services-desc {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
   
   .services-cards {
@@ -10422,7 +10432,8 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   }
   
   .about-title {
-    font-size: 2.5rem;
+    font-size: 2rem;
+    margin-bottom: 12px;
   }
   
   .about-content {
@@ -10446,7 +10457,8 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   }
   
   .contact-title {
-    font-size: 2.5rem;
+    font-size: 2rem;
+    margin-bottom: 12px;
   }
   
   .contact-content {
