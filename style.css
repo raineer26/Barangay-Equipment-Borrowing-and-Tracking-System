@@ -14619,7 +14619,8 @@ body.sidebar-collapsed .sidebar-toggle-btn,
 }
 
 .admin-notif-filter-btn.active .filter-count {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.95);
+  color: #281ABC;
   font-weight: 700;
 }
 

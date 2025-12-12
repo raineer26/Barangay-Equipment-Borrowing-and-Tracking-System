@@ -22864,6 +22864,11 @@ function createAdminNotificationElement(notification) {
       if (action === 'mark-read') {
         await markAdminNotificationAsRead(notification.id);
       } else if (action === 'view-request') {
+        // Mark as read before redirecting
+        if (!notification.read) {
+          await markAdminNotificationAsRead(notification.id);
+        }
+        
         const url = btn.dataset.url;
         const requestId = btn.dataset.requestId;
         const requestType = btn.dataset.requestType;
