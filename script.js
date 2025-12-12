@@ -247,9 +247,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // Create toggle button
   const toggleBtn = document.createElement('button');
   toggleBtn.className = 'sidebar-toggle-btn';
-  toggleBtn.setAttribute('aria-label', 'Toggle sidebar');
-  toggleBtn.setAttribute('title', 'Toggle sidebar');
-  toggleBtn.innerHTML = '◀'; // Left arrow when expanded
+  toggleBtn.setAttribute('aria-label', 'Collapse sidebar');
+  toggleBtn.setAttribute('title', 'Collapse sidebar');
+  toggleBtn.innerHTML = '◀'; // Left arrow (Unpin) when expanded
   
   // Append toggle button to sidebar (will be positioned via CSS fixed positioning)
   sidebar.appendChild(toggleBtn);
@@ -260,7 +260,8 @@ document.addEventListener('DOMContentLoaded', function() {
     sidebar.classList.add('collapsed');
     mainContent.classList.add('sidebar-collapsed');
     document.body.classList.add('sidebar-collapsed'); // Add body class for toggle button positioning
-    toggleBtn.innerHTML = '▶'; // Right arrow when collapsed
+    toggleBtn.innerHTML = '📌'; // Pin icon when collapsed
+    toggleBtn.setAttribute('title', 'Pin sidebar');
   }
 
   // Toggle sidebar function
@@ -270,13 +271,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.classList.toggle('sidebar-collapsed'); // Add body class for toggle button positioning
     
     // Update button icon
-    toggleBtn.innerHTML = isCollapsed ? '▶' : '◀';
+    toggleBtn.innerHTML = isCollapsed ? '📌' : '◀';
     
     // Save state to localStorage
     localStorage.setItem('sidebarCollapsed', isCollapsed);
     
     // Update aria-label for accessibility
-    toggleBtn.setAttribute('aria-label', isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+    toggleBtn.setAttribute('aria-label', isCollapsed ? 'Pin sidebar' : 'Collapse sidebar');
+    toggleBtn.setAttribute('title', isCollapsed ? 'Pin sidebar' : 'Collapse sidebar');
     
     console.log(`[Sidebar Toggle] Sidebar ${isCollapsed ? 'collapsed' : 'expanded'}`);
   }
