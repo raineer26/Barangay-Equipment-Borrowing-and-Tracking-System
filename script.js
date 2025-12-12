@@ -3692,10 +3692,21 @@ function createNotificationElement(notification) {
     });
   });
   
-  // Click anywhere on notification to mark as read (if unread)
-  if (!notification.read) {
+  // Click anywhere on notification behavior
+  if (notification.requestId) {
+    // If associated with a request, clicking anywhere opens the request
+    div.style.cursor = 'pointer';
+    div.title = "Click to view request details";
+    div.addEventListener('click', async () => {
+      console.log(`[Notifications] 🖱️ Notification card clicked: ${notification.id}`);
+      await viewRequestFromNotification(notification.requestId, notification.requestType, notification.id);
+    });
+  } else if (!notification.read) {
+    // If no request ID but unread, clicking marks as read
+    div.style.cursor = 'pointer';
+    div.title = "Click to mark as read";
     div.addEventListener('click', () => {
-      console.log(`[Notifications] 🖱️ Notification clicked: ${notification.id}`);
+      console.log(`[Notifications] 🖱️ Notification clicked (mark read): ${notification.id}`);
       markNotificationAsRead(notification.id);
     });
   }
@@ -21228,8 +21239,32 @@ function createAdminNotificationElement(notification) {
     });
   });
   
-  // Click anywhere on notification to mark as read (if unread)
-  if (!notification.read) {
+  // Click anywhere on notification behavior
+  if (actionUrl) {
+    // If associated with a request/page, clicking anywhere opens it
+    div.style.cursor = 'pointer';
+    div.title = "Click to view details";
+    
+    div.addEventListener('click', async () => {
+      console.log(`[Admin Notifications] 🖱️ Notification card clicked: ${notification.id}`);
+      
+      // Mark as read if needed
+      if (!notification.read) {
+        await markAdminNotificationAsRead(notification.id);
+      }
+      
+      // Build URL with parameters for highlighting
+      let targetUrl = actionUrl;
+      if (notification.requestId && notification.requestType) {
+        targetUrl += `?highlightRequest=${notification.requestId}&type=${notification.requestType}`;
+      }
+      
+      window.location.href = targetUrl;
+    });
+  } else if (!notification.read) {
+    // If no URL but unread, clicking marks as read
+    div.style.cursor = 'pointer';
+    div.title = "Click to mark as read";
     div.addEventListener('click', () => {
       markAdminNotificationAsRead(notification.id);
     });
