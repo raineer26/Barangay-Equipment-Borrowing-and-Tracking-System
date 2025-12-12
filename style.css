@@ -4930,6 +4930,11 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   left: 55px; /* Center on right edge of collapsed sidebar (70px - 15px for centering) */
 }
 
+/* UX IMPROVEMENT: When collapsed sidebar is hovered (expanded view), move button to expanded position */
+.admin-sidebar.collapsed:hover .sidebar-toggle-btn {
+  left: 265px; /* Move to expanded position */
+}
+
 .sidebar-toggle-btn:hover {
   background: #ffd633;
   transform: scale(1.1);
