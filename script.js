@@ -2108,13 +2108,16 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('[UserProfile] Timestamp:', new Date().toISOString());
     console.log('[UserProfile] ═══════════════════════════════════════════════════════════');
     
-    console.log('[UserProfile] Step 1/3: Loading user personal data...');
+    console.log('[UserProfile] Step 1/4: Loading user personal data...');
     loadUserData();
     
-    console.log('[UserProfile] Step 2/3: Setting up REAL-TIME requests listener...');
+    console.log('[UserProfile] Step 2/4: Setting up REAL-TIME profile listener...');
+    setupRealtimeProfile(user.uid);
+    
+    console.log('[UserProfile] Step 3/4: Setting up REAL-TIME requests listener...');
     setupRealtimeRequests(user.uid);
     
-    console.log('[UserProfile] Step 3/3: Setting up REAL-TIME notifications listener...');
+    console.log('[UserProfile] Step 4/4: Setting up REAL-TIME notifications listener...');
     setupRealtimeNotifications(user.uid);
     
     // Start auto-refresh for notification count
@@ -2613,6 +2616,67 @@ function loadUserRequestsFromCache() {
   const statusFilter = document.getElementById('statusFilter');
   const currentFilter = statusFilter ? statusFilter.value : 'all';
   loadUserRequests(currentFilter);
+}
+
+// Setup real-time listener for user profile data
+function setupRealtimeProfile(userId) {
+  console.log('[Real-Time Profile] 🔄 Setting up listener for user:', userId);
+  
+  const userDocRef = doc(db, 'users', userId);
+  
+  const unsubscribeProfile = onSnapshot(userDocRef,
+    (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        console.log('[Real-Time Profile] 👤 Profile data updated');
+        const userData = docSnapshot.data();
+        
+        // Extract name fields
+        const firstName = userData.firstName || '';
+        const lastName = userData.lastName || '';
+        const fullName = `${firstName} ${lastName}`.trim() || userData.fullName || 'User';
+        const contactNumber = userData.contactNumber || userData.contact || 'Not provided';
+        const email = userData.email || 'Not provided';
+        const address = userData.address || 'Not provided';
+        
+        // Update profile display elements (if they exist)
+        const profileFullNameEl = document.getElementById('profileFullName');
+        const infoFirstNameEl = document.getElementById('infoFirstName');
+        const infoLastNameEl = document.getElementById('infoLastName');
+        const infoContactNumberEl = document.getElementById('infoContactNumber');
+        const infoEmailEl = document.getElementById('infoEmail');
+        const infoAddressEl = document.getElementById('infoAddress');
+        
+        if (profileFullNameEl) profileFullNameEl.textContent = fullName;
+        if (infoFirstNameEl) infoFirstNameEl.textContent = firstName || 'Not provided';
+        if (infoLastNameEl) infoLastNameEl.textContent = lastName || 'Not provided';
+        if (infoContactNumberEl) infoContactNumberEl.textContent = contactNumber;
+        if (infoEmailEl) infoEmailEl.textContent = email;
+        if (infoAddressEl) infoAddressEl.textContent = address;
+        
+        // Update edit form fields (so if modal is open, it stays in sync)
+        const editFirstNameEl = document.getElementById('editFirstName');
+        const editLastNameEl = document.getElementById('editLastName');
+        const editContactNumberEl = document.getElementById('editContactNumber');
+        const editEmailEl = document.getElementById('editEmail');
+        const editAddressEl = document.getElementById('editAddress');
+        
+        if (editFirstNameEl) editFirstNameEl.value = firstName;
+        if (editLastNameEl) editLastNameEl.value = lastName;
+        if (editContactNumberEl) editContactNumberEl.value = userData.contactNumber || userData.contact || '';
+        if (editEmailEl) editEmailEl.value = userData.email || '';
+        if (editAddressEl) editAddressEl.value = userData.address || '';
+        
+        console.log('[Real-Time Profile] ✅ Profile UI updated:', fullName);
+      }
+    },
+    (error) => {
+      console.error('[Real-Time Profile] ❌ Listener error:', error);
+    }
+  );
+  
+  // Store listener in manager
+  realtimeManager.addListener('userProfile', unsubscribeProfile);
+  console.log('[Real-Time Profile] ✅ Listener registered');
 }
 
 // Setup real-time listeners for user requests
@@ -22568,7 +22632,8 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     
     // Populate form fields
     document.getElementById('editUserId').value = userId;
-    document.getElementById('editFullName').value = user.fullName || '';
+    document.getElementById('editFirstName').value = user.firstName || '';
+    document.getElementById('editLastName').value = user.lastName || '';
     document.getElementById('editContactNumber').value = user.contactNumber || '';
     document.getElementById('editAddress').value = user.address || '';
     document.getElementById('editStatus').value = user.status || 'active';
@@ -22609,7 +22674,8 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     event.preventDefault();
     
     const userId = document.getElementById('editUserId').value;
-    const fullName = document.getElementById('editFullName').value.trim();
+    const firstName = document.getElementById('editFirstName').value.trim();
+    const lastName = document.getElementById('editLastName').value.trim();
     const contactNumber = document.getElementById('editContactNumber').value.trim();
     const address = document.getElementById('editAddress').value.trim();
     const status = document.getElementById('editStatus').value;
@@ -22619,9 +22685,21 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
     
     let hasError = false;
     
-    // Validate full name
-    if (!fullName || fullName.length < 2) {
-      document.getElementById('errorEditFullName').textContent = 'Full name must be at least 2 characters';
+    // Validate first name
+    if (!firstName || firstName.length < 2) {
+      document.getElementById('errorEditFirstName').textContent = 'First name must be at least 2 characters';
+      hasError = true;
+    } else if (!/^[a-zA-Z\s'-]+$/.test(firstName)) {
+      document.getElementById('errorEditFirstName').textContent = 'First name can only contain letters, spaces, hyphens, and apostrophes';
+      hasError = true;
+    }
+    
+    // Validate last name
+    if (!lastName || lastName.length < 2) {
+      document.getElementById('errorEditLastName').textContent = 'Last name must be at least 2 characters';
+      hasError = true;
+    } else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) {
+      document.getElementById('errorEditLastName').textContent = 'Last name can only contain letters, spaces, hyphens, and apostrophes';
       hasError = true;
     }
     
@@ -22653,7 +22731,9 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
       // Update user in Firestore
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
-        fullName: fullName,
+        firstName: firstName,
+        lastName: lastName,
+        fullName: `${firstName} ${lastName}`,
         contactNumber: contactNumber,
         address: address,
         status: status,
