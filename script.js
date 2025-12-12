@@ -6656,6 +6656,315 @@ if (window.location.pathname.endsWith('tents-calendar.html') || window.location.
 ===================================================== */
 
 /* =====================================================
+   PHASE 1: CALENDAR-BASED AVAILABILITY CALCULATOR
+   
+   Purpose: Calculate available stock based on booking schedules
+            (not static inventory counters)
+   
+   This replaces the old system where:
+   - availableChairs/availableTents were decremented on approval
+   - Didn't account for when items would be returned
+   - Blocked future bookings even when items would be available
+   
+   New system:
+   - Queries all approved/in-progress bookings
+   - Checks which bookings overlap with requested dates
+   - Calculates availability based on timeline, not static numbers
+   
+   Location: MUST be defined BEFORE form submission logic
+   Used by: Phase 2 (user form validation), Phase 3 (admin approval)
+===================================================== */
+
+/**
+ * Availability Cache
+ * Caches availability calculations for 30 seconds to improve performance
+ * Invalidate cache when bookings are created/updated/cancelled
+ */
+const availabilityCache = {
+  data: {},
+  timeout: 30000, // 30 seconds
+  
+  get(key) {
+    const cached = this.data[key];
+    if (cached && Date.now() - cached.timestamp < this.timeout) {
+      console.log('[Availability Cache] 🎯 Cache HIT for', key);
+      return cached.value;
+    }
+    console.log('[Availability Cache] ❌ Cache MISS for', key);
+    return null;
+  },
+  
+  set(key, value) {
+    this.data[key] = {
+      value: value,
+      timestamp: Date.now()
+    };
+    console.log('[Availability Cache] 💾 Cached', key);
+  },
+  
+  invalidate() {
+    this.data = {};
+    console.log('[Availability Cache] 🗑️ Cache cleared');
+  }
+};
+
+/**
+ * Check if two date ranges overlap
+ * Uses STRICT inequality to allow same-day return/pickup
+ * 
+ * @param {string} start1 - First range start date (YYYY-MM-DD)
+ * @param {string} end1 - First range end date (YYYY-MM-DD)
+ * @param {string} start2 - Second range start date (YYYY-MM-DD)
+ * @param {string} end2 - Second range end date (YYYY-MM-DD)
+ * @returns {boolean} True if ranges overlap
+ * 
+ * Example:
+ *   Booking 1: Dec 1-5 (Rose borrows chairs)
+ *   Booking 2: Dec 5-10 (Rachel wants to borrow)
+ *   Result: FALSE (no overlap - Rose returns on Dec 5, Rachel can pick up on Dec 5)
+ */
+function datesOverlap(start1, end1, start2, end2) {
+  const s1 = new Date(start1 + 'T00:00:00');
+  const e1 = new Date(end1 + 'T00:00:00');
+  const s2 = new Date(start2 + 'T00:00:00');
+  const e2 = new Date(end2 + 'T00:00:00');
+  
+  // Strict inequality: allows same-day return/pickup
+  const overlaps = s1 < e2 && e1 > s2;
+  
+  console.log('[Date Overlap Check]', {
+    range1: `${start1} to ${end1}`,
+    range2: `${start2} to ${end2}`,
+    overlaps: overlaps
+  });
+  
+  return overlaps;
+}
+
+/**
+ * Calculate available stock for a specific date range
+ * This is the CORE function of the calendar-based availability system
+ * 
+ * @param {string} startDate - Start date in YYYY-MM-DD format
+ * @param {string} endDate - End date in YYYY-MM-DD format
+ * @param {string} itemType - "chairs" or "tents"
+ * @returns {Promise<Object>} Availability data
+ *   - available: number - Available quantity during this period
+ *   - inUse: number - Total quantity in use during this period
+ *   - total: number - Total stock owned by barangay
+ *   - overlappingBookings: Array - Details of bookings that overlap
+ * 
+ * How it works:
+ * 1. Check cache first (30s TTL)
+ * 2. Query all approved/in-progress bookings from Firestore
+ * 3. Filter bookings that overlap with requested date range
+ * 4. Sum quantities of requested itemType from overlapping bookings
+ * 5. Get total stock from inventory/equipment document
+ * 6. Calculate: available = total - inUse
+ * 7. Cache result and return
+ */
+async function calculateAvailableStockForDateRange(startDate, endDate, itemType) {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('[Availability Calculator] 📊 Calculating availability...');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('[Availability Calculator] 📅 Date Range:', `${startDate} to ${endDate}`);
+  console.log('[Availability Calculator] 📦 Item Type:', itemType);
+  
+  // Input validation
+  if (!startDate || !endDate || !itemType) {
+    console.error('[Availability Calculator] ❌ Missing required parameters');
+    throw new Error('Missing required parameters: startDate, endDate, itemType');
+  }
+  
+  if (itemType !== 'chairs' && itemType !== 'tents') {
+    console.error('[Availability Calculator] ❌ Invalid item type:', itemType);
+    throw new Error('Invalid item type. Must be "chairs" or "tents"');
+  }
+  
+  // Check cache
+  const cacheKey = `availability_${startDate}_${endDate}_${itemType}`;
+  const cached = availabilityCache.get(cacheKey);
+  if (cached) {
+    console.log('[Availability Calculator] ⚡ Cache HIT - checking validity...');
+    console.log('[Availability Calculator] 📋 Cached data:', {
+      available: cached.available,
+      inUse: cached.inUse,
+      total: cached.total,
+      overlappingBookings: cached.overlappingBookings?.length || 0
+    });
+    
+    // Validate cached data - reject if total is 0 (likely from old error)
+    if (cached.total === 0 && !cached.isFallback) {
+      console.warn('[Availability Calculator] ⚠️ INVALID CACHE - total is 0, forcing fresh calculation');
+      availabilityCache.data[cacheKey] = undefined; // Remove bad cache entry
+    } else {
+      console.log('[Availability Calculator] ✅ Cache valid, returning cached result');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      return cached;
+    }
+  }
+  
+  try {
+    // Step 1: Query all approved/in-progress bookings
+    console.log('[Availability Calculator] 🔍 Querying Firestore for overlapping bookings...');
+    const bookingsRef = collection(db, 'tentsChairsBookings');
+    const bookingsQuery = query(
+      bookingsRef,
+      where('status', 'in', ['approved', 'in-progress'])
+    );
+    
+    const querySnapshot = await getDocs(bookingsQuery);
+    console.log('[Availability Calculator] 📚 Found', querySnapshot.size, 'approved/in-progress bookings');
+    
+    // Step 2: Filter overlapping bookings and sum quantities
+    let totalInUse = 0;
+    const overlappingBookings = [];
+    
+    querySnapshot.forEach((doc) => {
+      const booking = doc.data();
+      const bookingStart = booking.startDate;
+      const bookingEnd = booking.endDate;
+      
+      // Check if this booking overlaps with requested period
+      if (datesOverlap(startDate, endDate, bookingStart, bookingEnd)) {
+        const quantity = itemType === 'chairs' 
+          ? parseInt(booking.quantityChairs || 0)
+          : parseInt(booking.quantityTents || 0);
+        
+        if (quantity > 0) {
+          totalInUse += quantity;
+          overlappingBookings.push({
+            id: doc.id,
+            startDate: bookingStart,
+            endDate: bookingEnd,
+            quantity: quantity,
+            fullName: booking.fullName || 'Unknown',
+            status: booking.status
+          });
+          
+          console.log('[Availability Calculator]   ✓ Overlap found:', {
+            bookingId: doc.id,
+            dates: `${bookingStart} to ${bookingEnd}`,
+            quantity: quantity,
+            user: booking.fullName
+          });
+        }
+      }
+    });
+    
+    console.log('[Availability Calculator] 📊 Total in use during period:', totalInUse);
+    console.log('[Availability Calculator] 📋 Overlapping bookings:', overlappingBookings.length);
+    
+    // Step 3: Get total stock from inventory
+    console.log('[Availability Calculator] 📦 Fetching total stock from inventory...');
+    const inventoryRef = doc(db, 'inventory', 'equipment');
+    const inventorySnap = await getDoc(inventoryRef);
+    
+    let totalStock = 0;
+    if (inventorySnap.exists()) {
+      const inventoryData = inventorySnap.data();
+      console.log('[Availability Calculator] ✅ Inventory document EXISTS');
+      console.log('[Availability Calculator] 📋 Full inventory data:', inventoryData);
+      
+      // Try new field names first (totalChairs/totalTents), fallback to old field names (availableChairs/availableTents)
+      if (itemType === 'chairs') {
+        totalStock = parseInt(inventoryData.totalChairs || inventoryData.availableChairs || 0);
+        console.log('[Availability Calculator] 🔍 Checking chairs fields:', {
+          totalChairs: inventoryData.totalChairs,
+          availableChairs: inventoryData.availableChairs,
+          usingValue: totalStock
+        });
+      } else {
+        totalStock = parseInt(inventoryData.totalTents || inventoryData.availableTents || 0);
+        console.log('[Availability Calculator] 🔍 Checking tents fields:', {
+          totalTents: inventoryData.totalTents,
+          availableTents: inventoryData.availableTents,
+          usingValue: totalStock
+        });
+      }
+      
+      console.log('[Availability Calculator] 📦 Extracted total stock for', itemType, ':', totalStock);
+      
+      if (totalStock === 0) {
+        console.error('[Availability Calculator] ❌ WARNING: totalStock is 0! All fields are missing or zero in Firestore');
+        console.error('[Availability Calculator] 🔍 Fields checked:', itemType === 'chairs' 
+          ? `totalChairs (${inventoryData.totalChairs}), availableChairs (${inventoryData.availableChairs})`
+          : `totalTents (${inventoryData.totalTents}), availableTents (${inventoryData.availableTents})`
+        );
+      }
+    } else {
+      console.warn('[Availability Calculator] ⚠️ Inventory document not found! Using default values');
+      console.warn('[Availability Calculator] 📝 DEFAULT VALUES: Chairs=600, Tents=24');
+      totalStock = itemType === 'chairs' ? 600 : 24;
+      console.log('[Availability Calculator] 📦 Using default total stock:', totalStock);
+    }
+    
+    // Step 4: Calculate available
+    const available = totalStock - totalInUse;
+    
+    console.log('[Availability Calculator] ✅ CALCULATION COMPLETE:');
+    console.log('[Availability Calculator]   • Total Stock:', totalStock);
+    console.log('[Availability Calculator]   • In Use:', totalInUse);
+    console.log('[Availability Calculator]   • Available:', available);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    
+    // Build result object
+    const result = {
+      available: available,
+      inUse: totalInUse,
+      total: totalStock,
+      overlappingBookings: overlappingBookings,
+      dateRange: {
+        start: startDate,
+        end: endDate
+      },
+      itemType: itemType
+    };
+    
+    // Cache result
+    availabilityCache.set(cacheKey, result);
+    
+    return result;
+    
+  } catch (error) {
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error(`[Availability Calculator] ❌ CRITICAL ERROR calculating availability for ${itemType}`);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('[Availability Calculator] 💥 Error object:', error);
+    console.error('[Availability Calculator] 📝 Error message:', error.message);
+    console.error('[Availability Calculator] 🔢 Error code:', error.code);
+    console.error('[Availability Calculator] 🏷️ Error name:', error.name);
+    console.error('[Availability Calculator] 📚 Stack trace:', error.stack);
+    console.error('[Availability Calculator] 📍 Date range:', startDate, 'to', endDate);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
+    // ⚠️ FALLBACK: Return default totals with zero in-use
+    // This prevents blocking valid requests when there's a temporary error
+    const fallbackTotal = itemType === 'chairs' ? 600 : 24;
+    console.warn(`[Availability Calculator] ⚠️ Using FALLBACK values: total=${fallbackTotal}, inUse=0, available=${fallbackTotal}`);
+    console.warn('[Availability Calculator] 🔄 This fallback will be cached for 30 seconds');
+    
+    return {
+      available: fallbackTotal,
+      inUse: 0,
+      total: fallbackTotal,
+      overlappingBookings: [],
+      error: error.message,
+      isFallback: true,
+      errorDetails: {
+        message: error.message,
+        code: error.code,
+        name: error.name
+      }
+    };
+  }
+}
+
+/* =====================================================
+   END OF PHASE 1: CALENDAR-BASED AVAILABILITY CALCULATOR
+===================================================== */
+
+/* =====================================================
    FINAL FIXED: TENTS & CHAIRS REQUEST FORM SCRIPT
    Flow: Validation → Summary Modal → Firebase Submit
 ===================================================== */
@@ -6693,6 +7002,93 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
       if (document.getElementById('endDate').value < start)
         document.getElementById('endDate').value = '';
     });
+
+    // ========== PHASE 2: REAL-TIME AVAILABILITY VALIDATION ==========
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    const quantityChairsInput = document.getElementById('quantityChairs');
+    const quantityTentsInput = document.getElementById('quantityTents');
+    const chairsAvailabilityFeedback = document.getElementById('chairsAvailabilityFeedback');
+    const tentsAvailabilityFeedback = document.getElementById('tentsAvailabilityFeedback');
+
+    let validationDebounceTimer;
+    const VALIDATION_DEBOUNCE_MS = 500;
+
+    async function validateAvailability() {
+      const startDate = startDateInput.value;
+      const endDate = endDateInput.value;
+      const quantityChairs = parseInt(quantityChairsInput.value || 0);
+      const quantityTents = parseInt(quantityTentsInput.value || 0);
+
+      // Hide feedback if incomplete
+      if (!startDate || !endDate) {
+        hideAvailabilityFeedback();
+        return;
+      }
+
+      console.log('[Real-Time Validation] Checking availability...', { startDate, endDate, quantityChairs, quantityTents });
+
+      try {
+        // Check chairs availability
+        if (quantityChairs > 0) {
+          const chairsResult = await calculateAvailableStockForDateRange(startDate, endDate, 'chairs');
+          updateAvailabilityUI('chairs', chairsResult.available >= quantityChairs, chairsResult.available, quantityChairs);
+        } else {
+          if (chairsAvailabilityFeedback) chairsAvailabilityFeedback.style.display = 'none';
+        }
+
+        // Check tents availability
+        if (quantityTents > 0) {
+          const tentsResult = await calculateAvailableStockForDateRange(startDate, endDate, 'tents');
+          updateAvailabilityUI('tents', tentsResult.available >= quantityTents, tentsResult.available, quantityTents);
+        } else {
+          if (tentsAvailabilityFeedback) tentsAvailabilityFeedback.style.display = 'none';
+        }
+
+      } catch (error) {
+        console.error('[Real-Time Validation] Error:', error);
+        hideAvailabilityFeedback();
+      }
+    }
+
+    function updateAvailabilityUI(itemType, isAvailable, availableQty, requestedQty) {
+      const feedbackElement = itemType === 'chairs' ? chairsAvailabilityFeedback : tentsAvailabilityFeedback;
+      if (!feedbackElement) return;
+
+      const icon = feedbackElement.querySelector('.availability-icon');
+      const text = feedbackElement.querySelector('.availability-text');
+
+      feedbackElement.style.display = 'flex';
+
+      if (isAvailable) {
+        feedbackElement.classList.remove('unavailable');
+        feedbackElement.classList.add('available');
+        icon.textContent = '✓';
+        text.textContent = `Available: ${availableQty} ${itemType} during selected dates`;
+      } else {
+        feedbackElement.classList.remove('available');
+        feedbackElement.classList.add('unavailable');
+        icon.textContent = '✗';
+        text.textContent = `Insufficient: Only ${availableQty} ${itemType} available (requested: ${requestedQty})`;
+      }
+    }
+
+    function hideAvailabilityFeedback() {
+      if (chairsAvailabilityFeedback) chairsAvailabilityFeedback.style.display = 'none';
+      if (tentsAvailabilityFeedback) tentsAvailabilityFeedback.style.display = 'none';
+    }
+
+    function scheduleValidation() {
+      clearTimeout(validationDebounceTimer);
+      validationDebounceTimer = setTimeout(validateAvailability, VALIDATION_DEBOUNCE_MS);
+    }
+
+    // Add event listeners for real-time validation
+    if (startDateInput) startDateInput.addEventListener('change', scheduleValidation);
+    if (endDateInput) endDateInput.addEventListener('change', scheduleValidation);
+    if (quantityChairsInput) quantityChairsInput.addEventListener('input', scheduleValidation);
+    if (quantityTentsInput) quantityTentsInput.addEventListener('input', scheduleValidation);
+    // ========== END OF PHASE 2 ==========
 
     // Autofill user data when logged in
     onAuthStateChanged(auth, (user) => {
@@ -6911,9 +7307,67 @@ if (window.location.pathname.endsWith('tents-chairs-request.html') || window.loc
         return; // Stop submission
       }
 
-      console.log('✅ [Tents/Chairs Submit] No identical requests found - proceeding with submission');
+      console.log('✅ [Tents/Chairs Submit] No identical requests found - proceeding with availability check');
 
-      // ✅ NO IDENTICAL REQUESTS - Proceed with submission
+      // 🔍 PHASE 2: CALENDAR-BASED AVAILABILITY CHECK
+      console.log('🔍 [Phase 2 Submit] Checking calendar-based availability...');
+      
+      const chairsResult = await calculateAvailableStockForDateRange(
+        data.startDate,
+        data.endDate,
+        'chairs'
+      );
+      
+      const tentsResult = await calculateAvailableStockForDateRange(
+        data.startDate,
+        data.endDate,
+        'tents'
+      );
+      
+      console.log('[Phase 2 Submit] Availability results:', {
+        chairs: { available: chairsResult.available, requested: data.quantityChairs, isFallback: chairsResult.isFallback },
+        tents: { available: tentsResult.available, requested: data.quantityTents, isFallback: tentsResult.isFallback }
+      });
+      
+      // Warn if using fallback data
+      if (chairsResult.isFallback) {
+        console.warn('⚠️ [Phase 2 Submit] Using FALLBACK data for chairs due to error:', chairsResult.error);
+      }
+      if (tentsResult.isFallback) {
+        console.warn('⚠️ [Phase 2 Submit] Using FALLBACK data for tents due to error:', tentsResult.error);
+      }
+      
+      // Check chairs availability
+      if (data.quantityChairs > 0 && chairsResult.available < data.quantityChairs) {
+        console.error('❌ [Phase 2 Submit] Insufficient chairs available');
+        showAlert(
+          `⚠️ Insufficient Chairs Available<br><br>` +
+          `<strong>You requested:</strong> ${data.quantityChairs} chairs<br>` +
+          `<strong>Available during ${formatDateToWords(data.startDate)} to ${formatDateToWords(data.endDate)}:</strong> ${chairsResult.available} chairs<br><br>` +
+          `<strong>Currently in use:</strong> ${chairsResult.inUse} chairs (${chairsResult.overlappingBookings.length} overlapping booking${chairsResult.overlappingBookings.length !== 1 ? 's' : ''})<br><br>` +
+          `Please reduce the quantity or choose different dates.`,
+          false
+        );
+        return;
+      }
+      
+      // Check tents availability
+      if (data.quantityTents > 0 && tentsResult.available < data.quantityTents) {
+        console.error('❌ [Phase 2 Submit] Insufficient tents available');
+        showAlert(
+          `⚠️ Insufficient Tents Available<br><br>` +
+          `<strong>You requested:</strong> ${data.quantityTents} tents<br>` +
+          `<strong>Available during ${formatDateToWords(data.startDate)} to ${formatDateToWords(data.endDate)}:</strong> ${tentsResult.available} tents<br><br>` +
+          `<strong>Currently in use:</strong> ${tentsResult.inUse} tents (${tentsResult.overlappingBookings.length} overlapping booking${tentsResult.overlappingBookings.length !== 1 ? 's' : ''})<br><br>` +
+          `Please reduce the quantity or choose different dates.`,
+          false
+        );
+        return;
+      }
+      
+      console.log('✅ [Phase 2 Submit] All items available, proceeding with submission');
+
+      // ✅ ALL VALIDATION PASSED - Proceed with submission
       const docRef = await addDoc(collection(db, 'tentsChairsBookings'), {
         ...data,
         fullName: `${data.firstName} ${data.lastName}`, // Combined name for display
@@ -7156,6 +7610,84 @@ if (window.location.pathname.endsWith('conference-request.html') || window.locat
     inputs.forEach(input => {
       input.addEventListener('input', () => clearFieldError(input));
     });
+
+    // Real-time availability validation for conference room
+    // Reuse existing eventDateInput, get other elements
+    const startTimeInput = document.getElementById('startTime');
+    const endTimeInput = document.getElementById('endTime');
+    const availabilityFeedback = document.getElementById('conferenceAvailabilityFeedback');
+
+    let conferenceValidationDebounce;
+    
+    async function validateConferenceAvailability() {
+      if (!eventDateInput || !startTimeInput || !endTimeInput || !availabilityFeedback) return;
+      
+      const eventDate = eventDateInput.value;
+      const startTime = startTimeInput.value;
+      const endTime = endTimeInput.value;
+      
+      // Hide if incomplete
+      if (!eventDate || !startTime || !endTime) {
+        availabilityFeedback.style.display = 'none';
+        return;
+      }
+      
+      console.log('[Conference Validation] Checking availability for:', { eventDate, startTime, endTime });
+      
+      try {
+        // Query existing bookings for this date
+        const bookingsRef = collection(db, 'conferenceRoomBookings');
+        const q = query(
+          bookingsRef,
+          where('eventDate', '==', eventDate),
+          where('status', 'in', ['approved', 'in-progress'])
+        );
+        
+        const querySnapshot = await getDocs(q);
+        let hasConflict = false;
+        let conflictCount = 0;
+        
+        querySnapshot.forEach(doc => {
+          const booking = doc.data();
+          // Check time overlap
+          if (timeRangesOverlap(startTime, endTime, booking.startTime, booking.endTime)) {
+            hasConflict = true;
+            conflictCount++;
+          }
+        });
+        
+        // Update UI
+        availabilityFeedback.style.display = 'flex';
+        const icon = availabilityFeedback.querySelector('.availability-icon');
+        const text = availabilityFeedback.querySelector('.availability-text');
+        
+        if (hasConflict) {
+          availabilityFeedback.classList.remove('available');
+          availabilityFeedback.classList.add('unavailable');
+          icon.textContent = '✗';
+          text.textContent = `Time slot unavailable (${conflictCount} conflicting booking${conflictCount > 1 ? 's' : ''})`;
+        } else {
+          availabilityFeedback.classList.remove('unavailable');
+          availabilityFeedback.classList.add('available');
+          icon.textContent = '✓';
+          text.textContent = `Conference room available for selected time`;
+        }
+        
+      } catch (error) {
+        console.error('[Conference Validation] Error:', error);
+        availabilityFeedback.style.display = 'none';
+      }
+    }
+    
+    function scheduleConferenceValidation() {
+      clearTimeout(conferenceValidationDebounce);
+      conferenceValidationDebounce = setTimeout(validateConferenceAvailability, 500);
+    }
+    
+    // Add event listeners for real-time validation
+    if (eventDateInput) eventDateInput.addEventListener('change', scheduleConferenceValidation);
+    if (startTimeInput) startTimeInput.addEventListener('change', scheduleConferenceValidation);
+    if (endTimeInput) endTimeInput.addEventListener('change', scheduleConferenceValidation);
 
     // Handle form submission
     form.addEventListener('submit', handleConferenceRoomSubmit);
@@ -7715,6 +8247,81 @@ if (window.location.pathname.endsWith('conference-request.html')) {
 
 // === TENTS & CHAIRS REQUEST PAGE AUTH NAVIGATION ===
 if (window.location.pathname.endsWith('tents-chairs-request.html')) {
+  // Clear availability cache on page load to prevent stale data
+  console.log('[Page Load] 🧹 Clearing availability cache on tents-chairs-request.html page load');
+  if (typeof availabilityCache !== 'undefined') {
+    availabilityCache.invalidate();
+    console.log('[Page Load] ✅ Cache cleared successfully');
+  }
+  
+  // Auto-initialize inventory document if missing or has invalid values
+  (async function initializeInventory() {
+    try {
+      console.log('[Inventory Auto-Init] 🔍 Checking inventory document...');
+      const inventoryRef = doc(db, 'inventory', 'equipment');
+      const inventorySnap = await getDoc(inventoryRef);
+      
+      let needsUpdate = false;
+      let updateData = {};
+      
+      if (!inventorySnap.exists()) {
+        console.warn('[Inventory Auto-Init] ⚠️ Inventory document does not exist! Creating with defaults...');
+        needsUpdate = true;
+        updateData = {
+          totalTents: 24,
+          totalChairs: 600,
+          availableTents: 24,
+          availableChairs: 600,
+          tentsInUse: 0,
+          chairsInUse: 0,
+          lastUpdated: new Date()
+        };
+      } else {
+        const data = inventorySnap.data();
+        console.log('[Inventory Auto-Init] 📋 Current inventory:', data);
+        
+        // Check and fix missing/zero values
+        if (!data.totalTents || data.totalTents === 0) {
+          console.warn('[Inventory Auto-Init] ⚠️ totalTents is missing or zero, setting to 24');
+          updateData.totalTents = 24;
+          needsUpdate = true;
+        }
+        if (!data.totalChairs || data.totalChairs === 0) {
+          console.warn('[Inventory Auto-Init] ⚠️ totalChairs is missing or zero, setting to 600');
+          updateData.totalChairs = 600;
+          needsUpdate = true;
+        }
+        if (data.availableTents === undefined || data.availableTents === null) {
+          console.warn('[Inventory Auto-Init] ⚠️ availableTents is missing, setting to 24');
+          updateData.availableTents = 24;
+          needsUpdate = true;
+        }
+        if (data.availableChairs === undefined || data.availableChairs === null) {
+          console.warn('[Inventory Auto-Init] ⚠️ availableChairs is missing, setting to 600');
+          updateData.availableChairs = 600;
+          needsUpdate = true;
+        }
+      }
+      
+      if (needsUpdate) {
+        if (!inventorySnap.exists()) {
+          await setDoc(inventoryRef, updateData);
+          console.log('[Inventory Auto-Init] ✅ Inventory document created with defaults');
+        } else {
+          updateData.lastUpdated = new Date();
+          await updateDoc(inventoryRef, updateData);
+          console.log('[Inventory Auto-Init] ✅ Inventory document updated');
+        }
+        console.log('[Inventory Auto-Init] 📊 Updated values:', updateData);
+        console.log('[Inventory Auto-Init] 🎉 Inventory is now ready! Stock replenishment will work automatically.');
+      } else {
+        console.log('[Inventory Auto-Init] ✅ Inventory document is valid, stock replenishment active');
+      }
+    } catch (error) {
+      console.error('[Inventory Auto-Init] ❌ Error initializing inventory:', error);
+    }
+  })();
+  
   onAuthStateChanged(auth, (user) => {
     // Use centralized helper to update nav
     updateAuthNav(user);
@@ -12183,87 +12790,179 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
    * 3. In future: Create admin-manage-inventory.html for this
    */
   async function handleApprove(requestId) {
-    console.log(`✅ Approving request: ${requestId}`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`[Phase 3 Approval] 🎯 Starting approval process for request: ${requestId}`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     
     try {
-      // Step 1: Get the request data to show inventory changes
+      // Step 1: Get the request data
       const request = allRequests.find(r => r.id === requestId);
       if (!request) {
         showToast('Request not found', false);
         return;
       }
 
-      // Step 2: Get current inventory from Firestore
-      const inventoryRef = doc(db, 'inventory', 'equipment');
-      const inventorySnap = await getDoc(inventoryRef);
+      console.log('[Phase 3 Approval] 📋 Request details:', {
+        id: requestId,
+        user: request.fullName,
+        dates: `${request.startDate} to ${request.endDate}`,
+        chairs: request.quantityChairs,
+        tents: request.quantityTents,
+        currentStatus: request.status
+      });
+
+      // Step 2: PHASE 3 - Calendar-based availability check
+      console.log('[Phase 3 Approval] 🔍 Checking calendar-based availability...');
       
-      let currentTents = 0;
-      let currentChairs = 0;
+      const chairsResult = await calculateAvailableStockForDateRange(
+        request.startDate,
+        request.endDate,
+        'chairs'
+      );
       
-      if (inventorySnap.exists()) {
-        const inventoryData = inventorySnap.data();
-        currentTents = inventoryData.availableTents || 0;
-        currentChairs = inventoryData.availableChairs || 0;
+      const tentsResult = await calculateAvailableStockForDateRange(
+        request.startDate,
+        request.endDate,
+        'tents'
+      );
+      
+      console.log('[Phase 3 Approval] 📊 Availability results:', {
+        chairs: {
+          available: chairsResult.available,
+          inUse: chairsResult.inUse,
+          overlapping: chairsResult.overlappingBookings.length,
+          requested: request.quantityChairs
+        },
+        tents: {
+          available: tentsResult.available,
+          inUse: tentsResult.inUse,
+          overlapping: tentsResult.overlappingBookings.length,
+          requested: request.quantityTents
+        }
+      });
+
+      // Step 3: Calculate actual available (excluding current request if re-approving)
+      let availableChairs = chairsResult.available;
+      let availableTents = tentsResult.available;
+      
+      // If this request is already approved, add back its quantities
+      // (calendar calculator counts it in "inUse", but we're re-approving it)
+      if (request.status === 'approved' || request.status === 'in-progress') {
+        availableChairs += parseInt(request.quantityChairs || 0);
+        availableTents += parseInt(request.quantityTents || 0);
+        console.log('[Phase 3 Approval] ♻️ Re-approval detected, adjusted availability:', {
+          chairs: availableChairs,
+          tents: availableTents
+        });
       }
 
-      // Calculate new values (subtract requested amounts)
-      const requestedTents = parseInt(request.quantityTents) || 0;
+      // Step 4: VALIDATION - Check if sufficient stock available
       const requestedChairs = parseInt(request.quantityChairs) || 0;
-      const newTents = currentTents - requestedTents;
-      const newChairs = currentChairs - requestedChairs;
-
-      // VALIDATION: Check if approval would result in negative stock
-      if (newTents < 0 || newChairs < 0) {
-        let errorMessage = 'Cannot approve request: Insufficient inventory.\n\n';
+      const requestedTents = parseInt(request.quantityTents) || 0;
+      
+      if (requestedChairs > availableChairs || requestedTents > availableTents) {
+        console.error('[Phase 3 Approval] ❌ INSUFFICIENT STOCK - Blocking approval');
         
-        if (newTents < 0) {
-          errorMessage += `Tents: Requested ${requestedTents}, but only ${currentTents} available (shortage: ${Math.abs(newTents)})\n`;
+        const insufficientItems = [];
+        
+        if (requestedChairs > availableChairs) {
+          insufficientItems.push(
+            `<strong>Chairs:</strong> Requested ${requestedChairs}, but only ${availableChairs} available<br>` +
+            `&nbsp;&nbsp;&nbsp;&nbsp;(${chairsResult.inUse} in use by ${chairsResult.overlappingBookings.length} overlapping booking${chairsResult.overlappingBookings.length !== 1 ? 's' : ''})`
+          );
         }
         
-        if (newChairs < 0) {
-          errorMessage += `Chairs: Requested ${requestedChairs}, but only ${currentChairs} available (shortage: ${Math.abs(newChairs)})`;
+        if (requestedTents > availableTents) {
+          insufficientItems.push(
+            `<strong>Tents:</strong> Requested ${requestedTents}, but only ${availableTents} available<br>` +
+            `&nbsp;&nbsp;&nbsp;&nbsp;(${tentsResult.inUse} in use by ${tentsResult.overlappingBookings.length} overlapping booking${tentsResult.overlappingBookings.length !== 1 ? 's' : ''})`
+          );
         }
         
         await showConfirmModal(
           'Insufficient Inventory',
-          errorMessage.trim(),
+          `Cannot approve this request due to insufficient stock during the requested period:<br><br>` +
+          `<strong>Date Range:</strong> ${formatDateToWords(request.startDate)} to ${formatDateToWords(request.endDate)}<br><br>` +
+          insufficientItems.join('<br><br>'),
           null,
           true // isAlert mode - only shows OK button
         );
         
-        console.warn('⚠️ Approval blocked: Insufficient inventory', {
-          requestedTents,
-          currentTents,
-          requestedChairs,
-          currentChairs
-        });
-        
+        console.log('[Phase 3 Approval] 🚫 Approval blocked');
+        console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
         return;
       }
+      
+      console.log('[Phase 3 Approval] ✅ Sufficient stock available, proceeding to confirmation...');
 
-      // Show confirmation modal with inventory changes
+      // Step 5: Show enhanced confirmation modal with availability breakdown
+      const remainingChairs = availableChairs - requestedChairs;
+      const remainingTents = availableTents - requestedTents;
+      
       const confirmed = await showConfirmModal(
-        'Approve Request',
-        'Are you sure you want to approve this request? The inventory will be updated.',
-        {
-          tents: requestedTents > 0 ? { old: currentTents, new: newTents } : null,
-          chairs: requestedChairs > 0 ? { old: currentChairs, new: newChairs } : null
-        }
+        'Approve Booking Request',
+        `Are you sure you want to approve this booking?<br><br>` +
+        `<strong>User:</strong> ${request.fullName}<br>` +
+        `<strong>Dates:</strong> ${formatDateToWords(request.startDate)} to ${formatDateToWords(request.endDate)}<br>` +
+        `<strong>Chairs:</strong> ${requestedChairs}<br>` +
+        `<strong>Tents:</strong> ${requestedTents}<br><br>` +
+        `<div class="tents-inventory-preview">` +
+          `<strong>📊 Availability During This Period:</strong><br>` +
+          `&nbsp;&nbsp;Chairs: ${availableChairs} available (${chairsResult.overlappingBookings.length} other booking${chairsResult.overlappingBookings.length !== 1 ? 's' : ''})<br>` +
+          `&nbsp;&nbsp;Tents: ${availableTents} available (${tentsResult.overlappingBookings.length} other booking${tentsResult.overlappingBookings.length !== 1 ? 's' : ''})<br><br>` +
+          `<strong>📉 After Approval:</strong><br>` +
+          `&nbsp;&nbsp;Chairs: ${remainingChairs} will remain available<br>` +
+          `&nbsp;&nbsp;Tents: ${remainingTents} will remain available` +
+        `</div>`,
+        null,
+        false
       );
 
       if (!confirmed) {
+        console.log('[Phase 3 Approval] ❌ Admin cancelled approval');
+        console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
         return;
       }
 
+      // Step 6: Update request status to approved
+      console.log('[Phase 3 Approval] 💾 Updating request status to approved...');
       const requestRef = doc(db, 'tentsChairsBookings', requestId);
       await updateDoc(requestRef, {
         status: 'approved',
         approvedAt: new Date()
       });
 
-      console.log('✅ Request approved successfully');
+      console.log('[Phase 3 Approval] ✅ Request status updated successfully');
       
-      // ✅ CREATE NOTIFICATION FOR USER
+      // Step 7: Update static inventory for backwards compatibility
+      // NOTE: This is deprecated but kept for hybrid approach during transition
+      console.log('[Phase 3 Approval] 📦 Updating static inventory (backwards compatibility)...');
+      
+      try {
+        const inventoryRef = doc(db, 'inventory', 'equipment');
+        const inventorySnap = await getDoc(inventoryRef);
+        
+        if (inventorySnap.exists()) {
+          const inventoryData = inventorySnap.data();
+          const currentAvailableChairs = inventoryData.availableChairs || 0;
+          const currentAvailableTents = inventoryData.availableTents || 0;
+          
+          await updateDoc(inventoryRef, {
+            availableChairs: currentAvailableChairs - requestedChairs,
+            availableTents: currentAvailableTents - requestedTents,
+            chairsInUse: (inventoryData.chairsInUse || 0) + requestedChairs,
+            tentsInUse: (inventoryData.tentsInUse || 0) + requestedTents,
+            lastUpdated: new Date()
+          });
+          
+          console.log('[Phase 3 Approval] ✅ Static inventory updated');
+        }
+      } catch (inventoryError) {
+        console.warn('[Phase 3 Approval] ⚠️ Failed to update static inventory:', inventoryError);
+        // Don't block approval if static inventory update fails
+      }
+      
+      // Step 8: Create notification for user
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('🔔 [ADMIN → USER NOTIFICATION] Tents/Chairs APPROVAL');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -12275,7 +12974,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       console.log('🪑 Chairs:', request.quantityChairs || 0);
       console.log('⛺ Tents:', request.quantityTents || 0);
       console.log('📍 Delivery Mode:', request.modeOfReceiving || 'N/A');
-      console.log('🔄 Status Change: pending → approved');
+      console.log('🔄 Status Change:', request.status, '→ approved');
       console.log('⏰ Timestamp:', new Date().toISOString());
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       
@@ -12285,7 +12984,7 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
           requestId,                    // Request ID
           'tents-chairs',              // Request type
           request.userId,              // User ID to notify
-          'pending',                   // Old status
+          request.status,              // Old status
           'approved',                  // New status
           request                      // Full request data
         );
@@ -12299,12 +12998,16 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       }
       
       showToast('Request approved successfully', true);
+      console.log('[Phase 3 Approval] 🎉 Approval process completed successfully');
+      console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
       
-      // Reload data
+      // Step 9: Reload data to reflect changes
       await loadAllRequests();
       await updateInventoryInUse();
+      
     } catch (error) {
-      console.error('❌ Error approving request:', error);
+      console.error('[Phase 3 Approval] ❌ ERROR during approval process:', error);
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
       showToast('Failed to approve request', false);
     }
   }

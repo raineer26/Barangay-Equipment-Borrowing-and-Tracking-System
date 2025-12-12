@@ -527,6 +527,46 @@ nav a {
   min-height: 20px;
 }
 
+/* ================================
+   PHASE 2: AVAILABILITY FEEDBACK
+   Real-time validation feedback
+================================ */
+.availability-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: 'Poppins', sans-serif;
+  transition: all 0.3s ease;
+}
+
+.availability-feedback.available {
+  background-color: #e8f5e9;
+  border: 1px solid #4caf50;
+  color: #2e7d32;
+}
+
+.availability-feedback.unavailable {
+  background-color: #ffebee;
+  border: 1px solid #f44336;
+  color: #c62828;
+}
+
+.availability-icon {
+  font-size: 18px;
+  font-weight: bold;
+  min-width: 20px;
+  text-align: center;
+}
+
+.availability-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
 /* Buttons */
 .signup-buttons {
   margin-top: 50px;
