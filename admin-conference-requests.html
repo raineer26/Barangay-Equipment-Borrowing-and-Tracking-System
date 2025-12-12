@@ -241,9 +241,7 @@
             <p><strong>Event Date:</strong> <span id="confirmEventDateConference"></span></p>
             <p><strong>Start Time:</strong> <span id="confirmStartTimeConference"></span></p>
             <p><strong>End Time:</strong> <span id="confirmEndTimeConference"></span></p>
-            <p><strong>Expected Attendees:</strong> <span id="confirmAttendeesConference"></span></p>
             <p><strong>Purpose:</strong> <span id="confirmPurposeConference"></span></p>
-            <p><strong>Department:</strong> <span id="confirmDepartmentConference"></span></p>
             <p><strong>Contact Person:</strong> <span id="confirmContactPersonConference"></span></p>
             <p><strong>Contact Number:</strong> <span id="confirmContactNumberConference"></span></p>
           </div>
@@ -289,25 +287,11 @@
                 </div>
               </div>
 
-              <!-- Expected Attendees -->
-              <div class="internal-form-group">
-                <label for="internalExpectedAttendeesConference">Expected Attendees <span class="required">*</span></label>
-                <input type="number" id="internalExpectedAttendeesConference" name="expectedAttendees" min="1" max="200" required placeholder="e.g., 50" />
-                <span class="internal-error-message" id="error-internal-expected-attendees-conference"></span>
-              </div>
-
               <!-- Purpose -->
               <div class="internal-form-group full-width">
                 <label for="internalPurposeConference">Purpose <span class="required">*</span></label>
                 <textarea id="internalPurposeConference" name="purpose" rows="3" required placeholder="Enter the purpose of the reservation"></textarea>
                 <span class="internal-error-message" id="error-internal-purpose-conference"></span>
-              </div>
-
-              <!-- Department/Office (Optional) -->
-              <div class="internal-form-group">
-                <label for="internalDepartmentConference">Department/Office</label>
-                <input type="text" id="internalDepartmentConference" name="department" placeholder="e.g., Barangay Health Office" />
-                <span class="internal-error-message" id="error-internal-department-conference"></span>
               </div>
 
               <!-- Contact Person -->
@@ -322,6 +306,14 @@
                 <label for="internalContactNumberConference">Contact Number <span class="required">*</span></label>
                 <input type="tel" id="internalContactNumberConference" name="contactNumber" required placeholder="09XXXXXXXXX" />
                 <span class="internal-error-message" id="error-internal-contact-number-conference"></span>
+              </div>
+
+              <!-- Real-time Availability Feedback -->
+              <div class="internal-form-group full-width">
+                <div id="internalConferenceAvailabilityFeedback" class="availability-feedback" style="display: none;">
+                  <span class="availability-icon"></span>
+                  <span class="availability-text"></span>
+                </div>
               </div>
             </div>
 

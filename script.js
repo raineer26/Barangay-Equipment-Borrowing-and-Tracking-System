@@ -9470,12 +9470,62 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
 
   // Open modal
   if (addInternalBookingBtn) {
-    addInternalBookingBtn.addEventListener('click', () => {
+    addInternalBookingBtn.addEventListener('click', async () => {
       internalBookingModal.classList.add('active');
+      
       // Set minimum date to today
       const today = new Date().toISOString().split('T')[0];
-      document.getElementById('internalStartDate').setAttribute('min', today);
-      document.getElementById('internalEndDate').setAttribute('min', today);
+      const startDateField = document.getElementById('internalStartDate');
+      const endDateField = document.getElementById('internalEndDate');
+      const tentsField = document.getElementById('internalTents');
+      const chairsField = document.getElementById('internalChairs');
+      
+      startDateField.setAttribute('min', today);
+      endDateField.setAttribute('min', today);
+      
+      // RULE 1: Disable End Date until Start Date is selected
+      endDateField.disabled = true;
+      endDateField.style.cursor = 'not-allowed';
+      endDateField.style.opacity = '0.6';
+      
+      // RULE 2: Disable quantity fields until both dates are selected
+      tentsField.disabled = true;
+      tentsField.style.cursor = 'not-allowed';
+      tentsField.style.opacity = '0.6';
+      chairsField.disabled = true;
+      chairsField.style.cursor = 'not-allowed';
+      chairsField.style.opacity = '0.6';
+      
+      console.log('📋 [Dashboard Modal] Opened - End date and quantities disabled');
+      
+      // Auto-fill admin details
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            
+            // Auto-fill Contact Person (fullName or firstName + lastName)
+            const fullName = userData.fullName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+            document.getElementById('internalContactPerson').value = fullName;
+            
+            // Auto-fill Contact Number
+            if (userData.contactNumber) {
+              document.getElementById('internalContactNumber').value = userData.contactNumber;
+            }
+            
+            console.log('✅ [Internal Tents Booking] Auto-filled admin details:', { 
+              fullName, 
+              contactNumber: userData.contactNumber 
+            });
+          }
+        } catch (error) {
+          console.error('❌ [Internal Tents Booking] Error fetching admin details:', error);
+        }
+      }
     });
   }
 
@@ -9568,21 +9618,160 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
     return phoneRegex.test(number);
   }
 
-  // Real-time validation for end date
+  // Real-time validation for start date
   document.getElementById('internalStartDate')?.addEventListener('change', function() {
     const endDateInput = document.getElementById('internalEndDate');
+    const tentsField = document.getElementById('internalTents');
+    const chairsField = document.getElementById('internalChairs');
+    const start = this.value;
+    clearInternalError('internal-start-date');
+    
+    console.log('📅 [Dashboard Modal] Start date changed to:', start);
+    
+    if (!start) {
+      // If start date cleared, disable end date and quantities
+      endDateInput.disabled = true;
+      endDateInput.style.cursor = 'not-allowed';
+      endDateInput.style.opacity = '0.6';
+      endDateInput.value = '';
+      
+      tentsField.disabled = true;
+      tentsField.style.cursor = 'not-allowed';
+      tentsField.style.opacity = '0.6';
+      chairsField.disabled = true;
+      chairsField.style.cursor = 'not-allowed';
+      chairsField.style.opacity = '0.6';
+      return;
+    }
+    
     if (endDateInput) {
-      endDateInput.setAttribute('min', this.value);
-      // Clear end date if it's before start date
-      if (endDateInput.value && endDateInput.value < this.value) {
+      // Validate start date is not in the past
+      const selectedStart = new Date(start + 'T00:00:00');
+      const today = new Date().toISOString().split('T')[0];
+      const todayDate = new Date(today + 'T00:00:00');
+      
+      if (selectedStart < todayDate) {
+        setInternalError('internal-start-date', 'Start date cannot be in the past');
+        endDateInput.disabled = true;
         endDateInput.value = '';
+        return;
+      }
+      
+      // ENABLE End Date and set min to ONE DAY AFTER start date
+      endDateInput.disabled = false;
+      endDateInput.style.cursor = 'pointer';
+      endDateInput.style.opacity = '1';
+      
+      const startDateObj = new Date(start + 'T00:00:00');
+      const minEndDate = new Date(startDateObj);
+      minEndDate.setDate(minEndDate.getDate() + 1);
+      const minEndDateStr = minEndDate.toISOString().split('T')[0];
+      endDateInput.setAttribute('min', minEndDateStr);
+      
+      console.log('✅ [Dashboard Modal] End date enabled, min set to:', minEndDateStr);
+      
+      // Clear end date if it's before or equal to start date (same-day prevention)
+      if (endDateInput.value && endDateInput.value <= this.value) {
+        endDateInput.value = '';
+        setInternalError('internal-end-date', 'End date must be at least one day after start date');
+        
+        // Keep quantities disabled
+        tentsField.disabled = true;
+        tentsField.style.cursor = 'not-allowed';
+        tentsField.style.opacity = '0.6';
+        chairsField.disabled = true;
+        chairsField.style.cursor = 'not-allowed';
+        chairsField.style.opacity = '0.6';
+      } else if (endDateInput.value) {
+        // Valid date range exists, check duration and enable quantities if valid
+        const selectedEnd = new Date(endDateInput.value + 'T00:00:00');
+        const timeDiff = selectedEnd.getTime() - selectedStart.getTime();
+        const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+        
+        if (daysDiff <= 14) {
+          tentsField.disabled = false;
+          tentsField.style.cursor = 'pointer';
+          tentsField.style.opacity = '1';
+          chairsField.disabled = false;
+          chairsField.style.cursor = 'pointer';
+          chairsField.style.opacity = '1';
+          console.log('✅ [Dashboard Modal] Quantities enabled - valid duration:', daysDiff, 'days');
+        }
       }
     }
-    clearInternalError('internal-start-date');
   });
 
+  // Real-time validation for end date
   document.getElementById('internalEndDate')?.addEventListener('change', function() {
+    const startDate = document.getElementById('internalStartDate').value;
+    const endDate = this.value;
+    const tentsField = document.getElementById('internalTents');
+    const chairsField = document.getElementById('internalChairs');
     clearInternalError('internal-end-date');
+    
+    console.log('📅 [Dashboard Modal] End date changed to:', endDate);
+    
+    if (!endDate) {
+      // If end date cleared, disable quantities
+      tentsField.disabled = true;
+      tentsField.style.cursor = 'not-allowed';
+      tentsField.style.opacity = '0.6';
+      chairsField.disabled = true;
+      chairsField.style.cursor = 'not-allowed';
+      chairsField.style.opacity = '0.6';
+      return;
+    }
+    
+    if (!endDate || !startDate) return;
+    
+    // Validate end date is not before or equal to start date (same-day prevention)
+    const selectedStart = new Date(startDate + 'T00:00:00');
+    const selectedEnd = new Date(endDate + 'T00:00:00');
+    
+    if (selectedEnd <= selectedStart) {
+      console.log('❌ [Dashboard Modal] Same-day booking prevented');
+      setInternalError('internal-end-date', 'End date must be at least one day after start date');
+      this.value = ''; // Clear invalid selection
+      
+      // Keep quantities disabled
+      tentsField.disabled = true;
+      tentsField.style.cursor = 'not-allowed';
+      tentsField.style.opacity = '0.6';
+      chairsField.disabled = true;
+      chairsField.style.cursor = 'not-allowed';
+      chairsField.style.opacity = '0.6';
+      return;
+    }
+    
+    // Check 14-day maximum duration in real-time
+    const timeDiff = selectedEnd.getTime() - selectedStart.getTime();
+    const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+    const MAX_DURATION_DAYS = 14;
+    
+    console.log('📊 [Dashboard Modal] Duration:', daysDiff, 'days');
+    
+    if (daysDiff > MAX_DURATION_DAYS) {
+      console.log('❌ [Dashboard Modal] Maximum duration exceeded:', daysDiff, 'days');
+      setInternalError('internal-end-date', `Maximum booking period is ${MAX_DURATION_DAYS} days (2 weeks). Current duration: ${daysDiff} day${daysDiff !== 1 ? 's' : ''}`);
+      
+      // Keep quantities disabled for invalid duration
+      tentsField.disabled = true;
+      tentsField.style.cursor = 'not-allowed';
+      tentsField.style.opacity = '0.6';
+      chairsField.disabled = true;
+      chairsField.style.cursor = 'not-allowed';
+      chairsField.style.opacity = '0.6';
+    } else {
+      console.log('✅ [Dashboard Modal] Duration valid - enabling quantities');
+      
+      // Valid date range - ENABLE quantity fields
+      tentsField.disabled = false;
+      tentsField.style.cursor = 'pointer';
+      tentsField.style.opacity = '1';
+      chairsField.disabled = false;
+      chairsField.style.cursor = 'pointer';
+      chairsField.style.opacity = '1';
+    }
   });
 
   // Real-time validation for inputs
@@ -9592,6 +9781,95 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
       clearInternalError(errorId);
     });
   });
+
+  // ========== REAL-TIME AVAILABILITY VALIDATION ==========
+  const startDateInputDash = document.getElementById('internalStartDate');
+  const endDateInputDash = document.getElementById('internalEndDate');
+  const quantityChairsInputDash = document.getElementById('internalChairs');
+  const quantityTentsInputDash = document.getElementById('internalTents');
+  const chairsAvailabilityFeedback = document.getElementById('chairsAvailabilityFeedback');
+  const tentsAvailabilityFeedback = document.getElementById('tentsAvailabilityFeedback');
+
+  let validationDebounceTimer;
+  const VALIDATION_DEBOUNCE_MS = 500;
+
+  async function validateAvailabilityDashboard() {
+    const startDate = startDateInputDash?.value;
+    const endDate = endDateInputDash?.value;
+    const quantityChairs = parseInt(quantityChairsInputDash?.value || 0);
+    const quantityTents = parseInt(quantityTentsInputDash?.value || 0);
+
+    // Hide feedback if incomplete or quantities disabled
+    if (!startDate || !endDate || quantityChairsInputDash?.disabled || quantityTentsInputDash?.disabled) {
+      hideAvailabilityFeedbackDashboard();
+      return;
+    }
+
+    console.log('🔍 [Dashboard Modal Availability] Checking...', { startDate, endDate, quantityChairs, quantityTents });
+
+    try {
+      // Check chairs availability
+      if (quantityChairs > 0) {
+        const chairsResult = await calculateAvailableStockForDateRange(startDate, endDate, 'chairs');
+        updateAvailabilityUIDashboard('chairs', chairsResult.available >= quantityChairs, chairsResult.available, quantityChairs);
+      } else {
+        if (chairsAvailabilityFeedback) chairsAvailabilityFeedback.style.display = 'none';
+      }
+
+      // Check tents availability
+      if (quantityTents > 0) {
+        const tentsResult = await calculateAvailableStockForDateRange(startDate, endDate, 'tents');
+        updateAvailabilityUIDashboard('tents', tentsResult.available >= quantityTents, tentsResult.available, quantityTents);
+      } else {
+        if (tentsAvailabilityFeedback) tentsAvailabilityFeedback.style.display = 'none';
+      }
+
+    } catch (error) {
+      console.error('❌ [Dashboard Modal Availability] Error:', error);
+      hideAvailabilityFeedbackDashboard();
+    }
+  }
+
+  function updateAvailabilityUIDashboard(itemType, isAvailable, availableQty, requestedQty) {
+    const feedbackElement = itemType === 'chairs' ? chairsAvailabilityFeedback : tentsAvailabilityFeedback;
+    if (!feedbackElement) return;
+
+    const icon = feedbackElement.querySelector('.availability-icon');
+    const text = feedbackElement.querySelector('.availability-text');
+
+    feedbackElement.style.display = 'flex';
+
+    if (isAvailable) {
+      feedbackElement.classList.remove('unavailable');
+      feedbackElement.classList.add('available');
+      icon.textContent = '✓';
+      text.textContent = `Available: ${availableQty} ${itemType} during selected dates`;
+      console.log(`✅ [Dashboard Modal] ${itemType} available:`, availableQty, '>=', requestedQty);
+    } else {
+      feedbackElement.classList.remove('available');
+      feedbackElement.classList.add('unavailable');
+      icon.textContent = '✗';
+      text.textContent = `Insufficient: Only ${availableQty} ${itemType} available (requested: ${requestedQty})`;
+      console.log(`❌ [Dashboard Modal] ${itemType} insufficient:`, availableQty, '<', requestedQty);
+    }
+  }
+
+  function hideAvailabilityFeedbackDashboard() {
+    if (chairsAvailabilityFeedback) chairsAvailabilityFeedback.style.display = 'none';
+    if (tentsAvailabilityFeedback) tentsAvailabilityFeedback.style.display = 'none';
+  }
+
+  function scheduleValidationDashboard() {
+    clearTimeout(validationDebounceTimer);
+    validationDebounceTimer = setTimeout(validateAvailabilityDashboard, VALIDATION_DEBOUNCE_MS);
+  }
+
+  // Add event listeners for real-time availability validation
+  if (startDateInputDash) startDateInputDash.addEventListener('change', scheduleValidationDashboard);
+  if (endDateInputDash) endDateInputDash.addEventListener('change', scheduleValidationDashboard);
+  if (quantityChairsInputDash) quantityChairsInputDash.addEventListener('input', scheduleValidationDashboard);
+  if (quantityTentsInputDash) quantityTentsInputDash.addEventListener('input', scheduleValidationDashboard);
+  // ========== END OF AVAILABILITY VALIDATION ==========
 
   // Form submission
   if (internalBookingForm) {
@@ -9646,26 +9924,18 @@ if (window.location.pathname.endsWith('admin-manage-inventory.html') || window.l
         hasError = true;
       }
       
-      // Check inventory availability
-      try {
-        const inventoryDoc = await getDoc(doc(db, 'inventory', 'equipment'));
-        if (inventoryDoc.exists()) {
-          const inventory = inventoryDoc.data();
-          const availableTents = inventory.availableTents || 0;
-          const availableChairs = inventory.availableChairs || 0;
-          
-          if (tents > availableTents) {
-            setInternalError('internal-tents', `Only ${availableTents} tents available`);
-            hasError = true;
-          }
-          
-          if (chairs > availableChairs) {
-            setInternalError('internal-chairs', `Only ${availableChairs} chairs available`);
-            hasError = true;
-          }
+      // Check maximum duration (14 days)
+      if (startDate && endDate && endDate >= startDate) {
+        const startDateObj = new Date(startDate + 'T00:00:00');
+        const endDateObj = new Date(endDate + 'T00:00:00');
+        const timeDiff = endDateObj.getTime() - startDateObj.getTime();
+        const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+        const MAX_DURATION_DAYS = 14;
+        
+        if (daysDiff > MAX_DURATION_DAYS) {
+          setInternalError('internal-end-date', `Maximum booking period is ${MAX_DURATION_DAYS} days (2 weeks). Current duration: ${daysDiff} day${daysDiff !== 1 ? 's' : ''}`);
+          hasError = true;
         }
-      } catch (error) {
-        console.error('Error checking inventory:', error);
       }
       
       // Validate purpose
@@ -13546,19 +13816,50 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         return;
       }
       
-      // Show confirmation
-      const confirmed = await showConfirmModal(
+      // Show confirmation with reason prompt
+      const detailsMessage = 
+        `Are you sure you want to cancel this internal tents & chairs booking?\n\n` +
+        `Event: ${request.startDate} to ${request.endDate}\n` +
+        `Tents: ${request.quantityTents}\n` +
+        `Chairs: ${request.quantityChairs}\n\n` +
+        `⚠️ This will return the equipment to available inventory.\n\n` +
+        `Please provide a reason for cancellation (required):`;
+
+      const reason = await showConfirmModal(
         'Cancel Internal Booking',
-        `Are you sure you want to cancel this internal booking?<br><br>` +
-        `<strong>Event:</strong> ${request.startDate} to ${request.endDate}<br>` +
-        `<strong>Tents:</strong> ${request.quantityTents}<br>` +
-        `<strong>Chairs:</strong> ${request.quantityChairs}<br><br>` +
-        `⚠️ This will return the equipment to available inventory.`
+        detailsMessage,
+        {
+          requireInput: true,
+          inputPlaceholder: 'Enter cancellation reason (required)...'
+        }
       );
       
-      if (!confirmed) {
-        console.log('❌ [Cancel Internal Booking v2] Cancelled by user');
+      if (reason === null || reason === false) {
+        console.log('❌ [Cancel Internal Booking v2] Cancelled by admin');
         return;
+      }
+      
+      if (!reason || reason.trim() === '') {
+        await showConfirmModal('Error', 'Cancellation reason is required.', null, true);
+        return;
+      }
+      
+      console.log('📝 [Cancel Internal Booking v2] Cancellation reason:', reason.trim());
+      
+      // Get admin info
+      let adminName = 'Admin';
+      try {
+        const adminUser = auth.currentUser;
+        if (adminUser) {
+          const adminDoc = await getDoc(doc(db, 'users', adminUser.uid));
+          if (adminDoc.exists()) {
+            const adminData = adminDoc.data();
+            adminName = adminData.fullName || adminData.fullname || 'Admin';
+            console.log('👨‍💼 [Cancel Internal Booking v2] Admin name:', adminName);
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ [Cancel Internal Booking v2] Could not fetch admin name:', err);
       }
       
       // Get inventory document
@@ -13595,10 +13896,13 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         status: 'cancelled',
         cancelledAt: new Date(),
         cancelledBy: 'admin',
-        cancellationReason: 'Internal booking cancelled by admin'
+        cancellationReason: reason.trim(),
+        cancelledByAdmin: adminName
       });
       
       console.log('✅ [Cancel Internal Booking v2] Request status updated to cancelled');
+      console.log('📝 [Cancel Internal Booking v2] Stored reason:', reason.trim());
+      console.log('👨‍💼 [Cancel Internal Booking v2] Stored admin name:', adminName);
       
       // Update inventory
       await updateDoc(inventoryRef, {
@@ -14551,26 +14855,37 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
       const wb = XLSX.utils.book_new();
       console.log('✅ [TENTS EXPORT] Workbook created');
       
-      // Sheet 1: All Requests (Active)
-      const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
-      console.log('📋 [TENTS EXPORT] Active requests:', allRequestsData.length);
+      // Save current tab
+      const originalTab = currentTab;
+      console.log('📋 [TENTS EXPORT] Original tab:', originalTab);
+      
+      // Sheet 1: All Requests (Active) - with filters and sorting applied
+      currentTab = 'all';
+      const allRequestsData = getFilteredRequests();
+      console.log('📋 [TENTS EXPORT] Active requests:', allRequestsData.length, '(filtered & sorted)');
       const allRequestsSheet = createExcelSheet(allRequestsData, 'all');
       XLSX.utils.book_append_sheet(wb, allRequestsSheet, 'All Requests');
       console.log('✅ [TENTS EXPORT] All Requests sheet added');
       
-      // Sheet 2: History
-      const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
-      console.log('📋 [TENTS EXPORT] History requests:', historyData.length);
+      // Sheet 2: History - with filters and sorting applied
+      currentTab = 'history';
+      const historyData = getFilteredRequests();
+      console.log('📋 [TENTS EXPORT] History requests:', historyData.length, '(filtered & sorted)');
       const historySheet = createExcelSheet(historyData, 'history');
       XLSX.utils.book_append_sheet(wb, historySheet, 'History');
       console.log('✅ [TENTS EXPORT] History sheet added');
       
-      // Sheet 3: Archives
-      const archivesData = allRequests.filter(r => r.archived === true);
-      console.log('📋 [TENTS EXPORT] Archived requests:', archivesData.length);
+      // Sheet 3: Archives - with filters and sorting applied
+      currentTab = 'archives';
+      const archivesData = getFilteredRequests();
+      console.log('📋 [TENTS EXPORT] Archived requests:', archivesData.length, '(filtered & sorted)');
       const archivesSheet = createExcelSheet(archivesData, 'archives');
       XLSX.utils.book_append_sheet(wb, archivesSheet, 'Archives');
       console.log('✅ [TENTS EXPORT] Archives sheet added');
+      
+      // Restore original tab
+      currentTab = originalTab;
+      console.log('✅ [TENTS EXPORT] Tab restored to:', originalTab);
       
       // Generate filename with timestamp
       const filename = `tents-chairs-requests-${new Date().toISOString().split('T')[0]}.xlsx`;
@@ -14729,25 +15044,36 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     try {
       let csv = '';
       
-      // Section 1: All Requests (Active)
+      // Save current tab
+      const originalTab = currentTab;
+      console.log('💾 [TENTS CSV] Original tab:', originalTab);
+      
+      // Section 1: All Requests (Active) - with filters and sorting applied
       csv += '=== ALL REQUESTS (ACTIVE) ===\n';
-      const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
-      console.log('💾 [TENTS CSV] Active requests:', allRequestsData.length);
+      currentTab = 'all';
+      const allRequestsData = getFilteredRequests();
+      console.log('💾 [TENTS CSV] Active requests:', allRequestsData.length, '(filtered & sorted)');
       csv += buildCSVSection(allRequestsData, 'all');
       csv += '\n\n';
       
-      // Section 2: History
+      // Section 2: History - with filters and sorting applied
       csv += '=== HISTORY ===\n';
-      const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
-      console.log('💾 [TENTS CSV] History requests:', historyData.length);
+      currentTab = 'history';
+      const historyData = getFilteredRequests();
+      console.log('💾 [TENTS CSV] History requests:', historyData.length, '(filtered & sorted)');
       csv += buildCSVSection(historyData, 'history');
       csv += '\n\n';
       
-      // Section 3: Archives
+      // Section 3: Archives - with filters and sorting applied
       csv += '=== ARCHIVES ===\n';
-      const archivesData = allRequests.filter(r => r.archived === true);
-      console.log('💾 [TENTS CSV] Archived requests:', archivesData.length);
+      currentTab = 'archives';
+      const archivesData = getFilteredRequests();
+      console.log('💾 [TENTS CSV] Archived requests:', archivesData.length, '(filtered & sorted)');
       csv += buildCSVSection(archivesData, 'archives');
+      
+      // Restore original tab
+      currentTab = originalTab;
+      console.log('💾 [TENTS CSV] Tab restored to:', originalTab);
       
       console.log('💾 [TENTS CSV] CSV content generated, length:', csv.length);
       downloadCSV(csv, `tents-chairs-all-requests-${new Date().toISOString().split('T')[0]}.csv`);
@@ -14766,13 +15092,18 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
   function exportToCSVHistory() {
     console.log('💾 Exporting history to CSV...');
     
-    const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
+    // Save current tab and switch to history
+    const originalTab = currentTab;
+    currentTab = 'history';
+    const historyData = getFilteredRequests();
+    currentTab = originalTab;
     
     if (historyData.length === 0) {
       showToast('No history data to export', false);
       return;
     }
     
+    console.log('📄 [CONFERENCE] Exporting', historyData.length, 'history items (filtered & sorted)');
     const csv = buildCSVSection(historyData, 'history');
     downloadCSV(csv, `tents-chairs-history-${new Date().toISOString().split('T')[0]}.csv`);
     showToast('CSV exported successfully (History)', true);
@@ -14786,8 +15117,13 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     console.log('💾 [TENTS CSV] Total requests:', allRequests.length);
     
     try {
-      const archivesData = allRequests.filter(r => r.archived === true);
-      console.log('💾 [TENTS CSV] Archived requests found:', archivesData.length);
+      // Save current tab and switch to archives
+      const originalTab = currentTab;
+      currentTab = 'archives';
+      const archivesData = getFilteredRequests();
+      currentTab = originalTab;
+      
+      console.log('💾 [TENTS CSV] Archived requests found:', archivesData.length, '(filtered & sorted)');
       
       if (archivesData.length === 0) {
         console.warn('⚠️ [TENTS CSV] No archives data to export');
@@ -15159,11 +15495,60 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
     if (!modal || !openBtn || !form) return;
 
     // Open modal
-    openBtn.addEventListener('click', () => {
+    openBtn.addEventListener('click', async () => {
       modal.classList.add('active');
       const today = new Date().toISOString().split('T')[0];
-      document.getElementById('internalStartDateTents').setAttribute('min', today);
-      document.getElementById('internalEndDateTents').setAttribute('min', today);
+      const startDateField = document.getElementById('internalStartDateTents');
+      const endDateField = document.getElementById('internalEndDateTents');
+      const tentsField = document.getElementById('internalTentsTents');
+      const chairsField = document.getElementById('internalChairsTents');
+      
+      startDateField.setAttribute('min', today);
+      endDateField.setAttribute('min', today);
+      
+      // RULE 1: Disable End Date until Start Date is selected
+      endDateField.disabled = true;
+      endDateField.style.cursor = 'not-allowed';
+      endDateField.style.opacity = '0.6';
+      
+      // RULE 2: Disable quantity fields until both dates are selected
+      tentsField.disabled = true;
+      tentsField.style.cursor = 'not-allowed';
+      tentsField.style.opacity = '0.6';
+      chairsField.disabled = true;
+      chairsField.style.cursor = 'not-allowed';
+      chairsField.style.opacity = '0.6';
+      
+      console.log('📋 [Tents Admin Modal] Opened - End date and quantities disabled');
+      
+      // Auto-fill admin details
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            
+            // Auto-fill Contact Person (fullName or firstName + lastName)
+            const fullName = userData.fullName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+            document.getElementById('internalContactPersonTents').value = fullName;
+            
+            // Auto-fill Contact Number
+            if (userData.contactNumber) {
+              document.getElementById('internalContactNumberTents').value = userData.contactNumber;
+            }
+            
+            console.log('✅ [Internal Tents Booking - Admin Page] Auto-filled admin details:', { 
+              fullName, 
+              contactNumber: userData.contactNumber 
+            });
+          }
+        } catch (error) {
+          console.error('❌ [Internal Tents Booking - Admin Page] Error fetching admin details:', error);
+        }
+      }
     });
 
     // Close modal function
@@ -15194,15 +15579,154 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
 
     if (startDateInput && endDateInput) {
       startDateInput.addEventListener('change', function() {
-        endDateInput.setAttribute('min', this.value);
-        if (endDateInput.value && endDateInput.value < this.value) {
-          endDateInput.value = '';
-        }
+        const start = this.value;
+        const tentsField = document.getElementById('internalTentsTents');
+        const chairsField = document.getElementById('internalChairsTents');
         clearInternalErrorTents('internal-start-date-tents');
+        
+        console.log('📅 [Tents Admin Modal] Start date changed to:', start);
+        
+        if (!start) {
+          // If start date cleared, disable end date and quantities
+          endDateInput.disabled = true;
+          endDateInput.style.cursor = 'not-allowed';
+          endDateInput.style.opacity = '0.6';
+          endDateInput.value = '';
+          
+          tentsField.disabled = true;
+          tentsField.style.cursor = 'not-allowed';
+          tentsField.style.opacity = '0.6';
+          chairsField.disabled = true;
+          chairsField.style.cursor = 'not-allowed';
+          chairsField.style.opacity = '0.6';
+          return;
+        }
+        
+        // Validate start date is not in the past
+        const selectedStart = new Date(start + 'T00:00:00');
+        const today = new Date().toISOString().split('T')[0];
+        const todayDate = new Date(today + 'T00:00:00');
+        
+        if (selectedStart < todayDate) {
+          setInternalErrorTents('internal-start-date-tents', 'Start date cannot be in the past');
+          endDateInput.disabled = true;
+          endDateInput.value = '';
+          return;
+        }
+        
+        // ENABLE End Date and set min to ONE DAY AFTER start date
+        endDateInput.disabled = false;
+        endDateInput.style.cursor = 'pointer';
+        endDateInput.style.opacity = '1';
+        
+        const startDateObj = new Date(start + 'T00:00:00');
+        const minEndDate = new Date(startDateObj);
+        minEndDate.setDate(minEndDate.getDate() + 1);
+        const minEndDateStr = minEndDate.toISOString().split('T')[0];
+        endDateInput.setAttribute('min', minEndDateStr);
+        
+        console.log('✅ [Tents Admin Modal] End date enabled, min set to:', minEndDateStr);
+        
+        // Clear end date if it's before or equal to start date (same-day prevention)
+        if (endDateInput.value && endDateInput.value <= this.value) {
+          endDateInput.value = '';
+          setInternalErrorTents('internal-end-date-tents', 'End date must be at least one day after start date');
+          
+          // Keep quantities disabled
+          tentsField.disabled = true;
+          tentsField.style.cursor = 'not-allowed';
+          tentsField.style.opacity = '0.6';
+          chairsField.disabled = true;
+          chairsField.style.cursor = 'not-allowed';
+          chairsField.style.opacity = '0.6';
+        } else if (endDateInput.value) {
+          // Valid date range exists, check duration and enable quantities if valid
+          const selectedEnd = new Date(endDateInput.value + 'T00:00:00');
+          const timeDiff = selectedEnd.getTime() - selectedStart.getTime();
+          const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+          
+          if (daysDiff <= 14) {
+            tentsField.disabled = false;
+            tentsField.style.cursor = 'pointer';
+            tentsField.style.opacity = '1';
+            chairsField.disabled = false;
+            chairsField.style.cursor = 'pointer';
+            chairsField.style.opacity = '1';
+            console.log('✅ [Tents Admin Modal] Quantities enabled - valid duration:', daysDiff, 'days');
+          }
+        }
       });
 
       endDateInput.addEventListener('change', function() {
+        const startDate = startDateInput.value;
+        const endDate = this.value;
+        const tentsField = document.getElementById('internalTentsTents');
+        const chairsField = document.getElementById('internalChairsTents');
         clearInternalErrorTents('internal-end-date-tents');
+        
+        console.log('📅 [Tents Admin Modal] End date changed to:', endDate);
+        
+        if (!endDate) {
+          // If end date cleared, disable quantities
+          tentsField.disabled = true;
+          tentsField.style.cursor = 'not-allowed';
+          tentsField.style.opacity = '0.6';
+          chairsField.disabled = true;
+          chairsField.style.cursor = 'not-allowed';
+          chairsField.style.opacity = '0.6';
+          return;
+        }
+        
+        if (!endDate || !startDate) return;
+        
+        // Validate end date is not before or equal to start date (same-day prevention)
+        const selectedStart = new Date(startDate + 'T00:00:00');
+        const selectedEnd = new Date(endDate + 'T00:00:00');
+        
+        if (selectedEnd <= selectedStart) {
+          console.log('❌ [Tents Admin Modal] Same-day booking prevented');
+          setInternalErrorTents('internal-end-date-tents', 'End date must be at least one day after start date');
+          this.value = ''; // Clear invalid selection
+          
+          // Keep quantities disabled
+          tentsField.disabled = true;
+          tentsField.style.cursor = 'not-allowed';
+          tentsField.style.opacity = '0.6';
+          chairsField.disabled = true;
+          chairsField.style.cursor = 'not-allowed';
+          chairsField.style.opacity = '0.6';
+          return;
+        }
+        
+        // Check 14-day maximum duration in real-time
+        const timeDiff = selectedEnd.getTime() - selectedStart.getTime();
+        const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+        const MAX_DURATION_DAYS = 14;
+        
+        console.log('📊 [Tents Admin Modal] Duration:', daysDiff, 'days');
+        
+        if (daysDiff > MAX_DURATION_DAYS) {
+          console.log('❌ [Tents Admin Modal] Maximum duration exceeded:', daysDiff, 'days');
+          setInternalErrorTents('internal-end-date-tents', `Maximum booking period is ${MAX_DURATION_DAYS} days (2 weeks). Current duration: ${daysDiff} day${daysDiff !== 1 ? 's' : ''}`);
+          
+          // Keep quantities disabled for invalid duration
+          tentsField.disabled = true;
+          tentsField.style.cursor = 'not-allowed';
+          tentsField.style.opacity = '0.6';
+          chairsField.disabled = true;
+          chairsField.style.cursor = 'not-allowed';
+          chairsField.style.opacity = '0.6';
+        } else {
+          console.log('✅ [Tents Admin Modal] Duration valid - enabling quantities');
+          
+          // Valid date range - ENABLE quantity fields
+          tentsField.disabled = false;
+          tentsField.style.cursor = 'pointer';
+          tentsField.style.opacity = '1';
+          chairsField.disabled = false;
+          chairsField.style.cursor = 'pointer';
+          chairsField.style.opacity = '1';
+        }
       });
     }
 
@@ -15217,6 +15741,93 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         });
       }
     });
+
+    // ========== REAL-TIME AVAILABILITY VALIDATION ==========
+    const chairsAvailabilityFeedbackTents = document.getElementById('chairsAvailabilityFeedbackTents');
+    const tentsAvailabilityFeedbackTents = document.getElementById('tentsAvailabilityFeedbackTents');
+    const quantityChairsInputTents = document.getElementById('internalChairsTents');
+    const quantityTentsInputTents = document.getElementById('internalTentsTents');
+
+    let validationDebounceTimerTents;
+    const VALIDATION_DEBOUNCE_MS_TENTS = 500;
+
+    async function validateAvailabilityTents() {
+      const startDate = startDateInput?.value;
+      const endDate = endDateInput?.value;
+      const quantityChairs = parseInt(quantityChairsInputTents?.value || 0);
+      const quantityTents = parseInt(quantityTentsInputTents?.value || 0);
+
+      // Hide feedback if incomplete or quantities disabled
+      if (!startDate || !endDate || quantityChairsInputTents?.disabled || quantityTentsInputTents?.disabled) {
+        hideAvailabilityFeedbackTents();
+        return;
+      }
+
+      console.log('🔍 [Tents Admin Modal Availability] Checking...', { startDate, endDate, quantityChairs, quantityTents });
+
+      try {
+        // Check chairs availability
+        if (quantityChairs > 0) {
+          const chairsResult = await calculateAvailableStockForDateRange(startDate, endDate, 'chairs');
+          updateAvailabilityUITents('chairs', chairsResult.available >= quantityChairs, chairsResult.available, quantityChairs);
+        } else {
+          if (chairsAvailabilityFeedbackTents) chairsAvailabilityFeedbackTents.style.display = 'none';
+        }
+
+        // Check tents availability
+        if (quantityTents > 0) {
+          const tentsResult = await calculateAvailableStockForDateRange(startDate, endDate, 'tents');
+          updateAvailabilityUITents('tents', tentsResult.available >= quantityTents, tentsResult.available, quantityTents);
+        } else {
+          if (tentsAvailabilityFeedbackTents) tentsAvailabilityFeedbackTents.style.display = 'none';
+        }
+
+      } catch (error) {
+        console.error('❌ [Tents Admin Modal Availability] Error:', error);
+        hideAvailabilityFeedbackTents();
+      }
+    }
+
+    function updateAvailabilityUITents(itemType, isAvailable, availableQty, requestedQty) {
+      const feedbackElement = itemType === 'chairs' ? chairsAvailabilityFeedbackTents : tentsAvailabilityFeedbackTents;
+      if (!feedbackElement) return;
+
+      const icon = feedbackElement.querySelector('.availability-icon');
+      const text = feedbackElement.querySelector('.availability-text');
+
+      feedbackElement.style.display = 'flex';
+
+      if (isAvailable) {
+        feedbackElement.classList.remove('unavailable');
+        feedbackElement.classList.add('available');
+        icon.textContent = '✓';
+        text.textContent = `Available: ${availableQty} ${itemType} during selected dates`;
+        console.log(`✅ [Tents Admin Modal] ${itemType} available:`, availableQty, '>=', requestedQty);
+      } else {
+        feedbackElement.classList.remove('available');
+        feedbackElement.classList.add('unavailable');
+        icon.textContent = '✗';
+        text.textContent = `Insufficient: Only ${availableQty} ${itemType} available (requested: ${requestedQty})`;
+        console.log(`❌ [Tents Admin Modal] ${itemType} insufficient:`, availableQty, '<', requestedQty);
+      }
+    }
+
+    function hideAvailabilityFeedbackTents() {
+      if (chairsAvailabilityFeedbackTents) chairsAvailabilityFeedbackTents.style.display = 'none';
+      if (tentsAvailabilityFeedbackTents) tentsAvailabilityFeedbackTents.style.display = 'none';
+    }
+
+    function scheduleValidationTents() {
+      clearTimeout(validationDebounceTimerTents);
+      validationDebounceTimerTents = setTimeout(validateAvailabilityTents, VALIDATION_DEBOUNCE_MS_TENTS);
+    }
+
+    // Add event listeners for real-time availability validation
+    if (startDateInput) startDateInput.addEventListener('change', scheduleValidationTents);
+    if (endDateInput) endDateInput.addEventListener('change', scheduleValidationTents);
+    if (quantityChairsInputTents) quantityChairsInputTents.addEventListener('input', scheduleValidationTents);
+    if (quantityTentsInputTents) quantityTentsInputTents.addEventListener('input', scheduleValidationTents);
+    // ========== END OF AVAILABILITY VALIDATION ==========
 
     // Form submission
     form.addEventListener('submit', async function(e) {
@@ -15268,26 +15879,18 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
         hasError = true;
       }
       
-      // Check inventory
-      try {
-        const inventoryDoc = await getDoc(doc(db, 'inventory', 'equipment'));
-        if (inventoryDoc.exists()) {
-          const inventory = inventoryDoc.data();
-          const availableTents = inventory.availableTents || 0;
-          const availableChairs = inventory.availableChairs || 0;
-          
-          if (tents > availableTents) {
-            setInternalErrorTents('internal-tents-tents', `Only ${availableTents} tents available`);
-            hasError = true;
-          }
-          
-          if (chairs > availableChairs) {
-            setInternalErrorTents('internal-chairs-tents', `Only ${availableChairs} chairs available`);
-            hasError = true;
-          }
+      // Check maximum duration (14 days)
+      if (startDate && endDate && endDate >= startDate) {
+        const startDateObj = new Date(startDate + 'T00:00:00');
+        const endDateObj = new Date(endDate + 'T00:00:00');
+        const timeDiff = endDateObj.getTime() - startDateObj.getTime();
+        const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+        const MAX_DURATION_DAYS = 14;
+        
+        if (daysDiff > MAX_DURATION_DAYS) {
+          setInternalErrorTents('internal-end-date-tents', `Maximum booking period is ${MAX_DURATION_DAYS} days (2 weeks). Current duration: ${daysDiff} day${daysDiff !== 1 ? 's' : ''}`);
+          hasError = true;
         }
-      } catch (error) {
-        console.error('Error checking inventory:', error);
       }
       
       // Validate purpose
@@ -15512,17 +16115,24 @@ if (window.location.pathname.endsWith('admin-tents-requests.html') ||
 
   function setInternalErrorTents(elementId, message) {
     const errorElement = document.getElementById(`error-${elementId}`);
-    const inputId = elementId.replace('error-', '').replace(/-/g, '');
-    const inputElement = document.getElementById(inputId.charAt(0).toLowerCase() + inputId.slice(1));
+    // Convert dash-case to camelCase: 'internal-end-date-tents' → 'internalEndDateTents'
+    const inputId = elementId.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
+    const inputElement = document.getElementById(inputId);
     
-    if (errorElement) errorElement.textContent = message;
-    if (inputElement) inputElement.classList.add('error');
+    if (errorElement) {
+      errorElement.textContent = message;
+      console.log('🔴 [Validation Error]', elementId, ':', message);
+    }
+    if (inputElement) {
+      inputElement.classList.add('error');
+    }
   }
 
   function clearInternalErrorTents(elementId) {
     const errorElement = document.getElementById(`error-${elementId}`);
-    const inputId = elementId.replace('error-', '').replace(/-/g, '');
-    const inputElement = document.getElementById(inputId.charAt(0).toLowerCase() + inputId.slice(1));
+    // Convert dash-case to camelCase: 'internal-end-date-tents' → 'internalEndDateTents'
+    const inputId = elementId.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
+    const inputElement = document.getElementById(inputId);
     
     if (errorElement) errorElement.textContent = '';
     if (inputElement) inputElement.classList.remove('error');
@@ -18059,22 +18669,47 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       const np = getNameParts(request);
       const nameDisplay = (np.firstName || np.lastName) ? (np.firstName + (np.lastName ? ' ' + np.lastName : '')) : (request.userEmail || 'Internal');
       
-      // Show confirmation
-      const confirmed = await showConfirmModal(
+      // Show confirmation with request details and reason input
+      const detailsMessage = 
+        `Are you sure you want to cancel this internal conference room booking?\n\n` +
+        `Contact: ${nameDisplay}\n` +
+        `Event: ${request.eventDate}\n` +
+        `Time: ${request.startTime} - ${request.endTime}\n` +
+        `Purpose: ${sanitizeInput(request.purpose || 'N/A')}\n\n` +
+        `⚠️ This will free up the conference room for that time slot.\n\n` +
+        `Please provide a reason for cancellation (required):`;
+      
+      // Use modal with input field for cancellation reason (REQUIRED)
+      const reason = await showConfirmModalWithInput(
         'Cancel Internal Booking',
-        `Are you sure you want to cancel this internal conference room booking?<br><br>` +
-        `<strong>Contact:</strong> ${nameDisplay}<br>` +
-        `<strong>Event:</strong> ${request.eventDate}<br>` +
-        `<strong>Time:</strong> ${request.startTime} - ${request.endTime}<br>` +
-        `<strong>Purpose:</strong> ${sanitizeInput(request.purpose || 'N/A')}<br><br>` +
-        `⚠️ This will free up the conference room for that time slot.`,
-        null,
-        false
+        detailsMessage,
+        'Enter cancellation reason (required)...'
       );
       
-      if (!confirmed) {
-        console.log('❌ [Cancel Internal Conference] Cancelled by user');
+      // If user clicked Cancel or closed modal
+      if (reason === null || reason === false) {
+        console.log('❌ [Cancel Internal Conference] Cancelled by admin');
         return;
+      }
+      
+      // Validate reason is not empty
+      if (!reason || reason.trim() === '') {
+        await showConfirmModal('Error', 'Cancellation reason is required.', null, true);
+        return;
+      }
+      
+      // Get admin info
+      let adminName = 'Admin';
+      try {
+        const adminUser = auth.currentUser;
+        if (adminUser) {
+          const adminDoc = await getDoc(doc(db, 'users', adminUser.uid));
+          if (adminDoc.exists()) {
+            adminName = adminDoc.data().fullName || adminDoc.data().fullname || 'Admin';
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ Could not fetch admin name:', err);
       }
       
       // Update request status
@@ -18083,10 +18718,13 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         status: 'cancelled',
         cancelledAt: new Date(),
         cancelledBy: 'admin',
-        cancellationReason: 'Internal booking cancelled by admin'
+        cancellationReason: reason.trim(),
+        cancelledByAdmin: adminName
       });
       
       console.log('✅ [Cancel Internal Conference] Request status updated to cancelled');
+      console.log('📝 Cancellation reason:', reason.trim());
+      console.log('👨‍💼 Cancelled by admin:', adminName);
       
       // Create notification if notification function exists
       if (request.userId && typeof createStatusChangeNotification === 'function') {
@@ -18857,23 +19495,32 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       // Create a new workbook
       const wb = XLSX.utils.book_new();
       
-      // Sheet 1: All Requests (Active)
-      const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
-      console.log('📄 [CONFERENCE] All Requests sheet:', allRequestsData.length, 'items');
+      // Save current tab
+      const originalTab = currentTab;
+      
+      // Sheet 1: All Requests (Active) - with filters and sorting applied
+      currentTab = 'all';
+      const allRequestsData = getFilteredRequests();
+      console.log('📄 [CONFERENCE] All Requests sheet:', allRequestsData.length, 'items (filtered & sorted)');
       const allRequestsSheet = createExcelSheet(allRequestsData, 'all');
       XLSX.utils.book_append_sheet(wb, allRequestsSheet, 'All Requests');
       
-      // Sheet 2: History
-      const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
-      console.log('📄 [CONFERENCE] History sheet:', historyData.length, 'items');
+      // Sheet 2: History - with filters and sorting applied
+      currentTab = 'history';
+      const historyData = getFilteredRequests();
+      console.log('📄 [CONFERENCE] History sheet:', historyData.length, 'items (filtered & sorted)');
       const historySheet = createExcelSheet(historyData, 'history');
       XLSX.utils.book_append_sheet(wb, historySheet, 'History');
       
-      // Sheet 3: Archives
-      const archivesData = allRequests.filter(r => r.archived === true);
-      console.log('📄 [CONFERENCE] Archives sheet:', archivesData.length, 'items');
+      // Sheet 3: Archives - with filters and sorting applied
+      currentTab = 'archives';
+      const archivesData = getFilteredRequests();
+      console.log('📄 [CONFERENCE] Archives sheet:', archivesData.length, 'items (filtered & sorted)');
       const archivesSheet = createExcelSheet(archivesData, 'archives');
       XLSX.utils.book_append_sheet(wb, archivesSheet, 'Archives');
+      
+      // Restore original tab
+      currentTab = originalTab;
       
       // Generate filename with timestamp
       const filename = `conference-room-requests-${new Date().toISOString().split('T')[0]}.xlsx`;
@@ -18898,8 +19545,8 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   function createExcelSheet(requests, sheetType) {
     const data = [];
     
-    // Headers - bulk action format (17 base columns)
-    const headers = ['Request ID', 'Status', 'First Name', 'Last Name', 'Full Name', 'Contact Number', 'Complete Address', 'Purpose', 'Event Date', 'Start Time', 'End Time', 'User Email', 'Date Submitted', 'Date Approved', 'Is Internal Booking'];
+    // Headers - bulk action format (16 base columns, removed Complete Address)
+    const headers = ['Request ID', 'Status', 'First Name', 'Last Name', 'Full Name', 'Contact Number', 'Purpose', 'Event Date', 'Start Time', 'End Time', 'User Email', 'Date Submitted', 'Date Approved', 'Is Internal Booking'];
     
     if (sheetType === 'history') {
       headers.push('Remarks', 'Completed On');
@@ -18956,7 +19603,6 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         nameParts.lastName,
         req.fullName || '',
         req.contactNumber || '',
-        req.address || '',
         req.purpose || '',
         formatDateLong(req.eventDate),
         req.startTime ? formatTime12Hour(req.startTime) : '',
@@ -19014,25 +19660,34 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     
     let csv = '';
     
-    // Section 1: All Requests (Active)
+    // Save current tab
+    const originalTab = currentTab;
+    
+    // Section 1: All Requests (Active) - with filters and sorting applied
     csv += '=== ALL REQUESTS (ACTIVE) ===\n';
-    const allRequestsData = allRequests.filter(r => ['pending', 'approved', 'in-progress'].includes(r.status));
-    console.log('📄 [CONFERENCE] All Requests section:', allRequestsData.length, 'items');
+    currentTab = 'all';
+    const allRequestsData = getFilteredRequests();
+    console.log('📄 [CONFERENCE] All Requests section:', allRequestsData.length, 'items (filtered & sorted)');
     csv += buildCSVSection(allRequestsData, 'all');
     csv += '\n\n';
     
-    // Section 2: History
+    // Section 2: History - with filters and sorting applied
     csv += '=== HISTORY ===\n';
-    const historyData = allRequests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status) && !r.archived);
-    console.log('📄 [CONFERENCE] History section:', historyData.length, 'items');
+    currentTab = 'history';
+    const historyData = getFilteredRequests();
+    console.log('📄 [CONFERENCE] History section:', historyData.length, 'items (filtered & sorted)');
     csv += buildCSVSection(historyData, 'history');
     csv += '\n\n';
     
-    // Section 3: Archives
+    // Section 3: Archives - with filters and sorting applied
     csv += '=== ARCHIVES ===\n';
-    const archivesData = allRequests.filter(r => r.archived === true);
-    console.log('📄 [CONFERENCE] Archives section:', archivesData.length, 'items');
+    currentTab = 'archives';
+    const archivesData = getFilteredRequests();
+    console.log('📄 [CONFERENCE] Archives section:', archivesData.length, 'items (filtered & sorted)');
     csv += buildCSVSection(archivesData, 'archives');
+    
+    // Restore original tab
+    currentTab = originalTab;
     
     const filename = `conference-room-all-requests-${new Date().toISOString().split('T')[0]}.csv`;
     console.log('💾 [CONFERENCE] Downloading file:', filename);
@@ -19064,13 +19719,18 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   function exportToCSVArchives() {
     console.log('💾 Exporting archives to CSV...');
     
-    const archivesData = allRequests.filter(r => r.archived === true);
+    // Save current tab and switch to archives
+    const originalTab = currentTab;
+    currentTab = 'archives';
+    const archivesData = getFilteredRequests();
+    currentTab = originalTab;
     
     if (archivesData.length === 0) {
       showToast('No archives data to export', false);
       return;
     }
     
+    console.log('📄 [CONFERENCE] Exporting', archivesData.length, 'archive items (filtered & sorted)');
     const csv = buildCSVSection(archivesData, 'archives');
     downloadCSV(csv, `conference-room-archives-${new Date().toISOString().split('T')[0]}.csv`);
     showToast('CSV exported successfully (Archives)', true);
@@ -19084,8 +19744,8 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   function buildCSVSection(requests, sheetType) {
     let csv = '';
     
-    // Headers - bulk action format (17 base columns)
-    csv += 'Request ID,Status,First Name,Last Name,Full Name,Contact Number,Complete Address,Purpose,Event Date,Start Time,End Time,User Email,Date Submitted,Date Approved,Is Internal Booking';
+    // Headers - bulk action format (16 base columns, removed Complete Address)
+    csv += 'Request ID,Status,First Name,Last Name,Full Name,Contact Number,Purpose,Event Date,Start Time,End Time,User Email,Date Submitted,Date Approved,Is Internal Booking';
     if (sheetType === 'history') {
       csv += ',Remarks,Completed On';
     } else if (sheetType === 'archives') {
@@ -19134,13 +19794,12 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       }
       
       const fullNameEsc = (req.fullName || '').replace(/"/g, '""');
-      const addressEsc = (req.address || '').replace(/"/g, '""');
       const purposeEsc = (req.purpose || '').replace(/"/g, '""');
       const remarkEsc = (req.rejectionReason || req.remarks || '').replace(/"/g, '""');
       const startTime = req.startTime ? formatTime12Hour(req.startTime) : '';
       const endTime = req.endTime ? formatTime12Hour(req.endTime) : '';
       
-      csv += `"${req.id || ''}","${req.status ? req.status.toUpperCase() : ''}","${nameParts.firstName}","${nameParts.lastName}","${fullNameEsc}","${req.contactNumber || ''}","${addressEsc}","${purposeEsc}","${formatDateLong(req.eventDate)}","${startTime}","${endTime}","${req.userEmail || ''}","${dateSubmitted}","${dateApproved}","${req.isInternalBooking ? 'Yes' : 'No'}"`;
+      csv += `"${req.id || ''}","${req.status ? req.status.toUpperCase() : ''}","${nameParts.firstName}","${nameParts.lastName}","${fullNameEsc}","${req.contactNumber || ''}","${purposeEsc}","${formatDateLong(req.eventDate)}","${startTime}","${endTime}","${req.userEmail || ''}","${dateSubmitted}","${dateApproved}","${req.isInternalBooking ? 'Yes' : 'No'}"`;
       
       if (sheetType === 'history') {
         csv += `,"${remarkEsc}"`;
@@ -19248,11 +19907,78 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   const cancelInternalBooking = document.getElementById('cancelInternalBookingConference');
   const internalBookingForm = document.getElementById('internalBookingFormConference');
 
-  // Populate time dropdowns for internal booking
+  // Store bookings for the selected date (for internal booking modal)
+  let internalDateBookings = [];
+
+  // Load bookings for a specific date (internal booking)
+  async function loadInternalBookingsForDate(date) {
+    console.log(`🔍 [Internal Booking] Loading bookings for date: ${date}`);
+    
+    try {
+      const bookingsRef = collection(db, 'conferenceRoomBookings');
+      const q = query(
+        bookingsRef,
+        where('eventDate', '==', date),
+        where('status', 'in', ['pending', 'approved', 'in-progress'])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      internalDateBookings = [];
+      
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        internalDateBookings.push({
+          startTime: data.startTime,
+          endTime: data.endTime,
+          purpose: data.purpose || 'Reserved'
+        });
+      });
+      
+      console.log(`📊 [Internal Booking] Found ${internalDateBookings.length} booking(s) for ${date}:`, internalDateBookings);
+      
+    } catch (error) {
+      console.error('❌ [Internal Booking] Error loading bookings:', error);
+      internalDateBookings = [];
+    }
+  }
+
+  // Check if a time slot is unavailable (for internal booking)
+  function isInternalTimeSlotUnavailable(timeSlot, existingBookings) {
+    if (!existingBookings || existingBookings.length === 0) return false;
+    
+    function timeToMinutes(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+    
+    const slotMinutes = timeToMinutes(timeSlot);
+    
+    for (const booking of existingBookings) {
+      const bookingStartMinutes = timeToMinutes(booking.startTime);
+      const bookingEndMinutes = timeToMinutes(booking.endTime);
+      
+      // Check if slot is during the booking
+      if (slotMinutes >= bookingStartMinutes && slotMinutes < bookingEndMinutes) {
+        return true;
+      }
+      
+      // Check if slot is within 30 minutes after booking ends
+      if (slotMinutes >= bookingEndMinutes && slotMinutes < bookingEndMinutes + 30) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Populate time dropdowns for internal booking with booking availability
   function populateInternalTimeDropdowns() {
     const startTimeSelect = document.getElementById('internalStartTimeConference');
     const endTimeSelect = document.getElementById('internalEndTimeConference');
     if (!startTimeSelect || !endTimeSelect) return;
+
+    // Save current selections
+    const currentStart = startTimeSelect.value;
+    const currentEnd = endTimeSelect.value;
 
     startTimeSelect.innerHTML = '<option value="">Start Time</option>';
     endTimeSelect.innerHTML = '<option value="">End Time</option>';
@@ -19260,6 +19986,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
     // Generate 30-minute interval options from 08:00 through 17:00
     const startMinutes = 8 * 60; // 08:00 in minutes
     const endMinutes = 17 * 60;  // 17:00 in minutes
+    
     for (let mins = startMinutes; mins <= endMinutes; mins += 30) {
       const hh = Math.floor(mins / 60);
       const mm = mins % 60;
@@ -19267,20 +19994,146 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       const hour12 = hh % 12 === 0 ? 12 : hh % 12;
       const ampm = hh >= 12 ? 'PM' : 'AM';
       const display = `${hour12}:${String(mm).padStart(2, '0')} ${ampm}`;
-      startTimeSelect.add(new Option(display, value));
-      endTimeSelect.add(new Option(display, value));
+
+      // Check if this time slot is unavailable for START time
+      const isUnavailableStart = isInternalTimeSlotUnavailable(value, internalDateBookings);
+      
+      const startOption = new Option(display, value);
+      if (isUnavailableStart) {
+        startOption.disabled = true;
+        startOption.text = `${display} (Booked)`;
+        startOption.style.color = '#999';
+      }
+      startTimeSelect.add(startOption);
+
+      // For END time, add all options (will be filtered based on START selection)
+      const endOption = new Option(display, value);
+      endTimeSelect.add(endOption);
+    }
+
+    // Restore selections if still valid
+    if (currentStart && !startTimeSelect.querySelector(`option[value="${currentStart}"]`)?.disabled) {
+      startTimeSelect.value = currentStart;
+    }
+    if (currentEnd) {
+      endTimeSelect.value = currentEnd;
+    }
+
+    // Update end time options based on current start time
+    if (startTimeSelect.value) {
+      updateInternalEndTimeOptions();
     }
   }
 
-  // Open modal
+  // Update end time options based on selected start time (for internal booking)
+  function updateInternalEndTimeOptions() {
+    const startTimeSelect = document.getElementById('internalStartTimeConference');
+    const endTimeSelect = document.getElementById('internalEndTimeConference');
+    if (!startTimeSelect || !endTimeSelect) return;
+
+    const selectedStart = startTimeSelect.value;
+    if (!selectedStart) {
+      endTimeSelect.querySelectorAll('option').forEach(opt => {
+        if (opt.value) {
+          opt.disabled = false;
+          opt.text = opt.text.replace(' (Unavailable)', '');
+          opt.style.color = '';
+        }
+      });
+      return;
+    }
+
+    console.log(`⏰ [Internal Booking] Filtering end times based on start: ${selectedStart}`);
+
+    function timeToMinutes(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+
+    const selectedStartMinutes = timeToMinutes(selectedStart);
+
+    // Filter end time options
+    endTimeSelect.querySelectorAll('option').forEach(opt => {
+      if (!opt.value) return;
+
+      const endValue = opt.value;
+      const endValueMinutes = timeToMinutes(endValue);
+      
+      // Rule 1: End time must be after start time
+      if (endValue <= selectedStart) {
+        opt.disabled = true;
+        opt.style.color = '#999';
+        return;
+      }
+
+      // Rule 2: Check if this end time would cause overlap OR violate 30-min gap
+      let isInvalid = false;
+      
+      for (const booking of internalDateBookings) {
+        const bookingStartMinutes = timeToMinutes(booking.startTime);
+        const bookingEndMinutes = timeToMinutes(booking.endTime);
+        
+        if (timeRangesOverlap(selectedStart, endValue, booking.startTime, booking.endTime)) {
+          isInvalid = true;
+          break;
+        }
+        
+        if (endValueMinutes > bookingStartMinutes - 30 && endValueMinutes <= bookingStartMinutes) {
+          isInvalid = true;
+          break;
+        }
+      }
+
+      if (isInvalid) {
+        opt.disabled = true;
+        const baseText = opt.text.replace(' (Unavailable)', '');
+        opt.text = `${baseText} (Unavailable)`;
+        opt.style.color = '#999';
+      } else {
+        opt.disabled = false;
+        opt.text = opt.text.replace(' (Unavailable)', '');
+        opt.style.color = '';
+      }
+    });
+  }
+
+  // Open modal and auto-fill admin details
   if (addInternalBookingBtn) {
-    addInternalBookingBtn.addEventListener('click', () => {
+    addInternalBookingBtn.addEventListener('click', async () => {
       internalBookingModal.classList.add('active');
+      
       // Set minimum date to today
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('internalEventDateConference').setAttribute('min', today);
+      
       // Populate time dropdowns
       populateInternalTimeDropdowns();
+      
+      // Auto-fill admin details
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            
+            // Auto-fill Contact Person (fullName or firstName + lastName)
+            const fullName = userData.fullName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+            document.getElementById('internalContactPersonConference').value = fullName;
+            
+            // Auto-fill Contact Number
+            if (userData.contactNumber) {
+              document.getElementById('internalContactNumberConference').value = userData.contactNumber;
+            }
+            
+            console.log('✅ [Internal Booking] Auto-filled admin details:', { fullName, contactNumber: userData.contactNumber });
+          }
+        } catch (error) {
+          console.error('❌ [Internal Booking] Error fetching admin details:', error);
+        }
+      }
     });
   }
 
@@ -19384,14 +20237,18 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       'error-internal-event-date-conference',
       'error-internal-start-time-conference',
       'error-internal-end-time-conference',
-      'error-internal-expected-attendees-conference',
       'error-internal-purpose-conference',
-      'error-internal-department-conference',
       'error-internal-contact-person-conference',
       'error-internal-contact-number-conference'
     ];
     
     errorIds.forEach(clearInternalError);
+    
+    // Also hide availability feedback
+    const availabilityFeedback = document.getElementById('internalConferenceAvailabilityFeedback');
+    if (availabilityFeedback) {
+      availabilityFeedback.style.display = 'none';
+    }
   }
 
   // Validate Philippine mobile number
@@ -19402,7 +20259,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
 
   // Validate time range (end time must be after start time)
   function validateTimeRange(startTime, endTime) {
-    if (!startTime || !endTime) return true; // Skip if not both filled
+    if (!startTime || !endTime) return true;
     
     const [startHour, startMin] = startTime.split(':').map(Number);
     const [endHour, endMin] = endTime.split(':').map(Number);
@@ -19415,39 +20272,252 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
 
   // Validate business hours (8 AM to 5 PM)
   function validateBusinessHours(time) {
-    if (!time) return true; // Skip if empty
+    if (!time) return true;
     
     const [hour, min] = time.split(':').map(Number);
     const timeInMinutes = hour * 60 + min;
-    const startBusiness = 8 * 60; // 8:00 AM
-    const endBusiness = 17 * 60;  // 5:00 PM
+    const startBusiness = 8 * 60;
+    const endBusiness = 17 * 60;
     
     return timeInMinutes >= startBusiness && timeInMinutes <= endBusiness;
   }
 
-  // Real-time validation
-  document.getElementById('internalEventDateConference')?.addEventListener('change', function() {
+  // ========== REAL-TIME VALIDATION SETUP ==========
+  
+  // Event Date: Load bookings when date changes
+  document.getElementById('internalEventDateConference')?.addEventListener('change', async function() {
     clearInternalError('error-internal-event-date-conference');
+    
+    const selectedDate = this.value;
+    if (selectedDate) {
+      console.log(`📅 [Internal Booking] Date changed to: ${selectedDate}`);
+      await loadInternalBookingsForDate(selectedDate);
+      populateInternalTimeDropdowns(); // Repopulate with new availability
+      
+      // Reset time selections
+      document.getElementById('internalStartTimeConference').value = '';
+      document.getElementById('internalEndTimeConference').value = '';
+      
+      // Hide availability feedback
+      const availabilityFeedback = document.getElementById('internalConferenceAvailabilityFeedback');
+      if (availabilityFeedback) {
+        availabilityFeedback.style.display = 'none';
+      }
+    }
   });
 
+  // Start Time: Update end time options and validate
   document.getElementById('internalStartTimeConference')?.addEventListener('change', function() {
     clearInternalError('error-internal-start-time-conference');
+    clearInternalError('error-internal-end-time-conference');
+    
+    updateInternalEndTimeOptions();
+    
+    const endTimeSelect = document.getElementById('internalEndTimeConference');
+    if (this.value && endTimeSelect.value) {
+      validateInternalMinimumDuration();
+      scheduleInternalAvailabilityCheck();
+    }
   });
 
+  // End Time: Validate minimum duration
   document.getElementById('internalEndTimeConference')?.addEventListener('change', function() {
     clearInternalError('error-internal-end-time-conference');
+    
+    const startTimeSelect = document.getElementById('internalStartTimeConference');
+    if (startTimeSelect.value && this.value) {
+      validateInternalMinimumDuration();
+      scheduleInternalAvailabilityCheck();
+    }
   });
 
-  document.getElementById('internalExpectedAttendeesConference')?.addEventListener('input', function() {
-    clearInternalError('error-internal-expected-attendees-conference');
-  });
+  // Contact Number: Real-time validation (numbers only, 11 digits max)
+  const internalContactNumberField = document.getElementById('internalContactNumberConference');
+  if (internalContactNumberField) {
+    // Prevent typing non-numeric characters
+    internalContactNumberField.addEventListener('keypress', function(e) {
+      const charCode = e.which ? e.which : e.keyCode;
+      if (charCode < 48 || charCode > 57) {
+        e.preventDefault();
+        return false;
+      }
+    });
 
-  ['internalPurposeConference', 'internalDepartmentConference', 'internalContactPersonConference', 'internalContactNumberConference'].forEach(id => {
+    // Strip non-digits and limit to 11 characters
+    internalContactNumberField.addEventListener('input', function(e) {
+      let value = this.value.replace(/\D/g, '');
+      if (value.length > 11) {
+        value = value.slice(0, 11);
+      }
+      this.value = value;
+      clearInternalError('error-internal-contact-number-conference');
+    });
+
+    // Handle paste event
+    internalContactNumberField.addEventListener('paste', function(e) {
+      e.preventDefault();
+      const pastedData = e.clipboardData.getData('text');
+      const numericOnly = pastedData.replace(/\D/g, '').slice(0, 11);
+      this.value = numericOnly;
+      clearInternalError('error-internal-contact-number-conference');
+    });
+  }
+
+  // Purpose and Contact Person: Clear errors on input
+  ['internalPurposeConference', 'internalContactPersonConference'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', function() {
       const errorId = 'error-' + id.replace(/([A-Z])/g, '-$1').toLowerCase();
       clearInternalError(errorId);
     });
   });
+
+  // Validate 2-hour minimum duration in real-time
+  function validateInternalMinimumDuration() {
+    const startTimeSelect = document.getElementById('internalStartTimeConference');
+    const endTimeSelect = document.getElementById('internalEndTimeConference');
+    const submitBtn = document.querySelector('#internalBookingFormConference button[type="submit"]');
+    
+    const startTime = startTimeSelect.value;
+    const endTime = endTimeSelect.value;
+    
+    if (!startTime || !endTime) return true;
+    
+    function timeToMinutes(timeStr) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+    
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = timeToMinutes(endTime);
+    const durationMinutes = endMinutes - startMinutes;
+    const MIN_DURATION_HOURS = 2;
+    const MIN_DURATION_MINUTES = MIN_DURATION_HOURS * 60;
+    
+    if (durationMinutes < MIN_DURATION_MINUTES) {
+      const actualHours = Math.floor(durationMinutes / 60);
+      const actualMinutes = durationMinutes % 60;
+      const durationText = actualMinutes > 0 
+        ? `${actualHours} hour${actualHours !== 1 ? 's' : ''} and ${actualMinutes} minute${actualMinutes !== 1 ? 's' : ''}`
+        : `${actualHours} hour${actualHours !== 1 ? 's' : ''}`;
+      
+      setInternalError('error-internal-end-time-conference', `❌ Minimum booking duration is ${MIN_DURATION_HOURS} hours. Current duration: ${durationText}`);
+      
+      // Disable submit button
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+        submitBtn.style.cursor = 'not-allowed';
+        submitBtn.title = 'Please select a valid time range (minimum 2 hours)';
+      }
+      
+      return false;
+    } else {
+      // Valid duration - enable submit
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        submitBtn.title = '';
+      }
+      
+      console.log(`✅ [Internal Time Validation] Valid duration: ${Math.floor(durationMinutes / 60)} hours ${durationMinutes % 60} minutes`);
+      return true;
+    }
+  }
+
+  // Real-time availability validation with debounce
+  let internalAvailabilityDebounce;
+  
+  function scheduleInternalAvailabilityCheck() {
+    clearTimeout(internalAvailabilityDebounce);
+    internalAvailabilityDebounce = setTimeout(validateInternalAvailability, 500);
+  }
+  
+  async function validateInternalAvailability() {
+    const eventDateInput = document.getElementById('internalEventDateConference');
+    const startTimeInput = document.getElementById('internalStartTimeConference');
+    const endTimeInput = document.getElementById('internalEndTimeConference');
+    const availabilityFeedback = document.getElementById('internalConferenceAvailabilityFeedback');
+    
+    if (!eventDateInput || !startTimeInput || !endTimeInput || !availabilityFeedback) return;
+    
+    const eventDate = eventDateInput.value;
+    const startTime = startTimeInput.value;
+    const endTime = endTimeInput.value;
+    
+    // Hide if incomplete
+    if (!eventDate || !startTime || !endTime) {
+      availabilityFeedback.style.display = 'none';
+      return;
+    }
+    
+    console.log('[Internal Booking Validation] Checking availability for:', { eventDate, startTime, endTime });
+    
+    try {
+      const bookingsRef = collection(db, 'conferenceRoomBookings');
+      const q = query(
+        bookingsRef,
+        where('eventDate', '==', eventDate),
+        where('status', 'in', ['pending', 'approved', 'in-progress'])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      let hasConflict = false;
+      let conflictCount = 0;
+      
+      querySnapshot.forEach(doc => {
+        const booking = doc.data();
+        if (timeRangesOverlap(startTime, endTime, booking.startTime, booking.endTime)) {
+          hasConflict = true;
+          conflictCount++;
+        }
+      });
+      
+      // Update UI
+      availabilityFeedback.style.display = 'flex';
+      const icon = availabilityFeedback.querySelector('.availability-icon');
+      const text = availabilityFeedback.querySelector('.availability-text');
+      
+      const submitBtn = document.querySelector('#internalBookingFormConference button[type="submit"]');
+      
+      if (hasConflict) {
+        availabilityFeedback.classList.remove('available');
+        availabilityFeedback.classList.add('unavailable');
+        icon.textContent = '✗';
+        text.textContent = `Time slot unavailable (${conflictCount} conflicting booking${conflictCount > 1 ? 's' : ''})`;
+        
+        // Disable submit button
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.style.opacity = '0.6';
+          submitBtn.style.cursor = 'not-allowed';
+          submitBtn.title = 'Cannot submit - time slot is already booked';
+        }
+      } else {
+        availabilityFeedback.classList.remove('unavailable');
+        availabilityFeedback.classList.add('available');
+        icon.textContent = '✓';
+        text.textContent = `Conference room available for selected time`;
+        
+        // Enable submit button (if duration is also valid)
+        if (submitBtn) {
+          const durationValid = validateInternalMinimumDuration();
+          if (durationValid) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+            submitBtn.title = '';
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error('[Internal Booking Validation] Error:', error);
+      availabilityFeedback.style.display = 'none';
+    }
+  }
+  
+  // ========== END OF REAL-TIME VALIDATION ==========
 
   // Form submission
   if (internalBookingForm) {
@@ -19456,13 +20526,11 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       
       clearAllInternalErrors();
       
-      // Get form values
+      // Get form values (removed expectedAttendees and department)
       const eventDate = document.getElementById('internalEventDateConference').value.trim();
       const startTime = document.getElementById('internalStartTimeConference').value.trim();
       const endTime = document.getElementById('internalEndTimeConference').value.trim();
-      const expectedAttendees = parseInt(document.getElementById('internalExpectedAttendeesConference').value) || 0;
       const purpose = document.getElementById('internalPurposeConference').value.trim();
-      const department = document.getElementById('internalDepartmentConference').value.trim();
       const contactPerson = document.getElementById('internalContactPersonConference').value.trim();
       const contactNumber = document.getElementById('internalContactNumberConference').value.trim();
       
@@ -19508,13 +20576,24 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         hasError = true;
       }
 
-      // Validate expected attendees
-      if (!expectedAttendees || expectedAttendees < 1) {
-        setInternalError('error-internal-expected-attendees-conference', 'Expected attendees is required (minimum: 1)');
-        hasError = true;
-      } else if (expectedAttendees > 200) {
-        setInternalError('error-internal-expected-attendees-conference', 'Expected attendees cannot exceed 200');
-        hasError = true;
+      // Validate 2-hour minimum duration
+      if (startTime && endTime) {
+        function timeToMinutes(timeStr) {
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          return hours * 60 + minutes;
+        }
+        
+        const durationMinutes = timeToMinutes(endTime) - timeToMinutes(startTime);
+        if (durationMinutes < 120) {
+          const actualHours = Math.floor(durationMinutes / 60);
+          const actualMinutes = durationMinutes % 60;
+          const durationText = actualMinutes > 0 
+            ? `${actualHours} hour${actualHours !== 1 ? 's' : ''} and ${actualMinutes} minute${actualMinutes !== 1 ? 's' : ''}`
+            : `${actualHours} hour${actualHours !== 1 ? 's' : ''}`;
+          
+          setInternalError('error-internal-end-time-conference', `Minimum booking duration is 2 hours. Current duration: ${durationText}`);
+          hasError = true;
+        }
       }
       
       // Validate purpose
@@ -19577,9 +20656,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         eventDate,
         startTime,
         endTime,
-        expectedAttendees,
         purpose,
-        department,
         contactPerson,
         contactNumber
       });
@@ -19600,13 +20677,11 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       return `${hour12}:${minutes} ${ampm}`;
     };
     
-    // Populate the summary spans
+    // Populate the summary spans (removed expectedAttendees and department)
     document.getElementById('confirmEventDateConference').textContent = data.eventDate || 'N/A';
     document.getElementById('confirmStartTimeConference').textContent = formatTime(data.startTime);
     document.getElementById('confirmEndTimeConference').textContent = formatTime(data.endTime);
-    document.getElementById('confirmAttendeesConference').textContent = data.expectedAttendees || 0;
     document.getElementById('confirmPurposeConference').textContent = data.purpose || 'N/A';
-    document.getElementById('confirmDepartmentConference').textContent = data.department || 'N/A';
     document.getElementById('confirmContactPersonConference').textContent = data.contactPerson || 'N/A';
     document.getElementById('confirmContactNumberConference').textContent = data.contactNumber || 'N/A';
     
@@ -19624,13 +20699,11 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
   function handleInternalBookingConfirmConference() {
     console.log('✅ Admin confirmed conference internal booking');
     
-    // Get form data from form inputs
+    // Get form data from form inputs (removed expectedAttendees and department)
     const eventDate = document.getElementById('internalEventDateConference').value.trim();
     const startTime = document.getElementById('internalStartTimeConference').value.trim();
     const endTime = document.getElementById('internalEndTimeConference').value.trim();
-    const expectedAttendees = parseInt(document.getElementById('internalExpectedAttendeesConference').value) || 0;
     const purpose = document.getElementById('internalPurposeConference').value.trim();
-    const department = document.getElementById('internalDepartmentConference').value.trim();
     const contactPerson = document.getElementById('internalContactPersonConference').value.trim();
     const contactNumber = document.getElementById('internalContactNumberConference').value.trim();
     
@@ -19645,9 +20718,7 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
       eventDate,
       startTime,
       endTime,
-      expectedAttendees,
       purpose,
-      department,
       contactPerson,
       contactNumber
     });
@@ -19684,14 +20755,12 @@ if (window.location.pathname.endsWith('admin-conference-requests.html') ||
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || ''; // Join remaining parts as last name
         
-        // Create booking document
+        // Create booking document (removed expectedAttendees and department fields)
         const bookingData = {
           eventDate: data.eventDate,
           startTime: data.startTime,
           endTime: data.endTime,
-          expectedAttendees: data.expectedAttendees,
           purpose: sanitizeInput(data.purpose),
-          department: data.department ? sanitizeInput(data.department) : null,
           firstName: sanitizeInput(firstName),
           lastName: sanitizeInput(lastName),
           fullName: sanitizeInput(data.contactPerson), // Keep fullName for backwards compatibility
