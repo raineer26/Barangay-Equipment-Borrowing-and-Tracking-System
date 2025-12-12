@@ -18935,7 +18935,7 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
           // Load admin's own profile
           loadAdminProfile();
         } else if (currentUserRole === 'superadmin') {
-          // Superadmin has full access - load all users
+          // Superadmin has full access - load all users AND their own profile
           loadTotalUsersCount();
           loadAllUsers();
           loadAdminProfile();
@@ -20421,15 +20421,57 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
   document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Admin User Manager page loaded');
     
-    // Wait for authentication before loading admin profile
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        console.log('✅ User authenticated, loading admin profile...');
-        loadAdminProfile();
-      } else {
-        console.log('⚠️ No authenticated user');
-      }
-    });
+    // Track if admin profile has been loaded
+    let adminProfileLoaded = false;
+    
+    // Setup tab switching for All Registered Users and Admin tabs
+    const allTab = document.getElementById('tab-all');
+    const adminTab = document.getElementById('tab-admin');
+    const allTabPanel = document.getElementById('tabpanel-all');
+    const adminTabPanel = document.getElementById('tabpanel-admin');
+    
+    if (allTab && adminTab && allTabPanel && adminTabPanel) {
+      allTab.addEventListener('click', () => {
+        // Switch to All Registered Users tab
+        allTab.classList.add('um-active');
+        allTab.setAttribute('aria-selected', 'true');
+        allTab.setAttribute('tabindex', '0');
+        
+        adminTab.classList.remove('um-active');
+        adminTab.setAttribute('aria-selected', 'false');
+        adminTab.setAttribute('tabindex', '-1');
+        
+        allTabPanel.hidden = false;
+        allTabPanel.setAttribute('tabindex', '0');
+        
+        adminTabPanel.hidden = true;
+        adminTabPanel.setAttribute('tabindex', '-1');
+      });
+      
+      adminTab.addEventListener('click', () => {
+        // Switch to Admin tab
+        adminTab.classList.add('um-active');
+        adminTab.setAttribute('aria-selected', 'true');
+        adminTab.setAttribute('tabindex', '0');
+        
+        allTab.classList.remove('um-active');
+        allTab.setAttribute('aria-selected', 'false');
+        allTab.setAttribute('tabindex', '-1');
+        
+        adminTabPanel.hidden = false;
+        adminTabPanel.setAttribute('tabindex', '0');
+        
+        allTabPanel.hidden = true;
+        allTabPanel.setAttribute('tabindex', '-1');
+        
+        // Load admin profile only when tab is clicked (and only once)
+        if (!adminProfileLoaded) {
+          console.log('📋 Loading admin profile for first time...');
+          loadAdminProfile();
+          adminProfileLoaded = true;
+        }
+      });
+    }
     
     // Load total users count (real-time)
     loadTotalUsersCount();

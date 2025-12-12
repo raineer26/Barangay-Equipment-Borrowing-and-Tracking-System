@@ -10,7 +10,20 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
+      
+      /* Immediate role-based hiding to prevent flickering */
     </style>
+    <script>
+      // Inject CSS immediately based on cached role (runs before body renders)
+      (function() {
+        const cachedRole = sessionStorage.getItem('userRole');
+        if (cachedRole === 'superadmin') {
+          document.write('<style id="superadmin-hide">a[href="admin.html"]{display:none!important}.sidebar-dropdown{display:none!important}a[href="admin-manage-inventory.html"]{display:none!important}</style>');
+        } else if (cachedRole === 'admin') {
+          document.write('<style id="admin-hide">#tab-all{display:none!important}#tabpanel-all{display:none!important}#tabpanel-admin{display:block!important}#adminContent{display:none!important}#adminLoadingSpinner{display:flex!important}.um-stats-card{display:none!important}</style>');
+        }
+      })();
+    </script>
   </head>
   <body class="admin-body">
     <!-- SIDEBAR -->
@@ -171,7 +184,7 @@
         </div>
 
         <!-- Admin Tab Panel -->
-        <div id="tabpanel-admin" role="tabpanel" aria-labelledby="tab-admin" tabindex="0">
+        <div id="tabpanel-admin" role="tabpanel" aria-labelledby="tab-admin" tabindex="-1" hidden>
           <!-- Loading Spinner -->
           <div id="adminLoadingSpinner" style="display:flex;justify-content:center;align-items:center;padding:60px 20px;">
             <div style="text-align:center;">
