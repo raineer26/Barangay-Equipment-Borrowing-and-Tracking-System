@@ -9812,7 +9812,7 @@ body.sidebar-collapsed .sidebar-toggle-btn,
   }
   
   nav ul {
-    gap: 30px;
+    gap: 10px;
     margin-right: 15px;
     font-size: 16px;
   }
@@ -10170,7 +10170,7 @@ body.sidebar-collapsed .sidebar-toggle-btn,
     width: 100%;
     max-width: 500px;
     max-width: 500px;
-    height: 350px;
+    height: 450px;
   }
   
   .service-img {
@@ -11554,7 +11554,7 @@ body.sidebar-collapsed .sidebar-toggle-btn,
     object-fit: contain;
     align-items: center;
     border-radius: 50%;
-    margin-top: 70px;
+    margin-top: 10px;
   }
 
   /* Contact info takes remaining space */
