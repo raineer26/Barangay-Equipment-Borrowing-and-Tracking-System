@@ -1257,6 +1257,26 @@ signupForm?.addEventListener("submit", async (e) => {
     const result = await registerUser(email, password, userData);
 
     if (result.success) {
+      // 👑 NOTIFY SUPER ADMINS: New user registered
+      try {
+        await createSuperAdminNotification({
+          type: 'account_created',
+          title: `New User Registered`,
+          message: `${fullName} (${email}) created an account`,
+          priority: 'low',
+          targetUserId: result.user?.uid || null,
+          actionType: 'registration',
+          metadata: {
+            userEmail: email,
+            userName: fullName
+          }
+        });
+        console.log('✅ Super admin notification created for new registration');
+      } catch (notifError) {
+        console.error('⚠️ Failed to create super admin notification:', notifError);
+        // Don't block signup if notification fails
+      }
+      
       // Show success message and redirect to login page
       showAlert(result.message, true, () => {
         window.location.href = "index.html"; // Redirect to login page
@@ -21740,6 +21760,29 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
       
       console.log('✅ User role changed successfully');
       const roleDisplayName = newRole === 'superadmin' ? 'Super Admin' : (newRole === 'admin' ? 'Admin' : 'User');
+      
+      // 👑 NOTIFY SUPER ADMINS: User role was promoted
+      try {
+        await createSuperAdminNotification({
+          type: 'account_role_changed',
+          title: `User Role Promoted`,
+          message: `${user.fullName} was promoted to ${roleDisplayName}`,
+          priority: newRole === 'admin' ? 'high' : 'medium',
+          targetUserId: userId,
+          performedBy: auth.currentUser?.uid,
+          actionType: 'role_change',
+          metadata: {
+            oldRole: user.role,
+            newRole: newRole,
+            userEmail: user.email
+          }
+        });
+        console.log('✅ Super admin notification created for role change');
+      } catch (notifError) {
+        console.error('⚠️ Failed to create super admin notification:', notifError);
+        // Don't block the role change if notification fails
+      }
+      
       showToast(`Role promoted to ${roleDisplayName} successfully`, true);
       
       // Close user details modal if open
@@ -21784,6 +21827,27 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
       });
       
       console.log('✅ User account disabled successfully');
+      
+      // 👑 NOTIFY SUPER ADMINS: User account was disabled
+      try {
+        await createSuperAdminNotification({
+          type: 'account_status_changed',
+          title: `Account Disabled`,
+          message: `Account disabled: ${user.fullName} (${user.email})`,
+          priority: 'medium',
+          targetUserId: userId,
+          performedBy: auth.currentUser?.uid,
+          actionType: 'disable',
+          metadata: {
+            userEmail: user.email,
+            userRole: user.role
+          }
+        });
+        console.log('✅ Super admin notification created for account disable');
+      } catch (notifError) {
+        console.error('⚠️ Failed to create super admin notification:', notifError);
+      }
+      
       showToast('User account disabled successfully', true);
       
       // Refresh table
@@ -21825,6 +21889,27 @@ if (window.location.pathname.endsWith('admin-user-manager.html') || window.locat
       });
       
       console.log('✅ User account enabled successfully');
+      
+      // 👑 NOTIFY SUPER ADMINS: User account was enabled
+      try {
+        await createSuperAdminNotification({
+          type: 'account_status_changed',
+          title: `Account Enabled`,
+          message: `Account enabled: ${user.fullName} (${user.email})`,
+          priority: 'low',
+          targetUserId: userId,
+          performedBy: auth.currentUser?.uid,
+          actionType: 'enable',
+          metadata: {
+            userEmail: user.email,
+            userRole: user.role
+          }
+        });
+        console.log('✅ Super admin notification created for account enable');
+      } catch (notifError) {
+        console.error('⚠️ Failed to create super admin notification:', notifError);
+      }
+      
       showToast('User account enabled successfully', true);
       
       // Refresh table
@@ -23026,6 +23111,91 @@ async function createAdminNotification(notificationData) {
 
 /**
  * ============================================================================
+ * CORE FUNCTION 1B: CREATE SUPER ADMIN NOTIFICATION
+ * ============================================================================
+ * Creates notifications for ALL super admin users
+ * Used for account management events: role changes, account status, new registrations
+ * Super admins do NOT receive booking-related notifications
+ * Created: December 12, 2025
+ */
+async function createSuperAdminNotification(notificationData) {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('👑 [Super Admin Notif] createSuperAdminNotification()');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📋 Notification Type:', notificationData.type);
+  console.log('📋 Title:', notificationData.title);
+  console.log('📋 Priority:', notificationData.priority || 'medium');
+  console.log('📋 Target User ID:', notificationData.targetUserId || 'N/A');
+  
+  try {
+    // Step 1: Get all super admin users
+    console.log('🔍 Fetching all super admin users...');
+    const usersQuery = query(
+      collection(db, "users"),
+      where("role", "==", "superadmin")
+    );
+    
+    const usersSnapshot = await getDocs(usersQuery);
+    console.log(`✅ Found ${usersSnapshot.size} super admin user(s)`);
+    
+    if (usersSnapshot.empty) {
+      console.warn('⚠️ No super admin users found! Notification not created.');
+      return [];
+    }
+    
+    // Step 2: Create notification for each super admin
+    const notificationIds = [];
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const superAdminId = userDoc.id;
+      console.log(`📝 Creating notification for super admin: ${userDoc.data().email}`);
+      
+      const notificationRef = await addDoc(collection(db, "notifications"), {
+        userId: superAdminId,
+        isSuperAdminNotification: true, // Flag to distinguish super admin notifications
+        type: notificationData.type,
+        title: notificationData.title,
+        message: notificationData.message,
+        priority: notificationData.priority || 'medium',
+        read: false,
+        createdAt: serverTimestamp(),
+        actionUrl: notificationData.actionUrl || 'admin-user-manager.html',
+        metadata: {
+          ...notificationData.metadata,
+          targetUserId: notificationData.targetUserId, // User being acted upon
+          performedBy: notificationData.performedBy, // Admin who performed action
+          actionType: notificationData.actionType, // 'role_change', 'disable', 'enable', 'registration'
+          notificationDate: new Date().toISOString().split('T')[0] // For deduplication
+        }
+      });
+      
+      notificationIds.push(notificationRef.id);
+      console.log(`✅ Notification created with ID: ${notificationRef.id}`);
+    }
+    
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`✅ SUCCESS! Created ${notificationIds.length} super admin notification(s)`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    
+    // Update badge on all admin pages
+    if (typeof updateAdminNotificationBadge === 'function') {
+      updateAdminNotificationBadge();
+    }
+    
+    return notificationIds;
+    
+  } catch (error) {
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('❌ [Super Admin Notif] FAILED to create notification');
+    console.error('Error:', error.message);
+    console.error('Error code:', error.code);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    throw error;
+  }
+}
+
+/**
+ * ============================================================================
  * AUTO-CLEANUP: REMOVE OLD READ NOTIFICATIONS
  * ============================================================================
  * Automatically removes read notifications older than 90 days
@@ -23092,13 +23262,34 @@ async function loadAdminNotifications() {
   }
   
   try {
-    // Query admin notifications for current user
-    const q = query(
-      collection(db, "notifications"),
-      where("isAdminNotification", "==", true),
-      where("userId", "==", user.uid),
-      limit(200) // Limit to last 200 notifications
-    );
+    // Step 1: Check user role to determine which notifications to load
+    console.log('[Admin Notifications] 🔍 Checking user role...');
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    const userRole = userDoc.exists() ? userDoc.data()?.role : 'user';
+    console.log(`[Admin Notifications] 👤 User role: ${userRole}`);
+    
+    // Step 2: Build query based on role
+    let q;
+    
+    if (userRole === 'superadmin') {
+      // 👑 Super admins see ONLY super admin notifications (account management)
+      console.log('[Admin Notifications] 👑 Loading SUPER ADMIN notifications...');
+      q = query(
+        collection(db, "notifications"),
+        where("isSuperAdminNotification", "==", true),
+        where("userId", "==", user.uid),
+        limit(200)
+      );
+    } else {
+      // 📋 Regular admins see ONLY admin notifications (booking requests)
+      console.log('[Admin Notifications] 📋 Loading ADMIN notifications...');
+      q = query(
+        collection(db, "notifications"),
+        where("isAdminNotification", "==", true),
+        where("userId", "==", user.uid),
+        limit(200)
+      );
+    }
     
     console.log('[Admin Notifications] 🔍 Querying Firestore...');
     const querySnapshot = await getDocs(q);
@@ -23376,6 +23567,11 @@ function createAdminNotificationElement(notification) {
       if (action === 'mark-read') {
         await markAdminNotificationAsRead(notification.id);
       } else if (action === 'view-request') {
+        // Mark as read before redirecting
+        if (!notification.read) {
+          await markAdminNotificationAsRead(notification.id);
+        }
+        
         const url = btn.dataset.url;
         const requestId = btn.dataset.requestId;
         const requestType = btn.dataset.requestType;
@@ -23590,12 +23786,30 @@ async function updateAdminNotificationBadge() {
   if (!user) return;
   
   try {
-    const q = query(
-      collection(db, "notifications"),
-      where("isAdminNotification", "==", true),
-      where("userId", "==", user.uid),
-      where("read", "==", false)
-    );
+    // Check user role to determine which notifications to count
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    if (!userDoc.exists()) return;
+    
+    const userRole = userDoc.data()?.role;
+    
+    let q;
+    if (userRole === 'superadmin') {
+      // Super admins: count ONLY super admin notifications
+      q = query(
+        collection(db, "notifications"),
+        where("isSuperAdminNotification", "==", true),
+        where("userId", "==", user.uid),
+        where("read", "==", false)
+      );
+    } else {
+      // Regular admins: count ONLY admin notifications
+      q = query(
+        collection(db, "notifications"),
+        where("isAdminNotification", "==", true),
+        where("userId", "==", user.uid),
+        where("read", "==", false)
+      );
+    }
     
     const snapshot = await getDocs(q);
     const count = snapshot.size;
@@ -23607,7 +23821,7 @@ async function updateAdminNotificationBadge() {
       badge.classList.toggle('pulse', count > 0);
     }
     
-    console.log(`[Admin Notif Badge] Updated: ${count} unread`);
+    console.log(`[Admin Notif Badge] Updated for ${userRole}: ${count} unread`);
     
   } catch (error) {
     console.error('[Admin Notif Badge] Error:', error);
