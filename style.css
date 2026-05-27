@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 html {
   scroll-behavior: smooth;
+  background: #fff;
 }
 
 body {
@@ -8,6 +9,8 @@ body {
   padding: 0;
   box-sizing: border-box;
   font-family: 'Poppins', sans-serif; /* Use Poppins as primary UI font */
+  background: #fff;
+  color: #222;
 }
 
 /* NAVIGATION */
